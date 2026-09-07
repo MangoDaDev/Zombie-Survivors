@@ -21,11 +21,6 @@
           "$path": "src/client"
         }
       }
-    },
-    "SoundService": {
-      "$properties": {
-        "RespectFilteringEnabled": true
-      }
     }
   }
 }
