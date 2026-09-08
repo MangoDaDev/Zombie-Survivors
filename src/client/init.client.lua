@@ -10,7 +10,7 @@ local ToInit = {}
 
 local DataController = require(Controllers.DataController.DataControllerClient)
 DataController:init()
-
+print("Hi")
 local RequiredModules = {}
 
 for _, Object in ToInit do
