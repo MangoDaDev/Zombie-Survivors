@@ -4,11 +4,13 @@ if RunService:IsServer() then
 	return {} :: DataServiceClient
 end
 
-local Packages = script.Parent.Parent
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Packages = ReplicatedStorage.Packages
 local Signal = require(Packages.Signal)
 local Networker = require(Packages.Networker)
-local DataServiceUtils = require(script.Parent.DataServiceUtils)
-local Data = require(script.Parent.Data)
+local DataServiceUtils = require(script.Parent.DataControllerUtils)
+local Data = require(ReplicatedStorage.Classes.Data)
 
 type Signal<T> = Signal.Signal<T>
 type Path = Data.Path

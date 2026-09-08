@@ -6,14 +6,16 @@ if RunService:IsClient() then
 	return {} :: DataServiceServer
 end
 
-local Packages = script.Parent.Parent
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Packages = ReplicatedStorage.Packages
 local Signal = require(Packages.Signal)
 local Networker = require(Packages.Networker)
 local ProfileStore = if RunService:IsServer() then require(Packages.ProfileStore) else nil :: any
-local Data = require(script.Parent.Data)
-local DataServiceUtils = require(script.Parent.DataServiceUtils)
+local Data = require(ReplicatedStorage.Classes.Data)
+local DataServiceUtils = require(ReplicatedStorage.Controllers.DataController.DataControllerUtils)
 
-local DATA_PREFIX = "PLAYER_"
+local DATA_PREFIX = RunService:IsStudio() and "STUDIOTEST_" or "PLAYER_"
 local DEFAULT_PROFILE_STORE_INDEX = "Default"
 
 type Path = Data.Path
@@ -194,6 +196,7 @@ function DataServiceServer._playerAdded(self: DataServiceServer, player: Player)
 
 	profile:AddUserId(userId)
 	profile:Reconcile()
+	print("loaded profile for " .. player.Name)
 	profile.OnSessionEnd:Connect(function()
 		self._profiles[player] = nil
 		player:Kick(`Profile session end - Please rejoin`)
@@ -478,7 +481,11 @@ end
 	```
 ]=]
 function DataServiceServer.get(self: DataServiceServer, player: Player, path: Path?): any
-	return self._data[player]:get(path)
+	if self._data[player] then
+		return self._data[player]:get(path)
+	else
+		return nil
+	end
 end
 
 --[=[
@@ -501,6 +508,10 @@ end
 function DataServiceServer.set(self: DataServiceServer, player: Player, path: Path, value: any, dontReplicate: boolean?)
 	if not dontReplicate then
 		self.networker:fire(player, DataServiceUtils.enums.actions.set, path, value)
+	end
+
+	if self._data[player] == nil then
+		return
 	end
 
 	self._data[player]:set(path, value)
