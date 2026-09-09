@@ -11,6 +11,8 @@ local ToInit = {}
 local DataController = require(Controllers.DataController.DataControllerClient)
 DataController:init()
 
+--test
+
 local RequiredModules = {}
 
 for _, Object in ToInit do
