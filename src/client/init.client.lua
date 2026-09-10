@@ -1,53 +1,44 @@
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
-local Controllers = ReplicatedStorage.Controllers
-local Classes = ReplicatedStorage.Classes
-local LocalPlayer = Players.LocalPlayer
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local Packages = ReplicatedStorage.Packages
+local local_player = Players.LocalPlayer
+local data_service = require(ReplicatedStorage.Packages.dataservice).client
 
-local ToInit = {}
+data_service:init()
 
-local DataController = require(Controllers.DataController.DataControllerClient)
-DataController:init()
+local modules_to_init = {
+	ReplicatedStorage.Controllers.CharacterController,
+	ReplicatedStorage.UI.UIOrigin,
+}
 
---test
+local initialized_modules = {}
 
-local RequiredModules = {}
+for _, module_script in modules_to_init do
+	local module = require(module_script)
 
-for _, Object in ToInit do
-	if typeof(Object) ~= "Instance" or not Object:IsA("ModuleScript") then
-		return
+	if module.SetDataService then
+		module.SetDataService(data_service)
 	end
-	print("Waiting to Required " .. Object.Name)
-	local Module = require(Object)
-	print("Required " .. Object.Name)
-	table.insert(RequiredModules, Module)
-	if Module.Init and Object.Parent ~= Classes and Object.Parent.Parent ~= Classes then
-		print("Started to init " .. Object.Name)
-		Module:Init()
-		print("Initiated " .. Object.Name)
-	elseif Module.init and Object.Parent ~= Classes and Object.Parent.Parent ~= Classes then
-		print("Initiating " .. Object.Name)
-		Module:init()
-		print("Finished Initiating " .. Object.Name)
+
+	table.insert(initialized_modules, module)
+
+	if module.Init then
+		module:Init()
+	elseif module.init then
+		module:init()
 	end
 end
 
-local function OnCharacterAdded(char)
-	for _, v in pairs(RequiredModules) do
-		if char then
-			if v.OnCharacterAdded then
-				v.OnCharacterAdded(char)
-			end
+local function OnCharacterAdded(character: Model)
+	for _, module in initialized_modules do
+		if module.OnCharacterAdded then
+			module.OnCharacterAdded(character)
 		end
 	end
 end
 
-if LocalPlayer.Character then
-	OnCharacterAdded(LocalPlayer.Character)
+if local_player.Character then
+	OnCharacterAdded(local_player.Character)
 end
 
-LocalPlayer.CharacterAdded:Connect(function(char)
-	OnCharacterAdded(char)
-end)
+local_player.CharacterAdded:Connect(OnCharacterAdded)

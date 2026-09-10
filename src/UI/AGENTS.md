@@ -1,0 +1,16 @@
+# UI guidance
+
+- This replicated tree is the client UI implementation and uses Vide from `ReplicatedStorage.Packages.vide`.
+- `UIOrigin.lua` is the single application mount boundary. It mounts `App.lua` into LocalPlayer.PlayerGui once.
+- `App.lua` is the neutral ScreenGui composition root. Compose screens and HUD components there without moving gameplay authority into UI code.
+- Components return their UI hierarchy; they should not find PlayerGui, parent themselves, or call `mount` independently.
+- Put generic reusable controls in `Classes`. Introduce folders such as HUD, Menus, Frames, Theme, Effects, or Utility only when real components need them.
+- Name positional component groups clearly, such as `BottomRight`, rather than using vague container names.
+- Prefer Vide's `create`, `source`, `derive`, `read`, `spring`, `effect`, `cleanup`, `action`, `context`, `batch`, `changed`, and `mount` APIs over manual UI synchronization.
+- Pass reactive values directly to properties. Use `effect` only for real side effects, not merely to assign an Instance property.
+- Use `cleanup` for RBXScriptConnections, callbacks, threads, and resources created manually inside a Vide scope.
+- Keep components small and composable. Prefer typed props and reactive state over OOP-style `new`, `Enable`, `Disable`, and `Destroy` APIs.
+- Keep pressed interaction higher priority than hover state, and ensure interaction state cannot remain stuck after input ends, the pointer leaves, or a control becomes disabled.
+- Reuse `Classes/Button.lua` before introducing another general-purpose button.
+- Reuse suitable Studio-owned assets from `ReplicatedStorage.Assets` instead of duplicating them. All sounds in `Assets.Sounds` are available for UI feedback unless their own name, attributes, folder guidance, or an `AGENTS` value says otherwise.
+- Clone sounds before playback and parent runtime copies appropriately so concurrent UI interactions do not fight over one shared Sound instance. Clean up each clone after playback.

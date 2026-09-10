@@ -17,9 +17,16 @@
         "$className": "Folder",
         "$path": "src/modules"
       },
-      "Classes": {
+      "UI": {
         "$className": "Folder",
-        "$path": "src/classes"
+        "$path": "src/UI"
+      }
+    },
+
+    "ReplicatedFirst": {
+      "$className": "ReplicatedFirst",
+      "LoadingScreen": {
+        "$path": "src/loading"
       }
     },
 
@@ -35,10 +42,6 @@
       "ServerPackages": {
         "$className": "Folder",
         "$path": "ServerPackages"
-      },
-      "Classes": {
-        "$className": "Folder",
-        "$path": "src/serverclasses"
       },
       "Controllers": {
         "$className": "Folder",

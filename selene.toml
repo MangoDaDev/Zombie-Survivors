@@ -1,1 +1,5 @@
 std = "roblox"
+
+[lints]
+mixed_table = "allow"
+roblox_manual_fromscale_or_fromoffset = "allow"
