@@ -7,10 +7,14 @@ local SharedClass = require(ReplicatedStorage.Modules.Core.SharedClass)
 
 local CLASS_INFO = {
 	Name = "ConveyorItem",
+	AllowedMethods = { "Purchase" },
 }
+
+local PROMPT_DISTANCE = 10
 
 local isServer = RunService:IsServer()
 local renderFolder: Folder?
+local purchaseHandler: ((any, Player) -> ())?
 
 local ConveyorItem = {}
 ConveyorItem.__index = ConveyorItem
@@ -36,13 +40,43 @@ local function getRenderFolder(): Folder
 	return folder
 end
 
+local function createItemBillboard(itemInfo, adornee: BasePart): BillboardGui
+	local billboard = Instance.new("BillboardGui")
+	billboard.Name = "ItemInfo"
+	billboard.Adornee = adornee
+	billboard.AlwaysOnTop = true
+	billboard.MaxDistance = 60
+	billboard.Size = UDim2.fromOffset(220, 72)
+	billboard.StudsOffsetWorldSpace = Vector3.new(0, 2.5, 0)
+	billboard.Parent = adornee
+
+	local label = Instance.new("TextLabel")
+	label.BackgroundTransparency = 1
+	label.Font = Enum.Font.GothamBold
+	label.RichText = true
+	label.Size = UDim2.fromScale(1, 1)
+	label.Text = `<b>{itemInfo.Name}</b>\nPrice: ${itemInfo.Price}\nGuests pay: ${itemInfo.GuestPay}`
+	label.TextColor3 = Color3.new(1, 1, 1)
+	label.TextScaled = true
+	label.TextStrokeColor3 = Color3.new(0, 0, 0)
+	label.TextStrokeTransparency = 0
+	label.Parent = billboard
+
+	local textSizeConstraint = Instance.new("UITextSizeConstraint")
+	textSizeConstraint.MaxTextSize = 22
+	textSizeConstraint.MinTextSize = 10
+	textSizeConstraint.Parent = label
+
+	return billboard
+end
+
 local function getPathCFrame(path: { CFrame }, distance: number): CFrame
 	for index = 1, #path - 1 do
 		local from = path[index]
 		local to = path[index + 1]
 		local segmentLength = (to.Position - from.Position).Magnitude
-		if distance <= segmentLength then
-			return from:Lerp(to, if segmentLength > 0 then distance / segmentLength else 1)
+		if segmentLength > 0 and distance <= segmentLength then
+			return from:Lerp(to, distance / segmentLength)
 		end
 		distance -= segmentLength
 	end
@@ -66,6 +100,22 @@ function ConveyorItem.new(data)
 	return self
 end
 
+function ConveyorItem.SetPurchaseHandler(handler: (any, Player) -> ())
+	assert(isServer, "ConveyorItem purchase handlers can only be set on the server")
+	purchaseHandler = handler
+end
+
+function ConveyorItem:GetCurrentCFrame(): CFrame
+	local elapsed = Workspace:GetServerTimeNow() - self.StartedAt
+	return getPathCFrame(self.Path, math.max(elapsed, 0) * self.MoveSpeed)
+end
+
+function ConveyorItem:Purchase(player: Player)
+	if isServer and purchaseHandler then
+		purchaseHandler(self, player)
+	end
+end
+
 function ConveyorItem:Render()
 	local itemInfo = getItemInfo(self.ItemName)
 	if itemInfo == nil then
@@ -80,6 +130,14 @@ function ConveyorItem:Render()
 	end
 
 	local model = template:Clone()
+	local primaryPart = model.PrimaryPart
+	if primaryPart == nil then
+		model:Destroy()
+		warn(`ConveyorItem model {itemInfo.AssetName} has no PrimaryPart`)
+		return
+	end
+	local heightOffset = primaryPart.Size.Y / 2
+
 	model.Name = self.ItemName
 	for _, descendant in model:GetDescendants() do
 		if descendant:IsA("BasePart") then
@@ -91,11 +149,23 @@ function ConveyorItem:Render()
 	end
 	model.Parent = getRenderFolder()
 	self.model = model
+	createItemBillboard(itemInfo, primaryPart)
+
+	local prompt = Instance.new("ProximityPrompt")
+	prompt.ActionText = `Buy ${itemInfo.Price}`
+	prompt.ObjectText = self.ItemName
+	prompt.HoldDuration = 0
+	prompt.MaxActivationDistance = PROMPT_DISTANCE
+	prompt.RequiresLineOfSight = false
+	prompt.Parent = primaryPart
+	self.prompt = prompt
+	self.promptConnection = prompt.Triggered:Connect(function()
+		self:FireServer("Purchase")
+	end)
 
 	self.renderConnection = RunService.RenderStepped:Connect(function()
-		local elapsed = Workspace:GetServerTimeNow() - self.StartedAt
-		local pathCFrame = getPathCFrame(self.Path, math.max(elapsed, 0) * self.MoveSpeed)
-		model:PivotTo(pathCFrame * CFrame.new(0, itemInfo.HeightOffset, 0))
+		local pathCFrame = self:GetCurrentCFrame()
+		model:PivotTo(pathCFrame * CFrame.new(0, heightOffset, 0))
 	end)
 end
 
@@ -112,6 +182,10 @@ function ConveyorItem:Destroy()
 	if self.renderConnection then
 		self.renderConnection:Disconnect()
 		self.renderConnection = nil
+	end
+	if self.promptConnection then
+		self.promptConnection:Disconnect()
+		self.promptConnection = nil
 	end
 	if self.model then
 		self.model:Destroy()

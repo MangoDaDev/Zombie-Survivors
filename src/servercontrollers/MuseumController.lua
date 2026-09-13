@@ -50,6 +50,11 @@ local function teleportCharacterToMuseum(player: Player, character: Model)
 	TeleportPlayer(character, spawnCFrame)
 end
 
+function MuseumController.GetMuseum(player: Player): Model?
+	local assignment = assignments[player]
+	return if assignment then assignment.museum else nil
+end
+
 function MuseumController:Init()
 	playerMuseums = Instance.new("Folder")
 	playerMuseums.Name = "PlayerMuseums"

@@ -1,3 +1,4 @@
 return {
-	Cash = 0,
+	Cash = 100,
+	Inventory = {},
 }

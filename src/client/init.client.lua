@@ -11,6 +11,7 @@ local modules_to_init = {
 	ReplicatedStorage.Controllers.ConveyorItemController,
 	ReplicatedStorage.Controllers.TopbarController,
 	ReplicatedStorage.UI.UIOrigin,
+	ReplicatedStorage.Controllers.InventoryController,
 }
 
 local initialized_modules = {}

@@ -50,7 +50,7 @@ dependencies = []
 [[package]]
 name = "ryan-bridges/roblox-sync-test"
 version = "0.1.0"
-dependencies = [["dataservice", "leifstout/dataservice@1.0.0"], ["networker", "leifstout/networker@0.3.1"], ["promise", "evaera/promise@4.0.0"], ["signal", "stravant/goodsignal@0.3.1"], ["topbarplus", "1foreverhd/topbarplus@3.4.0"], ["vide", "centau/vide@0.4.1"], ["profileservice", "firebird702/profileservice@1.1.0"]]
+dependencies = [["dataservice", "leifstout/dataservice@1.0.0"], ["networker", "leifstout/networker@0.3.1"], ["promise", "evaera/promise@4.0.0"], ["satchel", "upliftgames/satchel@1.6.0"], ["signal", "stravant/goodsignal@0.3.1"], ["topbarplus", "1foreverhd/topbarplus@3.4.0"], ["vide", "centau/vide@0.4.1"], ["profileservice", "firebird702/profileservice@1.1.0"]]
 
 [[package]]
 name = "sleitnick/signal"
@@ -61,3 +61,8 @@ dependencies = []
 name = "stravant/goodsignal"
 version = "0.3.1"
 dependencies = []
+
+[[package]]
+name = "upliftgames/satchel"
+version = "1.6.0"
+dependencies = [["topbarplus", "1foreverhd/topbarplus@3.4.0"]]

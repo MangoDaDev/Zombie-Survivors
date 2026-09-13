@@ -10,9 +10,12 @@ local source = vide.source
 
 return function()
 	local cash = source(dataService:get("Cash"))
-	cleanup(dataService:getChangedSignal("Cash"):Connect(function(value)
+	local cashChangedConnection = dataService:getChangedSignal("Cash"):Connect(function(value)
 		cash(value)
-	end))
+	end)
+	cleanup(function()
+		cashChangedConnection:Disconnect()
+	end)
 
 	return create "Frame" {
 		Name = "BottomRight",

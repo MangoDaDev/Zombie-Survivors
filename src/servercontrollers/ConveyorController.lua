@@ -1,6 +1,8 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerStorage = game:GetService("ServerStorage")
 local Workspace = game:GetService("Workspace")
 
+local CarryController = require(ServerStorage.Controllers.CarryController)
 local ConveyorItem = require(ReplicatedStorage.Modules.Game.ConveyorItem)
 local ItemsInfo = require(ReplicatedStorage.Modules.Game.ItemsInfo)
 local GetRandomFromWeightedTable = require(ReplicatedStorage.Modules.Math.GetRandomFromWeightedTable)
@@ -9,11 +11,14 @@ local CONFIG = {
 	Luck = 1,
 	SpawnInterval = 3,
 	MaximumSegmentGap = 1,
+	PurchaseDistanceBuffer = 3,
 }
 
 local ConveyorController = {
 	Config = CONFIG,
 }
+
+local dataService
 
 local function getPathLength(path: { CFrame }): number
 	local length = 0
@@ -64,10 +69,52 @@ local function buildPath(startSegment: Model, segments: { Model }): { CFrame }
 		assert(nextSegment and nearestDistance <= CONFIG.MaximumSegmentGap, "Conveyor path has a missing segment")
 		currentSegment = nextSegment
 		visited[currentSegment] = true
-		table.insert(path, (currentSegment.StartPos :: BasePart).CFrame)
 	end
 
 	return path
+end
+
+local function getItemInfo(itemName: string)
+	for _, itemInfo in ItemsInfo do
+		if itemInfo.Name == itemName then
+			return itemInfo
+		end
+	end
+	return nil
+end
+
+local function purchaseItem(item, player: Player)
+	if item.Purchased or item.UniqueId == nil or not CarryController.CanCarry(player) then
+		return
+	end
+
+	local character = player.Character
+	local rootPart = character and character:FindFirstChild("HumanoidRootPart")
+	if rootPart == nil then
+		return
+	end
+	if (rootPart.Position - item:GetCurrentCFrame().Position).Magnitude > 10 + CONFIG.PurchaseDistanceBuffer then
+		return
+	end
+
+	local itemInfo = getItemInfo(item.ItemName)
+	local cash = dataService:get(player, "Cash")
+	if itemInfo == nil or type(cash) ~= "number" or cash < itemInfo.Price then
+		return
+	end
+
+	item.Purchased = true
+	if not CarryController.StartCarrying(player, itemInfo.Id) then
+		item.Purchased = nil
+		return
+	end
+
+	dataService:set(player, "Cash", cash - itemInfo.Price)
+	item:Destroy()
+end
+
+function ConveyorController.SetDataService(service)
+	dataService = service
 end
 
 local function getConveyorPaths(): { { CFrame } }
@@ -108,6 +155,7 @@ end
 function ConveyorController:Init()
 	local paths = getConveyorPaths()
 	assert(#paths == 2, `Expected two conveyor paths, found {#paths}`)
+	ConveyorItem.SetPurchaseHandler(purchaseItem)
 
 	task.spawn(function()
 		while true do
