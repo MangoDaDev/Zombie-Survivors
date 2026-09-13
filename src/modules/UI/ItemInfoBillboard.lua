@@ -2,7 +2,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Images = require(ReplicatedStorage.Modules.UI.Images)
 
-local BILLBOARD_SIZE = UDim2.fromScale(7.5, 3)
+local BILLBOARD_SIZE = UDim2.fromScale(7.5, 4)
 local COMIC_FONT = Font.fromName("ComicNeueAngular")
 local MAX_DISTANCE = 300
 
@@ -53,7 +53,7 @@ local function createStatRow(image: string, value: number, position: UDim2): Fra
 	return row
 end
 
-return function(itemInfo, adornee: BasePart): BillboardGui
+return function(itemInfo, adornee: BasePart, fixingState): BillboardGui
 	local existingBillboard = adornee:FindFirstChild("ItemInfo")
 	if existingBillboard then
 		existingBillboard:Destroy()
@@ -71,7 +71,7 @@ return function(itemInfo, adornee: BasePart): BillboardGui
 	local nameLabel = Instance.new("TextLabel")
 	nameLabel.BackgroundTransparency = 1
 	nameLabel.FontFace = COMIC_FONT
-	nameLabel.Size = UDim2.fromScale(1, 0.38)
+	nameLabel.Size = UDim2.fromScale(1, 0.3)
 	nameLabel.Text = itemInfo.Name
 	nameLabel.TextColor3 = Color3.new(1, 1, 1)
 	nameLabel.TextScaled = true
@@ -79,8 +79,28 @@ return function(itemInfo, adornee: BasePart): BillboardGui
 	nameLabel.Parent = billboard
 	addStroke(nameLabel)
 
-	createStatRow(Images.Cash, itemInfo.Price, UDim2.fromScale(0, 0.4)).Parent = billboard
-	createStatRow(Images.Binoculars, itemInfo.GuestPay, UDim2.fromScale(0, 0.7)).Parent = billboard
+	createStatRow(Images.Cash, itemInfo.Price, UDim2.fromScale(0, 0.31)).Parent = billboard
+	createStatRow(Images.Binoculars, itemInfo.GuestPay, UDim2.fromScale(0, 0.56)).Parent = billboard
+	if fixingState and fixingState.Completed ~= true and Images.FixIcons and Images.FixIcons.Dirt then
+		local fixRow = Instance.new("Frame")
+		fixRow.Name = "FixIcons"
+		fixRow.BackgroundTransparency = 1
+		fixRow.Position = UDim2.fromScale(0, 0.81)
+		fixRow.Size = UDim2.fromScale(1, 0.19)
+		fixRow.Parent = billboard
+		local layout = Instance.new("UIListLayout")
+		layout.FillDirection = Enum.FillDirection.Horizontal
+		layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+		layout.VerticalAlignment = Enum.VerticalAlignment.Center
+		layout.Parent = fixRow
+		local dirtIcon = Instance.new("ImageLabel")
+		dirtIcon.Name = "Dirt"
+		dirtIcon.BackgroundTransparency = 1
+		dirtIcon.Image = Images.FixIcons.Dirt
+		dirtIcon.ScaleType = Enum.ScaleType.Fit
+		dirtIcon.Size = UDim2.fromScale(0.14, 1)
+		dirtIcon.Parent = fixRow
+	end
 
 	return billboard
 end

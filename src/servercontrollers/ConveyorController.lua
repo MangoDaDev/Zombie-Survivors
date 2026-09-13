@@ -149,6 +149,7 @@ local function spawnItem(path: { CFrame })
 		MoveSpeed = itemInfo.MoveSpeed,
 		StartedAt = Workspace:GetServerTimeNow(),
 		Duration = getPathLength(path) / itemInfo.MoveSpeed,
+		DirtCount = 72,
 	})
 end
 

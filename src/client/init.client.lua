@@ -13,6 +13,7 @@ local modules_to_init = {
 	ReplicatedStorage.Controllers.TopbarController,
 	ReplicatedStorage.UI.UIOrigin,
 	ReplicatedStorage.Controllers.InventoryController,
+	ReplicatedStorage.Controllers.FixingController,
 }
 
 local initialized_modules = {}

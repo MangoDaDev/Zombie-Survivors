@@ -14,6 +14,10 @@ local Images = {
 	Upgrade = "rbxassetid://129209820289889",
 	Changelog = "rbxassetid://119703720791230",
 	Binoculars = "rbxassetid://106957185207855",
+
+	FixIcons = {
+		Dirt = "rbxassetid://86050971312005"
+	}
 }
 
 return Images

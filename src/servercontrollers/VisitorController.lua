@@ -1,6 +1,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerStorage = game:GetService("ServerStorage")
+local Workspace = game:GetService("Workspace")
 
 local ItemsInfo = require(ReplicatedStorage.Modules.Game.ItemsInfo)
 local MuseumVisitor = require(ServerStorage.Classes.MuseumVisitor)
@@ -10,6 +11,7 @@ local CONFIG = {
 	InitialSpawnDelay = 5,
 	BetweenVisitorsMin = 8,
 	BetweenVisitorsMax = 14,
+	MaxActiveVisitors = 3,
 	MoveSpeed = 8,
 	ActivityCountMin = 4,
 	ActivityCountMax = 7,
@@ -57,7 +59,7 @@ local VisitorController = {
 
 local dataService
 local visitTokens: { [Player]: {} } = {}
-local activeVisitors: { [Player]: any } = {}
+local activeVisitors: { [Player]: { [any]: boolean } } = {}
 
 local function getItemInfo(itemId: number)
 	for _, itemInfo in ItemsInfo do
@@ -121,6 +123,20 @@ local function getInspectionCFrame(viewPart: BasePart, itemCFrame: BasePart): CF
 	return CFrame.lookAt(standPosition, lookPosition)
 end
 
+local function GetGroundedCFrame(Museum: Model, TargetCFrame: CFrame): CFrame
+	local RaycastParameters = RaycastParams.new()
+	RaycastParameters.FilterType = Enum.RaycastFilterType.Include
+	RaycastParameters.FilterDescendantsInstances = { Museum }
+	RaycastParameters.RespectCanCollide = true
+
+	local RayOrigin = TargetCFrame.Position + Vector3.new(0, 4, 0)
+	local RayResult = Workspace:Raycast(RayOrigin, Vector3.new(0, -12, 0), RaycastParameters)
+	if RayResult == nil then
+		return TargetCFrame
+	end
+	return CFrame.new(RayResult.Position) * TargetCFrame.Rotation
+end
+
 local function getRandomMessage(messages: { string }, previousMessage: string?): string
 	if #messages == 1 then
 		return messages[1]
@@ -134,7 +150,11 @@ local function getRandomMessage(messages: { string }, previousMessage: string?):
 end
 
 local function isVisitActive(player: Player, token, visitor): boolean
-	return player.Parent == Players and visitTokens[player] == token and activeVisitors[player] == visitor
+	local ActiveForPlayer = activeVisitors[player]
+	return player.Parent == Players
+		and visitTokens[player] == token
+		and ActiveForPlayer ~= nil
+		and ActiveForPlayer[visitor] == true
 end
 
 local function runVisit(player: Player, token)
@@ -146,7 +166,7 @@ local function runVisit(player: Player, token)
 	end
 
 	local npcAssets = ReplicatedStorage.Assets.Models.NPCS
-	local spawnCFrame = spawnPart.CFrame
+	local spawnCFrame = GetGroundedCFrame(museum, spawnPart.CFrame)
 	local visitor = MuseumVisitor.new({
 		OwnerUserId = player.UserId,
 		SpawnCFrame = spawnCFrame,
@@ -155,7 +175,12 @@ local function runVisit(player: Player, token)
 		PantsTemplate = getRandomChildOfClass(npcAssets.Pants, "Pants"),
 		HairTemplate = getRandomChildOfClass(npcAssets.Hair, "Accessory"),
 	})
-	activeVisitors[player] = visitor
+	local ActiveForPlayer = activeVisitors[player]
+	if ActiveForPlayer == nil or visitTokens[player] ~= token then
+		visitor:Destroy()
+		return
+	end
+	ActiveForPlayer[visitor] = true
 
 	local currentCFrame = spawnCFrame
 	local lastMessage: string?
@@ -184,7 +209,11 @@ local function runVisit(player: Player, token)
 			local displayState = occupiedDisplays[math.random(1, #occupiedDisplays)]
 			local itemId = displayState.itemId
 			local itemInfo = itemId and getItemInfo(itemId)
-			if itemInfo and moveTo(getInspectionCFrame(displayState.viewPart, displayState.itemCFrame)) then
+			local InspectionCFrame = GetGroundedCFrame(
+				museum,
+				getInspectionCFrame(displayState.viewPart, displayState.itemCFrame)
+			)
+			if itemInfo and moveTo(InspectionCFrame) then
 				maybeSay(INSPECTION_MESSAGES, CONFIG.InspectMessageChance)
 				task.wait(math.random(CONFIG.InspectDurationMin, CONFIG.InspectDurationMax))
 				if isVisitActive(player, token, visitor) and displayState.itemId == itemId then
@@ -195,7 +224,8 @@ local function runVisit(player: Player, token)
 				end
 			end
 		else
-			if not moveTo(getWanderCFrame(floor, spawnCFrame.Position.Y)) then
+			local WanderCFrame = GetGroundedCFrame(museum, getWanderCFrame(floor, spawnCFrame.Position.Y))
+			if not moveTo(WanderCFrame) then
 				return
 			end
 			maybeSay(WANDER_MESSAGES, CONFIG.WanderMessageChance)
@@ -211,7 +241,7 @@ local function runVisit(player: Player, token)
 		task.wait(CONFIG.FadeDuration)
 	end
 	if isVisitActive(player, token, visitor) then
-		activeVisitors[player] = nil
+		activeVisitors[player][visitor] = nil
 		visitor:Destroy()
 	end
 end
@@ -223,10 +253,20 @@ end
 function VisitorController.OnPlayerAdded(player: Player)
 	local token = {}
 	visitTokens[player] = token
+	activeVisitors[player] = {}
 	task.spawn(function()
 		task.wait(CONFIG.InitialSpawnDelay)
 		while player.Parent == Players and visitTokens[player] == token do
-			runVisit(player, token)
+			local ActiveForPlayer = activeVisitors[player]
+			local ActiveCount = 0
+			if ActiveForPlayer then
+				for _ in ActiveForPlayer do
+					ActiveCount += 1
+				end
+			end
+			if ActiveCount < CONFIG.MaxActiveVisitors then
+				task.spawn(runVisit, player, token)
+			end
 			task.wait(math.random(CONFIG.BetweenVisitorsMin, CONFIG.BetweenVisitorsMax))
 		end
 	end)
@@ -234,10 +274,12 @@ end
 
 function VisitorController.OnPlayerRemoving(player: Player)
 	visitTokens[player] = nil
-	local visitor = activeVisitors[player]
+	local Visitors = activeVisitors[player]
 	activeVisitors[player] = nil
-	if visitor then
-		visitor:Destroy()
+	if Visitors then
+		for Visitor in Visitors do
+			Visitor:Destroy()
+		end
 	end
 end
 

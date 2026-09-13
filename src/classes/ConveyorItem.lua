@@ -3,6 +3,7 @@ local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
 local ItemsInfo = require(ReplicatedStorage.Modules.Game.ItemsInfo)
+local DirtRenderer = require(ReplicatedStorage.Modules.Game.DirtRenderer)
 local ItemInfoBillboard = require(ReplicatedStorage.Modules.UI.ItemInfoBillboard)
 local SharedClass = require(ReplicatedStorage.Modules.Core.SharedClass)
 
@@ -95,9 +96,11 @@ function ConveyorItem:Render()
 			descendant.CanTouch = false
 		end
 	end
+	model:PivotTo(self:GetCurrentCFrame() * CFrame.new(0, heightOffset, 0))
 	model.Parent = getRenderFolder()
 	self.model = model
-	ItemInfoBillboard(itemInfo, primaryPart)
+	DirtRenderer.Add(model, self.DirtCount or 1, itemInfo.DirtHP)
+	ItemInfoBillboard(itemInfo, primaryPart, { Total = self.DirtCount or 1, Remaining = self.DirtCount or 1, Completed = false })
 
 	local prompt = Instance.new("ProximityPrompt")
 	prompt.ActionText = `Buy ${itemInfo.Price}`

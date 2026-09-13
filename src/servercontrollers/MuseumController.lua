@@ -4,7 +4,7 @@ local Workspace = game:GetService("Workspace")
 
 local ItemsInfo = require(ReplicatedStorage.Modules.Game.ItemsInfo)
 local ItemInfoBillboard = require(ReplicatedStorage.Modules.UI.ItemInfoBillboard)
-local PlayVFX = require(ReplicatedStorage.Modules.UI.PlayVFX)
+local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
 local TeleportPlayer = require(ReplicatedStorage.Modules.Game.TeleportPlayer)
 
 local museumAssets = ReplicatedStorage.Assets.Models.Museum
@@ -19,6 +19,8 @@ type DisplayState = {
 	itemCFrame: BasePart,
 	viewPart: BasePart,
 	prompt: ProximityPrompt,
+	takePrompt: ProximityPrompt,
+	sellPrompt: ProximityPrompt,
 	itemId: number?,
 	itemModel: Model?,
 	connection: RBXScriptConnection?,
@@ -37,6 +39,8 @@ local occupiedPositions: { [BasePart]: Player } = {}
 local positions: { BasePart } = {}
 local playerMuseums: Folder
 local dataService
+local inventoryRefreshHandler
+local copyDisplays
 
 local function getItemInfo(itemId: number)
 	for _, itemInfo in ItemsInfo do
@@ -125,11 +129,43 @@ local function setDisplayItem(player: Player, displayState: DisplayState, itemId
 	displayState.itemModel = itemModel
 	displayState.prompt.ActionText = "Occupied"
 	displayState.prompt.Enabled = false
+	displayState.takePrompt.Enabled = true
+	displayState.sellPrompt.Enabled = true
 	displayState.model:SetAttribute("ItemId", itemId)
 	return true
 end
 
-local function copyDisplays(displays): { [string]: number }
+local function clearDisplay(player: Player, displayState: DisplayState): number?
+	local itemId = displayState.itemId
+	if itemId == nil then return nil end
+	displayState.itemId = nil
+	if displayState.itemModel then displayState.itemModel:Destroy(); displayState.itemModel = nil end
+	displayState.model:SetAttribute("ItemId", nil)
+	displayState.prompt.Enabled = true
+	displayState.takePrompt.Enabled = false
+	displayState.sellPrompt.Enabled = false
+	local displays = copyDisplays(dataService:get(player, "Displays"))
+	displays[tostring(displayState.index)] = nil
+	dataService:set(player, "Displays", displays)
+	return itemId
+end
+
+local function takeDisplayedItem(player: Player, displayState: DisplayState)
+	local itemId = clearDisplay(player, displayState)
+	if itemId == nil then return end
+	dataService:arrayInsert(player, "Inventory", itemId)
+	if inventoryRefreshHandler then inventoryRefreshHandler(player) end
+end
+
+local function sellDisplayedItem(player: Player, displayState: DisplayState)
+	local itemId = displayState.itemId
+	local itemInfo = itemId and getItemInfo(itemId)
+	if not itemInfo or clearDisplay(player, displayState) == nil then return end
+	dataService:update(player, "Cash", function(cash) return (if type(cash) == "number" then cash else 0) + itemInfo.Price end)
+	Sounds.Play("Kaching", displayState.itemCFrame, SFX_MAX_DISTANCE)
+end
+
+copyDisplays = function(displays): { [string]: number }
 	local result = {}
 	if type(displays) == "table" then
 		for key, itemId in displays do
@@ -158,6 +194,11 @@ local function placeEquippedItem(player: Player, assignment: MuseumAssignment, d
 		return
 	end
 	local inventoryPosition = table.find(inventory, itemId)
+	local fixing = dataService:get(player, "Fixing") or {}
+	local fixingState = fixing[tostring(itemId)]
+	if fixingState == nil or fixingState.Completed ~= true then
+		return
+	end
 	if inventoryPosition == nil or not setDisplayItem(player, displayState, itemId) then
 		return
 	end
@@ -168,14 +209,7 @@ local function placeEquippedItem(player: Player, assignment: MuseumAssignment, d
 	dataService:arrayRemove(player, "Inventory", inventoryPosition)
 	tool:Destroy()
 
-	local equipSound = ReplicatedStorage.Assets.Sounds:FindFirstChild("Equip")
-	if equipSound and equipSound:IsA("Sound") then
-		local sounds = PlayVFX(equipSound, displayState.itemCFrame)
-		local sound = sounds[1]
-		if sound and sound:IsA("Sound") then
-			sound.RollOffMaxDistance = SFX_MAX_DISTANCE
-		end
-	end
+	Sounds.Play("Equip", displayState.itemCFrame, SFX_MAX_DISTANCE)
 end
 
 local function getDisplayMarkers(museum: Model): { BasePart }
@@ -225,7 +259,30 @@ local function createDisplays(player: Player, assignment: MuseumAssignment)
 		prompt.HoldDuration = 0
 		prompt.MaxActivationDistance = 10
 		prompt.RequiresLineOfSight = false
+		prompt.UIOffset = Vector2.new(0, 55)
 		prompt.Parent = base
+
+		local takePrompt = Instance.new("ProximityPrompt")
+		takePrompt.Name = "TakeItemPrompt"
+		takePrompt.ActionText = "Take Off Sale"
+		takePrompt.ObjectText = "Display"
+		takePrompt.HoldDuration = 0
+		takePrompt.MaxActivationDistance = 10
+		takePrompt.RequiresLineOfSight = false
+		takePrompt.UIOffset = Vector2.new(-85, -45)
+		takePrompt.Enabled = false
+		takePrompt.Parent = base
+
+		local sellPrompt = Instance.new("ProximityPrompt")
+		sellPrompt.Name = "SellItemPrompt"
+		sellPrompt.ActionText = "Sell Item"
+		sellPrompt.ObjectText = "Display"
+		sellPrompt.HoldDuration = 0
+		sellPrompt.MaxActivationDistance = 10
+		sellPrompt.RequiresLineOfSight = false
+		sellPrompt.UIOffset = Vector2.new(85, -45)
+		sellPrompt.Enabled = false
+		sellPrompt.Parent = base
 
 		local displayState: DisplayState = {
 			index = index,
@@ -233,6 +290,8 @@ local function createDisplays(player: Player, assignment: MuseumAssignment)
 			itemCFrame = itemCFrame,
 			viewPart = viewPart,
 			prompt = prompt,
+			takePrompt = takePrompt,
+			sellPrompt = sellPrompt,
 			itemId = nil,
 			itemModel = nil,
 			connection = nil,
@@ -243,6 +302,8 @@ local function createDisplays(player: Player, assignment: MuseumAssignment)
 				placeEquippedItem(player, assignment, displayState)
 			end
 		end)
+		takePrompt.Triggered:Connect(function(triggeringPlayer) if triggeringPlayer == player then takeDisplayedItem(player, displayState) end end)
+		sellPrompt.Triggered:Connect(function(triggeringPlayer) if triggeringPlayer == player then sellDisplayedItem(player, displayState) end end)
 
 		local savedItemId = savedDisplays[tostring(index)]
 		if type(savedItemId) == "number" then
@@ -253,6 +314,10 @@ end
 
 function MuseumController.SetDataService(service)
 	dataService = service
+end
+
+function MuseumController.SetInventoryRefreshHandler(handler)
+	inventoryRefreshHandler = handler
 end
 
 function MuseumController.GetMuseum(player: Player): Model?

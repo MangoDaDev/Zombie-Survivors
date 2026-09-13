@@ -7,6 +7,7 @@ export type ItemInfo = {
 	GuestPay: number,
 	MoveSpeed: number,
 	CarryOffset: CFrame?,
+	DirtHP: number,
 }
 
 local ItemsInfo: { ItemInfo } = {
@@ -18,6 +19,7 @@ local ItemsInfo: { ItemInfo } = {
 		Price = 25,
 		GuestPay = 2,
 		MoveSpeed = 8,
+		DirtHP = 1,
 	},
 	{
 		Id = 2,
@@ -27,6 +29,7 @@ local ItemsInfo: { ItemInfo } = {
 		Price = 40,
 		GuestPay = 4,
 		MoveSpeed = 8,
+		DirtHP = 2,
 	},
 	{
 		Id = 3,
@@ -36,6 +39,7 @@ local ItemsInfo: { ItemInfo } = {
 		Price = 60,
 		GuestPay = 6,
 		MoveSpeed = 8,
+		DirtHP = 3,
 	},
 	{
 		Id = 4,
@@ -45,6 +49,7 @@ local ItemsInfo: { ItemInfo } = {
 		Price = 100,
 		GuestPay = 10,
 		MoveSpeed = 8,
+		DirtHP = 4,
 	},
 }
 

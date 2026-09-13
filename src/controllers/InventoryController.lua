@@ -40,6 +40,7 @@ function InventoryController:Init()
 		end
 
 		local function saveInventoryOrder()
+			if localPlayer:GetAttribute("IsFixing") == true then return end
 			local tools = {}
 			addToolsFrom(localPlayer:FindFirstChildOfClass("Backpack"), tools)
 			addToolsFrom(localPlayer.Character, tools)
@@ -65,6 +66,7 @@ function InventoryController:Init()
 		end
 
 		localPlayer:GetAttributeChangedSignal("IsCarryingItem"):Connect(updateBackpack)
+		localPlayer:GetAttributeChangedSignal("IsFixing"):Connect(updateBackpack)
 		satchel.BackpackItemAdded.Event:Connect(saveInventoryOrderDeferred)
 		satchel.BackpackItemRemoved.Event:Connect(saveInventoryOrderDeferred)
 		satchel.StateChanged.Event:Connect(function(isOpen)

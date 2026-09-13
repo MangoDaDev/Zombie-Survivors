@@ -7,7 +7,7 @@ Quick reference for the project's first-party Luau scripts. Generated Wally depe
 | Path | Name | Responsibility |
 | --- | --- | --- |
 | `src/classes/ConveyorItem.lua` | ConveyorItem | Renders replicated conveyor items, moves them along their path, and forwards purchase prompts through SharedClass. |
-| `src/classes/MuseumVisitor.lua` | MuseumVisitor | Renders, linearly moves, fades, dresses, and displays dialogue and cash feedback for replicated museum visitors. |
+| `src/classes/MuseumVisitor.lua` | MuseumVisitor | Renders grounded visitors with responsive facing and procedural walking, then handles fading, appearance, dialogue, and cash feedback. |
 
 ## `src/client` - Client bootstrap
 
@@ -27,6 +27,7 @@ Quick reference for the project's first-party Luau scripts. Generated Wally depe
 | --- | --- | --- |
 | `src/controllers/CharacterController.lua` | CharacterController | Requests character spawning and manages local camera and respawn behavior. |
 | `src/controllers/ConveyorItemController.lua` | ConveyorItemController | Registers the client ConveyorItem SharedClass renderer. |
+| `src/controllers/FixingController.lua` | FixingController | Drives the Fixing camera, local character visibility, and held SprayBottle input. |
 | `src/controllers/InventoryController.lua` | InventoryController | Controls Satchel visibility and sends validated inventory slot ordering to the server. |
 | `src/controllers/MuseumVisitorController.lua` | MuseumVisitorController | Registers the client MuseumVisitor SharedClass renderer. |
 | `src/controllers/TopbarController.lua` | TopbarController | Creates the invite and group TopbarPlus buttons. |
@@ -56,6 +57,7 @@ Quick reference for the project's first-party Luau scripts. Generated Wally depe
 | --- | --- | --- |
 | `src/modules/Game/_PlayerFreezeState.lua` | PlayerFreezeState | Stores and manages the local character's anchored freeze state. |
 | `src/modules/Game/DataTemplate.lua` | DataTemplate | Defines saved defaults for cash, ordered inventory items, and museum displays. |
+| `src/modules/Game/DirtRenderer.lua` | DirtRenderer | Adds and removes dense reusable dirt layers on item models across conveyor, inventory, and Fixing views. |
 | `src/modules/Game/FreezePlayer.lua` | FreezePlayer | Freezes the local player, optionally at a target CFrame. |
 | `src/modules/Game/ItemsInfo.lua` | ItemsInfo | Configures item IDs, assets, weights, prices, guest payments, speed, and optional carry offsets. |
 | `src/modules/Game/TeleportLocalPlayer.lua` | TeleportLocalPlayer | Moves the local character to a CFrame or BasePart. |
@@ -97,6 +99,7 @@ Quick reference for the project's first-party Luau scripts. Generated Wally depe
 | `src/modules/UI/Images.lua` | Images | Catalogs named image asset IDs used by project interfaces. |
 | `src/modules/UI/ItemInfoBillboard.lua` | ItemInfoBillboard | Creates the reusable item name, price, and guest-payment BillboardGui. |
 | `src/modules/UI/PlayVFX.lua` | PlayVFX | Clones, starts, and cleans up reusable visual and sound effects. |
+| `src/modules/UI/Sounds.lua` | Sounds | Resolves any approved Studio-owned sound by name and handles cloned positional playback and cleanup. |
 
 ## `src/server` - Server bootstrap
 
@@ -118,8 +121,9 @@ Quick reference for the project's first-party Luau scripts. Generated Wally depe
 | `src/servercontrollers/CarryController.lua` | CarryController | Handles purchased-item carrying, museum delivery, Tool creation, and ordered inventory persistence. |
 | `src/servercontrollers/CharacterController.lua` | CharacterController | Authorizes character spawning and applies the configured R6 avatar animations. |
 | `src/servercontrollers/ConveyorController.lua` | ConveyorController | Builds conveyor paths, spawns weighted items, and validates purchases and cash deductions. |
-| `src/servercontrollers/MuseumController.lua` | MuseumController | Assigns museum plots and manages persistent displays, viewing regions, and equipped-item placement. |
-| `src/servercontrollers/VisitorController.lua` | VisitorController | Schedules visitor movement and varied dialogue, chooses positions within display viewing regions, and awards guest-payment cash. |
+| `src/servercontrollers/FixingController.lua` | FixingController | Owns item Fixing sessions, dirt generation and cleaning, temporary tool loadouts, and persisted progress. |
+| `src/servercontrollers/MuseumController.lua` | MuseumController | Assigns museum plots and manages persistent display placement, removal, selling, and viewing regions. |
+| `src/servercontrollers/VisitorController.lua` | VisitorController | Concurrently schedules grounded visitor routes and dialogue, chooses positions within display viewing regions, and awards guest-payment cash. |
 
 ## `src/UI` - Vide interface
 
