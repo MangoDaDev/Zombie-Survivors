@@ -2,7 +2,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
-local ItemsInfo = require(script.Parent.ItemsInfo)
+local ItemsInfo = require(ReplicatedStorage.Modules.Game.ItemsInfo)
 local SharedClass = require(ReplicatedStorage.Modules.Core.SharedClass)
 
 local CLASS_INFO = {
@@ -12,9 +12,7 @@ local CLASS_INFO = {
 
 local PROMPT_DISTANCE = 10
 
-local isServer = RunService:IsServer()
 local renderFolder: Folder?
-local purchaseHandler: ((any, Player) -> ())?
 
 local ConveyorItem = {}
 ConveyorItem.__index = ConveyorItem
@@ -86,34 +84,13 @@ end
 function ConveyorItem.new(data)
 	local self = setmetatable(data, ConveyorItem)
 	self:Link(CLASS_INFO)
-
-	if isServer then
-		task.delay(self.Duration, function()
-			if self.UniqueId then
-				self:Destroy()
-			end
-		end)
-	else
-		self:Render()
-	end
-
+	self:Render()
 	return self
-end
-
-function ConveyorItem.SetPurchaseHandler(handler: (any, Player) -> ())
-	assert(isServer, "ConveyorItem purchase handlers can only be set on the server")
-	purchaseHandler = handler
 end
 
 function ConveyorItem:GetCurrentCFrame(): CFrame
 	local elapsed = Workspace:GetServerTimeNow() - self.StartedAt
 	return getPathCFrame(self.Path, math.max(elapsed, 0) * self.MoveSpeed)
-end
-
-function ConveyorItem:Purchase(player: Player)
-	if isServer and purchaseHandler then
-		purchaseHandler(self, player)
-	end
 end
 
 function ConveyorItem:Render()
@@ -170,15 +147,6 @@ function ConveyorItem:Render()
 end
 
 function ConveyorItem:Destroy()
-	if isServer then
-		if self.UniqueId == nil then
-			return
-		end
-		self:FireAllClients("Destroy")
-		self:Unlink()
-		return
-	end
-
 	if self.renderConnection then
 		self.renderConnection:Disconnect()
 		self.renderConnection = nil

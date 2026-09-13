@@ -3,7 +3,7 @@ local ServerStorage = game:GetService("ServerStorage")
 local Workspace = game:GetService("Workspace")
 
 local CarryController = require(ServerStorage.Controllers.CarryController)
-local ConveyorItem = require(ReplicatedStorage.Modules.Game.ConveyorItem)
+local ConveyorItem = require(ServerStorage.Classes.ConveyorItem)
 local ItemsInfo = require(ReplicatedStorage.Modules.Game.ItemsInfo)
 local GetRandomFromWeightedTable = require(ReplicatedStorage.Modules.Math.GetRandomFromWeightedTable)
 

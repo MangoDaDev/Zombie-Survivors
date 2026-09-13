@@ -9,9 +9,19 @@
         "$className": "Folder",
         "$path": "Packages"
       },
+      "SharedPackages": {
+        "$className": "Folder",
+        "TopbarPlus": {
+          "$path": "src/compatibility/TopbarPlus.lua"
+        }
+      },
       "Controllers": {
         "$className": "Folder",
         "$path": "src/controllers"
+      },
+      "Classes": {
+        "$className": "Folder",
+        "$path": "src/classes"
       },
       "Modules": {
         "$className": "Folder",
@@ -46,6 +56,10 @@
       "Controllers": {
         "$className": "Folder",
         "$path": "src/servercontrollers"
+      },
+      "Classes": {
+        "$className": "Folder",
+        "$path": "src/serverclasses"
       }
     },
 
