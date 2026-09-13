@@ -1,6 +1,6 @@
 local Images = {
 	Invite = "rbxassetid://115327667449209",
-	Group = "rbxassetid://87534793309524",
+	Group = "rbxassetid://85374765114431",
 	Luck = "rbxassetid://140615134556624",
 	Bucks = "rbxassetid://85844365023723",
 	Fire = "rbxassetid://86050971312005",

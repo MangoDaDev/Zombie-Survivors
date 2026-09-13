@@ -8,6 +8,7 @@ data_service:init()
 
 local modules_to_init = {
 	ReplicatedStorage.Controllers.CharacterController,
+	ReplicatedStorage.Controllers.TopbarController,
 	ReplicatedStorage.UI.UIOrigin,
 }
 
