@@ -3,6 +3,7 @@ local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
 local ItemsInfo = require(ReplicatedStorage.Modules.Game.ItemsInfo)
+local ItemInfoBillboard = require(ReplicatedStorage.Modules.UI.ItemInfoBillboard)
 local SharedClass = require(ReplicatedStorage.Modules.Core.SharedClass)
 
 local CLASS_INFO = {
@@ -36,36 +37,6 @@ local function getRenderFolder(): Folder
 	folder.Parent = Workspace
 	renderFolder = folder
 	return folder
-end
-
-local function createItemBillboard(itemInfo, adornee: BasePart): BillboardGui
-	local billboard = Instance.new("BillboardGui")
-	billboard.Name = "ItemInfo"
-	billboard.Adornee = adornee
-	billboard.AlwaysOnTop = true
-	billboard.MaxDistance = 60
-	billboard.Size = UDim2.fromOffset(220, 72)
-	billboard.StudsOffsetWorldSpace = Vector3.new(0, 2.5, 0)
-	billboard.Parent = adornee
-
-	local label = Instance.new("TextLabel")
-	label.BackgroundTransparency = 1
-	label.Font = Enum.Font.GothamBold
-	label.RichText = true
-	label.Size = UDim2.fromScale(1, 1)
-	label.Text = `<b>{itemInfo.Name}</b>\nPrice: ${itemInfo.Price}\nGuests pay: ${itemInfo.GuestPay}`
-	label.TextColor3 = Color3.new(1, 1, 1)
-	label.TextScaled = true
-	label.TextStrokeColor3 = Color3.new(0, 0, 0)
-	label.TextStrokeTransparency = 0
-	label.Parent = billboard
-
-	local textSizeConstraint = Instance.new("UITextSizeConstraint")
-	textSizeConstraint.MaxTextSize = 22
-	textSizeConstraint.MinTextSize = 10
-	textSizeConstraint.Parent = label
-
-	return billboard
 end
 
 local function getPathCFrame(path: { CFrame }, distance: number): CFrame
@@ -126,7 +97,7 @@ function ConveyorItem:Render()
 	end
 	model.Parent = getRenderFolder()
 	self.model = model
-	createItemBillboard(itemInfo, primaryPart)
+	ItemInfoBillboard(itemInfo, primaryPart)
 
 	local prompt = Instance.new("ProximityPrompt")
 	prompt.ActionText = `Buy ${itemInfo.Price}`

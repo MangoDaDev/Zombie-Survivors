@@ -2,6 +2,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local dataService = require(ReplicatedStorage.Packages.dataservice).client
 local FormatNumber = require(ReplicatedStorage.Modules.Math.FormatNumber)
+local Images = require(ReplicatedStorage.Modules.UI.Images)
 local vide = require(ReplicatedStorage.Packages.vide)
 
 local cleanup = vide.cleanup
@@ -23,12 +24,31 @@ return function()
 		BackgroundTransparency = 1,
 		Position = UDim2.fromScale(0.98, 0.96),
 		Size = UDim2.fromScale(0.25, 0.08),
-		create "TextLabel" {
+		create "UIListLayout" {
+			FillDirection = Enum.FillDirection.Horizontal,
+			HorizontalAlignment = Enum.HorizontalAlignment.Right,
+			Padding = UDim.new(0.03, 0),
+			SortOrder = Enum.SortOrder.LayoutOrder,
+			VerticalAlignment = Enum.VerticalAlignment.Center,
+		},
+		create "ImageLabel" {
 			BackgroundTransparency = 1,
-			Font = Enum.Font.Bangers,
-			Size = UDim2.fromScale(1, 1),
+			Image = Images.Cash,
+			LayoutOrder = 1,
+			ScaleType = Enum.ScaleType.Fit,
+			Size = UDim2.fromScale(0.22, 0.9),
+			create "UIAspectRatioConstraint" {
+				AspectRatio = 1,
+			},
+		},
+		create "TextLabel" {
+			AutomaticSize = Enum.AutomaticSize.X,
+			BackgroundTransparency = 1,
+			FontFace = Font.fromName("ComicNeueAngular"),
+			LayoutOrder = 2,
+			Size = UDim2.fromScale(0, 1),
 			Text = function()
-				return `Cash: ${FormatNumber(cash()) or "0"}`
+				return FormatNumber(cash()) or "0"
 			end,
 			TextColor3 = Color3.fromRGB(72, 232, 91),
 			TextScaled = true,

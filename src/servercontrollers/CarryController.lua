@@ -3,10 +3,13 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerStorage = game:GetService("ServerStorage")
 
 local ItemsInfo = require(ReplicatedStorage.Modules.Game.ItemsInfo)
+local ItemInfoBillboard = require(ReplicatedStorage.Modules.UI.ItemInfoBillboard)
+local PlayVFX = require(ReplicatedStorage.Modules.UI.PlayVFX)
 local MuseumController = require(ServerStorage.Controllers.MuseumController)
 local Networker = require(ReplicatedStorage.Packages.networker)
 
 local DEFAULT_CARRY_OFFSET = CFrame.new(0, 0, -3) * CFrame.Angles(0, math.rad(90), 0)
+local SFX_MAX_DISTANCE = 80
 
 type CarryState = {
 	itemId: number,
@@ -18,6 +21,21 @@ local CarryController = {}
 local carryStates: { [Player]: CarryState } = {}
 local museumAreaConnections: { [Player]: RBXScriptConnection } = {}
 local dataService
+
+local function playSound(player: Player, soundName: string)
+	local character = player.Character
+	local rootPart = character and character:FindFirstChild("HumanoidRootPart")
+	local template = ReplicatedStorage.Assets.Sounds:FindFirstChild(soundName)
+	if rootPart == nil or template == nil or not template:IsA("Sound") then
+		return
+	end
+
+	local sounds = PlayVFX(template, rootPart)
+	local sound = sounds[1]
+	if sound and sound:IsA("Sound") then
+		sound.RollOffMaxDistance = SFX_MAX_DISTANCE
+	end
+end
 
 local function getItemInfo(itemId: number)
 	for _, itemInfo in ItemsInfo do
@@ -77,6 +95,7 @@ local function attachCarriedModel(player: Player, state: CarryState): boolean
 	carryWeld.Part1 = boundingBox
 	carryWeld.Parent = boundingBox
 	model.Parent = character
+	ItemInfoBillboard(itemInfo, boundingBox)
 	state.model = model
 	return true
 end
@@ -110,6 +129,7 @@ local function createTool(itemId: number, inventoryPosition: number): Tool?
 		child.Parent = tool
 	end
 	model:Destroy()
+	ItemInfoBillboard(itemInfo, handle)
 	return tool
 end
 
@@ -173,6 +193,7 @@ local function deliverItem(player: Player)
 	end
 	tool.Parent = backpack
 	player:SetAttribute("IsCarryingItem", false)
+	playSound(player, "Reward1")
 end
 
 function CarryController.CanCarry(player: Player): boolean
@@ -199,6 +220,7 @@ function CarryController.StartCarrying(player: Player, itemId: number): boolean
 		humanoid:UnequipTools()
 	end
 	player:SetAttribute("IsCarryingItem", true)
+	playSound(player, "Buy")
 	return true
 end
 
