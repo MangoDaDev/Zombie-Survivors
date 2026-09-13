@@ -69,13 +69,13 @@ return function(itemInfo, adornee: BasePart): BillboardGui
 	billboard.Parent = adornee
 
 	local nameLabel = Instance.new("TextLabel")
-	nameLabel.AutomaticSize = Enum.AutomaticSize.Y
 	nameLabel.BackgroundTransparency = 1
 	nameLabel.FontFace = COMIC_FONT
 	nameLabel.Size = UDim2.fromScale(1, 0.38)
 	nameLabel.Text = itemInfo.Name
 	nameLabel.TextColor3 = Color3.new(1, 1, 1)
 	nameLabel.TextScaled = true
+	nameLabel.TextWrapped = true
 	nameLabel.Parent = billboard
 	addStroke(nameLabel)
 

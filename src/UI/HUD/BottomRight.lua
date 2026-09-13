@@ -8,14 +8,33 @@ local vide = require(ReplicatedStorage.Packages.vide)
 local cleanup = vide.cleanup
 local create = vide.create
 local source = vide.source
+local spring = vide.spring
 
 return function()
 	local cash = source(dataService:get("Cash"))
+	local cashScaleTarget = source(1)
+	local cashScale = spring(cashScaleTarget, 0.18, 0.75)
+	local previousCash = cash()
+	local resetThread: thread?
 	local cashChangedConnection = dataService:getChangedSignal("Cash"):Connect(function(value)
 		cash(value)
+		if type(value) == "number" and type(previousCash) == "number" and value > previousCash then
+			cashScaleTarget(1.18)
+			if resetThread then
+				task.cancel(resetThread)
+			end
+			resetThread = task.delay(0.1, function()
+				resetThread = nil
+				cashScaleTarget(1)
+			end)
+		end
+		previousCash = value
 	end)
 	cleanup(function()
 		cashChangedConnection:Disconnect()
+		if resetThread then
+			task.cancel(resetThread)
+		end
 	end)
 
 	return create "Frame" {
@@ -24,6 +43,9 @@ return function()
 		BackgroundTransparency = 1,
 		Position = UDim2.fromScale(0.98, 0.96),
 		Size = UDim2.fromScale(0.25, 0.08),
+		create "UIScale" {
+			Scale = cashScale,
+		},
 		create "UIListLayout" {
 			FillDirection = Enum.FillDirection.Horizontal,
 			HorizontalAlignment = Enum.HorizontalAlignment.Right,

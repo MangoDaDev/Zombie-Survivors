@@ -5,7 +5,8 @@
 - The user's current request overrides repository defaults when they conflict.
 - Ask for clarification only when missing information would materially change the result or make a destructive change unsafe.
 - Inspect the actual repository before changing it. Never invent paths, instances, remotes, modules, assets, or package APIs.
-- Use Roblox Studio MCP when a task needs the live DataModel or Studio state. File-only Rojo work does not require Studio.
+- Use Roblox Studio MCP when a task needs the live DataModel or Studio state. File-only Rojo work does not require Studio. If possible, Infer from current code where the Items are instead of viewing the Studio MCP
+- Do not use Computer Control - It is not needed
 - If a task does require Studio and MCP is unavailable, report that and stop before making Roblox project changes.
 - Do not attempt to repair the local Rojo/Rokit setup. The missing Rojo target is intentional.
 - Do not run automated playtests unless the user asks. Run formatting, static checks, or a non-destructive build only when the required tool is already available and the check is proportionate.
@@ -63,6 +64,11 @@
 - Clean up connections, tasks, temporary instances, networkers, and cached player/character state.
 - Use `pcall` only where failure is expected from an external Roblox operation, not to hide ordinary coding errors.
 - Keep tunable values such as speeds, cooldowns, limits, and probabilities in a focused configuration table when they are genuinely likely to change.
+
+## Codebase index
+
+- When work on a script is finished, check `Index.markdown` and update it if a script was added, removed, renamed, or moved; its responsibility changed; a new system or module was introduced; or its existing description is no longer accurate.
+- Keep `Index.markdown` concise and structural. It is a quick codebase map, not detailed technical documentation.
 
 ## Security and persistence
 
