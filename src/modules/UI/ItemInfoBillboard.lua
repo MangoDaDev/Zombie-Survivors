@@ -6,7 +6,8 @@ local RarityInfo = require(ReplicatedStorage.Modules.Game.RarityInfo)
 local UIStyle = require(ReplicatedStorage.Modules.UI.UIStyle)
 
 local BILLBOARD_SIZE = UDim2.fromScale(7.5, 4)
-local BILLBOARD_HEIGHT_OFFSET = 1.5
+local BILLBOARD_HEIGHT_OFFSET = 2
+local BILLBOARD_HEIGHT_SCALE = 0.18
 local COMIC_FONT = UIStyle.Font
 local MAX_DISTANCE = 300
 
@@ -19,11 +20,11 @@ local function addStroke(label: TextLabel)
 	stroke.Parent = label
 end
 
-local function createStatRow(image: string, value: number, position: UDim2, ValuePrefix: string?): Frame
+local function createStatRow(image: string, value: number, position: UDim2, ValuePrefix: string?, RowHeight: number?, IconWidth: number?): Frame
 	local row = Instance.new("Frame")
 	row.BackgroundTransparency = 1
 	row.Position = position
-	row.Size = UDim2.fromScale(1, 0.28)
+	row.Size = UDim2.fromScale(1, RowHeight or 0.28)
 
 	local layout = Instance.new("UIListLayout")
 	layout.FillDirection = Enum.FillDirection.Horizontal
@@ -38,7 +39,7 @@ local function createStatRow(image: string, value: number, position: UDim2, Valu
 	icon.Image = image
 	icon.LayoutOrder = 1
 	icon.ScaleType = Enum.ScaleType.Fit
-	icon.Size = UDim2.fromScale(0.1, 0.8)
+	icon.Size = UDim2.fromScale(IconWidth or 0.1, 0.8)
 	icon.Parent = row
 
 	local valueLabel = Instance.new("TextLabel")
@@ -69,7 +70,9 @@ return function(itemInfo, adornee: BasePart, fixingState): BillboardGui
 	billboard.AlwaysOnTop = true
 	billboard.MaxDistance = MAX_DISTANCE
 	billboard.Size = BILLBOARD_SIZE
-	billboard.StudsOffsetWorldSpace = Vector3.new(0, adornee.Size.Y / 2 + BILLBOARD_HEIGHT_OFFSET, 0)
+	local ItemModel = adornee:FindFirstAncestorOfClass("Model")
+	local ItemHeight = if ItemModel then ItemModel:GetExtentsSize().Y else adornee.Size.Y
+	billboard.StudsOffsetWorldSpace = Vector3.new(0, ItemHeight / 2 + BILLBOARD_HEIGHT_OFFSET + ItemHeight * BILLBOARD_HEIGHT_SCALE, 0)
 	billboard.Parent = adornee
 
 	local nameLabel = Instance.new("TextLabel")
@@ -87,15 +90,15 @@ return function(itemInfo, adornee: BasePart, fixingState): BillboardGui
 	rarityGradient.Color = RarityInfo.Get(itemInfo.Rarity).Gradient
 	rarityGradient.Parent = nameLabel
 
-	createStatRow(Images.Cash, itemInfo.Price, UDim2.fromScale(0, 0.31)).Parent = billboard
-	createStatRow(Images.Binoculars, itemInfo.GuestPay, UDim2.fromScale(0, 0.56), "$").Parent = billboard
+	createStatRow(Images.Binoculars, itemInfo.GuestPay, UDim2.fromScale(0, 0.3), "$", 0.34, 0.14).Parent = billboard
+	createStatRow(Images.Cash, itemInfo.Price, UDim2.fromScale(0, 0.63), nil, 0.22, 0.09).Parent = billboard
 	local RequiredSteps = CleaningConfig.GetStepsForItem(itemInfo)
 	if fixingState and fixingState.Completed ~= true and #RequiredSteps > 0 and Images.FixIcons then
 		local fixRow = Instance.new("Frame")
 		fixRow.Name = "FixIcons"
 		fixRow.BackgroundTransparency = 1
-		fixRow.Position = UDim2.fromScale(0, 0.81)
-		fixRow.Size = UDim2.fromScale(1, 0.19)
+		fixRow.Position = UDim2.fromScale(0, 0.85)
+		fixRow.Size = UDim2.fromScale(1, 0.15)
 		fixRow.Parent = billboard
 		local layout = Instance.new("UIListLayout")
 		layout.FillDirection = Enum.FillDirection.Horizontal

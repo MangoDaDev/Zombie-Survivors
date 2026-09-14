@@ -1,6 +1,7 @@
 local CollectionService = game:GetService("CollectionService")
 local Debris = game:GetService("Debris")
 local HttpService = game:GetService("HttpService")
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerStorage = game:GetService("ServerStorage")
 local TweenService = game:GetService("TweenService")
@@ -12,6 +13,7 @@ local DirtRenderer = require(ReplicatedStorage.Modules.Game.DirtRenderer)
 local GetRandomFromWeightedTable = require(ReplicatedStorage.Modules.Math.GetRandomFromWeightedTable)
 local ItemInfoBillboard = require(ReplicatedStorage.Modules.UI.ItemInfoBillboard)
 local ItemsInfo = require(ReplicatedStorage.Modules.Game.ItemsInfo)
+local MuseumController = require(ServerStorage.Controllers.MuseumController)
 local Networker = require(ReplicatedStorage.Packages.networker)
 local RestorationVisuals = require(ReplicatedStorage.Modules.Game.RestorationVisuals)
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
@@ -22,9 +24,12 @@ local DataService
 local Network
 local CrateFolder: Folder
 local RewardFolder: Folder
+local ResetWall: BasePart?
 local Crates = {}
 local Rewards = {}
 local RandomGenerator = Random.new()
+local IsResetting = false
+local ResetGeneration = 0
 
 local function GetItemInfo(ItemId)
 	for _, ItemInfo in ItemsInfo do
@@ -59,7 +64,7 @@ local function CreateHealthBar(Model, Info)
 	Group.Parent = Billboard
 	local Track = Instance.new("Frame")
 	Track.Name = "Track"
-	Track.BackgroundColor3 = Color3.fromRGB(35, 39, 47)
+	Track.BackgroundColor3 = Color3.fromRGB(79, 18, 22)
 	Track.BorderSizePixel = 0
 	Track.Size = UDim2.fromScale(1, 1)
 	Track.ClipsDescendants = true
@@ -68,8 +73,8 @@ local function CreateHealthBar(Model, Info)
 	TrackCorner.CornerRadius = UDim.new(1, 0)
 	TrackCorner.Parent = Track
 	local TrackStroke = Instance.new("UIStroke")
-	TrackStroke.Color = Color3.new(1, 1, 1)
-	TrackStroke.Transparency = 0.15
+	TrackStroke.Color = Color3.new(0, 0, 0)
+	TrackStroke.Transparency = 0
 	TrackStroke.Thickness = 2
 	TrackStroke.Parent = Track
 	local Fill = Instance.new("Frame")
@@ -236,6 +241,7 @@ end
 
 local function BreakCrate(State)
 	if Crates[State.Model] ~= State then return end
+	local BreakGeneration = ResetGeneration
 	Crates[State.Model] = nil
 	local SoundName = State.Info.BreakSoundNames[RandomGenerator:NextInteger(1, #State.Info.BreakSoundNames)]
 	local SoundAnchor = Instance.new("Part")
@@ -253,7 +259,9 @@ local function BreakCrate(State)
 	CreateBreakShards(State)
 	CreateReward(State)
 	State.Model:Destroy()
-	task.delay(State.Info.RespawnDelay, function() CrateController.Spawn(State.Info) end)
+	task.delay(State.Info.RespawnDelay, function()
+		if ResetGeneration == BreakGeneration then CrateController.Spawn(State.Info) end
+	end)
 end
 
 local function ReactToDamage(State, AttackerPosition)
@@ -296,12 +304,20 @@ function CrateController.DamageCrate(Player, Model, Damage): boolean
 	return true
 end
 
-function CrateController.Spawn(Info)
-	if not CrateFolder or #CrateFolder:GetChildren() >= Info.MaximumActive then return end
+local function GetActiveCrateCount(CrateId): number
+	local Count = 0
+	for _, State in Crates do
+		if State.Info.Id == CrateId then Count += 1 end
+	end
+	return Count
+end
+
+function CrateController.Spawn(Info, AllowDuringReset): boolean
+	if not CrateFolder or (IsResetting and AllowDuringReset ~= true) or GetActiveCrateCount(Info.Id) >= Info.MaximumActive then return false end
 	local SpawnCFrame = GetSpawnCFrame(Info)
 	local TemplateFolder = ReplicatedStorage.Assets.Models:FindFirstChild(Info.TemplateFolderName)
 	local Template = TemplateFolder and TemplateFolder:FindFirstChild(Info.TemplateName)
-	if not SpawnCFrame or not Template or not Template:IsA("Model") then return end
+	if not SpawnCFrame or not Template or not Template:IsA("Model") then return false end
 	local Model = Template:Clone()
 	local Scale = RandomGenerator:NextNumber(Info.ScaleMinimum, Info.ScaleMaximum)
 	local YRotation = RandomGenerator:NextNumber(0, math.pi * 2)
@@ -332,6 +348,98 @@ function CrateController.Spawn(Info)
 		VisibilityId = 0,
 		ReactionId = 0,
 	}
+	return true
+end
+
+local function IsPlayerInCrateArea(Player, Area): boolean
+	local Character = Player.Character
+	local RootPart = Character and Character:FindFirstChild("HumanoidRootPart")
+	if not RootPart or not RootPart:IsA("BasePart") then return false end
+	local LocalPosition = Area.CFrame:PointToObjectSpace(RootPart.Position)
+	return math.abs(LocalPosition.X) <= Area.Size.X / 2 and math.abs(LocalPosition.Z) <= Area.Size.Z / 2
+end
+
+local function SetResetWallVisible(IsVisible)
+	if not ResetWall then return end
+	ResetWall.Transparency = if IsVisible then 0 else 1
+	ResetWall.CanCollide = IsVisible
+	ResetWall.CanQuery = IsVisible
+	ResetWall.CanTouch = IsVisible
+end
+
+local function ClearCrateArea()
+	local RewardIds = {}
+	for RewardId in Rewards do table.insert(RewardIds, RewardId) end
+	for _, RewardId in RewardIds do RemoveReward(RewardId) end
+	local Models = {}
+	for Model in Crates do table.insert(Models, Model) end
+	for _, Model in Models do
+		local State = Crates[Model]
+		if State then State.ReactionId += 1 end
+		Crates[Model] = nil
+		Model:Destroy()
+	end
+end
+
+local function SpawnAllCrates()
+	for _, Info in CrateInfo.Crates do
+		local Spawned = 0
+		local Attempts = 0
+		while Spawned < Info.MaximumActive and Attempts < Info.MaximumActive * 12 do
+			Attempts += 1
+			if CrateController.Spawn(Info, true) then Spawned += 1 end
+			task.wait(CrateInfo.Reset.SpawnInterval)
+		end
+	end
+end
+
+local function ResetCrates()
+	if IsResetting then return end
+	IsResetting = true
+	ResetGeneration += 1
+	Workspace:SetAttribute("CratesResetting", true)
+	SetResetWallVisible(true)
+	local ResetStartedAt = Workspace:GetServerTimeNow()
+	local Area = Workspace:FindFirstChild("CrateSpawnArea")
+	if Area and Area:IsA("BasePart") then
+		for _, Player in Players:GetPlayers() do
+			if IsPlayerInCrateArea(Player, Area) then MuseumController.TeleportPlayerToMuseum(Player) end
+		end
+	end
+	ClearCrateArea()
+	SpawnAllCrates()
+	local RemainingWallTime = CrateInfo.Reset.MinimumWallVisibleTime - (Workspace:GetServerTimeNow() - ResetStartedAt)
+	if RemainingWallTime > 0 then task.wait(RemainingWallTime) end
+	SetResetWallVisible(false)
+	Workspace:SetAttribute("CratesResetting", false)
+	IsResetting = false
+end
+
+local function GetNextResetTime(Now): number
+	local Interval = CrateInfo.Reset.Interval
+	return (math.floor(Now / Interval) + 1) * Interval
+end
+
+local function StartResetSchedule()
+	local Now = Workspace:GetServerTimeNow()
+	local Interval = CrateInfo.Reset.Interval
+	local PreviousBoundary = math.floor(Now / Interval) * Interval
+	local NextResetTime = PreviousBoundary + Interval
+	Workspace:SetAttribute("NextCrateResetTime", NextResetTime)
+	Workspace:SetAttribute("CratesResetting", false)
+	if Now - PreviousBoundary < CrateInfo.Reset.MinimumWallVisibleTime then
+		ResetCrates()
+	end
+	while true do
+		Now = Workspace:GetServerTimeNow()
+		while Now < NextResetTime do
+			task.wait(math.min(1, NextResetTime - Now))
+			Now = Workspace:GetServerTimeNow()
+		end
+		NextResetTime = GetNextResetTime(Now)
+		Workspace:SetAttribute("NextCrateResetTime", NextResetTime)
+		ResetCrates()
+	end
 end
 
 function CrateController.SetDataService(Service) DataService = Service end
@@ -342,12 +450,21 @@ function CrateController:Init()
 	RewardFolder = Instance.new("Folder")
 	RewardFolder.Name = "CrateRewards"
 	RewardFolder.Parent = Workspace
+	local WallTemplate = ReplicatedStorage.Assets.Models.Map:FindFirstChild(CrateInfo.Reset.WallTemplateName)
+	if WallTemplate and WallTemplate:IsA("BasePart") then
+		ResetWall = WallTemplate:Clone()
+		ResetWall.Name = "CrateResetWall"
+		ResetWall.Anchored = true
+		ResetWall.Parent = Workspace
+		SetResetWallVisible(false)
+	end
 	Network = Networker.server.new("CrateController", self)
-	for _, Info in CrateInfo do
+	for _, Info in CrateInfo.Crates do
 		for Index = 1, Info.MaximumActive do
 			task.delay((Index - 1) * 0.08, function() CrateController.Spawn(Info) end)
 		end
 	end
+	task.spawn(StartResetSchedule)
 end
 
 return CrateController

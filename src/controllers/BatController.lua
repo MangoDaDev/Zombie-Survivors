@@ -25,7 +25,7 @@ local function GetBatInfo(BatId)
 end
 
 local function GetCrateInfo(CrateId)
-	for _, Info in CrateInfo do
+	for _, Info in CrateInfo.Crates do
 		if Info.Id == CrateId then return Info end
 	end
 end
@@ -82,6 +82,9 @@ end
 local function ReconcileCrateHealth(Model, State)
 	local NewHealth = Model:GetAttribute("Health")
 	if type(NewHealth) ~= "number" then return end
+	if NewHealth > State.ConfirmedHealth then
+		return
+	end
 	local AppliedDamage = math.max(0, State.ConfirmedHealth - NewHealth)
 	State.ConfirmedHealth = NewHealth
 	while AppliedDamage > 0.001 and #State.Pending > 0 do

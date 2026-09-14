@@ -29,6 +29,7 @@ local ToolEndAttachment: Attachment?
 local ToolEmitter: ParticleEmitter?
 local CreatedStartAttachment = false
 local SmoothedToolPosition: Vector3?
+local CurrentToolColor: Color3?
 local OriginalFieldOfView: number?
 local StopToolEffects
 
@@ -112,6 +113,7 @@ StopToolEffects = function()
 	if ToolEndAttachment then ToolEndAttachment:Destroy(); ToolEndAttachment = nil end
 	if ToolEndPart then ToolEndPart:Destroy(); ToolEndPart = nil end
 	SmoothedToolPosition = nil
+	CurrentToolColor = nil
 end
 
 local function StartToolEffects(Tool: Tool, ToolInfo)
@@ -222,7 +224,7 @@ local function EnterFixingView()
 	task.defer(UpdateToolInterface)
 end
 
-local function GetAimPosition(): Vector3?
+local function GetAimPosition(): (Vector3?, BasePart?)
 	local Camera = Workspace.CurrentCamera
 	local MousePosition = UserInputService:GetMouseLocation() - GuiService:GetGuiInset()
 	local Ray = Camera:ViewportPointToRay(MousePosition.X, MousePosition.Y)
@@ -230,7 +232,8 @@ local function GetAimPosition(): Vector3?
 	Parameters.FilterType = Enum.RaycastFilterType.Exclude
 	Parameters.FilterDescendantsInstances = if LocalPlayer.Character then { LocalPlayer.Character } else {}
 	local Result = Workspace:Raycast(Ray.Origin, Ray.Direction * 30, Parameters)
-	return if Result then Result.Position else nil
+	if not Result then return nil, nil end
+	return Result.Position, if Result.Instance:IsA("BasePart") then Result.Instance else nil
 end
 
 function FixingController:Init()
@@ -260,7 +263,7 @@ function FixingController:Init()
 			self.Networker:fire("StopUsingTool")
 			return
 		end
-		local AimPosition = GetAimPosition()
+		local AimPosition, AimPart = GetAimPosition()
 		local Camera = Workspace.CurrentCamera
 		local MousePosition = UserInputService:GetMouseLocation() - GuiService:GetGuiInset()
 		if AimPosition and ToolEndPart and ToolBeam then
@@ -272,6 +275,17 @@ function FixingController:Init()
 			local Depth = math.max(-CameraPosition.Z, 0.1)
 			local WorldUnitsPerPixel = 2 * Depth * math.tan(math.rad(Camera.FieldOfView / 2)) / math.max(Camera.ViewportSize.Y, 1)
 			ToolBeam.Width1 = ToolInfo.RadiusPixels * 2 * WorldUnitsPerPixel * ToolInfo.VFXWidthScale
+			if ToolInfo.ColorFromTarget and AimPart then
+				local OriginalColor = AimPart:GetAttribute("PaintOriginalColor")
+				local TargetColor = if typeof(OriginalColor) == "Color3" then OriginalColor else AimPart.Color
+				if CurrentToolColor then
+					local ColorBlend = 1 - math.exp(-(ToolInfo.ColorResponsiveness or 14) * DeltaTime)
+					CurrentToolColor = CurrentToolColor:Lerp(TargetColor, ColorBlend)
+				else
+					CurrentToolColor = TargetColor
+				end
+				ToolBeam.Color = ColorSequence.new(CurrentToolColor)
+			end
 		elseif ToolBeam then
 			ToolBeam.Enabled = false
 		end

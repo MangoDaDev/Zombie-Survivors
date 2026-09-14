@@ -26,7 +26,7 @@ Quick reference for the project's first-party Luau scripts. Generated Wally depe
 | Path | Name | Responsibility |
 | --- | --- | --- |
 | `src/controllers/CharacterController.lua` | CharacterController | Requests character spawning and manages local camera and respawn behavior. |
-| `src/controllers/BatController.lua` | BatController | Predicts responsive bat swings, forgiving crate/player hitboxes, trails, impacts, and latency-free crate health feedback. |
+| `src/controllers/BatController.lua` | BatController | Predicts responsive bat swings, forgiving crate/player hitboxes, trails, impacts, and monotonic latency-free crate health feedback. |
 | `src/controllers/ConveyorItemController.lua` | ConveyorItemController | Retains the inactive legacy ConveyorItem SharedClass renderer. |
 | `src/controllers/CrateController.lua` | CrateController | Plays client-only silhouette roulette, pulsing previews, reveal audio, and final reveal feedback. |
 | `src/controllers/FixingController.lua` | FixingController | Controls Fix prompts, the cursor-following arm, and shared input, radius, audio, and cursor-targeted VFX for configured fixing tools. |
@@ -58,15 +58,16 @@ Quick reference for the project's first-party Luau scripts. Generated Wally depe
 | Path | Name | Responsibility |
 | --- | --- | --- |
 | `src/modules/Game/_PlayerFreezeState.lua` | PlayerFreezeState | Stores and manages the local character's anchored freeze state. |
-| `src/modules/Game/CleaningConfig.lua` | CleaningConfig | Configures cleaning steps, tool loadouts, screen-space brush size, spray VFX, auto-completion, and completion feedback. |
-| `src/modules/Game/BatInfo.lua` | BatInfo | Configures expandable bat damage, timing, range, hitbox, knockback, and centralized sound choices. |
-| `src/modules/Game/CrateInfo.lua` | CrateInfo | Configures expandable crate spawning, health, scale variance, loot luck, reveal pacing, UI, and sounds. |
+| `src/modules/Game/CleaningConfig.lua` | CleaningConfig | Registers reusable restoration steps and tools, screen-space brushes, VFX, auto-completion, and item-step resolution helpers. |
+| `src/modules/Game/BatInfo.lua` | BatInfo | Configures expandable bat damage, timing, validation leeway, range, hitbox, knockback, and centralized sound choices. |
+| `src/modules/Game/CrateInfo.lua` | CrateInfo | Configures expandable crate spawning, health, scale variance, loot luck, reveal pacing, UI, sounds, and the synchronized reset cycle. |
 | `src/modules/Game/DataTemplate.lua` | DataTemplate | Defines saved defaults for cash, ordered inventory items, and museum displays. |
 | `src/modules/Game/DirtRenderer.lua` | DirtRenderer | Calculates surface-area-scaled dirt counts and adds or removes dense dirt layers across conveyor, inventory, and Fixing views. |
 | `src/modules/Game/FreezePlayer.lua` | FreezePlayer | Freezes the local player, optionally at a target CFrame. |
-| `src/modules/Game/ItemsInfo.lua` | ItemsInfo | Configures item IDs, assets, rarity, balanced roll weights, prices, guest payments, restoration durability, and movement. |
+| `src/modules/Game/ItemsInfo.lua` | ItemsInfo | Configures item IDs, assets, rarity, economy, durability, movement, and each item's ordered restoration-step requirements. |
 | `src/modules/Game/PaintRenderer.lua` | PaintRenderer | Applies randomized brown color damage while preserving and gradually restoring each target part's original color. |
 | `src/modules/Game/RarityInfo.lua` | RarityInfo | Defines the Common through Secret rarity tiers and their name-color gradients. |
+| `src/modules/Game/RestorationVisuals.lua` | RestorationVisuals | Applies each item's configured unfinished Dirt and Paint appearance consistently across rewards, carrying, inventory, and legacy sources. |
 | `src/modules/Game/TeleportLocalPlayer.lua` | TeleportLocalPlayer | Moves the local character to a CFrame or BasePart. |
 | `src/modules/Game/TeleportPlayer.lua` | TeleportPlayer | Moves a Player's character or a supplied character model to a target. |
 | `src/modules/Game/UnfreezePlayer.lua` | UnfreezePlayer | Restores the local character's state after freezing. |
@@ -105,7 +106,7 @@ Quick reference for the project's first-party Luau scripts. Generated Wally depe
 | --- | --- | --- |
 | `src/modules/UI/Images.lua` | Images | Catalogs named image asset IDs used by project interfaces. |
 | `src/modules/UI/FixingInterface.lua` | FixingInterface | Bridges Fixing HUD actions to the client Fixing controller. |
-| `src/modules/UI/ItemInfoBillboard.lua` | ItemInfoBillboard | Creates the reusable item name, price, and guest-payment BillboardGui. |
+| `src/modules/UI/ItemInfoBillboard.lua` | ItemInfoBillboard | Creates a size-aware elevated item billboard prioritizing guest payment above price and showing required restoration steps. |
 | `src/modules/UI/PlayVFX.lua` | PlayVFX | Clones, starts, and cleans up reusable visual and sound effects. |
 | `src/modules/UI/Sounds.lua` | Sounds | Resolves any approved Studio-owned sound by name and handles cloned positional playback and cleanup. |
 | `src/modules/UI/UIStyle.lua` | UIStyle | Provides the shared ComicNeueAngular game font for first-party and configured package interfaces. |
@@ -128,22 +129,23 @@ Quick reference for the project's first-party Luau scripts. Generated Wally depe
 | Path | Name | Responsibility |
 | --- | --- | --- |
 | `src/servercontrollers/CarryController.lua` | CarryController | Handles purchased-item carrying, auto-equipped museum delivery, normal and cleaning Tool loadouts, and ordered inventory persistence. |
-| `src/servercontrollers/BatController.lua` | BatController | Supplies bats and validates authoritative crate and PvP swing targets, damage, cooldowns, facing, and range. |
+| `src/servercontrollers/BatController.lua` | BatController | Supplies bats and validates authoritative crate and PvP swings against cooldowns plus a short server-recorded position/facing history for latency tolerance. |
 | `src/servercontrollers/CharacterController.lua` | CharacterController | Authorizes character spawning and applies the configured R6 avatar animations. |
 | `src/servercontrollers/ConveyorController.lua` | ConveyorController | Retains the inactive legacy conveyor spawning and purchase implementation. |
-| `src/servercontrollers/CrateController.lua` | CrateController | Spawns varied crates, owns health and rewards, securely rolls loot, reveals items, and reuses carrying purchases. |
+| `src/servercontrollers/CrateController.lua` | CrateController | Spawns varied crates, owns health and rewards, securely rolls loot, reveals items, and performs globally timed area resets behind the reset wall. |
 | `src/servercontrollers/FixingController.lua` | FixingController | Owns modular Dirt and Paint fixing steps, screen-space targeting, progress, auto-completion, feedback, and persisted restoration state. |
-| `src/servercontrollers/MuseumController.lua` | MuseumController | Assigns museum plots and manages persistent display placement, removal, selling, and viewing regions. |
+| `src/servercontrollers/MuseumController.lua` | MuseumController | Assigns museum plots, exposes safe base teleports, and manages persistent display placement, removal, selling, and viewing regions. |
 | `src/servercontrollers/VisitorController.lua` | VisitorController | Concurrently schedules grounded visitor routes and dialogue, chooses positions within display viewing regions, and awards guest-payment cash. |
 
 ## `src/UI` - Vide interface
 
 | Path | Name | Responsibility |
 | --- | --- | --- |
-| `src/UI/App.lua` | App | Composes the root ScreenGui, cleaning interface, and general HUD components. |
+| `src/UI/App.lua` | App | Composes the root ScreenGui, cleaning interface, crate reset countdown, and general HUD components. |
 | `src/UI/App.story.lua` | App Story | Exposes the App component for UI story previews. |
 | `src/UI/Classes/Button.lua` | Button | Provides a reusable reactive Vide button with hover and press feedback. |
 | `src/UI/HUD/BottomRight.lua` | BottomRight | Displays saved cash and animates the HUD when cash increases. |
 | `src/UI/HUD/CleaningHUD.lua` | CleaningHUD | Displays the cursor-centered cleaning brush and smoothly animated current-step progress. |
+| `src/UI/HUD/CrateResetTimer.lua` | CrateResetTimer | Displays the globally synchronized time remaining until the next crate-area reset. |
 | `src/UI/HUD/FixingOverlay.lua` | FixingOverlay | Shows the exit-cleaning control while the player is in Fixing mode. |
 | `src/UI/UIOrigin.lua` | UIOrigin | Mounts the Vide application once into the local PlayerGui. |

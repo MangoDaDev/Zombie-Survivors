@@ -35,6 +35,8 @@ local CleaningConfig = {
 			RadiusPixels = 72,
 			StrengthPerSecond = 4,
 			VFXWidthScale = 1,
+			ColorFromTarget = true,
+			ColorResponsiveness = 14,
 		},
 	},
 	Steps = {

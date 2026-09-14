@@ -15,7 +15,7 @@ local Reveals = {}
 local RandomGenerator = Random.new()
 
 local function GetCrateInfo(CrateId)
-	for _, Info in CrateInfo do
+	for _, Info in CrateInfo.Crates do
 		if Info.Id == CrateId then return Info end
 	end
 end

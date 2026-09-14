@@ -333,6 +333,15 @@ function MuseumController.GetMuseum(player: Player): Model?
 	return if assignment then assignment.museum else nil
 end
 
+function MuseumController.TeleportPlayerToMuseum(Player: Player): boolean
+	local Assignment = assignments[Player]
+	local Character = Player.Character
+	if not Assignment or not Character then return false end
+	local SpawnCFrame = Assignment.museum:FindFirstChild("SpawnCFrame")
+	if not SpawnCFrame or not SpawnCFrame:IsA("BasePart") then return false end
+	return TeleportPlayer(Character, SpawnCFrame)
+end
+
 function MuseumController.GetOccupiedDisplays(player: Player): { DisplayState }
 	local assignment = assignments[player]
 	local occupiedDisplays = {}

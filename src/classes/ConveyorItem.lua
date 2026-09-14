@@ -3,7 +3,7 @@ local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
 local ItemsInfo = require(ReplicatedStorage.Modules.Game.ItemsInfo)
-local DirtRenderer = require(ReplicatedStorage.Modules.Game.DirtRenderer)
+local RestorationVisuals = require(ReplicatedStorage.Modules.Game.RestorationVisuals)
 local ItemInfoBillboard = require(ReplicatedStorage.Modules.UI.ItemInfoBillboard)
 local SharedClass = require(ReplicatedStorage.Modules.Core.SharedClass)
 
@@ -99,7 +99,8 @@ function ConveyorItem:Render()
 	model:PivotTo(self:GetCurrentCFrame() * CFrame.new(0, heightOffset, 0))
 	model.Parent = getRenderFolder()
 	self.model = model
-	DirtRenderer.Add(model, self.DirtCount or 1, itemInfo.DirtHP)
+	local DirtCount = self.DirtCount or 1
+	RestorationVisuals.Apply(model, itemInfo, { Total = DirtCount, Remaining = DirtCount, Completed = false })
 	ItemInfoBillboard(itemInfo, primaryPart, { Total = self.DirtCount or 1, Remaining = self.DirtCount or 1, Completed = false })
 
 	local prompt = Instance.new("ProximityPrompt")

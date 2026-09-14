@@ -248,7 +248,13 @@ local function StartFixing(Player)
 	local Box = Model:FindFirstChild("BoundingBox")
 	if not Box or not Box:IsA("BasePart") then Model:Destroy(); return end
 	Model.PrimaryPart = Box
-	for _, Part in Model:GetDescendants() do if Part:IsA("BasePart") then Part.Anchored = true; Part.CanCollide = false end end
+	for _, Part in Model:GetDescendants() do
+		if Part:IsA("BasePart") then
+			Part.Anchored = true
+			Part.CanCollide = false
+			Part.CanQuery = Part ~= Box
+		end
+	end
 	NormalizeState(State, Model, Steps)
 	local StepIndex = GetFirstIncompleteStep(State, Steps)
 	if not StepIndex then State.Completed = true; SaveState(Player, ItemId, State); Model:Destroy(); return end
