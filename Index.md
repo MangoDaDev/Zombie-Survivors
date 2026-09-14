@@ -27,7 +27,7 @@ Quick reference for the project's first-party Luau scripts. Generated Wally depe
 | --- | --- | --- |
 | `src/controllers/CharacterController.lua` | CharacterController | Requests character spawning and manages local camera and respawn behavior. |
 | `src/controllers/ConveyorItemController.lua` | ConveyorItemController | Registers the client ConveyorItem SharedClass renderer. |
-| `src/controllers/FixingController.lua` | FixingController | Drives the Fixing camera, movement lock, cursor-following arm, and cursor-aimed SprayBottle input. |
+| `src/controllers/FixingController.lua` | FixingController | Controls Fix prompt visibility, the offset cursor-following arm, cursor-aimed SprayBottle input, and its looping spray audio. |
 | `src/controllers/InventoryController.lua` | InventoryController | Controls Satchel visibility and sends validated inventory slot ordering to the server. |
 | `src/controllers/MuseumVisitorController.lua` | MuseumVisitorController | Registers the client MuseumVisitor SharedClass renderer. |
 | `src/controllers/TopbarController.lua` | TopbarController | Creates the invite and group TopbarPlus buttons. |
@@ -122,7 +122,7 @@ Quick reference for the project's first-party Luau scripts. Generated Wally depe
 | `src/servercontrollers/CarryController.lua` | CarryController | Handles purchased-item carrying, museum delivery, Tool creation, and ordered inventory persistence. |
 | `src/servercontrollers/CharacterController.lua` | CharacterController | Authorizes character spawning and applies the configured R6 avatar animations. |
 | `src/servercontrollers/ConveyorController.lua` | ConveyorController | Builds conveyor paths, spawns weighted items, and validates purchases and cash deductions. |
-| `src/servercontrollers/FixingController.lua` | FixingController | Owns movement-locked Fixing sessions, dirt generation and cleaning, temporary tool loadouts, and persisted progress. |
+| `src/servercontrollers/FixingController.lua` | FixingController | Owns Fix prompts, movement-locked cleaning sessions, responsive dirt-hit feedback, temporary tool loadouts, and persisted progress. |
 | `src/servercontrollers/MuseumController.lua` | MuseumController | Assigns museum plots and manages persistent display placement, removal, selling, and viewing regions. |
 | `src/servercontrollers/VisitorController.lua` | VisitorController | Concurrently schedules grounded visitor routes and dialogue, chooses positions within display viewing regions, and awards guest-payment cash. |
 

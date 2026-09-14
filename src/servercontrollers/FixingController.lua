@@ -1,22 +1,29 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local ServerStorage = game:GetService("ServerStorage")
+local TweenService = game:GetService("TweenService")
 
 local CarryController = require(ServerStorage.Controllers.CarryController)
 local DirtRenderer = require(ReplicatedStorage.Modules.Game.DirtRenderer)
 local ItemsInfo = require(ReplicatedStorage.Modules.Game.ItemsInfo)
 local MuseumController = require(ServerStorage.Controllers.MuseumController)
 local Networker = require(ReplicatedStorage.Packages.networker)
+local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
 
 local CONFIG = {
 	SprayRadius = 0.8,
 	SprayDamagePerSecond = 4,
 	RotationSpeed = math.rad(12),
 	RotationResponsiveness = 5,
+	DirtFeedbackInterval = 0.16,
+	DirtFeedbackInTime = 0.06,
+	DirtFeedbackOutTime = 0.1,
+	DirtSoundMaxDistance = 50,
 }
 local FixingController = {}
 local DataService
 local Sessions = {}
+local PromptConnections: { [Player]: RBXScriptConnection } = {}
 
 local function GetInfo(ItemId)
 	for _, Info in ItemsInfo do if Info.Id == ItemId then return Info end end
@@ -25,6 +32,39 @@ local function SaveState(Player, ItemId, State)
 	local Fixing = DataService:get(Player, "Fixing") or {}
 	Fixing[tostring(ItemId)] = State
 	DataService:set(Player, "Fixing", Fixing)
+end
+local function PlayDirtFeedback(Session, Dirt, Now)
+	local LastFeedback = Session.DirtFeedbackTimes[Dirt] or 0
+	if Now - LastFeedback < CONFIG.DirtFeedbackInterval then return end
+	Session.DirtFeedbackTimes[Dirt] = Now
+
+	local OriginalSize = Dirt.Size
+	local OriginalColor = Dirt.Color
+	local HitSize = OriginalSize * Vector3.new(1.18, 0.82, 1.12)
+	local HitColor = OriginalColor:Lerp(Color3.new(1, 1, 1), 0.7)
+	local HitTween = TweenService:Create(
+		Dirt,
+		TweenInfo.new(CONFIG.DirtFeedbackInTime, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+		{ Size = HitSize, Color = HitColor }
+	)
+	HitTween.Completed:Once(function()
+		if not Dirt.Parent then return end
+		TweenService:Create(
+			Dirt,
+			TweenInfo.new(CONFIG.DirtFeedbackOutTime, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+			{ Size = OriginalSize, Color = OriginalColor }
+		):Play()
+	end)
+	HitTween:Play()
+
+	if Now - Session.LastDirtSound >= CONFIG.DirtFeedbackInterval then
+		Session.LastDirtSound = Now
+		local Sound = Sounds.Play("Splash", Session.Model.PrimaryPart or Session.Model, CONFIG.DirtSoundMaxDistance)
+		if Sound then
+			Sound.Volume *= 0.45
+			Sound.PlaybackSpeed = Random.new():NextNumber(0.92, 1.08)
+		end
+	end
 end
 local function ClearSession(Player)
 	local Session = Sessions[Player]
@@ -35,15 +75,14 @@ local function ClearSession(Player)
 	if Session.RootPart and Session.RootPart.Parent then
 		Session.RootPart.Anchored = Session.RootWasAnchored
 	end
-	if Session.Prompt and Session.Prompt.Parent then Session.Prompt.Enabled = true end
 	Sessions[Player] = nil
 	Player:SetAttribute("IsFixing", false)
 	CarryController.SetFixingMode(Player, false)
+	if Session.Prompt and Session.Prompt.Parent then Session.Prompt.Enabled = true end
 end
-local function StartFixing(Player, RequestedItemId)
+local function StartFixing(Player)
 	if Sessions[Player] then return end
-	local EquippedItemId = CarryController.GetEquippedItemId(Player)
-	local ItemId = if type(RequestedItemId) == "number" then RequestedItemId else EquippedItemId
+	local ItemId = CarryController.GetEquippedItemId(Player)
 	local Info = ItemId and GetInfo(ItemId)
 	local Museum = MuseumController.GetMuseum(Player)
 	local TableModel = Museum and Museum:FindFirstChild("Table")
@@ -84,6 +123,8 @@ local function StartFixing(Player, RequestedItemId)
 		Prompt = if Prompt and Prompt:IsA("ProximityPrompt") then Prompt else nil,
 		IsSpraying = false,
 		CurrentRotationSpeed = CONFIG.RotationSpeed,
+		DirtFeedbackTimes = {},
+		LastDirtSound = 0,
 	}
 	Session.Connection = RunService.Heartbeat:Connect(function(DeltaTime)
 		if not Model.Parent then return end
@@ -111,6 +152,7 @@ function FixingController:Spray(Player, AimPosition)
 	local ProgressChanged = false
 	for _, Dirt in Session.Dirt:GetChildren() do
 		if Dirt:IsA("BasePart") and (Dirt.Position - AimPosition).Magnitude <= CONFIG.SprayRadius then
+			PlayDirtFeedback(Session, Dirt, Now)
 			local HP = (Dirt:GetAttribute("HP") or 0) - Damage
 			Dirt:SetAttribute("HP", HP)
 			if HP <= 0 then Dirt:Destroy(); Session.State.Remaining -= 1; ProgressChanged = true end
@@ -133,11 +175,9 @@ function FixingController:StopSpraying(Player)
 	if Session then Session.IsSpraying = false end
 end
 function FixingController:Exit(Player) ClearSession(Player) end
-function FixingController:Start(Player, ItemId) StartFixing(Player, ItemId) end
 function FixingController.SetDataService(Service) DataService = Service end
 function FixingController:Init()
 	self.Networker = Networker.server.new("FixingController", self, {
-		FixingController.Start,
 		FixingController.StartSpraying,
 		FixingController.Spray,
 		FixingController.StopSpraying,
@@ -153,8 +193,16 @@ function FixingController.OnPlayerAdded(Player)
 		local Prompt = Instance.new("ProximityPrompt")
 		Prompt.Name = "FixItemPrompt"; Prompt.ActionText = "Fix Item"; Prompt.ObjectText = "Fixing Table"
 		Prompt.HoldDuration = 0; Prompt.MaxActivationDistance = 10; Prompt.RequiresLineOfSight = false
+		Prompt.Exclusivity = Enum.ProximityPromptExclusivity.AlwaysShow
 		Prompt.Enabled = true; Prompt.UIOffset = Vector2.new(0, -55); Prompt.Parent = Part
+		PromptConnections[Player] = Prompt.Triggered:Connect(function(TriggeringPlayer)
+			if TriggeringPlayer == Player then StartFixing(Player) end
+		end)
 	end
 end
-function FixingController.OnPlayerRemoving(Player) ClearSession(Player) end
+function FixingController.OnPlayerRemoving(Player)
+	ClearSession(Player)
+	local PromptConnection = PromptConnections[Player]
+	if PromptConnection then PromptConnection:Disconnect(); PromptConnections[Player] = nil end
+end
 return FixingController

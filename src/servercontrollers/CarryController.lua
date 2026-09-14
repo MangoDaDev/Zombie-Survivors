@@ -3,6 +3,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerStorage = game:GetService("ServerStorage")
 
 local ItemsInfo = require(ReplicatedStorage.Modules.Game.ItemsInfo)
+local CleaningConfig = require(ReplicatedStorage.Modules.Game.CleaningConfig)
 local DirtRenderer = require(ReplicatedStorage.Modules.Game.DirtRenderer)
 local ItemInfoBillboard = require(ReplicatedStorage.Modules.UI.ItemInfoBillboard)
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
@@ -216,6 +217,10 @@ local function deliverItem(player: Player)
 		state.model:Destroy()
 	end
 	tool.Parent = backpack
+	local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+	if humanoid then
+		humanoid:EquipTool(tool)
+	end
 	player:SetAttribute("IsCarryingItem", false)
 	PlaySound(player, "Reward1")
 end
@@ -252,16 +257,19 @@ function CarryController.SetFixingMode(player: Player, enabled: boolean)
 	if enabled then
 		local SprayBottle: Tool?
 		if backpack then
-			for _, Template in ReplicatedStorage.Assets.Tools:GetChildren() do
-				if Template:IsA("Tool") then
+			for _, ToolInfo in CleaningConfig.Tools do
+				local Template = ReplicatedStorage.Assets.Tools:FindFirstChild(ToolInfo.TemplateName)
+				if Template and Template:IsA("Tool") then
 					local Tool = Template:Clone()
+					Tool.Name = ToolInfo.DisplayName
 					Tool.CanBeDropped = false
-					Tool:SetAttribute("FixingTool", Template.Name)
+					Tool:SetAttribute("FixingTool", ToolInfo.TemplateName)
+					Tool:SetAttribute("CleaningToolId", ToolInfo.Id)
 					for _, Descendant in Tool:GetDescendants() do
 						if Descendant:IsA("BasePart") then Descendant.CanCollide = false end
 					end
 					Tool.Parent = backpack
-					if Tool.Name == "SprayBottle" then SprayBottle = Tool end
+					if ToolInfo.Id == "Spray" then SprayBottle = Tool end
 				end
 			end
 			local Humanoid = character and character:FindFirstChildOfClass("Humanoid")
