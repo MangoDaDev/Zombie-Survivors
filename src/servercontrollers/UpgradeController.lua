@@ -10,20 +10,24 @@ local DataService
 local PurchaseLocks: { [Player]: boolean } = {}
 
 local function CopyOwnership(Value)
-	local Ownership = {}
-	if type(Value) == "table" then
-		for UpgradeId, IsOwned in Value do
-			if type(UpgradeId) == "string" and IsOwned == true then Ownership[UpgradeId] = true end
-		end
+	return UpgradeLogic.NormalizeOwnership(Value)
+end
+
+local function OwnershipMatches(Value, Ownership): boolean
+	if type(Value) ~= "table" then return false end
+	for UpgradeId, IsOwned in Ownership do
+		if IsOwned == true and Value[UpgradeId] ~= true then return false end
 	end
-	Ownership.Start = true
-	return Ownership
+	for UpgradeId, IsOwned in Value do
+		if type(UpgradeId) ~= "string" or IsOwned ~= true or Ownership[UpgradeId] ~= true then return false end
+	end
+	return true
 end
 
 function UpgradeController:Purchase(Player: Player, UpgradeId: string)
 	if PurchaseLocks[Player] or Player.Parent ~= Players or type(UpgradeId) ~= "string" then return false, "Invalid request" end
 	local Upgrade = UpgradeConfig.Get(UpgradeId)
-	if not Upgrade or Upgrade.Id == "Start" then return false, "That upgrade cannot be purchased" end
+	if not Upgrade or Upgrade.Purchasable == false then return false, "That upgrade cannot be purchased" end
 	PurchaseLocks[Player] = true
 	local Ownership = CopyOwnership(DataService:get(Player, "Upgrades"))
 	if UpgradeLogic.IsPurchased(Ownership, UpgradeId) then
@@ -54,8 +58,9 @@ end
 
 function UpgradeController.OnPlayerAdded(Player: Player)
 	local SavedOwnership = DataService:get(Player, "Upgrades")
-	if type(SavedOwnership) ~= "table" or SavedOwnership.Start ~= true then
-		DataService:set(Player, "Upgrades", CopyOwnership(SavedOwnership))
+	local Ownership = CopyOwnership(SavedOwnership)
+	if not OwnershipMatches(SavedOwnership, Ownership) then
+		DataService:set(Player, "Upgrades", Ownership)
 	end
 end
 

@@ -15,12 +15,16 @@ local Images = {
 	Changelog = "rbxassetid://119703720791230",
 	Binoculars = "rbxassetid://106957185207855",
 	Hexagon = "rbxassetid://102072576281291",
+	Spray = "rbxassetid://",
+	SprayPaint = "rbxassetid://",
+	Sponge = "rbxassetid://",
+	Bat = "rbxassetid://",
 
 	FixIcons = {
 		Dirt = "rbxassetid://111727278981257",
 		Paint = "rbxassetid://118966242175055",
 		Grease = "rbxassetid://97022398341091",
-	}
+	},
 }
 
 return Images

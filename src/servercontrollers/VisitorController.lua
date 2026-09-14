@@ -6,12 +6,13 @@ local Workspace = game:GetService("Workspace")
 local ItemsInfo = require(ReplicatedStorage.Modules.Game.ItemsInfo)
 local MuseumVisitor = require(ServerStorage.Classes.MuseumVisitor)
 local MuseumController = require(ServerStorage.Controllers.MuseumController)
+local UpgradeLogic = require(ReplicatedStorage.Modules.Game.UpgradeLogic)
 
 local CONFIG = {
 	InitialSpawnDelay = 5,
 	BetweenVisitorsMin = 8,
 	BetweenVisitorsMax = 14,
-	MaxActiveVisitors = 3,
+	MaxActiveVisitors = 6,
 	MoveSpeed = 8,
 	ActivityCountMin = 4,
 	ActivityCountMax = 7,
@@ -60,6 +61,7 @@ local VisitorController = {
 local dataService
 local visitTokens: { [Player]: {} } = {}
 local activeVisitors: { [Player]: { [any]: boolean } } = {}
+local DisplayReservations: { [Player]: { [any]: number } } = {}
 
 local function getItemInfo(itemId: number)
 	for _, itemInfo in ItemsInfo do
@@ -157,6 +159,36 @@ local function isVisitActive(player: Player, token, visitor): boolean
 		and ActiveForPlayer[visitor] == true
 end
 
+local function GetAvailableDisplays(Player: Player): { any }
+	local AvailableDisplays = {}
+	local Reservations = DisplayReservations[Player]
+	if not Reservations then return AvailableDisplays end
+	local VisitorsPerDisplay = UpgradeLogic.GetVisitorsPerDisplay(dataService:get(Player, "Upgrades"))
+	for _, DisplayState in MuseumController.GetOccupiedDisplays(Player) do
+		if (Reservations[DisplayState] or 0) < VisitorsPerDisplay then
+			table.insert(AvailableDisplays, DisplayState)
+		end
+	end
+	return AvailableDisplays
+end
+
+local function ReserveDisplay(Player: Player, DisplayState): boolean
+	local Reservations = DisplayReservations[Player]
+	if not Reservations then return false end
+	local VisitorsPerDisplay = UpgradeLogic.GetVisitorsPerDisplay(dataService:get(Player, "Upgrades"))
+	local CurrentCount = Reservations[DisplayState] or 0
+	if CurrentCount >= VisitorsPerDisplay then return false end
+	Reservations[DisplayState] = CurrentCount + 1
+	return true
+end
+
+local function ReleaseDisplay(Player: Player, DisplayState)
+	local Reservations = DisplayReservations[Player]
+	if not Reservations then return end
+	local CurrentCount = Reservations[DisplayState] or 0
+	Reservations[DisplayState] = if CurrentCount > 1 then CurrentCount - 1 else nil
+end
+
 local function runVisit(player: Player, token)
 	local museum = MuseumController.GetMuseum(player)
 	local spawnPart = museum and museum:FindFirstChild("SpawnCFrame")
@@ -204,9 +236,10 @@ local function runVisit(player: Player, token)
 			return
 		end
 
-		local occupiedDisplays = MuseumController.GetOccupiedDisplays(player)
-		if #occupiedDisplays > 0 and math.random() <= CONFIG.InspectChance then
-			local displayState = occupiedDisplays[math.random(1, #occupiedDisplays)]
+		local AvailableDisplays = GetAvailableDisplays(player)
+		if #AvailableDisplays > 0 and math.random() <= CONFIG.InspectChance then
+			local displayState = AvailableDisplays[math.random(1, #AvailableDisplays)]
+			if not ReserveDisplay(player, displayState) then continue end
 			local itemId = displayState.itemId
 			local itemInfo = itemId and getItemInfo(itemId)
 			local InspectionCFrame = GetGroundedCFrame(
@@ -223,6 +256,7 @@ local function runVisit(player: Player, token)
 					visitor:ShowCash(itemInfo.GuestPay)
 				end
 			end
+			ReleaseDisplay(player, displayState)
 		else
 			local WanderCFrame = GetGroundedCFrame(museum, getWanderCFrame(floor, spawnCFrame.Position.Y))
 			if not moveTo(WanderCFrame) then
@@ -254,6 +288,7 @@ function VisitorController.OnPlayerAdded(player: Player)
 	local token = {}
 	visitTokens[player] = token
 	activeVisitors[player] = {}
+	DisplayReservations[player] = {}
 	task.spawn(function()
 		task.wait(CONFIG.InitialSpawnDelay)
 		while player.Parent == Players and visitTokens[player] == token do
@@ -276,6 +311,7 @@ function VisitorController.OnPlayerRemoving(player: Player)
 	visitTokens[player] = nil
 	local Visitors = activeVisitors[player]
 	activeVisitors[player] = nil
+	DisplayReservations[player] = nil
 	if Visitors then
 		for Visitor in Visitors do
 			Visitor:Destroy()

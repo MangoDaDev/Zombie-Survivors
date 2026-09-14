@@ -21,7 +21,7 @@ local Spring = Vide.spring
 
 local LocalPlayer = Players.LocalPlayer
 local SquareRootThree = math.sqrt(3)
-local ConnectorGap = 3
+local ConnectorGap = 0
 
 local StateColors = {
 	Available = Color3.fromRGB(45, 190, 229),
@@ -145,6 +145,9 @@ local function CreateNode(Properties)
 	local IsDetailed = Derive(function()
 		return RevealDistance() == 0
 	end)
+	local ShowsDetails = Derive(function()
+		return RevealDistance() ~= nil
+	end)
 	local Transparency = Spring(
 		Derive(function()
 			if IsDetailed() then
@@ -221,7 +224,7 @@ local function CreateNode(Properties)
 			TextColor3 = Color3.fromRGB(241, 246, 255),
 			TextScaled = true,
 			TextTransparency = function()
-				return if IsDetailed() then 0 else 1
+				return if ShowsDetails() then 0 else 1
 			end,
 			TextWrapped = true,
 			ZIndex = 4,
@@ -229,7 +232,7 @@ local function CreateNode(Properties)
 				Color = Color3.fromRGB(9, 13, 22),
 				Thickness = 2,
 				Transparency = function()
-					return if IsDetailed() then 0.15 else 1
+					return if ShowsDetails() then 0.15 else 1
 				end,
 			},
 			Create "UITextSizeConstraint" { MaxTextSize = 23, MinTextSize = 8 },
@@ -254,10 +257,12 @@ local function CreateNode(Properties)
 			Name = "Icon",
 			AnchorPoint = Vector2.new(0.5, 0.5),
 			BackgroundTransparency = 1,
-			Image = Icon,
+			Image = function()
+				return if IsDetailed() then Icon else Images.Lock
+			end,
 			ImageColor3 = Color3.new(1, 1, 1),
 			ImageTransparency = function()
-				return if IsDetailed() then 0 else 1
+				return if RevealDistance() == nil then 1 else 0
 			end,
 			Position = UDim2.fromScale(0.5, if Upgrade.ShortValue then 0.43 else 0.5),
 			ScaleType = Enum.ScaleType.Fit,
@@ -296,14 +301,14 @@ local function CreateNode(Properties)
 			end,
 			TextScaled = true,
 			TextTransparency = function()
-				return if IsDetailed() then 0 else 1
+				return if ShowsDetails() then 0 else 1
 			end,
 			ZIndex = 4,
 			Create "UIStroke" {
 				Color = Color3.fromRGB(9, 13, 22),
 				Thickness = 2,
 				Transparency = function()
-					return if IsDetailed() then 0.15 else 1
+					return if ShowsDetails() then 0.15 else 1
 				end,
 			},
 			Create "UITextSizeConstraint" { MaxTextSize = 21, MinTextSize = 8 },
@@ -360,12 +365,13 @@ local function CreateNode(Properties)
 end
 
 return function()
-	local Ownership = Source(DataService:get "Upgrades" or { Start = true })
+	local Ownership = Source(UpgradeLogic.NormalizeOwnership(DataService:get "Upgrades"))
 	local Cash = Source(DataService:get "Cash" or 0)
 	local IsOpen = Source(false)
 	local IsPurchasing = Source(false)
 	local LastPurchasedId = Source ""
-	local CameraTarget = Source(Vector2.zero)
+	local StartUpgrade = UpgradeConfig.Get("Start")
+	local CameraTarget = Source(if StartUpgrade then StartUpgrade.Position else Vector2.zero)
 	local ZoomTarget = Source(UpgradeConfig.DefaultZoom)
 	local CameraPosition = Spring(CameraTarget, 0.16, 0.9)
 	local Zoom = Spring(ZoomTarget, 0.16, 0.9)
@@ -474,7 +480,7 @@ return function()
 		end
 	end)
 	local UpgradeConnection = DataService:getChangedSignal("Upgrades"):Connect(function(Value)
-		Ownership(if type(Value) == "table" then Value else { Start = true })
+		Ownership(UpgradeLogic.NormalizeOwnership(Value))
 	end)
 	local CashConnection = DataService:getChangedSignal("Cash"):Connect(function(Value)
 		Cash(if type(Value) == "number" then Value else 0)
@@ -629,7 +635,12 @@ return function()
 				Text = "",
 				ZIndex = 27,
 				Activated = function()
-					IsOpen(not IsOpen())
+					local Opening = not IsOpen()
+					if Opening then
+						CameraTarget(if StartUpgrade then StartUpgrade.Position else Vector2.zero)
+						ZoomTarget(UpgradeConfig.DefaultZoom)
+					end
+					IsOpen(Opening)
 					Sounds.Play("Click", LocalPlayer.PlayerGui)
 				end,
 			},

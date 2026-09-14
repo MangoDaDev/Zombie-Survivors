@@ -24,6 +24,8 @@ local function GetSurfaceParts(Model: Model): ({ SurfacePart }, number)
 		if
 			Descendant:IsA("BasePart")
 			and Descendant.Name ~= "BoundingBox"
+			and Descendant.Name ~= "Grease"
+			and Descendant:FindFirstAncestor("Grease") == nil
 			and Descendant.Transparency < 1
 			and Descendant:GetAttribute("NoDirt") ~= true
 		then

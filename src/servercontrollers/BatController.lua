@@ -7,9 +7,13 @@ local BatInfo = require(ReplicatedStorage.Modules.Game.BatInfo)
 local CrateController = require(ServerStorage.Controllers.CrateController)
 local Networker = require(ReplicatedStorage.Packages.networker)
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
+local UpgradeLogic = require(ReplicatedStorage.Modules.Game.UpgradeLogic)
 
 local BatController = {}
+local DataService
+local Network
 local PlayerConnections: { [Player]: RBXScriptConnection } = {}
+local UpgradeConnections: { [Player]: RBXScriptConnection } = {}
 local LastSwings: { [Player]: number } = {}
 local PositionHistory: { [Player]: { { Time: number, CFrame: CFrame } } } = {}
 local LastPositionSamples: { [Player]: number } = {}
@@ -39,18 +43,25 @@ end
 
 local function EnsureBat(Player)
 	if Player.Parent ~= Players or Player:GetAttribute("IsFixing") == true then return end
+	local Ownership = DataService:get(Player, "Upgrades")
+	local Info = GetBatInfo(UpgradeLogic.GetBatId(Ownership)) or BatInfo[1]
+	local MatchingBat
 	for _, Container in { Player.Character, Player:FindFirstChildOfClass("Backpack") } do
 		if Container then
 			for _, Child in Container:GetChildren() do
 				if Child:IsA("Tool") and type(Child:GetAttribute("BatId")) == "string" then
-					Child:SetAttribute("InitialToolOrder", 0)
-					return
+					if Child:GetAttribute("BatId") == Info.Id and not MatchingBat then
+						MatchingBat = Child
+						Child:SetAttribute("InitialToolOrder", 0)
+					else
+						Child:Destroy()
+					end
 				end
 			end
 		end
 	end
+	if MatchingBat then return end
 	local Backpack = Player:FindFirstChildOfClass("Backpack")
-	local Info = BatInfo[1]
 	local Template = ReplicatedStorage.Assets.Tools:FindFirstChild(Info.TemplateName)
 	if not Backpack or not Template or not Template:IsA("Tool") then return end
 	local Tool = Template:Clone()
@@ -106,7 +117,8 @@ function BatController:Swing(Player, Targets)
 	local Tool = Character and Character:FindFirstChildOfClass("Tool")
 	local BatId = Tool and Tool:GetAttribute("BatId")
 	local Info = if type(BatId) == "string" then GetBatInfo(BatId) else nil
-	if not RootPart or not RootPart:IsA("BasePart") or not Info then return end
+	local OwnedBatId = UpgradeLogic.GetBatId(DataService:get(Player, "Upgrades"))
+	if not RootPart or not RootPart:IsA("BasePart") or not Info or BatId ~= OwnedBatId then return end
 	local Now = os.clock()
 	local MinimumServerCooldown = math.max(0, Info.SwingCooldown * Info.ServerCooldownFactor - Info.ServerCooldownLeeway)
 	if Now - (LastSwings[Player] or 0) < MinimumServerCooldown then return end
@@ -117,7 +129,10 @@ function BatController:Swing(Player, Targets)
 		HitTargets[Target] = true
 		if Target:IsA("Model") and Target:HasTag("Crate") then
 			if IsTargetInRange(Player, RootPart, Target:GetPivot().Position, Info, Now) then
-				CrateController.DamageCrate(Player, Target, Info.CrateDamage)
+				local Damaged = CrateController.DamageCrate(Player, Target, Info.CrateDamage)
+				if Damaged and Target.Parent then
+					Network:fireAllExcept(Player, "ReactToCrate", Target, RootPart.Position, Info.Id)
+				end
 			end
 			continue
 		end
@@ -141,15 +156,22 @@ function BatController:Swing(Player, Targets)
 end
 
 function BatController:Init()
-	Networker.server.new("BatController", self, { BatController.Swing })
+	Network = Networker.server.new("BatController", self, { BatController.Swing })
 	RunService.Heartbeat:Connect(function()
 		RecordPositions(os.clock())
 	end)
 end
 
+function BatController.SetDataService(Service)
+	DataService = Service
+end
+
 function BatController.OnPlayerAdded(Player)
 	PlayerConnections[Player] = Player:GetAttributeChangedSignal("IsFixing"):Connect(function()
 		if Player:GetAttribute("IsFixing") == true then RemoveBats(Player) else task.defer(EnsureBat, Player) end
+	end)
+	UpgradeConnections[Player] = DataService:getChangedSignal(Player, "Upgrades"):Connect(function()
+		task.defer(EnsureBat, Player)
 	end)
 	task.defer(EnsureBat, Player)
 end
@@ -161,6 +183,8 @@ end
 function BatController.OnPlayerRemoving(Player)
 	local Connection = PlayerConnections[Player]
 	if Connection then Connection:Disconnect(); PlayerConnections[Player] = nil end
+	local UpgradeConnection = UpgradeConnections[Player]
+	if UpgradeConnection then UpgradeConnection:Disconnect(); UpgradeConnections[Player] = nil end
 	LastSwings[Player] = nil
 	PositionHistory[Player] = nil
 	LastPositionSamples[Player] = nil

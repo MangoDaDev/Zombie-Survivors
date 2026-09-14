@@ -13,6 +13,7 @@ local MuseumController = require(ServerStorage.Controllers.MuseumController)
 local Networker = require(ReplicatedStorage.Packages.networker)
 local PaintRenderer = require(ReplicatedStorage.Modules.Game.PaintRenderer)
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
+local UpgradeLogic = require(ReplicatedStorage.Modules.Game.UpgradeLogic)
 
 local CONFIG = {
 	RotationSpeed = math.rad(12),
@@ -34,6 +35,10 @@ end
 
 local function GetToolInfo(ToolId)
 	return CleaningConfig.GetTool(ToolId)
+end
+
+local function IsToolUnlocked(Player, ToolId): boolean
+	return UpgradeLogic.IsToolUnlocked(DataService:get(Player, "Upgrades"), ToolId)
 end
 
 local function SaveState(Player, ItemId, State)
@@ -70,17 +75,18 @@ local function GetStepState(Session)
 end
 
 local function GetTargets(Session): { BasePart }
-	if Session.Dirt then
+	local Step = Session.Steps[Session.StepIndex]
+	if Step and Step.Type == "Dirt" and Session.Dirt then
 		local Targets = {}
 		for _, Target in Session.Dirt:GetChildren() do if Target:IsA("BasePart") then table.insert(Targets, Target) end end
 		return Targets
 	end
-	if Session.Grease then
+	if Step and Step.Type == "Grease" and Session.Grease then
 		local Targets = {}
 		for _, Target in Session.Grease:GetChildren() do if Target:IsA("BasePart") then table.insert(Targets, Target) end end
 		return Targets
 	end
-	return Session.PaintTargets or {}
+	return if Step and Step.Type == "Paint" then Session.PaintTargets or {} else {}
 end
 
 local function GetTargetHP(Target, Step): number
@@ -120,36 +126,65 @@ local function ClearTargets(Session)
 	if Session.PaintTargets then PaintRenderer.Clear(Session.PaintTargets); Session.PaintTargets = nil end
 end
 
-local function PrepareCurrentStep(Player, Session)
+local function PrepareAllTargets(Session)
 	ClearTargets(Session)
+	for _, Step in Session.Steps do
+		local StepState = Session.State.Steps[Step.Id]
+		if Step.Type == "Paint" and StepState.Completed ~= true then
+			Session.PaintTargets = PaintRenderer.Add(
+				Session.Model,
+				StepState.Remaining,
+				Step.TargetHP,
+				Step.DirtColor,
+				Step.DirtAmountMinimum,
+				Step.DirtAmountMaximum
+			)
+		end
+	end
+	for _, Step in Session.Steps do
+		local StepState = Session.State.Steps[Step.Id]
+		if Step.Type == "Grease" and StepState.Completed ~= true then
+			Session.Grease = GreaseRenderer.Add(
+				Session.Model,
+				StepState.Remaining,
+				Step.TargetHP,
+				Step.PatchColor,
+				Step.PatchTransparency
+			)
+		end
+	end
+	for _, Step in Session.Steps do
+		local StepState = Session.State.Steps[Step.Id]
+		if Step.Type == "Dirt" and StepState.Completed ~= true then
+			Session.Dirt = DirtRenderer.Add(Session.Model, StepState.Remaining, Session.ItemInfo.DirtHP)
+			if Session.Dirt then
+				for _, Dirt in Session.Dirt:GetChildren() do
+					if Dirt:IsA("BasePart") then Dirt:SetAttribute("MaxHP", Session.ItemInfo.DirtHP) end
+				end
+			end
+		end
+	end
+end
+
+local function ClearCurrentTargets(Session)
+	local Step = Session.Steps[Session.StepIndex]
+	if not Step then return end
+	if Step.Type == "Dirt" and Session.Dirt then
+		Session.Dirt:Destroy()
+		Session.Dirt = nil
+	elseif Step.Type == "Grease" and Session.Grease then
+		Session.Grease:Destroy()
+		Session.Grease = nil
+	elseif Step.Type == "Paint" and Session.PaintTargets then
+		PaintRenderer.Clear(Session.PaintTargets)
+		Session.PaintTargets = nil
+	end
+end
+
+local function PrepareCurrentStep(Player, Session)
 	local Step = Session.Steps[Session.StepIndex]
 	local StepState = GetStepState(Session)
 	if not Step or not StepState then return end
-	if Step.Type == "Dirt" then
-		Session.Dirt = DirtRenderer.Add(Session.Model, StepState.Remaining, Session.ItemInfo.DirtHP)
-		if Session.Dirt then
-			for _, Dirt in Session.Dirt:GetChildren() do
-				if Dirt:IsA("BasePart") then Dirt:SetAttribute("MaxHP", Session.ItemInfo.DirtHP) end
-			end
-		end
-	elseif Step.Type == "Paint" then
-		Session.PaintTargets = PaintRenderer.Add(
-			Session.Model,
-			StepState.Remaining,
-			Step.TargetHP,
-			Step.DirtColor,
-			Step.DirtAmountMinimum,
-			Step.DirtAmountMaximum
-		)
-	elseif Step.Type == "Grease" then
-		Session.Grease = GreaseRenderer.Add(
-			Session.Model,
-			StepState.Remaining,
-			Step.TargetHP,
-			Step.PatchColor,
-			Step.PatchTransparency
-		)
-	end
 	Session.LastProgress = -1
 	Player:SetAttribute("CleaningStepName", Step.DisplayName)
 	Player:SetAttribute("CleaningStepToolId", Step.ToolId)
@@ -277,6 +312,7 @@ local function StartFixing(Player)
 	NormalizeState(State, Model, Steps)
 	local StepIndex = GetFirstIncompleteStep(State, Steps)
 	if not StepIndex then State.Completed = true; SaveState(Player, ItemId, State); Model:Destroy(); return end
+	if not IsToolUnlocked(Player, Steps[StepIndex].ToolId) then Model:Destroy(); return end
 	local CameraPart = TableModel and TableModel:FindFirstChild("CamPart")
 	if not CameraPart or not CameraPart:IsA("BasePart") then Model:Destroy(); return end
 	local ItemDistance = CleaningConfig.MinimumItemCameraDistance + math.max(Box.Size.X, Box.Size.Y, Box.Size.Z) * CleaningConfig.ItemCameraDistancePerStud
@@ -319,6 +355,7 @@ local function StartFixing(Player)
 	Sessions[Player] = Session
 	if Session.Prompt then Session.Prompt.Enabled = false end
 	SaveState(Player, ItemId, State)
+	PrepareAllTargets(Session)
 	PrepareCurrentStep(Player, Session)
 	if GetStepProgress(Session) >= CleaningConfig.AutoCompletionThreshold then task.defer(CompleteCurrentStep, Player, Session) end
 end
@@ -359,7 +396,7 @@ CompleteCurrentStep = function(Player, Session)
 	StepState.Remaining = 0
 	StepState.Completed = true
 	if Step.Type == "Dirt" then Session.State.Remaining = 0 end
-	ClearTargets(Session)
+	ClearCurrentTargets(Session)
 	SaveState(Player, Session.ItemId, Session.State)
 	Player:SetAttribute("CleaningProgress", 1)
 	Player:SetAttribute("CleaningStepComplete", true)
@@ -371,6 +408,10 @@ CompleteCurrentStep = function(Player, Session)
 	if NextStepIndex then
 		task.delay(CleaningConfig.StepTransitionDelay, function()
 			if Sessions[Player] ~= Session then return end
+			if not IsToolUnlocked(Player, Session.Steps[NextStepIndex].ToolId) then
+				ClearSession(Player)
+				return
+			end
 			Session.StepIndex = NextStepIndex
 			Session.Completing = false
 			PrepareCurrentStep(Player, Session)
@@ -389,6 +430,7 @@ function FixingController:ApplyTool(Player, ToolId, BrushPosition, ViewportSize)
 	local ToolInfo = if type(ToolId) == "string" then GetToolInfo(ToolId) else nil
 	local Tool = Step and GetCleaningTool(Player, Step.ToolId)
 	if not Session or Session.Completing or not Session.IsUsingTool or Session.ActiveToolId ~= ToolId or not Step or Step.ToolId ~= ToolId or not ToolInfo or not Tool
+		or not IsToolUnlocked(Player, ToolId)
 		or Tool.Parent ~= Player.Character
 		or typeof(BrushPosition) ~= "Vector2" or typeof(ViewportSize) ~= "Vector2"
 	then return end
@@ -399,7 +441,8 @@ function FixingController:ApplyTool(Player, ToolId, BrushPosition, ViewportSize)
 	local CameraPart = TableModel and TableModel:FindFirstChild("CamPart")
 	if not CameraPart or not CameraPart:IsA("BasePart") then return end
 	local Now = os.clock()
-	local Damage = ToolInfo.StrengthPerSecond * math.clamp(Now - Session.LastApplication, 0, 0.2)
+	local StrengthMultiplier = UpgradeLogic.GetToolStrengthMultiplier(DataService:get(Player, "Upgrades"), ToolId)
+	local Damage = ToolInfo.StrengthPerSecond * StrengthMultiplier * math.clamp(Now - Session.LastApplication, 0, 0.2)
 	Session.LastApplication = Now
 	local StepState = GetStepState(Session)
 	local ProgressChanged = false
@@ -429,7 +472,18 @@ function FixingController:StartUsingTool(Player, ToolId)
 	local Session = Sessions[Player]
 	local Step = Session and Session.Steps[Session.StepIndex]
 	local Tool = Step and GetCleaningTool(Player, Step.ToolId)
-	if not Session or Session.Completing or type(ToolId) ~= "string" or not Step or Step.ToolId ~= ToolId or not Tool or Tool.Parent ~= Player.Character then return end
+	if
+		not Session
+		or Session.Completing
+		or type(ToolId) ~= "string"
+		or not Step
+		or Step.ToolId ~= ToolId
+		or not IsToolUnlocked(Player, ToolId)
+		or not Tool
+		or Tool.Parent ~= Player.Character
+	then
+		return
+	end
 	Session.IsUsingTool = true
 	Session.ActiveToolId = ToolId
 	Session.LastApplication = os.clock()

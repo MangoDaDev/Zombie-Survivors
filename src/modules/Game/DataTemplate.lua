@@ -5,5 +5,6 @@ return {
 	Fixing = {},
 	Upgrades = {
 		Start = true,
+		WoodenBat = true,
 	},
 }

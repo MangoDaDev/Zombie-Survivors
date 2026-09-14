@@ -8,6 +8,7 @@ local DirtRenderer = require(ReplicatedStorage.Modules.Game.DirtRenderer)
 local ItemInfoBillboard = require(ReplicatedStorage.Modules.UI.ItemInfoBillboard)
 local RestorationVisuals = require(ReplicatedStorage.Modules.Game.RestorationVisuals)
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
+local UpgradeLogic = require(ReplicatedStorage.Modules.Game.UpgradeLogic)
 local MuseumController = require(ServerStorage.Controllers.MuseumController)
 local Networker = require(ReplicatedStorage.Packages.networker)
 
@@ -241,9 +242,13 @@ function CarryController.MoveCarriedItemToInventory(player: Player): number?
 end
 
 function CarryController.GetEquippedItemId(player: Player): number?
-	local Tool = player.Character and player.Character:FindFirstChildOfClass("Tool")
-	local ItemId = Tool and Tool:GetAttribute("ItemId")
-	return if type(ItemId) == "number" then ItemId else nil
+	local Character = player.Character
+	if not Character then return nil end
+	for _, Tool in Character:GetChildren() do
+		local ItemId = Tool:GetAttribute("ItemId")
+		if Tool:IsA("Tool") and type(ItemId) == "number" and Tool:HasTag("satchelSlot") then return ItemId end
+	end
+	return nil
 end
 
 function CarryController.RefreshInventory(player: Player)
@@ -257,9 +262,11 @@ function CarryController.SetFixingMode(player: Player, enabled: boolean, Initial
 	if character then removeManagedTools(character) end
 	if enabled then
 		local InitialTool: Tool?
+		local Ownership = dataService:get(player, "Upgrades")
 		InitialToolId = InitialToolId or (CleaningConfig.Steps[1] and CleaningConfig.Steps[1].ToolId)
 		if backpack then
 			for _, ToolInfo in CleaningConfig.Tools do
+				if not UpgradeLogic.IsToolUnlocked(Ownership, ToolInfo.Id) then continue end
 				local Template = ReplicatedStorage.Assets.Tools:FindFirstChild(ToolInfo.TemplateName)
 				if Template and Template:IsA("Tool") then
 					local Tool = Template:Clone()
@@ -286,7 +293,8 @@ end
 function CarryController.EquipCleaningTool(Player: Player, ToolId: string)
 	local Character = Player.Character
 	local Backpack = Player:FindFirstChildOfClass("Backpack")
-	if not Character or not Backpack then return end
+	local Ownership = dataService:get(Player, "Upgrades")
+	if not Character or not Backpack or not UpgradeLogic.IsToolUnlocked(Ownership, ToolId) then return end
 	local Humanoid = Character:FindFirstChildOfClass("Humanoid")
 	if Humanoid then Humanoid:UnequipTools() end
 	for _, Tool in Backpack:GetChildren() do

@@ -266,24 +266,6 @@ local function BreakCrate(State)
 	end)
 end
 
-local function ReactToDamage(State, AttackerPosition)
-	State.ReactionId += 1
-	local ReactionId = State.ReactionId
-	local Direction = State.BaseCFrame.Position - AttackerPosition
-	local LocalDirection = State.BaseCFrame:VectorToObjectSpace(if Direction.Magnitude > 0 then Direction.Unit else Vector3.zAxis)
-	local Kick = CFrame.Angles(math.rad(-LocalDirection.Z * 5), 0, math.rad(LocalDirection.X * 5))
-	task.spawn(function()
-		for Index = 1, 6 do
-			if Crates[State.Model] ~= State or State.ReactionId ~= ReactionId then return end
-			local Alpha = Index / 6
-			local Weight = math.sin(Alpha * math.pi)
-			State.Model:PivotTo(State.BaseCFrame:Lerp(State.BaseCFrame * Kick, Weight))
-			task.wait()
-		end
-		if Crates[State.Model] == State then State.Model:PivotTo(State.BaseCFrame) end
-	end)
-end
-
 function CrateController.DamageCrate(Player, Model, Damage): boolean
 	local State = Crates[Model]
 	local RootPart = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
@@ -296,7 +278,6 @@ function CrateController.DamageCrate(Player, Model, Damage): boolean
 	TweenService:Create(State.HealthFill, TweenInfo.new(State.Info.HealthBarTweenTime, Enum.EasingStyle.Quad), { Size = UDim2.fromScale(State.Health / State.Info.Health, 1) }):Play()
 	State.HealthLabel.Text = `{math.ceil(State.Health)}/{State.Info.Health}`
 	Sounds.Play(State.Info.DamageSoundName, State.Model.PrimaryPart, 80)
-	ReactToDamage(State, RootPart.Position)
 	task.delay(State.Info.HealthBarHideDelay, function()
 		if Crates[Model] == State and State.VisibilityId == VisibilityId then
 			TweenService:Create(State.HealthGroup, TweenInfo.new(0.25), { GroupTransparency = 1 }):Play()
@@ -348,7 +329,6 @@ function CrateController.Spawn(Info, AllowDuringReset): boolean
 		Scale = Scale,
 		YRotation = YRotation,
 		VisibilityId = 0,
-		ReactionId = 0,
 	}
 	return true
 end
@@ -377,7 +357,6 @@ local function ClearCrateArea()
 	for Model in Crates do table.insert(Models, Model) end
 	for _, Model in Models do
 		local State = Crates[Model]
-		if State then State.ReactionId += 1 end
 		Crates[Model] = nil
 		Model:Destroy()
 	end

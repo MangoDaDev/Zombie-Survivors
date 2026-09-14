@@ -6,6 +6,26 @@ function UpgradeLogic.IsPurchased(Ownership, UpgradeId: string): boolean
 	return type(Ownership) == "table" and Ownership[UpgradeId] == true
 end
 
+function UpgradeLogic.GetDefaultOwnership(): { [string]: boolean }
+	local Ownership = {}
+	for UpgradeId, IsOwned in UpgradeConfig.DefaultOwnership do
+		if IsOwned == true then Ownership[UpgradeId] = true end
+	end
+	return Ownership
+end
+
+function UpgradeLogic.NormalizeOwnership(Value): { [string]: boolean }
+	local Ownership = UpgradeLogic.GetDefaultOwnership()
+	if type(Value) == "table" then
+		for UpgradeId, IsOwned in Value do
+			if type(UpgradeId) == "string" and IsOwned == true and UpgradeConfig.Get(UpgradeId) then
+				Ownership[UpgradeId] = true
+			end
+		end
+	end
+	return Ownership
+end
+
 function UpgradeLogic.ArePrerequisitesMet(Ownership, Upgrade): boolean
 	for _, PrerequisiteId in Upgrade.Prerequisites do
 		if not UpgradeLogic.IsPurchased(Ownership, PrerequisiteId) then return false end
@@ -16,6 +36,82 @@ end
 function UpgradeLogic.GetState(Ownership, Upgrade): string
 	if UpgradeLogic.IsPurchased(Ownership, Upgrade.Id) then return "Purchased" end
 	return if UpgradeLogic.ArePrerequisitesMet(Ownership, Upgrade) then "Available" else "Locked"
+end
+
+function UpgradeLogic.GetDisplayLimit(Ownership): number
+	local Limit = UpgradeConfig.DefaultDisplayLimit
+	for _, Upgrade in UpgradeConfig.Upgrades do
+		local Effect = Upgrade.Effect
+		if UpgradeLogic.IsPurchased(Ownership, Upgrade.Id) and Effect and Effect.Type == "DisplayLimit" then
+			Limit = math.max(Limit, Effect.Value)
+		end
+	end
+	return Limit
+end
+
+function UpgradeLogic.GetVisitorsPerDisplay(Ownership): number
+	local Limit = UpgradeConfig.DefaultVisitorsPerDisplay
+	for _, Upgrade in UpgradeConfig.Upgrades do
+		local Effect = Upgrade.Effect
+		if UpgradeLogic.IsPurchased(Ownership, Upgrade.Id) and Effect and Effect.Type == "VisitorsPerDisplay" then
+			Limit = math.max(Limit, Effect.Value)
+		end
+	end
+	return Limit
+end
+
+function UpgradeLogic.IsToolUnlocked(Ownership, ToolId: string): boolean
+	for _, Upgrade in UpgradeConfig.Upgrades do
+		local Effect = Upgrade.Effect
+		if
+			UpgradeLogic.IsPurchased(Ownership, Upgrade.Id)
+			and Effect
+			and Effect.Type == "ToolUnlock"
+			and Effect.ToolId == ToolId
+		then
+			return true
+		end
+	end
+	return false
+end
+
+function UpgradeLogic.GetToolStrengthMultiplier(Ownership, ToolId: string): number
+	local Multiplier = UpgradeConfig.DefaultToolStrengthMultiplier
+	for _, Upgrade in UpgradeConfig.Upgrades do
+		local Effect = Upgrade.Effect
+		if
+			UpgradeLogic.IsPurchased(Ownership, Upgrade.Id)
+			and Effect
+			and Effect.Type == "ToolStrength"
+			and Effect.ToolId == ToolId
+		then
+			Multiplier = math.max(Multiplier, Effect.Multiplier)
+		end
+	end
+	return Multiplier
+end
+
+function UpgradeLogic.GetBatId(Ownership): string
+	local BatId = UpgradeConfig.DefaultBatId
+	local HighestTier = 0
+	for _, Upgrade in UpgradeConfig.Upgrades do
+		local Effect = Upgrade.Effect
+		if
+			UpgradeLogic.IsPurchased(Ownership, Upgrade.Id)
+			and Effect
+			and Effect.Type == "BatTier"
+			and Effect.Tier > HighestTier
+		then
+			BatId = Effect.BatId
+			HighestTier = Effect.Tier
+		end
+	end
+	return BatId
+end
+
+function UpgradeLogic.CanReveal(Ownership, Upgrade): boolean
+	local Effect = Upgrade.Effect
+	return not Effect or Effect.Type ~= "ToolStrength" or UpgradeLogic.IsToolUnlocked(Ownership, Effect.ToolId)
 end
 
 function UpgradeLogic.GetMissingPrerequisiteNames(Ownership, Upgrade): { string }
@@ -33,6 +129,7 @@ function UpgradeLogic.GetRevealDistances(Ownership, MaximumDistance: number): { 
 	local Distances = {}
 	local Queue = {}
 	for _, Upgrade in UpgradeConfig.Upgrades do
+		if not UpgradeLogic.CanReveal(Ownership, Upgrade) then continue end
 		local State = UpgradeLogic.GetState(Ownership, Upgrade)
 		if State == "Purchased" or State == "Available" then
 			Distances[Upgrade.Id] = 0
@@ -48,6 +145,8 @@ function UpgradeLogic.GetRevealDistances(Ownership, MaximumDistance: number): { 
 			local Upgrade = UpgradeConfig.Get(UpgradeId)
 			if Upgrade then
 				for _, ConnectedId in Upgrade.ConnectedUpgrades do
+					local ConnectedUpgrade = UpgradeConfig.Get(ConnectedId)
+					if not ConnectedUpgrade or not UpgradeLogic.CanReveal(Ownership, ConnectedUpgrade) then continue end
 					local NextDistance = Distance + 1
 					if Distances[ConnectedId] == nil or NextDistance < Distances[ConnectedId] then
 						Distances[ConnectedId] = NextDistance

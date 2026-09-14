@@ -15,6 +15,7 @@ local LocalPlayer = Players.LocalPlayer
 local BatController = {}
 local HookedTools: { [Tool]: boolean } = {}
 local CratePredictions = {}
+local CrateReactions = {}
 local Network
 local RandomGenerator = Random.new()
 
@@ -48,6 +49,7 @@ local function RenderPredictedHealth(Model, State)
 	local PendingDamage = 0
 	for _, Prediction in State.Pending do PendingDamage += Prediction.Damage end
 	local PredictedHealth = math.max(0, State.ConfirmedHealth - PendingDamage)
+	if State.ConfirmedHealth > 0 and PredictedHealth <= 0 then PredictedHealth = 1 end
 	local MaximumHealth = Model:GetAttribute("MaxHealth") or State.ConfirmedHealth
 	local Group, Fill, HealthLabel = GetHealthInterface(Model)
 	if not Group then return end
@@ -71,12 +73,40 @@ local function HoldPredictedHealth(Model, State)
 	local PendingDamage = 0
 	for _, Prediction in State.Pending do PendingDamage += Prediction.Damage end
 	local PredictedHealth = math.max(0, State.ConfirmedHealth - PendingDamage)
+	if State.ConfirmedHealth > 0 and PredictedHealth <= 0 then PredictedHealth = 1 end
 	local MaximumHealth = Model:GetAttribute("MaxHealth") or State.ConfirmedHealth
 	local Group, Fill, HealthLabel = GetHealthInterface(Model)
 	if not Group then return end
 	Group.GroupTransparency = 0
 	Fill.Size = UDim2.fromScale(PredictedHealth / math.max(MaximumHealth, 1), 1)
 	HealthLabel.Text = `{math.ceil(PredictedHealth)}/{MaximumHealth}`
+end
+
+local function ReactToCrate(Model, AttackerPosition, Info)
+	if not Model.Parent then return end
+	local State = CrateReactions[Model]
+	if not State then
+		State = { BaseCFrame = Model:GetPivot(), ReactionId = 0 }
+		CrateReactions[Model] = State
+		Model.Destroying:Once(function() CrateReactions[Model] = nil end)
+	end
+	State.ReactionId += 1
+	local ReactionId = State.ReactionId
+	local Direction = State.BaseCFrame.Position - AttackerPosition
+	local LocalDirection = State.BaseCFrame:VectorToObjectSpace(if Direction.Magnitude > 0 then Direction.Unit else Vector3.zAxis)
+	local Angle = math.rad(Info.ImpactReactionAngleDegrees)
+	local Kick = CFrame.Angles(-LocalDirection.Z * Angle, 0, LocalDirection.X * Angle)
+	task.spawn(function()
+		for Index = 1, 6 do
+			if not Model.Parent or CrateReactions[Model] ~= State or State.ReactionId ~= ReactionId then return end
+			local Weight = math.sin(Index / 6 * math.pi)
+			Model:PivotTo(State.BaseCFrame:Lerp(State.BaseCFrame * Kick, Weight))
+			task.wait(Info.ImpactReactionDuration / 6)
+		end
+		if Model.Parent and CrateReactions[Model] == State and State.ReactionId == ReactionId then
+			Model:PivotTo(State.BaseCFrame)
+		end
+	end)
 end
 
 local function ReconcileCrateHealth(Model, State)
@@ -138,7 +168,12 @@ local function GetTargetModel(Part): Model?
 end
 
 local function ShowPredictedImpact(Model, Handle, Info)
-	if CollectionService:HasTag(Model, "Crate") then PredictCrateDamage(Model, Info.CrateDamage, Info) end
+	if CollectionService:HasTag(Model, "Crate") then
+		PredictCrateDamage(Model, Info.CrateDamage, Info)
+		local Character = LocalPlayer.Character
+		local RootPart = Character and Character:FindFirstChild("HumanoidRootPart")
+		if RootPart and RootPart:IsA("BasePart") then ReactToCrate(Model, RootPart.Position, Info) end
+	end
 	local Highlight = Instance.new("Highlight")
 	Highlight.FillColor = Color3.new(1, 1, 1)
 	Highlight.FillTransparency = 0.35
@@ -239,6 +274,14 @@ function BatController:Init()
 	task.spawn(function()
 		HookContainer(LocalPlayer:WaitForChild("Backpack"))
 	end)
+end
+
+function BatController:ReactToCrate(Model, AttackerPosition, BatId)
+	local Info = if type(BatId) == "string" then GetBatInfo(BatId) else nil
+	if typeof(Model) ~= "Instance" or not Model:IsA("Model") or not CollectionService:HasTag(Model, "Crate")
+		or typeof(AttackerPosition) ~= "Vector3" or not Info
+	then return end
+	ReactToCrate(Model, AttackerPosition, Info)
 end
 
 function BatController.OnCharacterAdded(Character)
