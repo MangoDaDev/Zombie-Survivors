@@ -10,6 +10,7 @@ local Workspace = game:GetService("Workspace")
 local CarryController = require(ServerStorage.Controllers.CarryController)
 local CrateInfo = require(ReplicatedStorage.Modules.Game.CrateInfo)
 local DirtRenderer = require(ReplicatedStorage.Modules.Game.DirtRenderer)
+local FormatTime = require(ReplicatedStorage.Modules.Math.FormatTime)
 local GetRandomFromWeightedTable = require(ReplicatedStorage.Modules.Math.GetRandomFromWeightedTable)
 local ItemInfoBillboard = require(ReplicatedStorage.Modules.UI.ItemInfoBillboard)
 local ItemsInfo = require(ReplicatedStorage.Modules.Game.ItemsInfo)
@@ -27,6 +28,7 @@ local RewardFolder: Folder
 local ResetWall: BasePart?
 local Crates = {}
 local Rewards = {}
+local PityLabels = {}
 local RandomGenerator = Random.new()
 local IsResetting = false
 local ResetGeneration = 0
@@ -260,7 +262,7 @@ local function BreakCrate(State)
 	CreateReward(State)
 	State.Model:Destroy()
 	task.delay(State.Info.RespawnDelay, function()
-		if ResetGeneration == BreakGeneration then CrateController.Spawn(State.Info) end
+		if State.Info.Respawns ~= false and ResetGeneration == BreakGeneration then CrateController.Spawn(State.Info) end
 	end)
 end
 
@@ -381,8 +383,12 @@ local function ClearCrateArea()
 	end
 end
 
-local function SpawnAllCrates()
-	for _, Info in CrateInfo.Crates do
+local function IsPityBoundary(Info, BoundaryTime): boolean
+	return Info.PityOnly == true and type(Info.PityInterval) == "number" and math.round(BoundaryTime) % Info.PityInterval == 0
+end
+
+local function SpawnConfiguredCrates(Infos)
+	for _, Info in Infos do
 		local Spawned = 0
 		local Attempts = 0
 		while Spawned < Info.MaximumActive and Attempts < Info.MaximumActive * 12 do
@@ -393,7 +399,21 @@ local function SpawnAllCrates()
 	end
 end
 
-local function ResetCrates()
+local function SpawnPityCrate(Info)
+	for _ = 1, 48 do
+		if CrateController.Spawn(Info, true) then return end
+		task.wait(CrateInfo.Reset.SpawnInterval)
+	end
+end
+
+local function SpawnAllCrates(BoundaryTime)
+	for _, Info in CrateInfo.GetPityCrates() do
+		if IsPityBoundary(Info, BoundaryTime) then SpawnPityCrate(Info) end
+	end
+	SpawnConfiguredCrates(CrateInfo.GetRegularCrates())
+end
+
+local function ResetCrates(BoundaryTime)
 	if IsResetting then return end
 	IsResetting = true
 	ResetGeneration += 1
@@ -407,12 +427,74 @@ local function ResetCrates()
 		end
 	end
 	ClearCrateArea()
-	SpawnAllCrates()
+	SpawnAllCrates(BoundaryTime)
 	local RemainingWallTime = CrateInfo.Reset.MinimumWallVisibleTime - (Workspace:GetServerTimeNow() - ResetStartedAt)
 	if RemainingWallTime > 0 then task.wait(RemainingWallTime) end
 	SetResetWallVisible(false)
 	Workspace:SetAttribute("CratesResetting", false)
 	IsResetting = false
+end
+
+local function GetNextAlignedTime(Interval, Now): number
+	return (math.floor(Now / Interval) + 1) * Interval
+end
+
+local function CreatePityDisplay()
+	local DisplayPart = Workspace:FindFirstChild(CrateInfo.PityDisplay.PartName)
+	if not DisplayPart or not DisplayPart:IsA("BasePart") then return end
+	local Existing = DisplayPart:FindFirstChild("CratePitySurface")
+	if Existing then Existing:Destroy() end
+	local Surface = Instance.new("SurfaceGui")
+	Surface.Name = "CratePitySurface"
+	Surface.Face = Enum.NormalId.Front
+	Surface.LightInfluence = 0
+	Surface.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	Surface.PixelsPerStud = CrateInfo.PityDisplay.PixelsPerStud
+	Surface.Parent = DisplayPart
+	local Container = Instance.new("Frame")
+	Container.Name = "Container"
+	Container.BackgroundTransparency = 1
+	Container.Position = UDim2.fromScale(0.06, 0.08)
+	Container.Size = UDim2.fromScale(0.88, 0.84)
+	Container.Parent = Surface
+	local Layout = Instance.new("UIListLayout")
+	Layout.FillDirection = Enum.FillDirection.Vertical
+	Layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	Layout.Padding = UDim.new(0.025, 0)
+	Layout.SortOrder = Enum.SortOrder.LayoutOrder
+	Layout.VerticalAlignment = Enum.VerticalAlignment.Center
+	Layout.Parent = Container
+	for Index, Info in CrateInfo.GetPityCrates() do
+		local Label = Instance.new("TextLabel")
+		Label.Name = Info.Id
+		Label.BackgroundTransparency = 1
+		Label.FontFace = UIStyle.Font
+		Label.LayoutOrder = Index
+		Label.RichText = true
+		Label.Size = UDim2.fromScale(1, 0.4)
+		Label.TextColor3 = Info.DisplayColor or Color3.new(1, 1, 1)
+		Label.TextScaled = true
+		Label.Parent = Container
+		local Stroke = Instance.new("UIStroke")
+		Stroke.Color = Color3.new(0, 0, 0)
+		Stroke.Thickness = 3
+		Stroke.Parent = Label
+		PityLabels[Info.Id] = Label
+	end
+end
+
+local function UpdatePityDisplay()
+	local Now = Workspace:GetServerTimeNow()
+	for _, Info in CrateInfo.GetPityCrates() do
+		local Label = PityLabels[Info.Id]
+		if Label and Label.Parent then
+			local Remaining = math.max(0, math.ceil(GetNextAlignedTime(Info.PityInterval, Now) - Now))
+			local DisplayName = if Info.Id == "SecretCrate"
+				then '<font color="#FFFFFF">S</font><font color="#25252B">E</font><font color="#FFFFFF">C</font><font color="#6F6F78">R</font><font color="#FFFFFF">E</font><font color="#151518">T</font>'
+				else `<font color="#FF3041">MYTHICAL</font>`
+			Label.Text = `<b>{DisplayName}</b> Crate in <b>{FormatTime(Remaining)}</b>`
+		end
+	end
 end
 
 local function GetNextResetTime(Now): number
@@ -428,7 +510,9 @@ local function StartResetSchedule()
 	Workspace:SetAttribute("NextCrateResetTime", NextResetTime)
 	Workspace:SetAttribute("CratesResetting", false)
 	if Now - PreviousBoundary < CrateInfo.Reset.MinimumWallVisibleTime then
-		ResetCrates()
+		ResetCrates(PreviousBoundary)
+	else
+		SpawnAllCrates(PreviousBoundary)
 	end
 	while true do
 		Now = Workspace:GetServerTimeNow()
@@ -438,7 +522,7 @@ local function StartResetSchedule()
 		end
 		NextResetTime = GetNextResetTime(Now)
 		Workspace:SetAttribute("NextCrateResetTime", NextResetTime)
-		ResetCrates()
+		ResetCrates(NextResetTime - Interval)
 	end
 end
 
@@ -459,11 +543,10 @@ function CrateController:Init()
 		SetResetWallVisible(false)
 	end
 	Network = Networker.server.new("CrateController", self)
-	for _, Info in CrateInfo.Crates do
-		for Index = 1, Info.MaximumActive do
-			task.delay((Index - 1) * 0.08, function() CrateController.Spawn(Info) end)
-		end
-	end
+	CreatePityDisplay()
+	task.spawn(function()
+		while true do UpdatePityDisplay(); task.wait(1) end
+	end)
 	task.spawn(StartResetSchedule)
 end
 

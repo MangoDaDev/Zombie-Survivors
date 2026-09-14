@@ -21,6 +21,7 @@ local modules_to_init = {
 	ServerStorage.Controllers.CrateController,
 	ServerStorage.Controllers.BatController,
 	ServerStorage.Controllers.VisitorController,
+	ServerStorage.Controllers.UpgradeController,
 }
 
 local initialized_modules = {}

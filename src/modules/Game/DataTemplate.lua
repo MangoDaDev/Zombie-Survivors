@@ -3,4 +3,7 @@ return {
 	Inventory = {},
 	Displays = {},
 	Fixing = {},
+	Upgrades = {
+		Start = true,
+	},
 }
