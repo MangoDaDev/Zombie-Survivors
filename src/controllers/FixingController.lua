@@ -1,3 +1,4 @@
+local GuiService = game:GetService("GuiService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -12,7 +13,7 @@ local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
 
 local LocalPlayer = Players.LocalPlayer
 local FixingController = {}
-local CameraConnection: RBXScriptConnection?
+local CameraBound = false
 local HiddenParts: { [BasePart]: number } = {}
 local Shoulder: Motor6D?
 local ShoulderTransform = CFrame.identity
@@ -28,7 +29,10 @@ local SprayEmitter: ParticleEmitter?
 local SmoothedSprayPosition: Vector3?
 local OriginalFieldOfView: number?
 
-local ARM_OFFSET = CFrame.new(0.35, 0, 0)
+local ARM_SCREEN_POSITION = Vector2.new(0.82, 0.82)
+local ARM_CURSOR_SCREEN_INFLUENCE = Vector2.new(0.07, 0.06)
+local ARM_CAMERA_DEPTH = 1.55
+local CAMERA_BINDING_NAME = "CleaningCameraAndArm"
 local SPRAY_SOUND_MAX_DISTANCE = 50
 
 local VisibleArmParts = {
@@ -121,7 +125,7 @@ local function StartSprayEffects()
 	SprayBeam = BeamTemplate:Clone()
 	SprayBeam.Attachment0 = SprayStartAttachment
 	SprayBeam.Attachment1 = SprayEndAttachment
-	SprayBeam.Enabled = true
+	SprayBeam.Enabled = false
 	SprayBeam.Parent = StartPart
 	SprayEmitter = StartPart:FindFirstChildOfClass("ParticleEmitter")
 	if SprayEmitter then SprayEmitter.Enabled = true end
@@ -143,23 +147,38 @@ local function Restore()
 	HiddenParts = {}
 	if Shoulder and Shoulder.Parent then Shoulder.Transform = ShoulderTransform end
 	Shoulder = nil
-	if CameraConnection then CameraConnection:Disconnect(); CameraConnection = nil end
+	if CameraBound then RunService:UnbindFromRenderStep(CAMERA_BINDING_NAME); CameraBound = false end
 	local Camera = Workspace.CurrentCamera
 	Camera.CameraType = Enum.CameraType.Custom
 	if OriginalFieldOfView then Camera.FieldOfView = OriginalFieldOfView; OriginalFieldOfView = nil end
 end
 
 local function GetArmTransform(): CFrame
+	if not Shoulder or not Shoulder.Part0 or not Shoulder.Part1 then return ShoulderTransform end
 	local Camera = Workspace.CurrentCamera
 	local ViewportSize = Camera.ViewportSize
-	local MousePosition = UserInputService:GetMouseLocation()
+	local MousePosition = UserInputService:GetMouseLocation() - GuiService:GetGuiInset()
 	local Horizontal = math.clamp(MousePosition.X / math.max(ViewportSize.X, 1) * 2 - 1, -1, 1)
 	local Vertical = math.clamp(MousePosition.Y / math.max(ViewportSize.Y, 1) * 2 - 1, -1, 1)
-	return ShoulderTransform * ARM_OFFSET * CFrame.Angles(
-		math.rad(-15 - Vertical * 30),
-		math.rad(-Horizontal * 35),
-		math.rad(10 + Horizontal * 12)
+	local ScreenPosition = ARM_SCREEN_POSITION + Vector2.new(
+		Horizontal * ARM_CURSOR_SCREEN_INFLUENCE.X,
+		Vertical * ARM_CURSOR_SCREEN_INFLUENCE.Y
 	)
+	local HalfHeight = ARM_CAMERA_DEPTH * math.tan(math.rad(Camera.FieldOfView / 2))
+	local HalfWidth = HalfHeight * ViewportSize.X / math.max(ViewportSize.Y, 1)
+	local CameraPosition = Vector3.new(
+		(ScreenPosition.X * 2 - 1) * HalfWidth,
+		(1 - ScreenPosition.Y * 2) * HalfHeight,
+		-ARM_CAMERA_DEPTH
+	)
+	local DesiredArmCFrame = Camera.CFrame
+		* CFrame.new(CameraPosition)
+		* CFrame.Angles(
+			math.rad(-20 - Vertical * 24),
+			math.rad(-12 - Horizontal * 28),
+			math.rad(18 + Horizontal * 14)
+		)
+	return Shoulder.C0:Inverse() * Shoulder.Part0.CFrame:Inverse() * DesiredArmCFrame * Shoulder.C1
 end
 
 local function EnterFixingView()
@@ -172,7 +191,7 @@ local function EnterFixingView()
 	local CamPart = TableModel and TableModel:FindFirstChild("CamPart")
 	if not Character or not CamPart or not CamPart:IsA("BasePart") then return end
 
-	Shoulder = Character:FindFirstChild("RightShoulder", true) :: Motor6D?
+	Shoulder = (Character:FindFirstChild("Right Shoulder", true) or Character:FindFirstChild("RightShoulder", true)) :: Motor6D?
 	if Shoulder and Shoulder:IsA("Motor6D") then
 		ShoulderTransform = Shoulder.Transform
 	else
@@ -189,16 +208,19 @@ local function EnterFixingView()
 	OriginalFieldOfView = Camera.FieldOfView
 	Camera.FieldOfView = CleaningConfig.CameraFieldOfView
 	Camera.CameraType = Enum.CameraType.Scriptable
-	CameraConnection = RunService.RenderStepped:Connect(function()
+	Camera.CFrame = CamPart.CFrame
+	if Shoulder then Shoulder.Transform = GetArmTransform() end
+	RunService:BindToRenderStep(CAMERA_BINDING_NAME, Enum.RenderPriority.Last.Value, function()
 		Camera.CFrame = CamPart.CFrame
 		if Shoulder and Shoulder.Parent then Shoulder.Transform = GetArmTransform() end
 	end)
+	CameraBound = true
 end
 
 local function GetAimPosition(): Vector3?
 	local Camera = Workspace.CurrentCamera
-	local MousePosition = UserInputService:GetMouseLocation()
-	local Ray = Camera:ScreenPointToRay(MousePosition.X, MousePosition.Y)
+	local MousePosition = UserInputService:GetMouseLocation() - GuiService:GetGuiInset()
+	local Ray = Camera:ViewportPointToRay(MousePosition.X, MousePosition.Y)
 	local RaycastParameters = RaycastParams.new()
 	RaycastParameters.FilterType = Enum.RaycastFilterType.Exclude
 	RaycastParameters.FilterDescendantsInstances = if LocalPlayer.Character then { LocalPlayer.Character } else {}
@@ -219,20 +241,32 @@ function FixingController:Init()
 		UpdateFixPrompt()
 	end)
 	DataService:getChangedSignal("Fixing"):Connect(UpdateFixPrompt)
+	LocalPlayer:GetAttributeChangedSignal("CleaningStepComplete"):Connect(function()
+		if LocalPlayer:GetAttribute("CleaningStepComplete") == true then
+			Spraying = false
+			StopSprayEffects()
+		end
+	end)
 	FixingInterface.ExitRequested:Connect(function()
 		if LocalPlayer:GetAttribute("IsFixing") == true then self.Networker:fire("Exit") end
 	end)
 	RunService.RenderStepped:Connect(function(DeltaTime)
 		if not Spraying then return end
 		local Tool = GetCleaningTool("Spray")
-		local AimPosition = Tool and GetAimPosition()
-		if not AimPosition then return end
+		if not Tool then
+			Spraying = false
+			StopSprayEffects()
+			self.Networker:fire("StopSpraying")
+			return
+		end
+		local AimPosition = GetAimPosition()
 		local Camera = Workspace.CurrentCamera
-		local MousePosition = UserInputService:GetMouseLocation()
-		if SprayEndPart and SprayBeam then
+		local MousePosition = UserInputService:GetMouseLocation() - GuiService:GetGuiInset()
+		if AimPosition and SprayEndPart and SprayBeam then
 			local Blend = 1 - math.exp(-CleaningConfig.SprayEndpointResponsiveness * DeltaTime)
 			SmoothedSprayPosition = if SmoothedSprayPosition then SmoothedSprayPosition:Lerp(AimPosition, Blend) else AimPosition
 			SprayEndPart.Position = SmoothedSprayPosition
+			SprayBeam.Enabled = true
 			local CameraPosition = Camera.CFrame:PointToObjectSpace(SmoothedSprayPosition)
 			local Depth = math.max(-CameraPosition.Z, 0.1)
 			local WorldUnitsPerPixel = 2 * Depth * math.tan(math.rad(Camera.FieldOfView / 2)) / math.max(Camera.ViewportSize.Y, 1)
@@ -244,6 +278,7 @@ function FixingController:Init()
 		if Processed then return end
 		if Input.UserInputType == Enum.UserInputType.MouseButton1
 			and LocalPlayer:GetAttribute("IsFixing") == true
+			and GetCleaningTool("Spray") ~= nil
 			and not Spraying
 		then
 			Spraying = true

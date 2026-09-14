@@ -3,6 +3,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Images = require(ReplicatedStorage.Modules.UI.Images)
 
 local BILLBOARD_SIZE = UDim2.fromScale(7.5, 4)
+local BILLBOARD_HEIGHT_OFFSET = 1.5
 local COMIC_FONT = Font.fromName("ComicNeueAngular")
 local MAX_DISTANCE = 300
 
@@ -65,7 +66,7 @@ return function(itemInfo, adornee: BasePart, fixingState): BillboardGui
 	billboard.AlwaysOnTop = true
 	billboard.MaxDistance = MAX_DISTANCE
 	billboard.Size = BILLBOARD_SIZE
-	billboard.StudsOffsetWorldSpace = Vector3.new(0, adornee.Size.Y / 2 + 1, 0)
+	billboard.StudsOffsetWorldSpace = Vector3.new(0, adornee.Size.Y / 2 + BILLBOARD_HEIGHT_OFFSET, 0)
 	billboard.Parent = adornee
 
 	local nameLabel = Instance.new("TextLabel")

@@ -2,10 +2,15 @@ local CleaningConfig = {
 	AutoCompletionThreshold = 0.8,
 	BrushRadiusPixels = 72,
 	CameraFieldOfView = 70,
+	MinimumItemCameraDistance = 3.9,
+	ItemCameraDistancePerStud = 0.42,
+	ItemVerticalOffset = -0.45,
+	ItemTiltDegrees = -8,
 	SprayVFXWidthScale = 1,
 	SprayEndpointResponsiveness = 24,
 	StepTransitionDelay = 0.45,
 	FullCompletionDelay = 1,
+	DirtDamageSoundName = "Hooked",
 	Tools = {
 		{
 			Id = "Spray",

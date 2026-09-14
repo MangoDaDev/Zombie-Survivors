@@ -217,11 +217,11 @@ local function deliverItem(player: Player)
 		state.model:Destroy()
 	end
 	tool.Parent = backpack
-	local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
-	if humanoid then
-		humanoid:EquipTool(tool)
-	end
 	player:SetAttribute("IsCarryingItem", false)
+	task.delay(0.1, function()
+		local character = player.Character
+		if character and tool.Parent == backpack then tool.Parent = character end
+	end)
 	PlaySound(player, "Reward1")
 end
 
@@ -265,6 +265,8 @@ function CarryController.SetFixingMode(player: Player, enabled: boolean)
 					Tool.CanBeDropped = false
 					Tool:SetAttribute("FixingTool", ToolInfo.TemplateName)
 					Tool:SetAttribute("CleaningToolId", ToolInfo.Id)
+					Tool:SetAttribute("InitialToolOrder", 1)
+					Tool:AddTag("satchelSlot")
 					for _, Descendant in Tool:GetDescendants() do
 						if Descendant:IsA("BasePart") then Descendant.CanCollide = false end
 					end
@@ -272,8 +274,7 @@ function CarryController.SetFixingMode(player: Player, enabled: boolean)
 					if ToolInfo.Id == "Spray" then SprayBottle = Tool end
 				end
 			end
-			local Humanoid = character and character:FindFirstChildOfClass("Humanoid")
-			if Humanoid and SprayBottle then Humanoid:EquipTool(SprayBottle) end
+			if character and SprayBottle then SprayBottle.Parent = character end
 		end
 	elseif character then
 		restoreInventory(player, character)

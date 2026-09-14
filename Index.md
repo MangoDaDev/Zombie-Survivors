@@ -56,6 +56,7 @@ Quick reference for the project's first-party Luau scripts. Generated Wally depe
 | Path | Name | Responsibility |
 | --- | --- | --- |
 | `src/modules/Game/_PlayerFreezeState.lua` | PlayerFreezeState | Stores and manages the local character's anchored freeze state. |
+| `src/modules/Game/CleaningConfig.lua` | CleaningConfig | Configures cleaning steps, tool loadouts, screen-space brush size, spray VFX, auto-completion, and completion feedback. |
 | `src/modules/Game/DataTemplate.lua` | DataTemplate | Defines saved defaults for cash, ordered inventory items, and museum displays. |
 | `src/modules/Game/DirtRenderer.lua` | DirtRenderer | Calculates surface-area-scaled dirt counts and adds or removes dense dirt layers across conveyor, inventory, and Fixing views. |
 | `src/modules/Game/FreezePlayer.lua` | FreezePlayer | Freezes the local player, optionally at a target CFrame. |
@@ -119,10 +120,10 @@ Quick reference for the project's first-party Luau scripts. Generated Wally depe
 
 | Path | Name | Responsibility |
 | --- | --- | --- |
-| `src/servercontrollers/CarryController.lua` | CarryController | Handles purchased-item carrying, museum delivery, Tool creation, and ordered inventory persistence. |
+| `src/servercontrollers/CarryController.lua` | CarryController | Handles purchased-item carrying, auto-equipped museum delivery, normal and cleaning Tool loadouts, and ordered inventory persistence. |
 | `src/servercontrollers/CharacterController.lua` | CharacterController | Authorizes character spawning and applies the configured R6 avatar animations. |
 | `src/servercontrollers/ConveyorController.lua` | ConveyorController | Builds conveyor paths, spawns weighted items, and validates purchases and cash deductions. |
-| `src/servercontrollers/FixingController.lua` | FixingController | Owns Fix prompts, movement-locked cleaning sessions, responsive dirt-hit feedback, temporary tool loadouts, and persisted progress. |
+| `src/servercontrollers/FixingController.lua` | FixingController | Owns Fix prompts, screen-space cleaning steps, progress and auto-completion, completion feedback, and persisted restoration state. |
 | `src/servercontrollers/MuseumController.lua` | MuseumController | Assigns museum plots and manages persistent display placement, removal, selling, and viewing regions. |
 | `src/servercontrollers/VisitorController.lua` | VisitorController | Concurrently schedules grounded visitor routes and dialogue, chooses positions within display viewing regions, and awards guest-payment cash. |
 
@@ -130,9 +131,10 @@ Quick reference for the project's first-party Luau scripts. Generated Wally depe
 
 | Path | Name | Responsibility |
 | --- | --- | --- |
-| `src/UI/App.lua` | App | Composes the root ScreenGui and its current HUD components. |
+| `src/UI/App.lua` | App | Composes the root ScreenGui, cleaning interface, and general HUD components. |
 | `src/UI/App.story.lua` | App Story | Exposes the App component for UI story previews. |
 | `src/UI/Classes/Button.lua` | Button | Provides a reusable reactive Vide button with hover and press feedback. |
 | `src/UI/HUD/BottomRight.lua` | BottomRight | Displays saved cash and animates the HUD when cash increases. |
+| `src/UI/HUD/CleaningHUD.lua` | CleaningHUD | Displays the cursor-centered cleaning brush and smoothly animated current-step progress. |
 | `src/UI/HUD/FixingOverlay.lua` | FixingOverlay | Shows the exit-cleaning control while the player is in Fixing mode. |
 | `src/UI/UIOrigin.lua` | UIOrigin | Mounts the Vide application once into the local PlayerGui. |
