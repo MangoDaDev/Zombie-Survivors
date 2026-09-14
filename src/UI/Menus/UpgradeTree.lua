@@ -21,6 +21,7 @@ local Spring = Vide.spring
 
 local LocalPlayer = Players.LocalPlayer
 local SquareRootThree = math.sqrt(3)
+local ConnectorGap = 3
 
 local StateColors = {
 	Available = Color3.fromRGB(45, 190, 229),
@@ -41,7 +42,11 @@ local function GetHexagonRadius(Direction: Vector2, Radius: number): number
 		return 0
 	end
 	local Unit = Direction.Unit
-	return Radius / (math.abs(Unit.X) + math.abs(Unit.Y) / SquareRootThree)
+	local HorizontalRadius = Radius * SquareRootThree / 2
+	local HorizontalIntersection = if math.abs(Unit.X) > 0 then HorizontalRadius / math.abs(Unit.X) else math.huge
+	local RisingEdgeIntersection = Radius / math.abs(Unit.Y + Unit.X / SquareRootThree)
+	local FallingEdgeIntersection = Radius / math.abs(Unit.Y - Unit.X / SquareRootThree)
+	return math.min(HorizontalIntersection, RisingEdgeIntersection, FallingEdgeIntersection)
 end
 
 local function GetMysteryTransparency(Distance: number?): number
@@ -92,8 +97,9 @@ local function CreateConnector(Ownership, RevealDistances, ViewportSize, CameraP
 		end
 		local Direction = Difference.Unit
 		local Radius = UpgradeConfig.NodeSize * CurrentZoom / 2
-		local StartPosition = FromPosition + Direction * GetHexagonRadius(Direction, Radius)
-		local EndPosition = ToPosition - Direction * GetHexagonRadius(-Direction, Radius)
+		local Gap = ConnectorGap * CurrentZoom
+		local StartPosition = FromPosition + Direction * (GetHexagonRadius(Direction, Radius) + Gap)
+		local EndPosition = ToPosition - Direction * (GetHexagonRadius(-Direction, Radius) + Gap)
 		local VisibleDifference = EndPosition - StartPosition
 		return (StartPosition + EndPosition) / 2,
 			math.max(VisibleDifference.Magnitude, 0),
@@ -238,7 +244,7 @@ local function CreateNode(Properties)
 				end
 				return StateColors[State()] or Color3.fromRGB(35, 41, 52)
 			end,
-			Rotation = 0,
+			Rotation = 90,
 			ScaleType = Enum.ScaleType.Fit,
 			Size = UDim2.fromScale(1, 1),
 			ZIndex = 3,
