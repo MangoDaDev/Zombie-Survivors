@@ -15,8 +15,6 @@ local LocalPlayer = Players.LocalPlayer
 local FixingController = {}
 local CameraBound = false
 local HiddenParts: { [BasePart]: number } = {}
-local Shoulder: Motor6D?
-local ShoulderTransform = CFrame.identity
 local UsingTool = false
 local ActiveToolId: string?
 local FixPrompt: ProximityPrompt?
@@ -29,22 +27,17 @@ local ToolEndAttachment: Attachment?
 local ToolEmitter: ParticleEmitter?
 local CreatedStartAttachment = false
 local SmoothedToolPosition: Vector3?
+local SmoothedVisualToolCFrame: CFrame?
 local CurrentToolColor: Color3?
+local FakeArm: Part?
+local ToolGrip: Motor6D?
+local ToolGripTransform = CFrame.identity
 local OriginalFieldOfView: number?
 local StopToolEffects
+local UpdateVisualTool
 
-local ARM_SCREEN_POSITION = Vector2.new(0.82, 0.82)
-local ARM_CURSOR_SCREEN_INFLUENCE = Vector2.new(0.07, 0.06)
-local ARM_CAMERA_DEPTH = 1.55
 local CAMERA_BINDING_NAME = "CleaningCameraAndArm"
 local TOOL_SOUND_MAX_DISTANCE = 50
-
-local VisibleArmParts = {
-	["Right Arm"] = true,
-	RightUpperArm = true,
-	RightLowerArm = true,
-	RightHand = true,
-}
 
 local function GetToolInfo(ToolId: string)
 	for _, ToolInfo in CleaningConfig.Tools do
@@ -119,45 +112,48 @@ end
 local function StartToolEffects(Tool: Tool, ToolInfo)
 	StopToolEffects()
 	local StartObject = Tool:FindFirstChild(ToolInfo.VFXStartPartName, true)
-	local BeamFolder = ReplicatedStorage.Assets.VFX:FindFirstChild(ToolInfo.VFXFolderName)
-	local BeamTemplate = BeamFolder and BeamFolder:FindFirstChild(ToolInfo.VFXName)
-	if not StartObject or not BeamTemplate or not BeamTemplate:IsA("Beam") then return end
-	if StartObject:IsA("Attachment") then
-		ToolStartAttachment = StartObject
-	elseif StartObject:IsA("BasePart") then
-		ToolStartAttachment = Instance.new("Attachment")
-		ToolStartAttachment.Name = "ToolVFXStartAttachment"
-		ToolStartAttachment.Parent = StartObject
-		CreatedStartAttachment = true
-	else
-		return
+	if not StartObject then return end
+	local BeamFolder = if type(ToolInfo.VFXFolderName) == "string" then ReplicatedStorage.Assets.VFX:FindFirstChild(ToolInfo.VFXFolderName) else nil
+	local BeamTemplate = if BeamFolder and type(ToolInfo.VFXName) == "string" then BeamFolder:FindFirstChild(ToolInfo.VFXName) else nil
+	if BeamTemplate and BeamTemplate:IsA("Beam") then
+		if StartObject:IsA("Attachment") then
+			ToolStartAttachment = StartObject
+		elseif StartObject:IsA("BasePart") then
+			ToolStartAttachment = Instance.new("Attachment")
+			ToolStartAttachment.Name = "ToolVFXStartAttachment"
+			ToolStartAttachment.Parent = StartObject
+			CreatedStartAttachment = true
+		end
+		if ToolStartAttachment then
+			ToolEndPart = Instance.new("Part")
+			ToolEndPart.Name = "ToolVFXEndpoint"
+			ToolEndPart.Anchored = true
+			ToolEndPart.CanCollide = false
+			ToolEndPart.CanQuery = false
+			ToolEndPart.CanTouch = false
+			ToolEndPart.Size = Vector3.one * 0.05
+			ToolEndPart.Transparency = 1
+			ToolEndPart.Parent = Workspace
+			ToolEndAttachment = Instance.new("Attachment")
+			ToolEndAttachment.Name = "ToolVFXEndAttachment"
+			ToolEndAttachment.Parent = ToolEndPart
+			ToolBeam = BeamTemplate:Clone()
+			ToolBeam.Attachment0 = ToolStartAttachment
+			ToolBeam.Attachment1 = ToolEndAttachment
+			ToolBeam.Enabled = false
+			ToolBeam.Parent = ToolStartAttachment.Parent
+		end
 	end
-	ToolEndPart = Instance.new("Part")
-	ToolEndPart.Name = "ToolVFXEndpoint"
-	ToolEndPart.Anchored = true
-	ToolEndPart.CanCollide = false
-	ToolEndPart.CanQuery = false
-	ToolEndPart.CanTouch = false
-	ToolEndPart.Size = Vector3.one * 0.05
-	ToolEndPart.Transparency = 1
-	ToolEndPart.Parent = Workspace
-	ToolEndAttachment = Instance.new("Attachment")
-	ToolEndAttachment.Name = "ToolVFXEndAttachment"
-	ToolEndAttachment.Parent = ToolEndPart
-	ToolBeam = BeamTemplate:Clone()
-	ToolBeam.Attachment0 = ToolStartAttachment
-	ToolBeam.Attachment1 = ToolEndAttachment
-	ToolBeam.Enabled = false
-	ToolBeam.Parent = ToolStartAttachment.Parent
 	ToolEmitter = StartObject:FindFirstChildWhichIsA("ParticleEmitter", true)
 	if not ToolEmitter and StartObject.Parent then ToolEmitter = StartObject.Parent:FindFirstChildWhichIsA("ParticleEmitter", true) end
 	if ToolEmitter then ToolEmitter.Enabled = true end
-	local SoundTemplate = Sounds.Get(ToolInfo.LoopSoundName)
+	local SoundTemplate = if type(ToolInfo.LoopSoundName) == "string" then Sounds.Get(ToolInfo.LoopSoundName) else nil
 	if SoundTemplate then
 		ToolLoop = SoundTemplate:Clone()
 		ToolLoop.Looped = true
+		if type(ToolInfo.LoopSoundVolume) == "number" then ToolLoop.Volume = ToolInfo.LoopSoundVolume end
 		ToolLoop.RollOffMaxDistance = TOOL_SOUND_MAX_DISTANCE
-		ToolLoop.Parent = ToolStartAttachment.Parent
+		ToolLoop.Parent = if StartObject:IsA("Attachment") then StartObject.Parent else StartObject
 		ToolLoop:Play()
 	end
 end
@@ -166,10 +162,13 @@ local function Restore()
 	UsingTool = false
 	ActiveToolId = nil
 	StopToolEffects()
+	if ToolGrip and ToolGrip.Parent then ToolGrip.Transform = ToolGripTransform end
+	ToolGrip = nil
+	ToolGripTransform = CFrame.identity
+	SmoothedVisualToolCFrame = nil
+	if FakeArm then FakeArm:Destroy(); FakeArm = nil end
 	for Part, Transparency in HiddenParts do if Part.Parent then Part.LocalTransparencyModifier = Transparency end end
 	HiddenParts = {}
-	if Shoulder and Shoulder.Parent then Shoulder.Transform = ShoulderTransform end
-	Shoulder = nil
 	if CameraBound then RunService:UnbindFromRenderStep(CAMERA_BINDING_NAME); CameraBound = false end
 	local Camera = Workspace.CurrentCamera
 	Camera.CameraType = Enum.CameraType.Custom
@@ -178,19 +177,34 @@ local function Restore()
 	LocalPlayer:SetAttribute("CleaningBrushRadius", nil)
 end
 
-local function GetArmTransform(): CFrame
-	if not Shoulder or not Shoulder.Part0 or not Shoulder.Part1 then return ShoulderTransform end
-	local Camera = Workspace.CurrentCamera
+local function GetScreenWorldPosition(Camera, ScreenPosition, Depth): Vector3
 	local ViewportSize = Camera.ViewportSize
-	local MousePosition = UserInputService:GetMouseLocation() - GuiService:GetGuiInset()
-	local Horizontal = math.clamp(MousePosition.X / math.max(ViewportSize.X, 1) * 2 - 1, -1, 1)
-	local Vertical = math.clamp(MousePosition.Y / math.max(ViewportSize.Y, 1) * 2 - 1, -1, 1)
-	local ScreenPosition = ARM_SCREEN_POSITION + Vector2.new(Horizontal * ARM_CURSOR_SCREEN_INFLUENCE.X, Vertical * ARM_CURSOR_SCREEN_INFLUENCE.Y)
-	local HalfHeight = ARM_CAMERA_DEPTH * math.tan(math.rad(Camera.FieldOfView / 2))
+	local HalfHeight = Depth * math.tan(math.rad(Camera.FieldOfView / 2))
 	local HalfWidth = HalfHeight * ViewportSize.X / math.max(ViewportSize.Y, 1)
-	local CameraPosition = Vector3.new((ScreenPosition.X * 2 - 1) * HalfWidth, (1 - ScreenPosition.Y * 2) * HalfHeight, -ARM_CAMERA_DEPTH)
-	local DesiredArmCFrame = Camera.CFrame * CFrame.new(CameraPosition) * CFrame.Angles(math.rad(-20 - Vertical * 24), math.rad(-12 - Horizontal * 28), math.rad(18 + Horizontal * 14))
-	return Shoulder.C0:Inverse() * Shoulder.Part0.CFrame:Inverse() * DesiredArmCFrame * Shoulder.C1
+	local CameraPosition = Vector3.new((ScreenPosition.X * 2 - 1) * HalfWidth, (1 - ScreenPosition.Y * 2) * HalfHeight, -Depth)
+	return Camera.CFrame:PointToWorldSpace(CameraPosition)
+end
+
+local function GetPlayerArmColor(Character): Color3
+	for _, Name in { "RightHand", "Right Arm", "RightLowerArm", "RightUpperArm" } do
+		local Part = Character:FindFirstChild(Name, true)
+		if Part and Part:IsA("BasePart") then return Part.Color end
+	end
+	local BodyColors = Character:FindFirstChildOfClass("BodyColors")
+	return if BodyColors then BodyColors.RightArmColor.Color else Color3.fromRGB(255, 204, 153)
+end
+
+local function CreateFakeArm(Character)
+	FakeArm = Instance.new("Part")
+	FakeArm.Name = "LocalFixingArm"
+	FakeArm.Anchored = true
+	FakeArm.CanCollide = false
+	FakeArm.CanQuery = false
+	FakeArm.CanTouch = false
+	FakeArm.CastShadow = false
+	FakeArm.Color = GetPlayerArmColor(Character)
+	FakeArm.Material = Enum.Material.SmoothPlastic
+	FakeArm.Parent = Workspace
 end
 
 local function EnterFixingView()
@@ -202,38 +216,107 @@ local function EnterFixingView()
 	local TableModel = Museum and Museum:FindFirstChild("Table")
 	local CameraPart = TableModel and TableModel:FindFirstChild("CamPart")
 	if not Character or not CameraPart or not CameraPart:IsA("BasePart") then return end
-	Shoulder = (Character:FindFirstChild("Right Shoulder", true) or Character:FindFirstChild("RightShoulder", true)) :: Motor6D?
-	if Shoulder and Shoulder:IsA("Motor6D") then ShoulderTransform = Shoulder.Transform else Shoulder = nil end
 	for _, Part in Character:GetDescendants() do
-		if Part:IsA("BasePart") and not VisibleArmParts[Part.Name] and not IsFixingToolPart(Part) then
+		if Part:IsA("BasePart") and not IsFixingToolPart(Part) then
 			HiddenParts[Part] = Part.LocalTransparencyModifier
 			Part.LocalTransparencyModifier = 1
 		end
 	end
+	CreateFakeArm(Character)
 	local Camera = Workspace.CurrentCamera
 	OriginalFieldOfView = Camera.FieldOfView
 	Camera.FieldOfView = CleaningConfig.CameraFieldOfView
 	Camera.CameraType = Enum.CameraType.Scriptable
 	Camera.CFrame = CameraPart.CFrame
-	if Shoulder then Shoulder.Transform = GetArmTransform() end
-	RunService:BindToRenderStep(CAMERA_BINDING_NAME, Enum.RenderPriority.Last.Value, function()
+	RunService:BindToRenderStep(CAMERA_BINDING_NAME, Enum.RenderPriority.Last.Value, function(DeltaTime)
 		Camera.CFrame = CameraPart.CFrame
-		if Shoulder and Shoulder.Parent then Shoulder.Transform = GetArmTransform() end
+		if UpdateVisualTool then UpdateVisualTool(DeltaTime) end
 	end)
 	CameraBound = true
 	task.defer(UpdateToolInterface)
 end
 
-local function GetAimPosition(): (Vector3?, BasePart?)
+local function GetFixingItemModel(): Model?
+	local Museums = Workspace:FindFirstChild("PlayerMuseums")
+	local Museum = Museums and Museums:FindFirstChild(`Museum_{LocalPlayer.UserId}`)
+	if not Museum then return nil end
+	for _, Child in Museum:GetChildren() do
+		if Child:IsA("Model") and Child:GetAttribute("FixingItemOwnerUserId") == LocalPlayer.UserId then return Child end
+	end
+	return nil
+end
+
+local function GetAimPosition(): (Vector3?, BasePart?, Vector3?)
 	local Camera = Workspace.CurrentCamera
 	local MousePosition = UserInputService:GetMouseLocation() - GuiService:GetGuiInset()
 	local Ray = Camera:ViewportPointToRay(MousePosition.X, MousePosition.Y)
+	local FixingItem = GetFixingItemModel()
+	if not FixingItem then return nil, nil, nil end
 	local Parameters = RaycastParams.new()
-	Parameters.FilterType = Enum.RaycastFilterType.Exclude
-	Parameters.FilterDescendantsInstances = if LocalPlayer.Character then { LocalPlayer.Character } else {}
+	Parameters.FilterType = Enum.RaycastFilterType.Include
+	Parameters.FilterDescendantsInstances = { FixingItem }
 	local Result = Workspace:Raycast(Ray.Origin, Ray.Direction * 30, Parameters)
-	if not Result then return nil, nil end
-	return Result.Position, if Result.Instance:IsA("BasePart") then Result.Instance else nil
+	if not Result then return nil, nil, nil end
+	return Result.Position, if Result.Instance:IsA("BasePart") then Result.Instance else nil, Result.Normal
+end
+
+local function GetToolGrip(Tool): Motor6D?
+	local Character = LocalPlayer.Character
+	if not Character then return nil end
+	for _, Descendant in Character:GetDescendants() do
+		if Descendant:IsA("Motor6D") and Descendant.Part1 and Descendant.Part1:IsDescendantOf(Tool) then return Descendant end
+	end
+	return nil
+end
+
+local function GetDesiredToolCFrame(ToolInfo, AimPosition, AimNormal): CFrame
+	local Camera = Workspace.CurrentCamera
+	local RotationDegrees = ToolInfo.SurfaceRotationDegrees or Vector3.zero
+	if ToolInfo.PositionMode == "Surface" and UsingTool and AimPosition and AimNormal then
+		local UpVector = if math.abs(AimNormal:Dot(Camera.CFrame.UpVector)) > 0.96 then Camera.CFrame.RightVector else Camera.CFrame.UpVector
+		return CFrame.lookAt(AimPosition + AimNormal * (ToolInfo.SurfaceOffset or 0), AimPosition + AimNormal, UpVector)
+			* CFrame.Angles(math.rad(RotationDegrees.X), math.rad(RotationDegrees.Y), math.rad(RotationDegrees.Z))
+	end
+	local ScreenPosition = ToolInfo.ScreenPosition or Vector2.new(0.82, 0.82)
+	local ToolPosition = GetScreenWorldPosition(Camera, ScreenPosition, ToolInfo.ScreenDepth or 1.65)
+	local TargetPosition = AimPosition or Camera.CFrame:PointToWorldSpace(Vector3.new(0, 0, -10))
+	return CFrame.lookAt(ToolPosition, TargetPosition, Camera.CFrame.UpVector)
+		* CFrame.Angles(math.rad(RotationDegrees.X), math.rad(RotationDegrees.Y), math.rad(RotationDegrees.Z))
+end
+
+UpdateVisualTool = function(DeltaTime)
+	if LocalPlayer:GetAttribute("IsFixing") ~= true then return end
+	local Tool, ToolInfo = GetEquippedCleaningTool()
+	local NewToolGrip = Tool and GetToolGrip(Tool) or nil
+	if NewToolGrip ~= ToolGrip then
+		if ToolGrip and ToolGrip.Parent then ToolGrip.Transform = ToolGripTransform end
+		ToolGrip = NewToolGrip
+		ToolGripTransform = if ToolGrip then ToolGrip.Transform else CFrame.identity
+		SmoothedVisualToolCFrame = nil
+	end
+	if not Tool or not ToolInfo or not ToolGrip or not ToolGrip.Part0 or not ToolGrip.Part1 then
+		if FakeArm then FakeArm.Transparency = 1 end
+		return
+	end
+	local AimPosition, _, AimNormal = GetAimPosition()
+	local DesiredCFrame = GetDesiredToolCFrame(ToolInfo, AimPosition, AimNormal)
+	local Responsiveness = ToolInfo.PositionResponsiveness or CleaningConfig.ToolPositionResponsiveness
+	local Blend = 1 - math.exp(-Responsiveness * DeltaTime)
+	SmoothedVisualToolCFrame = if SmoothedVisualToolCFrame then SmoothedVisualToolCFrame:Lerp(DesiredCFrame, Blend) else DesiredCFrame
+	ToolGrip.Transform = ToolGrip.C0:Inverse() * ToolGrip.Part0.CFrame:Inverse() * SmoothedVisualToolCFrame * ToolGrip.C1
+	if FakeArm then
+		local Camera = Workspace.CurrentCamera
+		local ArmStart = GetScreenWorldPosition(Camera, CleaningConfig.FakeArmScreenPosition, CleaningConfig.FakeArmCameraDepth)
+		local ArmEnd = SmoothedVisualToolCFrame.Position
+		local ArmLength = (ArmEnd - ArmStart).Magnitude
+		if ArmLength > 0.01 then
+			FakeArm.Transparency = 0
+			FakeArm.Size = Vector3.new(CleaningConfig.FakeArmThickness, CleaningConfig.FakeArmThickness, ArmLength)
+			FakeArm.CFrame = CFrame.lookAt(ArmStart:Lerp(ArmEnd, 0.5), ArmEnd)
+		else
+			FakeArm.Transparency = 1
+		end
+	end
 end
 
 function FixingController:Init()

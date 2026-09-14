@@ -7,6 +7,7 @@ local TweenService = game:GetService("TweenService")
 local CarryController = require(ServerStorage.Controllers.CarryController)
 local CleaningConfig = require(ReplicatedStorage.Modules.Game.CleaningConfig)
 local DirtRenderer = require(ReplicatedStorage.Modules.Game.DirtRenderer)
+local GreaseRenderer = require(ReplicatedStorage.Modules.Game.GreaseRenderer)
 local ItemsInfo = require(ReplicatedStorage.Modules.Game.ItemsInfo)
 local MuseumController = require(ServerStorage.Controllers.MuseumController)
 local Networker = require(ReplicatedStorage.Packages.networker)
@@ -74,15 +75,20 @@ local function GetTargets(Session): { BasePart }
 		for _, Target in Session.Dirt:GetChildren() do if Target:IsA("BasePart") then table.insert(Targets, Target) end end
 		return Targets
 	end
+	if Session.Grease then
+		local Targets = {}
+		for _, Target in Session.Grease:GetChildren() do if Target:IsA("BasePart") then table.insert(Targets, Target) end end
+		return Targets
+	end
 	return Session.PaintTargets or {}
 end
 
 local function GetTargetHP(Target, Step): number
-	return Target:GetAttribute(if Step.Type == "Dirt" then "HP" else "PaintHP") or 0
+	return Target:GetAttribute(if Step.Type == "Paint" then "PaintHP" else "HP") or 0
 end
 
 local function GetTargetMaxHP(Target, Step): number
-	return Target:GetAttribute(if Step.Type == "Dirt" then "MaxHP" else "PaintMaxHP") or 1
+	return Target:GetAttribute(if Step.Type == "Paint" then "PaintMaxHP" else "MaxHP") or 1
 end
 
 local function GetStepProgress(Session): number
@@ -110,6 +116,7 @@ end
 
 local function ClearTargets(Session)
 	if Session.Dirt then Session.Dirt:Destroy(); Session.Dirt = nil end
+	if Session.Grease then Session.Grease:Destroy(); Session.Grease = nil end
 	if Session.PaintTargets then PaintRenderer.Clear(Session.PaintTargets); Session.PaintTargets = nil end
 end
 
@@ -133,6 +140,14 @@ local function PrepareCurrentStep(Player, Session)
 			Step.DirtColor,
 			Step.DirtAmountMinimum,
 			Step.DirtAmountMaximum
+		)
+	elseif Step.Type == "Grease" then
+		Session.Grease = GreaseRenderer.Add(
+			Session.Model,
+			StepState.Remaining,
+			Step.TargetHP,
+			Step.PatchColor,
+			Step.PatchTransparency
 		)
 	end
 	Session.LastProgress = -1
@@ -196,7 +211,10 @@ local function NormalizeState(State, Model, Steps)
 	local DirtState
 	for _, Step in Steps do
 		local Existing = State.Steps[Step.Id]
-		local Total = if Step.Type == "Dirt" then DirtTotal else PaintRenderer.GetSuggestedCount(Model)
+		local Total = if Step.Type == "Dirt"
+			then DirtTotal
+			elseif Step.Type == "Grease" then GreaseRenderer.GetSuggestedCount(Model)
+			else PaintRenderer.GetSuggestedCount(Model)
 		if type(Existing) ~= "table" then
 			Existing = {
 				Total = Total,
@@ -248,6 +266,7 @@ local function StartFixing(Player)
 	local Box = Model:FindFirstChild("BoundingBox")
 	if not Box or not Box:IsA("BasePart") then Model:Destroy(); return end
 	Model.PrimaryPart = Box
+	Model:SetAttribute("FixingItemOwnerUserId", Player.UserId)
 	for _, Part in Model:GetDescendants() do
 		if Part:IsA("BasePart") then
 			Part.Anchored = true
@@ -393,6 +412,9 @@ function FixingController:ApplyTool(Player, ToolId, BrushPosition, ViewportSize)
 				Target:SetAttribute("HP", HP)
 				if HP <= 0 then Target:Destroy(); StepState.Remaining -= 1; Session.State.Remaining = StepState.Remaining; ProgressChanged = true end
 			elseif Step.Type == "Paint" and PaintRenderer.Damage(Target, Damage, Step.DirtColor) then
+				StepState.Remaining -= 1
+				ProgressChanged = true
+			elseif Step.Type == "Grease" and GreaseRenderer.Damage(Target, Damage) then
 				StepState.Remaining -= 1
 				ProgressChanged = true
 			end

@@ -19,6 +19,7 @@ local Images = {
 	FixIcons = {
 		Dirt = "rbxassetid://111727278981257",
 		Paint = "rbxassetid://118966242175055",
+		Grease = "rbxassetid://97022398341091",
 	}
 }
 

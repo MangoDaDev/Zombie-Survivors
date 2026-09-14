@@ -21,6 +21,28 @@ function InventoryController:Init()
 		local networker = Networker.client.new("InventoryController", self)
 		local lastInventoryOrder: string?
 
+		local function EnsureBatFirst()
+			local BatSlot
+			local SlotsByIndex = {}
+			for _, Container in { localPlayer.Character, localPlayer:FindFirstChildOfClass("Backpack") } do
+				if not Container then continue end
+				for _, Tool in Container:GetChildren() do
+					if not Tool:IsA("Tool") then continue end
+					local Slot = satchel:GetSlotForTool(Tool)
+					if Slot then
+						SlotsByIndex[Slot.Index] = Slot
+						if type(Tool:GetAttribute("BatId")) == "string" then BatSlot = Slot end
+					end
+				end
+			end
+			while BatSlot and BatSlot.Index > 1 do
+				local PreviousSlot = SlotsByIndex[BatSlot.Index - 1]
+				if not PreviousSlot then break end
+				BatSlot:Swap(PreviousSlot)
+				BatSlot = PreviousSlot
+			end
+		end
+
 		local function updateBackpack()
 			local isCarrying = localPlayer:GetAttribute("IsCarryingItem") == true
 			if isCarrying then
@@ -75,7 +97,12 @@ function InventoryController:Init()
 
 		localPlayer:GetAttributeChangedSignal("IsCarryingItem"):Connect(updateBackpack)
 		localPlayer:GetAttributeChangedSignal("IsFixing"):Connect(updateBackpack)
-		satchel.BackpackItemAdded.Event:Connect(saveInventoryOrderDeferred)
+		satchel.BackpackItemAdded.Event:Connect(function()
+			task.defer(function()
+				EnsureBatFirst()
+				saveInventoryOrder()
+			end)
+		end)
 		satchel.BackpackItemRemoved.Event:Connect(saveInventoryOrderDeferred)
 		satchel.StateChanged.Event:Connect(function(isOpen)
 			if not isOpen then
@@ -90,6 +117,7 @@ function InventoryController:Init()
 			end
 		end)
 		updateBackpack()
+		EnsureBatFirst()
 		saveInventoryOrderDeferred()
 	end)
 end
