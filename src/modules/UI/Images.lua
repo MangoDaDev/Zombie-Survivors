@@ -16,7 +16,8 @@ local Images = {
 	Binoculars = "rbxassetid://106957185207855",
 
 	FixIcons = {
-		Dirt = "rbxassetid://86050971312005"
+		Dirt = "rbxassetid://86050971312005",
+		Paint = "rbxassetid://86050971312005",
 	}
 }
 

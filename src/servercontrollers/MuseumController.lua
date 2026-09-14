@@ -141,6 +141,7 @@ local function clearDisplay(player: Player, displayState: DisplayState): number?
 	displayState.itemId = nil
 	if displayState.itemModel then displayState.itemModel:Destroy(); displayState.itemModel = nil end
 	displayState.model:SetAttribute("ItemId", nil)
+	displayState.prompt.ActionText = "Place Item"
 	displayState.prompt.Enabled = true
 	displayState.takePrompt.Enabled = false
 	displayState.sellPrompt.Enabled = false
@@ -259,6 +260,7 @@ local function createDisplays(player: Player, assignment: MuseumAssignment)
 		prompt.HoldDuration = 0
 		prompt.MaxActivationDistance = 10
 		prompt.RequiresLineOfSight = false
+		prompt.Exclusivity = Enum.ProximityPromptExclusivity.AlwaysShow
 		prompt.UIOffset = Vector2.new(0, 55)
 		prompt.Parent = base
 
@@ -267,8 +269,11 @@ local function createDisplays(player: Player, assignment: MuseumAssignment)
 		takePrompt.ActionText = "Take Off Sale"
 		takePrompt.ObjectText = "Display"
 		takePrompt.HoldDuration = 0
+		takePrompt.KeyboardKeyCode = Enum.KeyCode.E
+		takePrompt.GamepadKeyCode = Enum.KeyCode.ButtonX
 		takePrompt.MaxActivationDistance = 10
 		takePrompt.RequiresLineOfSight = false
+		takePrompt.Exclusivity = Enum.ProximityPromptExclusivity.AlwaysShow
 		takePrompt.UIOffset = Vector2.new(-85, -45)
 		takePrompt.Enabled = false
 		takePrompt.Parent = base
@@ -278,8 +283,11 @@ local function createDisplays(player: Player, assignment: MuseumAssignment)
 		sellPrompt.ActionText = "Sell Item"
 		sellPrompt.ObjectText = "Display"
 		sellPrompt.HoldDuration = 0
+		sellPrompt.KeyboardKeyCode = Enum.KeyCode.F
+		sellPrompt.GamepadKeyCode = Enum.KeyCode.ButtonY
 		sellPrompt.MaxActivationDistance = 10
 		sellPrompt.RequiresLineOfSight = false
+		sellPrompt.Exclusivity = Enum.ProximityPromptExclusivity.AlwaysShow
 		sellPrompt.UIOffset = Vector2.new(85, -45)
 		sellPrompt.Enabled = false
 		sellPrompt.Parent = base

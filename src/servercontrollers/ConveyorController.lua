@@ -4,6 +4,7 @@ local Workspace = game:GetService("Workspace")
 
 local CarryController = require(ServerStorage.Controllers.CarryController)
 local ConveyorItem = require(ServerStorage.Classes.ConveyorItem)
+local DirtRenderer = require(ReplicatedStorage.Modules.Game.DirtRenderer)
 local ItemsInfo = require(ReplicatedStorage.Modules.Game.ItemsInfo)
 local GetRandomFromWeightedTable = require(ReplicatedStorage.Modules.Math.GetRandomFromWeightedTable)
 
@@ -104,7 +105,7 @@ local function purchaseItem(item, player: Player)
 	end
 
 	item.Purchased = true
-	if not CarryController.StartCarrying(player, itemInfo.Id) then
+	if not CarryController.StartCarrying(player, itemInfo.Id, item.DirtCount) then
 		item.Purchased = nil
 		return
 	end
@@ -142,6 +143,11 @@ local function spawnItem(path: { CFrame })
 		warn("ConveyorController could not select an item from ItemsInfo")
 		return
 	end
+	local Template = ReplicatedStorage.Assets.Models.Items:FindFirstChild(itemInfo.AssetName)
+	if Template == nil or not Template:IsA("Model") then
+		warn(`ConveyorController could not find item model {itemInfo.AssetName}`)
+		return
+	end
 
 	ConveyorItem.new({
 		ItemName = itemInfo.Name,
@@ -149,7 +155,7 @@ local function spawnItem(path: { CFrame })
 		MoveSpeed = itemInfo.MoveSpeed,
 		StartedAt = Workspace:GetServerTimeNow(),
 		Duration = getPathLength(path) / itemInfo.MoveSpeed,
-		DirtCount = 72,
+		DirtCount = DirtRenderer.GetSuggestedCount(Template),
 	})
 end
 

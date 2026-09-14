@@ -11,7 +11,6 @@ local Networker = require(ReplicatedStorage.Packages.networker)
 
 local DEFAULT_CARRY_OFFSET = CFrame.new(0, 0, -3) * CFrame.Angles(0, math.rad(90), 0)
 local SFX_MAX_DISTANCE = 80
-local DIRT_COUNT = 72
 
 type CarryState = {
 	itemId: number,
@@ -40,6 +39,12 @@ local function getItemInfo(itemId: number)
 		end
 	end
 	return nil
+end
+
+local function GetSuggestedDirtCount(ItemId: number): number
+	local ItemInfo = getItemInfo(ItemId)
+	local Template = ItemInfo and ReplicatedStorage.Assets.Models.Items:FindFirstChild(ItemInfo.AssetName)
+	return if Template and Template:IsA("Model") then DirtRenderer.GetSuggestedCount(Template) else 1
 end
 
 local function prepareParts(model: Model, rootPart: BasePart)
@@ -138,7 +143,13 @@ end
 
 local function removeManagedTools(container: Instance)
 	for _, child in container:GetChildren() do
-		if child:IsA("Tool") and type(child:GetAttribute("ItemId")) == "number" then
+		if
+			child:IsA("Tool")
+			and (
+				type(child:GetAttribute("ItemId")) == "number"
+				or type(child:GetAttribute("FixingTool")) == "string"
+			)
+		then
 			child:Destroy()
 		end
 	end
@@ -161,7 +172,8 @@ local function restoreInventory(player: Player, character: Model)
 	local fixingChanged = false
 	for _, itemId in inventory do
 		if type(itemId) == "number" and fixing[tostring(itemId)] == nil then
-			fixing[tostring(itemId)] = { Total = DIRT_COUNT, Remaining = DIRT_COUNT, Completed = false }
+			local DirtCount = GetSuggestedDirtCount(itemId)
+			fixing[tostring(itemId)] = { Total = DirtCount, Remaining = DirtCount, Completed = false }
 			fixingChanged = true
 		end
 	end
@@ -238,30 +250,38 @@ function CarryController.SetFixingMode(player: Player, enabled: boolean)
 	if backpack then removeManagedTools(backpack) end
 	if character then removeManagedTools(character) end
 	if enabled then
-		local template = ReplicatedStorage.Assets.Tools:FindFirstChild("SprayBottle")
-		if template and template:IsA("Tool") and backpack then
-			local tool = template:Clone()
-			tool.CanBeDropped = false
-			tool:SetAttribute("FixingTool", "SprayBottle")
-			for _, descendant in tool:GetDescendants() do
-				if descendant:IsA("BasePart") then descendant.CanCollide = false end
+		local SprayBottle: Tool?
+		if backpack then
+			for _, Template in ReplicatedStorage.Assets.Tools:GetChildren() do
+				if Template:IsA("Tool") then
+					local Tool = Template:Clone()
+					Tool.CanBeDropped = false
+					Tool:SetAttribute("FixingTool", Template.Name)
+					for _, Descendant in Tool:GetDescendants() do
+						if Descendant:IsA("BasePart") then Descendant.CanCollide = false end
+					end
+					Tool.Parent = backpack
+					if Tool.Name == "SprayBottle" then SprayBottle = Tool end
+				end
 			end
-			tool.Parent = backpack
+			local Humanoid = character and character:FindFirstChildOfClass("Humanoid")
+			if Humanoid and SprayBottle then Humanoid:EquipTool(SprayBottle) end
 		end
 	elseif character then
 		restoreInventory(player, character)
 	end
 end
 
-function CarryController.StartCarrying(player: Player, itemId: number): boolean
+function CarryController.StartCarrying(player: Player, itemId: number, DirtCount: number?): boolean
 	if not CarryController.CanCarry(player) or getItemInfo(itemId) == nil then
 		return false
 	end
 
 	local fixing = dataService:get(player, "Fixing") or {}
+	local ResolvedDirtCount = if type(DirtCount) == "number" then math.max(1, math.round(DirtCount)) else GetSuggestedDirtCount(itemId)
 	fixing[tostring(itemId)] = {
-		Total = DIRT_COUNT,
-		Remaining = DIRT_COUNT,
+		Total = ResolvedDirtCount,
+		Remaining = ResolvedDirtCount,
 		Completed = false,
 	}
 	dataService:set(player, "Fixing", fixing)
