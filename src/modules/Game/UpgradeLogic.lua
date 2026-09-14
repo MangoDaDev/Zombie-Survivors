@@ -29,4 +29,35 @@ function UpgradeLogic.GetMissingPrerequisiteNames(Ownership, Upgrade): { string 
 	return Names
 end
 
+function UpgradeLogic.GetRevealDistances(Ownership, MaximumDistance: number): { [string]: number }
+	local Distances = {}
+	local Queue = {}
+	for _, Upgrade in UpgradeConfig.Upgrades do
+		local State = UpgradeLogic.GetState(Ownership, Upgrade)
+		if State == "Purchased" or State == "Available" then
+			Distances[Upgrade.Id] = 0
+			table.insert(Queue, Upgrade.Id)
+		end
+	end
+	local QueueIndex = 1
+	while QueueIndex <= #Queue do
+		local UpgradeId = Queue[QueueIndex]
+		QueueIndex += 1
+		local Distance = Distances[UpgradeId]
+		if Distance < MaximumDistance then
+			local Upgrade = UpgradeConfig.Get(UpgradeId)
+			if Upgrade then
+				for _, ConnectedId in Upgrade.ConnectedUpgrades do
+					local NextDistance = Distance + 1
+					if Distances[ConnectedId] == nil or NextDistance < Distances[ConnectedId] then
+						Distances[ConnectedId] = NextDistance
+						table.insert(Queue, ConnectedId)
+					end
+				end
+			end
+		end
+	end
+	return Distances
+end
+
 return UpgradeLogic

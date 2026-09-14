@@ -7,7 +7,7 @@ Quick reference for the project's first-party Luau scripts. Generated Wally depe
 | Path | Name | Responsibility |
 | --- | --- | --- |
 | `src/classes/ConveyorItem.lua` | ConveyorItem | Renders replicated conveyor items, moves them along their path, and forwards purchase prompts through SharedClass. |
-| `src/classes/MuseumVisitor.lua` | MuseumVisitor | Renders grounded visitors with responsive facing and procedural walking, then handles fading, appearance, dialogue, and cash feedback. |
+| `src/classes/MuseumVisitor.lua` | MuseumVisitor | Renders grounded visitors with environment-only collision, responsive facing, procedural walking, fading, appearance, dialogue, and cash feedback. |
 
 ## `src/client` - Client bootstrap
 
@@ -59,6 +59,7 @@ Quick reference for the project's first-party Luau scripts. Generated Wally depe
 | --- | --- | --- |
 | `src/modules/Game/_PlayerFreezeState.lua` | PlayerFreezeState | Stores and manages the local character's anchored freeze state. |
 | `src/modules/Game/CleaningConfig.lua` | CleaningConfig | Registers reusable Dirt, Paint, and Grease restoration steps and tools, positioning modes, screen-space brushes, VFX, auto-completion, and item-step resolution helpers. |
+| `src/modules/Game/CollisionGroups.lua` | CollisionGroups | Defines shared player and NPC collision-group names used by server characters and client-rendered visitors. |
 | `src/modules/Game/BatInfo.lua` | BatInfo | Configures expandable bat damage, timing, validation leeway, range, hitbox, knockback, and centralized sound choices. |
 | `src/modules/Game/CrateInfo.lua` | CrateInfo | Configures regular and pity-only crate tiers, exponential health and loot luck, population limits, reveal pacing, UI, sounds, and the synchronized reset cycle. |
 | `src/modules/Game/DataTemplate.lua` | DataTemplate | Defines saved defaults for cash, ordered inventory items, and museum displays. |
@@ -70,7 +71,7 @@ Quick reference for the project's first-party Luau scripts. Generated Wally depe
 | `src/modules/Game/RarityInfo.lua` | RarityInfo | Defines the Common through Secret rarity tiers and their name-color gradients. |
 | `src/modules/Game/RestorationVisuals.lua` | RestorationVisuals | Applies each item's configured unfinished Dirt, Paint, and Grease appearance consistently across rewards, carrying, inventory, and legacy sources. |
 | `src/modules/Game/UpgradeConfig.lua` | UpgradeConfig | Defines the data-driven test upgrade tree, including node layout, costs, icons, prerequisites, connections, branches, and visual-only effect labels. |
-| `src/modules/Game/UpgradeLogic.lua` | UpgradeLogic | Resolves upgrade ownership, prerequisite eligibility, node states, and readable missing requirements. |
+| `src/modules/Game/UpgradeLogic.lua` | UpgradeLogic | Resolves upgrade ownership, prerequisite eligibility, node states, missing requirements, and graph-based mystery reveal distances. |
 | `src/modules/Game/TeleportLocalPlayer.lua` | TeleportLocalPlayer | Moves the local character to a CFrame or BasePart. |
 | `src/modules/Game/TeleportPlayer.lua` | TeleportPlayer | Moves a Player's character or a supplied character model to a target. |
 | `src/modules/Game/UnfreezePlayer.lua` | UnfreezePlayer | Restores the local character's state after freezing. |
@@ -134,6 +135,7 @@ Quick reference for the project's first-party Luau scripts. Generated Wally depe
 | `src/servercontrollers/CarryController.lua` | CarryController | Handles purchased-item carrying, auto-equipped museum delivery, normal and cleaning Tool loadouts, and ordered inventory persistence. |
 | `src/servercontrollers/BatController.lua` | BatController | Supplies bats and validates authoritative crate and PvP swings against cooldowns plus a short server-recorded position/facing history for latency tolerance. |
 | `src/servercontrollers/CharacterController.lua` | CharacterController | Authorizes character spawning and applies the configured R6 avatar animations. |
+| `src/servercontrollers/CollisionController.lua` | CollisionController | Registers collision groups and assigns character parts so players do not collide with players or NPCs while retaining environment collisions. |
 | `src/servercontrollers/ConveyorController.lua` | ConveyorController | Retains the inactive legacy conveyor spawning and purchase implementation. |
 | `src/servercontrollers/CrateController.lua` | CrateController | Spawns tiered and globally aligned pity crates, owns health and loot rolls, reveals items, updates the PityDisplay countdown, and performs synchronized area resets behind the reset wall. |
 | `src/servercontrollers/FixingController.lua` | FixingController | Owns modular Dirt, Paint, and Grease fixing steps, screen-space targeting, progress, auto-completion, feedback, and persisted restoration state. |
@@ -152,5 +154,5 @@ Quick reference for the project's first-party Luau scripts. Generated Wally depe
 | `src/UI/HUD/CleaningHUD.lua` | CleaningHUD | Displays the cursor-centered cleaning brush and smoothly animated current-step progress. |
 | `src/UI/HUD/CrateResetTimer.lua` | CrateResetTimer | Displays the globally synchronized time remaining until the next crate-area reset. |
 | `src/UI/HUD/FixingOverlay.lua` | FixingOverlay | Shows the exit-cleaning control while the player is in Fixing mode. |
-| `src/UI/Menus/UpgradeTree.lua` | UpgradeTree | Renders the configurable panning upgrade tree, animated node and connector states, selection details, and purchase controls. |
+| `src/UI/Menus/UpgradeTree.lua` | UpgradeTree | Renders a compact mathematical graph viewport with drag panning, cursor-stable zoom, edge-connected hexagons, progressive mystery reveals, and direct node purchasing. |
 | `src/UI/UIOrigin.lua` | UIOrigin | Mounts the Vide application once into the local PlayerGui. |

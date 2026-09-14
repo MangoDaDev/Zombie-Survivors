@@ -4,6 +4,7 @@ local TextChatService = game:GetService("TextChatService")
 local Workspace = game:GetService("Workspace")
 
 local SharedClass = require(ReplicatedStorage.Modules.Core.SharedClass)
+local CollisionGroups = require(ReplicatedStorage.Modules.Game.CollisionGroups)
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
 local UIStyle = require(ReplicatedStorage.Modules.UI.UIStyle)
 
@@ -64,7 +65,8 @@ end
 local function prepareModel(model: Model)
 	for _, descendant in model:GetDescendants() do
 		if descendant:IsA("BasePart") then
-			descendant.CanCollide = false
+			descendant.CollisionGroup = CollisionGroups.NPCCharacters
+			descendant.CanCollide = descendant.Name ~= "HumanoidRootPart" and descendant:FindFirstAncestorOfClass("Accessory") == nil
 			descendant.CanQuery = false
 			descendant.CanTouch = false
 			descendant.Massless = true
