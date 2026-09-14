@@ -118,22 +118,13 @@ local function createDisplayedItem(player: Player, displayState: DisplayState, i
 	return itemModel
 end
 
-local function SetDisplayAvailability(DisplayState: DisplayState, IsUnlocked: boolean)
-	DisplayState.Unlocked = IsUnlocked
-	DisplayState.model:SetAttribute("Unlocked", IsUnlocked)
-	if IsUnlocked then
-		DisplayState.prompt.ActionText = if DisplayState.itemId == nil then "Place Item" else "Occupied"
-		DisplayState.prompt.ObjectText = "Display"
-		DisplayState.prompt.Enabled = DisplayState.itemId == nil
-		DisplayState.takePrompt.Enabled = DisplayState.itemId ~= nil
-		DisplayState.sellPrompt.Enabled = DisplayState.itemId ~= nil
-	else
-		DisplayState.prompt.ActionText = "Locked"
-		DisplayState.prompt.ObjectText = `Unlock Display {DisplayState.index}`
-		DisplayState.prompt.Enabled = true
-		DisplayState.takePrompt.Enabled = false
-		DisplayState.sellPrompt.Enabled = false
-	end
+local function UpdateDisplayPrompts(DisplayState: DisplayState)
+	DisplayState.model:SetAttribute("Unlocked", true)
+	DisplayState.prompt.ActionText = if DisplayState.itemId == nil then "Place Item" else "Occupied"
+	DisplayState.prompt.ObjectText = "Display"
+	DisplayState.prompt.Enabled = DisplayState.itemId == nil
+	DisplayState.takePrompt.Enabled = DisplayState.itemId ~= nil
+	DisplayState.sellPrompt.Enabled = DisplayState.itemId ~= nil
 end
 
 local function setDisplayItem(player: Player, displayState: DisplayState, itemId: number): boolean
@@ -149,7 +140,7 @@ local function setDisplayItem(player: Player, displayState: DisplayState, itemId
 	displayState.itemId = itemId
 	displayState.itemModel = itemModel
 	displayState.model:SetAttribute("ItemId", itemId)
-	SetDisplayAvailability(displayState, true)
+	UpdateDisplayPrompts(displayState)
 	return true
 end
 
@@ -159,7 +150,7 @@ local function clearDisplay(player: Player, displayState: DisplayState): number?
 	displayState.itemId = nil
 	if displayState.itemModel then displayState.itemModel:Destroy(); displayState.itemModel = nil end
 	displayState.model:SetAttribute("ItemId", nil)
-	SetDisplayAvailability(displayState, displayState.Unlocked)
+	UpdateDisplayPrompts(displayState)
 	local displays = copyDisplays(dataService:get(player, "Displays"))
 	displays[tostring(displayState.index)] = nil
 	dataService:set(player, "Displays", displays)
@@ -260,11 +251,13 @@ local function getDisplayMarkers(museum: Model): { BasePart }
 	return markers
 end
 
-local function createDisplays(player: Player, assignment: MuseumAssignment)
+local function CreateDisplays(player: Player, assignment: MuseumAssignment)
 	local savedDisplays = copyDisplays(dataService:get(player, "Displays"))
 	local DisplayLimit = UpgradeLogic.GetDisplayLimit(dataService:get(player, "Upgrades"))
 	local DisplaysChanged = false
 	for index, marker in getDisplayMarkers(assignment.museum) do
+		if index > DisplayLimit then break end
+		if assignment.displays[index] then continue end
 		local display = displayTemplate:Clone()
 		display.Name = `Display_{index}`
 		moveModelToCFrame(display, marker.CFrame)
@@ -326,13 +319,13 @@ local function createDisplays(player: Player, assignment: MuseumAssignment)
 			prompt = prompt,
 			takePrompt = takePrompt,
 			sellPrompt = sellPrompt,
-			Unlocked = index <= DisplayLimit,
+			Unlocked = true,
 			itemId = nil,
 			itemModel = nil,
 			Connections = {},
 		}
 		table.insert(assignment.displays, displayState)
-		SetDisplayAvailability(displayState, displayState.Unlocked)
+		UpdateDisplayPrompts(displayState)
 		table.insert(displayState.Connections, prompt.Triggered:Connect(function(triggeringPlayer)
 			if triggeringPlayer == player then
 				placeEquippedItem(player, assignment, displayState)
@@ -346,11 +339,15 @@ local function createDisplays(player: Player, assignment: MuseumAssignment)
 		end))
 
 		local savedItemId = savedDisplays[tostring(index)]
-		if type(savedItemId) == "number" and displayState.Unlocked then
+		if type(savedItemId) == "number" then
 			setDisplayItem(player, displayState, savedItemId)
-		elseif type(savedItemId) == "number" then
-			dataService:arrayInsert(player, "Inventory", savedItemId)
-			savedDisplays[tostring(index)] = nil
+		end
+	end
+	for DisplayKey, SavedItemId in savedDisplays do
+		local DisplayIndex = tonumber(DisplayKey)
+		if type(SavedItemId) == "number" and DisplayIndex and DisplayIndex > DisplayLimit then
+			dataService:arrayInsert(player, "Inventory", SavedItemId)
+			savedDisplays[DisplayKey] = nil
 			DisplaysChanged = true
 		end
 	end
@@ -360,13 +357,10 @@ local function createDisplays(player: Player, assignment: MuseumAssignment)
 	end
 end
 
-local function RefreshDisplayAvailability(Player: Player)
+local function RefreshDisplays(Player: Player)
 	local Assignment = assignments[Player]
 	if not Assignment then return end
-	local DisplayLimit = UpgradeLogic.GetDisplayLimit(dataService:get(Player, "Upgrades"))
-	for _, DisplayState in Assignment.displays do
-		SetDisplayAvailability(DisplayState, DisplayState.index <= DisplayLimit)
-	end
+	CreateDisplays(Player, Assignment)
 end
 
 function MuseumController.SetDataService(service)
@@ -445,9 +439,9 @@ function MuseumController.OnPlayerAdded(player: Player)
 	}
 	occupiedPositions[position] = player
 	assignments[player] = assignment
-	createDisplays(player, assignment)
+	CreateDisplays(player, assignment)
 	assignment.UpgradeConnection = dataService:getChangedSignal(player, "Upgrades"):Connect(function()
-		RefreshDisplayAvailability(player)
+		RefreshDisplays(player)
 	end)
 end
 

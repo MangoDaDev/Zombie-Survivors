@@ -109,6 +109,21 @@ function UpgradeLogic.GetBatId(Ownership): string
 	return BatId
 end
 
+function UpgradeLogic.GetBatCooldownMultiplier(Ownership): number
+	local Multiplier = 1
+	for _, Upgrade in UpgradeConfig.Upgrades do
+		local Effect = Upgrade.Effect
+		if
+			UpgradeLogic.IsPurchased(Ownership, Upgrade.Id)
+			and Effect
+			and Effect.Type == "BatCooldown"
+		then
+			Multiplier = math.min(Multiplier, Effect.Multiplier)
+		end
+	end
+	return Multiplier
+end
+
 function UpgradeLogic.CanReveal(Ownership, Upgrade): boolean
 	local Effect = Upgrade.Effect
 	return not Effect or Effect.Type ~= "ToolStrength" or UpgradeLogic.IsToolUnlocked(Ownership, Effect.ToolId)

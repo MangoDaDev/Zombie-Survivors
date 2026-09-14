@@ -188,7 +188,7 @@ local function PrepareCurrentStep(Player, Session)
 	Session.LastProgress = -1
 	Player:SetAttribute("CleaningStepName", Step.DisplayName)
 	Player:SetAttribute("CleaningStepToolId", Step.ToolId)
-	Player:SetAttribute("CleaningStepComplete", false)
+	Player:SetAttribute("CleaningStepComplete", StepState.Completed == true)
 	UpdateProgress(Player, Session, true)
 	CarryController.EquipCleaningTool(Player, Step.ToolId)
 end
@@ -278,6 +278,13 @@ local function GetFirstIncompleteStep(State, Steps): number?
 	return nil
 end
 
+local function GetFirstAvailableIncompleteStep(Player, State, Steps): number?
+	for Index, Step in Steps do
+		if State.Steps[Step.Id].Completed ~= true and IsToolUnlocked(Player, Step.ToolId) then return Index end
+	end
+	return nil
+end
+
 local function StartFixing(Player)
 	if Sessions[Player] then return end
 	local ItemId = CarryController.GetEquippedItemId(Player)
@@ -310,9 +317,9 @@ local function StartFixing(Player)
 		end
 	end
 	NormalizeState(State, Model, Steps)
-	local StepIndex = GetFirstIncompleteStep(State, Steps)
-	if not StepIndex then State.Completed = true; SaveState(Player, ItemId, State); Model:Destroy(); return end
-	if not IsToolUnlocked(Player, Steps[StepIndex].ToolId) then Model:Destroy(); return end
+	local StepIndex = GetFirstAvailableIncompleteStep(Player, State, Steps)
+	if not GetFirstIncompleteStep(State, Steps) then State.Completed = true; SaveState(Player, ItemId, State); Model:Destroy(); return end
+	if not StepIndex then Model:Destroy(); return end
 	local CameraPart = TableModel and TableModel:FindFirstChild("CamPart")
 	if not CameraPart or not CameraPart:IsA("BasePart") then Model:Destroy(); return end
 	local ItemDistance = CleaningConfig.MinimumItemCameraDistance + math.max(Box.Size.X, Box.Size.Y, Box.Size.Z) * CleaningConfig.ItemCameraDistancePerStud
@@ -342,6 +349,7 @@ local function StartFixing(Player)
 		LastFeedbackSound = 0,
 		StepIndex = StepIndex,
 		Completing = false,
+		TransitionId = 0,
 		LastProgress = -1,
 	}
 	Session.Connection = RunService.Heartbeat:Connect(function(DeltaTime)
@@ -401,14 +409,13 @@ CompleteCurrentStep = function(Player, Session)
 	Player:SetAttribute("CleaningProgress", 1)
 	Player:SetAttribute("CleaningStepComplete", true)
 	Sounds.Play(Step.CompletionSoundName, Session.RootPart, CONFIG.FeedbackSoundMaxDistance)
-	local NextStepIndex
-	for Index = Session.StepIndex + 1, #Session.Steps do
-		if Session.State.Steps[Session.Steps[Index].Id].Completed ~= true then NextStepIndex = Index; break end
-	end
-	if NextStepIndex then
+	if GetFirstIncompleteStep(Session.State, Session.Steps) then
+		Session.TransitionId += 1
+		local TransitionId = Session.TransitionId
 		task.delay(CleaningConfig.StepTransitionDelay, function()
-			if Sessions[Player] ~= Session then return end
-			if not IsToolUnlocked(Player, Session.Steps[NextStepIndex].ToolId) then
+			if Sessions[Player] ~= Session or Session.TransitionId ~= TransitionId then return end
+			local NextStepIndex = GetFirstAvailableIncompleteStep(Player, Session.State, Session.Steps)
+			if not NextStepIndex then
 				ClearSession(Player)
 				return
 			end
@@ -422,6 +429,35 @@ CompleteCurrentStep = function(Player, Session)
 	SaveState(Player, Session.ItemId, Session.State)
 	PlayFullCompletionFeedback(Session)
 	task.delay(CleaningConfig.FullCompletionDelay, function() if Sessions[Player] == Session then ClearSession(Player) end end)
+end
+
+function FixingController:SelectTool(Player, ToolId)
+	local Session = Sessions[Player]
+	local ToolInfo = if type(ToolId) == "string" then GetToolInfo(ToolId) else nil
+	if not Session or not ToolInfo or not IsToolUnlocked(Player, ToolId) then return end
+	local Tool = GetCleaningTool(Player, ToolId)
+	if not Tool then return end
+	for Index, Step in Session.Steps do
+		if Step.ToolId ~= ToolId then continue end
+		Session.TransitionId += 1
+		Session.Completing = false
+		Session.IsUsingTool = false
+		Session.ActiveToolId = nil
+		Session.StepIndex = Index
+		Session.LastApplication = os.clock()
+		PrepareCurrentStep(Player, Session)
+		return
+	end
+	CarryController.EquipCleaningTool(Player, ToolId)
+	Session.TransitionId += 1
+	Session.Completing = false
+	Session.IsUsingTool = false
+	Session.ActiveToolId = nil
+	Session.StepIndex = nil
+	Player:SetAttribute("CleaningStepName", `{ToolInfo.DisplayName} Not Needed`)
+	Player:SetAttribute("CleaningStepToolId", ToolId)
+	Player:SetAttribute("CleaningProgress", 1)
+	Player:SetAttribute("CleaningStepComplete", true)
 end
 
 function FixingController:ApplyTool(Player, ToolId, BrushPosition, ViewportSize)
@@ -471,12 +507,15 @@ end
 function FixingController:StartUsingTool(Player, ToolId)
 	local Session = Sessions[Player]
 	local Step = Session and Session.Steps[Session.StepIndex]
+	local StepState = Session and GetStepState(Session)
 	local Tool = Step and GetCleaningTool(Player, Step.ToolId)
 	if
 		not Session
 		or Session.Completing
 		or type(ToolId) ~= "string"
 		or not Step
+		or not StepState
+		or StepState.Completed == true
 		or Step.ToolId ~= ToolId
 		or not IsToolUnlocked(Player, ToolId)
 		or not Tool
@@ -498,6 +537,7 @@ function FixingController:Exit(Player) ClearSession(Player) end
 function FixingController.SetDataService(Service) DataService = Service end
 function FixingController:Init()
 	self.Networker = Networker.server.new("FixingController", self, {
+		FixingController.SelectTool,
 		FixingController.StartUsingTool,
 		FixingController.ApplyTool,
 		FixingController.StopUsingTool,

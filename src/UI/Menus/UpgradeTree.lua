@@ -20,8 +20,6 @@ local Source = Vide.source
 local Spring = Vide.spring
 
 local LocalPlayer = Players.LocalPlayer
-local SquareRootThree = math.sqrt(3)
-local ConnectorGap = 0
 
 local StateColors = {
 	Available = Color3.fromRGB(45, 190, 229),
@@ -37,18 +35,6 @@ local function GetNodeScreenPosition(ViewportSize: Vector2, CameraPosition: Vect
 	return ViewportSize / 2 + (Upgrade.Position - CameraPosition) * Zoom
 end
 
-local function GetHexagonRadius(Direction: Vector2, Radius: number): number
-	if Direction.Magnitude <= 0 then
-		return 0
-	end
-	local Unit = Direction.Unit
-	local HorizontalRadius = Radius * SquareRootThree / 2
-	local HorizontalIntersection = if math.abs(Unit.X) > 0 then HorizontalRadius / math.abs(Unit.X) else math.huge
-	local RisingEdgeIntersection = Radius / math.abs(Unit.Y + Unit.X / SquareRootThree)
-	local FallingEdgeIntersection = Radius / math.abs(Unit.Y - Unit.X / SquareRootThree)
-	return math.min(HorizontalIntersection, RisingEdgeIntersection, FallingEdgeIntersection)
-end
-
 local function GetMysteryTransparency(Distance: number?): number
 	if Distance == nil then
 		return 1
@@ -60,76 +46,6 @@ local function GetMysteryTransparency(Distance: number?): number
 		return 0.58
 	end
 	return 0
-end
-
-local function CreateConnector(Ownership, RevealDistances, ViewportSize, CameraPosition, Zoom, FromUpgrade, ToUpgrade)
-	local VisibilityTarget = Derive(function()
-		local FromDistance = RevealDistances()[FromUpgrade.Id]
-		local ToDistance = RevealDistances()[ToUpgrade.Id]
-		if FromDistance == nil or ToDistance == nil then
-			return 1
-		end
-		local MysteryTransparency = math.max(GetMysteryTransparency(FromDistance), GetMysteryTransparency(ToDistance))
-		return if MysteryTransparency == 0 then 0.08 else math.clamp(MysteryTransparency + 0.18, 0.08, 0.9)
-	end)
-	local Transparency = Spring(VisibilityTarget, 0.2, 0.88)
-	local Color = Spring(
-		Derive(function()
-			if UpgradeLogic.IsPurchased(Ownership(), ToUpgrade.Id) then
-				return StateColors.Purchased
-			end
-			if UpgradeLogic.IsPurchased(Ownership(), FromUpgrade.Id) then
-				return StateColors.Available
-			end
-			return Color3.fromRGB(28, 32, 40)
-		end),
-		0.2,
-		0.86
-	)
-
-	local function GetGeometry()
-		local CurrentZoom = Zoom()
-		local FromPosition = GetNodeScreenPosition(ViewportSize(), CameraPosition(), CurrentZoom, FromUpgrade)
-		local ToPosition = GetNodeScreenPosition(ViewportSize(), CameraPosition(), CurrentZoom, ToUpgrade)
-		local Difference = ToPosition - FromPosition
-		if Difference.Magnitude <= 0 then
-			return FromPosition, 0, 0
-		end
-		local Direction = Difference.Unit
-		local Radius = UpgradeConfig.NodeSize * CurrentZoom / 2
-		local Gap = ConnectorGap * CurrentZoom
-		local StartPosition = FromPosition + Direction * (GetHexagonRadius(Direction, Radius) + Gap)
-		local EndPosition = ToPosition - Direction * (GetHexagonRadius(-Direction, Radius) + Gap)
-		local VisibleDifference = EndPosition - StartPosition
-		return (StartPosition + EndPosition) / 2,
-			math.max(VisibleDifference.Magnitude, 0),
-			math.deg(math.atan2(VisibleDifference.Y, VisibleDifference.X))
-	end
-
-	return Create "Frame" {
-		Name = `{FromUpgrade.Id}To{ToUpgrade.Id}`,
-		AnchorPoint = Vector2.new(0.5, 0.5),
-		BackgroundColor3 = Color,
-		BackgroundTransparency = Transparency,
-		BorderSizePixel = 0,
-		Position = function()
-			local Midpoint = GetGeometry()
-			return UDim2.fromOffset(Midpoint.X, Midpoint.Y)
-		end,
-		Rotation = function()
-			local _, _, Rotation = GetGeometry()
-			return Rotation
-		end,
-		Size = function()
-			local _, Length = GetGeometry()
-			return UDim2.fromOffset(Length, math.max(2, 5 * Zoom()))
-		end,
-		Visible = function()
-			return Transparency() < 0.985
-		end,
-		ZIndex = 1,
-		Create "UICorner" { CornerRadius = UDim.new(1, 0) },
-	}
 end
 
 local function CreateNode(Properties)
@@ -215,11 +131,11 @@ local function CreateNode(Properties)
 		Create "UIScale" { Scale = Scale },
 		Create "TextLabel" {
 			Name = "Title",
-			AnchorPoint = Vector2.new(0.5, 1),
+			AnchorPoint = Vector2.new(0.5, 0),
 			BackgroundTransparency = 1,
 			FontFace = UIStyle.Font,
-			Position = UDim2.fromScale(0.5, -0.08),
-			Size = UDim2.fromScale(1.75, 0.3),
+			Position = UDim2.fromScale(0.5, 0.08),
+			Size = UDim2.fromScale(0.82, 0.28),
 			Text = Upgrade.Name,
 			TextColor3 = Color3.fromRGB(241, 246, 255),
 			TextScaled = true,
@@ -235,7 +151,7 @@ local function CreateNode(Properties)
 					return if ShowsDetails() then 0.15 else 1
 				end,
 			},
-			Create "UITextSizeConstraint" { MaxTextSize = 23, MinTextSize = 8 },
+			Create "UITextSizeConstraint" { MaxTextSize = 16, MinTextSize = 7 },
 		},
 		Create "ImageLabel" {
 			Name = "Hexagon",
@@ -264,35 +180,19 @@ local function CreateNode(Properties)
 			ImageTransparency = function()
 				return if RevealDistance() == nil then 1 else 0
 			end,
-			Position = UDim2.fromScale(0.5, if Upgrade.ShortValue then 0.43 else 0.5),
+			Position = UDim2.fromScale(0.5, 0.53),
 			ScaleType = Enum.ScaleType.Fit,
-			Size = UDim2.fromScale(0.42, 0.42),
+			Size = UDim2.fromScale(0.34, 0.34),
 			ZIndex = 4,
 		},
-		Upgrade.ShortValue and Create "TextLabel" {
-			Name = "Value",
+		Create "TextLabel" {
+			Name = "Price",
 			AnchorPoint = Vector2.new(0.5, 1),
 			BackgroundTransparency = 1,
 			FontFace = UIStyle.Font,
-			Position = UDim2.fromScale(0.5, 0.84),
-			Size = UDim2.fromScale(0.68, 0.2),
-			Text = Upgrade.ShortValue,
-			TextColor3 = Color3.new(1, 1, 1),
-			TextScaled = true,
-			TextTransparency = function()
-				return if IsDetailed() then 0 else 1
-			end,
-			ZIndex = 4,
-			Create "UIStroke" { Color = Color3.fromRGB(17, 24, 39), Thickness = 2 },
-		} or nil,
-		Create "TextLabel" {
-			Name = "Price",
-			AnchorPoint = Vector2.new(0.5, 0),
-			BackgroundTransparency = 1,
-			FontFace = UIStyle.Font,
-			Position = UDim2.fromScale(0.5, 1.08),
-			Size = UDim2.fromScale(1.2, 0.25),
-			Text = `$ {FormatNumber(Upgrade.Cost) or "0"}`,
+			Position = UDim2.fromScale(0.5, 0.9),
+			Size = UDim2.fromScale(0.72, 0.18),
+			Text = `${FormatNumber(Upgrade.Cost) or "0"}`,
 			TextColor3 = function()
 				if State() == "Available" and not CanAfford() then
 					return Color3.fromRGB(255, 75, 75)
@@ -311,7 +211,7 @@ local function CreateNode(Properties)
 					return if ShowsDetails() then 0.15 else 1
 				end,
 			},
-			Create "UITextSizeConstraint" { MaxTextSize = 21, MinTextSize = 8 },
+			Create "UITextSizeConstraint" { MaxTextSize = 15, MinTextSize = 7 },
 		},
 		Create "TextButton" {
 			Active = function()
@@ -519,25 +419,6 @@ return function()
 	end
 
 	local CanvasChildren = {}
-	for _, FromUpgrade in UpgradeConfig.Upgrades do
-		for _, ConnectedId in FromUpgrade.ConnectedUpgrades do
-			local ToUpgrade = UpgradeConfig.Get(ConnectedId)
-			if ToUpgrade then
-				table.insert(
-					CanvasChildren,
-					CreateConnector(
-						Ownership,
-						RevealDistances,
-						ViewportSize,
-						CameraPosition,
-						Zoom,
-						FromUpgrade,
-						ToUpgrade
-					)
-				)
-			end
-		end
-	end
 	for _, Upgrade in UpgradeConfig.Upgrades do
 		table.insert(
 			CanvasChildren,

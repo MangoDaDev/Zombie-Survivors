@@ -216,6 +216,8 @@ local function Swing(Tool, Info)
 	local Handle = Tool:FindFirstChild("Handle")
 	if not Handle or not Handle:IsA("BasePart") then Tool.Enabled = true; return end
 	local OriginalGrip = Tool.Grip
+	local CooldownMultiplier = Tool:GetAttribute("SwingCooldownMultiplier")
+	local SwingCooldown = Info.SwingCooldown * (if type(CooldownMultiplier) == "number" then CooldownMultiplier else 1)
 	local Trail = Handle:FindFirstChildOfClass("Trail")
 	if Trail then Trail.Enabled = true end
 	Sounds.Play(Info.SwingSoundName, Handle, 70)
@@ -234,11 +236,11 @@ local function Swing(Tool, Info)
 		if Tool.Parent == LocalPlayer.Character then DetectTargets(Tool, Info) end
 		TweenService:Create(
 			Tool,
-			TweenInfo.new(math.max(Info.SwingCooldown - Info.ImpactDelay, 0.05), Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+			TweenInfo.new(math.max(SwingCooldown - Info.ImpactDelay, 0.05), Enum.EasingStyle.Back, Enum.EasingDirection.Out),
 			{ Grip = OriginalGrip }
 		):Play()
 	end)
-	task.delay(Info.SwingCooldown, function()
+	task.delay(SwingCooldown, function()
 		if Trail and Trail.Parent then Trail.Enabled = false end
 		if Tool.Parent then Tool.Enabled = true end
 	end)

@@ -45,6 +45,7 @@ local function EnsureBat(Player)
 	if Player.Parent ~= Players or Player:GetAttribute("IsFixing") == true then return end
 	local Ownership = DataService:get(Player, "Upgrades")
 	local Info = GetBatInfo(UpgradeLogic.GetBatId(Ownership)) or BatInfo[1]
+	local CooldownMultiplier = UpgradeLogic.GetBatCooldownMultiplier(Ownership)
 	local MatchingBat
 	for _, Container in { Player.Character, Player:FindFirstChildOfClass("Backpack") } do
 		if Container then
@@ -60,7 +61,10 @@ local function EnsureBat(Player)
 			end
 		end
 	end
-	if MatchingBat then return end
+	if MatchingBat then
+		MatchingBat:SetAttribute("SwingCooldownMultiplier", CooldownMultiplier)
+		return
+	end
 	local Backpack = Player:FindFirstChildOfClass("Backpack")
 	local Template = ReplicatedStorage.Assets.Tools:FindFirstChild(Info.TemplateName)
 	if not Backpack or not Template or not Template:IsA("Tool") then return end
@@ -68,6 +72,7 @@ local function EnsureBat(Player)
 	Tool.Name = Info.DisplayName
 	Tool.CanBeDropped = false
 	Tool:SetAttribute("BatId", Info.Id)
+	Tool:SetAttribute("SwingCooldownMultiplier", CooldownMultiplier)
 	Tool:SetAttribute("InitialToolOrder", 0)
 	Tool:AddTag("satchelSlot")
 	Tool.Parent = Backpack
@@ -117,10 +122,15 @@ function BatController:Swing(Player, Targets)
 	local Tool = Character and Character:FindFirstChildOfClass("Tool")
 	local BatId = Tool and Tool:GetAttribute("BatId")
 	local Info = if type(BatId) == "string" then GetBatInfo(BatId) else nil
-	local OwnedBatId = UpgradeLogic.GetBatId(DataService:get(Player, "Upgrades"))
+	local Ownership = DataService:get(Player, "Upgrades")
+	local OwnedBatId = UpgradeLogic.GetBatId(Ownership)
+	local CooldownMultiplier = UpgradeLogic.GetBatCooldownMultiplier(Ownership)
 	if not RootPart or not RootPart:IsA("BasePart") or not Info or BatId ~= OwnedBatId then return end
 	local Now = os.clock()
-	local MinimumServerCooldown = math.max(0, Info.SwingCooldown * Info.ServerCooldownFactor - Info.ServerCooldownLeeway)
+	local MinimumServerCooldown = math.max(
+		0,
+		Info.SwingCooldown * CooldownMultiplier * Info.ServerCooldownFactor - Info.ServerCooldownLeeway
+	)
 	if Now - (LastSwings[Player] or 0) < MinimumServerCooldown then return end
 	LastSwings[Player] = Now
 	local HitTargets = {}

@@ -17,6 +17,7 @@ local CameraBound = false
 local HiddenParts: { [BasePart]: number } = {}
 local UsingTool = false
 local ActiveToolId: string?
+local RequestedToolId: string?
 local FixPrompt: ProximityPrompt?
 local CharacterConnections: { RBXScriptConnection } = {}
 local ToolLoop: Sound?
@@ -61,7 +62,23 @@ end
 local function UpdateToolInterface()
 	local Tool, ToolInfo = GetEquippedCleaningTool()
 	local RequiredToolId = LocalPlayer:GetAttribute("CleaningStepToolId")
-	local IsApplicable = LocalPlayer:GetAttribute("IsFixing") == true and Tool ~= nil and ToolInfo ~= nil and ToolInfo.Id == RequiredToolId
+	local IsFixing = LocalPlayer:GetAttribute("IsFixing") == true
+	if ToolInfo and ToolInfo.Id == RequiredToolId then RequestedToolId = nil end
+	if IsFixing and Tool and ToolInfo and ToolInfo.Id ~= RequiredToolId and RequestedToolId ~= ToolInfo.Id then
+		RequestedToolId = ToolInfo.Id
+		if UsingTool then
+			UsingTool = false
+			ActiveToolId = nil
+			StopToolEffects()
+			FixingController.Networker:fire("StopUsingTool")
+		end
+		FixingController.Networker:fire("SelectTool", ToolInfo.Id)
+	end
+	local IsApplicable = IsFixing
+		and Tool ~= nil
+		and ToolInfo ~= nil
+		and ToolInfo.Id == RequiredToolId
+		and LocalPlayer:GetAttribute("CleaningStepComplete") ~= true
 	LocalPlayer:SetAttribute("CleaningRadiusVisible", IsApplicable)
 	LocalPlayer:SetAttribute("CleaningBrushRadius", if IsApplicable then ToolInfo.RadiusPixels else nil)
 	if UsingTool and (not IsApplicable or ToolInfo.Id ~= ActiveToolId) then
@@ -161,6 +178,7 @@ end
 local function Restore()
 	UsingTool = false
 	ActiveToolId = nil
+	RequestedToolId = nil
 	StopToolEffects()
 	if ToolGrip and ToolGrip.Parent then ToolGrip.Transform = ToolGripTransform end
 	ToolGrip = nil
@@ -328,7 +346,10 @@ function FixingController:Init()
 		UpdateFixPrompt()
 	end)
 	LocalPlayer:GetAttributeChangedSignal("IsFixing"):Connect(function() EnterFixingView(); UpdateFixPrompt() end)
-	LocalPlayer:GetAttributeChangedSignal("CleaningStepToolId"):Connect(UpdateToolInterface)
+	LocalPlayer:GetAttributeChangedSignal("CleaningStepToolId"):Connect(function()
+		RequestedToolId = nil
+		UpdateToolInterface()
+	end)
 	DataService:getChangedSignal("Fixing"):Connect(UpdateFixPrompt)
 	LocalPlayer:GetAttributeChangedSignal("CleaningStepComplete"):Connect(function()
 		if LocalPlayer:GetAttribute("CleaningStepComplete") == true then UsingTool = false; ActiveToolId = nil; StopToolEffects() end
@@ -339,7 +360,9 @@ function FixingController:Init()
 	RunService.RenderStepped:Connect(function(DeltaTime)
 		if not UsingTool then return end
 		local Tool, ToolInfo = GetEquippedCleaningTool()
-		if not Tool or not ToolInfo or ToolInfo.Id ~= ActiveToolId or ToolInfo.Id ~= LocalPlayer:GetAttribute("CleaningStepToolId") then
+		if not Tool or not ToolInfo or ToolInfo.Id ~= ActiveToolId or ToolInfo.Id ~= LocalPlayer:GetAttribute("CleaningStepToolId")
+			or LocalPlayer:GetAttribute("CleaningStepComplete") == true
+		then
 			UsingTool = false
 			ActiveToolId = nil
 			StopToolEffects()
@@ -378,7 +401,9 @@ function FixingController:Init()
 		if Processed then return end
 		if Input.UserInputType == Enum.UserInputType.MouseButton1 and LocalPlayer:GetAttribute("IsFixing") == true and not UsingTool then
 			local Tool, ToolInfo = GetEquippedCleaningTool()
-			if Tool and ToolInfo and ToolInfo.Id == LocalPlayer:GetAttribute("CleaningStepToolId") then
+			if Tool and ToolInfo and ToolInfo.Id == LocalPlayer:GetAttribute("CleaningStepToolId")
+				and LocalPlayer:GetAttribute("CleaningStepComplete") ~= true
+			then
 				UsingTool = true
 				ActiveToolId = ToolInfo.Id
 				StartToolEffects(Tool, ToolInfo)
