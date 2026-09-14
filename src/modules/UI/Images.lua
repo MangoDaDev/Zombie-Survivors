@@ -17,8 +17,8 @@ local Images = {
 	Hexagon = "rbxassetid://102072576281291",
 
 	FixIcons = {
-		Dirt = "rbxassetid://86050971312005",
-		Paint = "rbxassetid://86050971312005",
+		Dirt = "rbxassetid://111727278981257",
+		Paint = "rbxassetid://118966242175055",
 	}
 }
 

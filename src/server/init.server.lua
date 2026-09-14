@@ -18,7 +18,8 @@ local modules_to_init = {
 	ServerStorage.Controllers.MuseumController,
 	ServerStorage.Controllers.CarryController,
 	ServerStorage.Controllers.FixingController,
-	ServerStorage.Controllers.ConveyorController,
+	ServerStorage.Controllers.CrateController,
+	ServerStorage.Controllers.BatController,
 	ServerStorage.Controllers.VisitorController,
 }
 

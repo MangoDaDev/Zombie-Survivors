@@ -255,7 +255,8 @@ function CarryController.SetFixingMode(player: Player, enabled: boolean)
 	if backpack then removeManagedTools(backpack) end
 	if character then removeManagedTools(character) end
 	if enabled then
-		local SprayBottle: Tool?
+		local InitialTool: Tool?
+		local InitialToolId = CleaningConfig.Steps[1] and CleaningConfig.Steps[1].ToolId
 		if backpack then
 			for _, ToolInfo in CleaningConfig.Tools do
 				local Template = ReplicatedStorage.Assets.Tools:FindFirstChild(ToolInfo.TemplateName)
@@ -271,13 +272,27 @@ function CarryController.SetFixingMode(player: Player, enabled: boolean)
 						if Descendant:IsA("BasePart") then Descendant.CanCollide = false end
 					end
 					Tool.Parent = backpack
-					if ToolInfo.Id == "Spray" then SprayBottle = Tool end
+					if ToolInfo.Id == InitialToolId then InitialTool = Tool end
 				end
 			end
-			if character and SprayBottle then SprayBottle.Parent = character end
+			if character and InitialTool then InitialTool.Parent = character end
 		end
 	elseif character then
 		restoreInventory(player, character)
+	end
+end
+
+function CarryController.EquipCleaningTool(Player: Player, ToolId: string)
+	local Character = Player.Character
+	local Backpack = Player:FindFirstChildOfClass("Backpack")
+	if not Character or not Backpack then return end
+	local Humanoid = Character:FindFirstChildOfClass("Humanoid")
+	if Humanoid then Humanoid:UnequipTools() end
+	for _, Tool in Backpack:GetChildren() do
+		if Tool:IsA("Tool") and Tool:GetAttribute("CleaningToolId") == ToolId then
+			Tool.Parent = Character
+			return
+		end
 	end
 end
 

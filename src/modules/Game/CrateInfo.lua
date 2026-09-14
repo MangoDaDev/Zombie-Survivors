@@ -1,0 +1,30 @@
+local CrateInfo = {
+	{
+		Id = "StandardCrate",
+		TemplateFolderName = "Crates",
+		TemplateName = "Crate",
+		Health = 12,
+		MaximumActive = 18,
+		RespawnDelay = 1.5,
+		SpawnPadding = 4,
+		MinimumSpawnSeparation = 8,
+		ScaleMinimum = 0.9,
+		ScaleMaximum = 1.12,
+		HealthBarHideDelay = 1.6,
+		HealthBarTweenTime = 0.12,
+		DamageSoundName = "CrateDamage",
+		BreakSoundNames = { "CrateBreak1", "CrateBreak2", "CrateBreak3" },
+		ActualLootLuck = 1,
+		PreviewLootLuck = 3,
+		PreviewSwitchCount = 14,
+		PreviewStartDelay = 0.055,
+		PreviewEndDelay = 0.32,
+		RevealFadeTime = 0.2,
+		RevealLifetime = 45,
+		PurchaseDistance = 13,
+		RevealTickSoundName = "ItemRevealTick",
+		RevealCompleteSoundName = "ItemRevealComplete",
+	},
+}
+
+return CrateInfo

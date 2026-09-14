@@ -26,7 +26,9 @@ Quick reference for the project's first-party Luau scripts. Generated Wally depe
 | Path | Name | Responsibility |
 | --- | --- | --- |
 | `src/controllers/CharacterController.lua` | CharacterController | Requests character spawning and manages local camera and respawn behavior. |
-| `src/controllers/ConveyorItemController.lua` | ConveyorItemController | Registers the client ConveyorItem SharedClass renderer. |
+| `src/controllers/BatController.lua` | BatController | Predicts responsive bat swings, forgiving crate/player hitboxes, trails, and immediate impact feedback. |
+| `src/controllers/ConveyorItemController.lua` | ConveyorItemController | Retains the inactive legacy ConveyorItem SharedClass renderer. |
+| `src/controllers/CrateController.lua` | CrateController | Plays client-only silhouette roulette, pulsing previews, reveal audio, and final reveal feedback. |
 | `src/controllers/FixingController.lua` | FixingController | Controls Fix prompt visibility, the offset cursor-following arm, cursor-aimed SprayBottle input, and its looping spray audio. |
 | `src/controllers/InventoryController.lua` | InventoryController | Controls Satchel visibility and sends validated inventory slot ordering to the server. |
 | `src/controllers/MuseumVisitorController.lua` | MuseumVisitorController | Registers the client MuseumVisitor SharedClass renderer. |
@@ -57,6 +59,8 @@ Quick reference for the project's first-party Luau scripts. Generated Wally depe
 | --- | --- | --- |
 | `src/modules/Game/_PlayerFreezeState.lua` | PlayerFreezeState | Stores and manages the local character's anchored freeze state. |
 | `src/modules/Game/CleaningConfig.lua` | CleaningConfig | Configures cleaning steps, tool loadouts, screen-space brush size, spray VFX, auto-completion, and completion feedback. |
+| `src/modules/Game/BatInfo.lua` | BatInfo | Configures expandable bat damage, timing, range, hitbox, knockback, and centralized sound choices. |
+| `src/modules/Game/CrateInfo.lua` | CrateInfo | Configures expandable crate spawning, health, scale variance, loot luck, reveal pacing, UI, and sounds. |
 | `src/modules/Game/DataTemplate.lua` | DataTemplate | Defines saved defaults for cash, ordered inventory items, and museum displays. |
 | `src/modules/Game/DirtRenderer.lua` | DirtRenderer | Calculates surface-area-scaled dirt counts and adds or removes dense dirt layers across conveyor, inventory, and Fixing views. |
 | `src/modules/Game/FreezePlayer.lua` | FreezePlayer | Freezes the local player, optionally at a target CFrame. |
@@ -121,8 +125,10 @@ Quick reference for the project's first-party Luau scripts. Generated Wally depe
 | Path | Name | Responsibility |
 | --- | --- | --- |
 | `src/servercontrollers/CarryController.lua` | CarryController | Handles purchased-item carrying, auto-equipped museum delivery, normal and cleaning Tool loadouts, and ordered inventory persistence. |
+| `src/servercontrollers/BatController.lua` | BatController | Supplies bats and validates authoritative crate and PvP swing targets, damage, cooldowns, facing, and range. |
 | `src/servercontrollers/CharacterController.lua` | CharacterController | Authorizes character spawning and applies the configured R6 avatar animations. |
-| `src/servercontrollers/ConveyorController.lua` | ConveyorController | Builds conveyor paths, spawns weighted items, and validates purchases and cash deductions. |
+| `src/servercontrollers/ConveyorController.lua` | ConveyorController | Retains the inactive legacy conveyor spawning and purchase implementation. |
+| `src/servercontrollers/CrateController.lua` | CrateController | Spawns varied crates, owns health and rewards, securely rolls loot, reveals items, and reuses carrying purchases. |
 | `src/servercontrollers/FixingController.lua` | FixingController | Owns Fix prompts, screen-space cleaning steps, progress and auto-completion, completion feedback, and persisted restoration state. |
 | `src/servercontrollers/MuseumController.lua` | MuseumController | Assigns museum plots and manages persistent display placement, removal, selling, and viewing regions. |
 | `src/servercontrollers/VisitorController.lua` | VisitorController | Concurrently schedules grounded visitor routes and dialogue, chooses positions within display viewing regions, and awards guest-payment cash. |

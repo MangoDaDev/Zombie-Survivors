@@ -16,7 +16,7 @@ local function addStroke(label: TextLabel)
 	stroke.Parent = label
 end
 
-local function createStatRow(image: string, value: number, position: UDim2): Frame
+local function createStatRow(image: string, value: number, position: UDim2, ValuePrefix: string?): Frame
 	local row = Instance.new("Frame")
 	row.BackgroundTransparency = 1
 	row.Position = position
@@ -44,7 +44,7 @@ local function createStatRow(image: string, value: number, position: UDim2): Fra
 	valueLabel.FontFace = COMIC_FONT
 	valueLabel.LayoutOrder = 2
 	valueLabel.Size = UDim2.fromScale(0, 1)
-	valueLabel.Text = tostring(value)
+	valueLabel.Text = `{ValuePrefix or ""}{value}`
 	valueLabel.TextColor3 = Color3.fromRGB(72, 232, 91)
 	valueLabel.TextScaled = true
 	valueLabel.TextXAlignment = Enum.TextXAlignment.Left
@@ -81,7 +81,7 @@ return function(itemInfo, adornee: BasePart, fixingState): BillboardGui
 	addStroke(nameLabel)
 
 	createStatRow(Images.Cash, itemInfo.Price, UDim2.fromScale(0, 0.31)).Parent = billboard
-	createStatRow(Images.Binoculars, itemInfo.GuestPay, UDim2.fromScale(0, 0.56)).Parent = billboard
+	createStatRow(Images.Binoculars, itemInfo.GuestPay, UDim2.fromScale(0, 0.56), "$").Parent = billboard
 	if fixingState and fixingState.Completed ~= true and Images.FixIcons and Images.FixIcons.Dirt then
 		local fixRow = Instance.new("Frame")
 		fixRow.Name = "FixIcons"
