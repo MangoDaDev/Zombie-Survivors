@@ -13,7 +13,9 @@ local GetRandomFromWeightedTable = require(ReplicatedStorage.Modules.Math.GetRan
 local ItemInfoBillboard = require(ReplicatedStorage.Modules.UI.ItemInfoBillboard)
 local ItemsInfo = require(ReplicatedStorage.Modules.Game.ItemsInfo)
 local Networker = require(ReplicatedStorage.Packages.networker)
+local RestorationVisuals = require(ReplicatedStorage.Modules.Game.RestorationVisuals)
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
+local UIStyle = require(ReplicatedStorage.Modules.UI.UIStyle)
 
 local CrateController = {}
 local DataService
@@ -82,7 +84,7 @@ local function CreateHealthBar(Model, Info)
 	local HealthLabel = Instance.new("TextLabel")
 	HealthLabel.Name = "Health"
 	HealthLabel.BackgroundTransparency = 1
-	HealthLabel.Font = Enum.Font.GothamBold
+	HealthLabel.FontFace = UIStyle.Font
 	HealthLabel.Size = UDim2.fromScale(1, 1)
 	HealthLabel.Text = `{Info.Health}/{Info.Health}`
 	HealthLabel.TextColor3 = Color3.new(1, 1, 1)
@@ -223,8 +225,9 @@ local function CreateReward(State)
 			for _, Part in Model:GetDescendants() do
 				if Part:IsA("BasePart") then Part:SetAttribute("RevealTransparency", nil) end
 			end
-			DirtRenderer.Add(Model, Reward.DirtCount, ItemInfo.DirtHP)
-			ItemInfoBillboard(ItemInfo, Box, { Total = Reward.DirtCount, Remaining = Reward.DirtCount, Completed = false })
+			local FixingState = { Total = Reward.DirtCount, Remaining = Reward.DirtCount, Completed = false }
+			RestorationVisuals.Apply(Model, ItemInfo, FixingState)
+			ItemInfoBillboard(ItemInfo, Box, FixingState)
 			Prompt.Enabled = true
 		end)
 	end)

@@ -66,7 +66,7 @@ function BatController:Swing(Player, Targets)
 	local Info = if type(BatId) == "string" then GetBatInfo(BatId) else nil
 	if not RootPart or not RootPart:IsA("BasePart") or not Info then return end
 	local Now = os.clock()
-	if Now - (LastSwings[Player] or 0) < Info.SwingCooldown * 0.85 then return end
+	if Now - (LastSwings[Player] or 0) < Info.SwingCooldown * Info.ServerCooldownFactor then return end
 	LastSwings[Player] = Now
 	local HitTargets = {}
 	for _, Target in Targets do

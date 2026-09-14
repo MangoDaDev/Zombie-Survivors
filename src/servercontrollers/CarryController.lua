@@ -6,6 +6,7 @@ local ItemsInfo = require(ReplicatedStorage.Modules.Game.ItemsInfo)
 local CleaningConfig = require(ReplicatedStorage.Modules.Game.CleaningConfig)
 local DirtRenderer = require(ReplicatedStorage.Modules.Game.DirtRenderer)
 local ItemInfoBillboard = require(ReplicatedStorage.Modules.UI.ItemInfoBillboard)
+local RestorationVisuals = require(ReplicatedStorage.Modules.Game.RestorationVisuals)
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
 local MuseumController = require(ServerStorage.Controllers.MuseumController)
 local Networker = require(ReplicatedStorage.Packages.networker)
@@ -99,7 +100,7 @@ local function attachCarriedModel(player: Player, state: CarryState): boolean
 	model.Parent = character
 	local fixing = dataService:get(player, "Fixing") or {}
 	local fixingState = fixing[tostring(state.itemId)]
-	if fixingState and fixingState.Completed ~= true then DirtRenderer.Add(model, fixingState.Remaining, itemInfo.DirtHP) end
+	RestorationVisuals.Apply(model, itemInfo, fixingState)
 	ItemInfoBillboard(itemInfo, boundingBox, fixingState)
 	state.model = model
 	return true
@@ -133,7 +134,7 @@ local function createTool(player: Player, itemId: number, inventoryPosition: num
 	local fixing = dataService:get(player, "Fixing") or {}
 	local fixingState = fixing[tostring(itemId)]
 	tool:SetAttribute("NeedsFixing", fixingState ~= nil and fixingState.Completed ~= true)
-	if fixingState and fixingState.Completed ~= true then DirtRenderer.Add(model, fixingState.Remaining, itemInfo.DirtHP) end
+	RestorationVisuals.Apply(model, itemInfo, fixingState)
 	for _, child in model:GetChildren() do
 		child.Parent = tool
 	end
@@ -249,14 +250,14 @@ function CarryController.RefreshInventory(player: Player)
 	if player.Character then restoreInventory(player, player.Character) end
 end
 
-function CarryController.SetFixingMode(player: Player, enabled: boolean)
+function CarryController.SetFixingMode(player: Player, enabled: boolean, InitialToolId: string?)
 	local backpack = player:FindFirstChildOfClass("Backpack")
 	local character = player.Character
 	if backpack then removeManagedTools(backpack) end
 	if character then removeManagedTools(character) end
 	if enabled then
 		local InitialTool: Tool?
-		local InitialToolId = CleaningConfig.Steps[1] and CleaningConfig.Steps[1].ToolId
+		InitialToolId = InitialToolId or (CleaningConfig.Steps[1] and CleaningConfig.Steps[1].ToolId)
 		if backpack then
 			for _, ToolInfo in CleaningConfig.Tools do
 				local Template = ReplicatedStorage.Assets.Tools:FindFirstChild(ToolInfo.TemplateName)

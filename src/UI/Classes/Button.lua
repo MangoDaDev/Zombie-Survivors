@@ -1,5 +1,6 @@
 local ReplicatedStorage = game:GetService "ReplicatedStorage"
 local Vide = require(ReplicatedStorage.Packages.vide)
+local UIStyle = require(ReplicatedStorage.Modules.UI.UIStyle)
 
 local create, derive, effect = Vide.create, Vide.derive, Vide.effect
 local read, source, spring = Vide.read, Vide.source, Vide.spring
@@ -60,7 +61,7 @@ return function(props: Props)
 		create "TextLabel" {
 			BackgroundTransparency = 1,
 			Size = UDim2.fromScale(1, 1),
-			Font = Enum.Font.GothamBold,
+			FontFace = UIStyle.Font,
 			Text = function()
 				return readOr(props.Text, "Button")
 			end,
@@ -75,6 +76,7 @@ return function(props: Props)
 			Selectable = enabled,
 			Size = UDim2.fromScale(1, 1),
 			Text = "",
+			FontFace = UIStyle.Font,
 			MouseEnter = function()
 				if enabled() and not hovered() then
 					hovered(true)

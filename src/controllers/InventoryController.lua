@@ -4,11 +4,19 @@ local UserInputService = game:GetService("UserInputService")
 
 local localPlayer = Players.LocalPlayer
 local Networker = require(ReplicatedStorage.Packages.networker)
+local UIStyle = require(ReplicatedStorage.Modules.UI.UIStyle)
 
 local InventoryController = {}
 
 function InventoryController:Init()
 	task.spawn(function()
+		local PackageIndex = ReplicatedStorage.Packages:FindFirstChild("_Index")
+		if PackageIndex then
+			for _, Package in PackageIndex:GetChildren() do
+				local SatchelModule = Package.Name:match("^upliftgames_satchel@") and Package:FindFirstChild("satchel")
+				if SatchelModule and SatchelModule:IsA("ModuleScript") then SatchelModule:SetAttribute("FontFace", UIStyle.Font); break end
+			end
+		end
 		local satchel = require(ReplicatedStorage.Packages.satchel)
 		local networker = Networker.client.new("InventoryController", self)
 		local lastInventoryOrder: string?

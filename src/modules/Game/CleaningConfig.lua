@@ -41,6 +41,7 @@ local CleaningConfig = {
 		{
 			Id = "Spray",
 			Type = "Dirt",
+			IconName = "Dirt",
 			DisplayName = "Spraying",
 			ToolId = "Spray",
 			CompletionSoundName = "Reward1",
@@ -48,6 +49,7 @@ local CleaningConfig = {
 		{
 			Id = "SprayPaint",
 			Type = "Paint",
+			IconName = "Paint",
 			DisplayName = "Restoring Paint",
 			ToolId = "SprayPaint",
 			TargetHP = 2,
@@ -64,5 +66,30 @@ local CleaningConfig = {
 		ParticleCount = 40,
 	},
 }
+
+function CleaningConfig.GetTool(ToolId: string)
+	for _, ToolInfo in CleaningConfig.Tools do
+		if ToolInfo.Id == ToolId then return ToolInfo end
+	end
+end
+
+function CleaningConfig.GetStep(StepId: string)
+	for _, StepInfo in CleaningConfig.Steps do
+		if StepInfo.Id == StepId then return StepInfo end
+	end
+end
+
+function CleaningConfig.GetStepsForItem(ItemInfo): { any }
+	local Steps = {}
+	for _, StepId in ItemInfo.RestorationSteps or {} do
+		local StepInfo = CleaningConfig.GetStep(StepId)
+		if StepInfo then table.insert(Steps, StepInfo) end
+	end
+	return Steps
+end
+
+function CleaningConfig.ItemHasStep(ItemInfo, StepId: string): boolean
+	return table.find(ItemInfo.RestorationSteps or {}, StepId) ~= nil
+end
 
 return CleaningConfig

@@ -4,6 +4,7 @@ local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
 local CleaningConfig = require(ReplicatedStorage.Modules.Game.CleaningConfig)
+local UIStyle = require(ReplicatedStorage.Modules.UI.UIStyle)
 local Vide = require(ReplicatedStorage.Packages.vide)
 
 local Cleanup = Vide.cleanup
@@ -15,6 +16,8 @@ local LocalPlayer = Players.LocalPlayer
 
 return function()
 	local IsFixing = Source(LocalPlayer:GetAttribute("IsFixing") == true)
+	local RadiusVisible = Source(LocalPlayer:GetAttribute("CleaningRadiusVisible") == true)
+	local BrushRadius = Source(LocalPlayer:GetAttribute("CleaningBrushRadius") or CleaningConfig.BrushRadiusPixels)
 	local StepName = Source(LocalPlayer:GetAttribute("CleaningStepName") or "Cleaning")
 	local StepComplete = Source(LocalPlayer:GetAttribute("CleaningStepComplete") == true)
 	local ProgressTarget = Source(LocalPlayer:GetAttribute("CleaningProgress") or 0)
@@ -23,6 +26,12 @@ return function()
 	local Connections = {
 		LocalPlayer:GetAttributeChangedSignal("IsFixing"):Connect(function()
 			IsFixing(LocalPlayer:GetAttribute("IsFixing") == true)
+		end),
+		LocalPlayer:GetAttributeChangedSignal("CleaningRadiusVisible"):Connect(function()
+			RadiusVisible(LocalPlayer:GetAttribute("CleaningRadiusVisible") == true)
+		end),
+		LocalPlayer:GetAttributeChangedSignal("CleaningBrushRadius"):Connect(function()
+			BrushRadius(LocalPlayer:GetAttribute("CleaningBrushRadius") or CleaningConfig.BrushRadiusPixels)
 		end),
 		LocalPlayer:GetAttributeChangedSignal("CleaningStepName"):Connect(function()
 			StepName(LocalPlayer:GetAttribute("CleaningStepName") or "Cleaning")
@@ -41,7 +50,6 @@ return function()
 		for _, Connection in Connections do Connection:Disconnect() end
 	end)
 
-	local Diameter = CleaningConfig.BrushRadiusPixels * 2
 	return Create "Frame" {
 		Name = "CleaningHUD",
 		BackgroundTransparency = 1,
@@ -49,6 +57,7 @@ return function()
 		Visible = IsFixing,
 		Create "Frame" {
 			Name = "BrushRadius",
+			Visible = RadiusVisible,
 			AnchorPoint = Vector2.new(0.5, 0.5),
 			BackgroundColor3 = Color3.fromRGB(120, 220, 255),
 			BackgroundTransparency = 0.82,
@@ -57,7 +66,10 @@ return function()
 				local Position = CursorPosition()
 				return UDim2.fromOffset(Position.X, Position.Y)
 			end,
-			Size = UDim2.fromOffset(Diameter, Diameter),
+			Size = function()
+				local Diameter = BrushRadius() * 2
+				return UDim2.fromOffset(Diameter, Diameter)
+			end,
 			Create "UICorner" { CornerRadius = UDim.new(1, 0) },
 			Create "UIStroke" {
 				Color = Color3.fromRGB(210, 245, 255),
@@ -103,7 +115,7 @@ return function()
 				BackgroundTransparency = 1,
 				Position = UDim2.fromScale(0.04, 0.05),
 				Size = UDim2.fromScale(0.92, 0.55),
-				Font = Enum.Font.GothamBold,
+				FontFace = UIStyle.Font,
 				Text = function()
 					if StepComplete() then return `{StepName()} Complete!` end
 					return `{StepName()} - {math.round(Progress() * 100)}%`

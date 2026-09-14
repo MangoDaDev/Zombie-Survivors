@@ -5,6 +5,7 @@ local TweenService = game:GetService("TweenService")
 
 local local_player = Players.LocalPlayer
 local player_gui = local_player:WaitForChild("PlayerGui")
+local GAME_FONT = Font.fromName("ComicNeueAngular")
 
 local function New(class_name: string, properties, parent: Instance?): Instance
 	local instance = Instance.new(class_name)
@@ -35,7 +36,7 @@ New("TextLabel", {
 	Name = "Title",
 	AnchorPoint = Vector2.new(0.5, 1),
 	BackgroundTransparency = 1,
-	Font = Enum.Font.GothamBold,
+	FontFace = GAME_FONT,
 	Position = UDim2.fromScale(0.5, 0.48),
 	Size = UDim2.fromOffset(360, 48),
 	Text = "Loading",
@@ -47,7 +48,7 @@ local status = New("TextLabel", {
 	Name = "Status",
 	AnchorPoint = Vector2.new(0.5, 0),
 	BackgroundTransparency = 1,
-	Font = Enum.Font.Gotham,
+	FontFace = GAME_FONT,
 	Position = UDim2.fromScale(0.5, 0.53),
 	Size = UDim2.fromOffset(360, 28),
 	Text = "Starting...",

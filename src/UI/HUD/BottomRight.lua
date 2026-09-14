@@ -3,6 +3,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local dataService = require(ReplicatedStorage.Packages.dataservice).client
 local FormatNumber = require(ReplicatedStorage.Modules.Math.FormatNumber)
 local Images = require(ReplicatedStorage.Modules.UI.Images)
+local UIStyle = require(ReplicatedStorage.Modules.UI.UIStyle)
 local vide = require(ReplicatedStorage.Packages.vide)
 
 local cleanup = vide.cleanup
@@ -66,7 +67,7 @@ return function()
 		create "TextLabel" {
 			AutomaticSize = Enum.AutomaticSize.X,
 			BackgroundTransparency = 1,
-			FontFace = Font.fromName("ComicNeueAngular"),
+			FontFace = UIStyle.Font,
 			LayoutOrder = 2,
 			Size = UDim2.fromScale(0, 1),
 			Text = function()

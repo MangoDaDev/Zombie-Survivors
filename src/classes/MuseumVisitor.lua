@@ -5,6 +5,7 @@ local Workspace = game:GetService("Workspace")
 
 local SharedClass = require(ReplicatedStorage.Modules.Core.SharedClass)
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
+local UIStyle = require(ReplicatedStorage.Modules.UI.UIStyle)
 
 local CLASS_INFO = {
 	Name = "MuseumVisitor",
@@ -13,7 +14,7 @@ local CLASS_INFO = {
 
 local FADE_DURATION = 0.8
 local CASH_EFFECT_DURATION = 1.2
-local COMIC_FONT = Font.fromName("ComicNeueAngular")
+local COMIC_FONT = UIStyle.Font
 local TurnResponsiveness = 16
 local WalkCycleSpeed = 10
 local WalkSwingAngle = math.rad(28)

@@ -5,6 +5,7 @@ local GroupService = game:GetService "GroupService"
 
 local TopbarPlus = require(ReplicatedStorage.Packages.topbarplus)
 local Images = require(ReplicatedStorage.Modules.UI.Images)
+local UIStyle = require(ReplicatedStorage.Modules.UI.UIStyle)
 
 local GROUP_ID = 376357709
 
@@ -25,14 +26,14 @@ function TopbarController:Toggle(enabled: boolean)
 end
 
 function TopbarController:Init()
-	inviteButton = TopbarPlus.new():setName("Invite"):setLabel("Invite"):setWidth(44):setImage(Images.Invite):notify()
+	inviteButton = TopbarPlus.new():setName("Invite"):setLabel("Invite"):setTextFont(UIStyle.Font.Family):setWidth(44):setImage(Images.Invite):notify()
 
 	inviteButton:bindEvent("selected", function()
 		inviteButton:deselect()
 		SocialService:PromptGameInvite(localPlayer)
 	end)
 
-	groupButton = TopbarPlus.new():setName("Group"):setLabel("Group"):setWidth(44):setImage(Images.Group)
+	groupButton = TopbarPlus.new():setName("Group"):setLabel("Group"):setTextFont(UIStyle.Font.Family):setWidth(44):setImage(Images.Group)
 
 	task.spawn(function()
 		local success, isInGroup = pcall(localPlayer.IsInGroupAsync, localPlayer, GROUP_ID)

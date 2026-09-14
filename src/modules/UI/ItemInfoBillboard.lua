@@ -1,10 +1,13 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Images = require(ReplicatedStorage.Modules.UI.Images)
+local CleaningConfig = require(ReplicatedStorage.Modules.Game.CleaningConfig)
+local RarityInfo = require(ReplicatedStorage.Modules.Game.RarityInfo)
+local UIStyle = require(ReplicatedStorage.Modules.UI.UIStyle)
 
 local BILLBOARD_SIZE = UDim2.fromScale(7.5, 4)
 local BILLBOARD_HEIGHT_OFFSET = 1.5
-local COMIC_FONT = Font.fromName("ComicNeueAngular")
+local COMIC_FONT = UIStyle.Font
 local MAX_DISTANCE = 300
 
 local function addStroke(label: TextLabel)
@@ -79,10 +82,15 @@ return function(itemInfo, adornee: BasePart, fixingState): BillboardGui
 	nameLabel.TextWrapped = true
 	nameLabel.Parent = billboard
 	addStroke(nameLabel)
+	local rarityGradient = Instance.new("UIGradient")
+	rarityGradient.Name = "RarityGradient"
+	rarityGradient.Color = RarityInfo.Get(itemInfo.Rarity).Gradient
+	rarityGradient.Parent = nameLabel
 
 	createStatRow(Images.Cash, itemInfo.Price, UDim2.fromScale(0, 0.31)).Parent = billboard
 	createStatRow(Images.Binoculars, itemInfo.GuestPay, UDim2.fromScale(0, 0.56), "$").Parent = billboard
-	if fixingState and fixingState.Completed ~= true and Images.FixIcons and Images.FixIcons.Dirt then
+	local RequiredSteps = CleaningConfig.GetStepsForItem(itemInfo)
+	if fixingState and fixingState.Completed ~= true and #RequiredSteps > 0 and Images.FixIcons then
 		local fixRow = Instance.new("Frame")
 		fixRow.Name = "FixIcons"
 		fixRow.BackgroundTransparency = 1
@@ -94,13 +102,19 @@ return function(itemInfo, adornee: BasePart, fixingState): BillboardGui
 		layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 		layout.VerticalAlignment = Enum.VerticalAlignment.Center
 		layout.Parent = fixRow
-		local dirtIcon = Instance.new("ImageLabel")
-		dirtIcon.Name = "Dirt"
-		dirtIcon.BackgroundTransparency = 1
-		dirtIcon.Image = Images.FixIcons.Dirt
-		dirtIcon.ScaleType = Enum.ScaleType.Fit
-		dirtIcon.Size = UDim2.fromScale(0.14, 1)
-		dirtIcon.Parent = fixRow
+		for _, Step in RequiredSteps do
+			local StepState = type(fixingState.Steps) == "table" and fixingState.Steps[Step.Id] or nil
+			local IconImage = Images.FixIcons[Step.IconName]
+			if IconImage and (type(StepState) ~= "table" or StepState.Completed ~= true) then
+				local FixIcon = Instance.new("ImageLabel")
+				FixIcon.Name = Step.IconName
+				FixIcon.BackgroundTransparency = 1
+				FixIcon.Image = IconImage
+				FixIcon.ScaleType = Enum.ScaleType.Fit
+				FixIcon.Size = UDim2.fromScale(0.14, 1)
+				FixIcon.Parent = fixRow
+			end
+		end
 	end
 
 	return billboard

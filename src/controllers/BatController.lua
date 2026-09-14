@@ -2,16 +2,19 @@ local CollectionService = game:GetService("CollectionService")
 local Debris = game:GetService("Debris")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 
 local BatInfo = require(ReplicatedStorage.Modules.Game.BatInfo)
+local CrateInfo = require(ReplicatedStorage.Modules.Game.CrateInfo)
 local Networker = require(ReplicatedStorage.Packages.networker)
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
 
 local LocalPlayer = Players.LocalPlayer
 local BatController = {}
 local HookedTools: { [Tool]: boolean } = {}
+local CratePredictions = {}
 local Network
 local RandomGenerator = Random.new()
 
@@ -19,6 +22,105 @@ local function GetBatInfo(BatId)
 	for _, Info in BatInfo do
 		if Info.Id == BatId then return Info end
 	end
+end
+
+local function GetCrateInfo(CrateId)
+	for _, Info in CrateInfo do
+		if Info.Id == CrateId then return Info end
+	end
+end
+
+local function GetHealthInterface(Model)
+	local PrimaryPart = Model.PrimaryPart
+	local Billboard = PrimaryPart and PrimaryPart:FindFirstChild("CrateHealth")
+	local Group = Billboard and Billboard:FindFirstChild("Group")
+	local Track = Group and Group:FindFirstChild("Track")
+	local Fill = Track and Track:FindFirstChild("Fill")
+	local HealthLabel = Track and Track:FindFirstChild("Health")
+	if Group and Group:IsA("CanvasGroup") and Fill and Fill:IsA("Frame") and HealthLabel and HealthLabel:IsA("TextLabel") then
+		return Group, Fill, HealthLabel
+	end
+	return nil, nil, nil
+end
+
+local function RenderPredictedHealth(Model, State)
+	if not Model.Parent then return end
+	local PendingDamage = 0
+	for _, Prediction in State.Pending do PendingDamage += Prediction.Damage end
+	local PredictedHealth = math.max(0, State.ConfirmedHealth - PendingDamage)
+	local MaximumHealth = Model:GetAttribute("MaxHealth") or State.ConfirmedHealth
+	local Group, Fill, HealthLabel = GetHealthInterface(Model)
+	if not Group then return end
+	State.VisibilityId += 1
+	local VisibilityId = State.VisibilityId
+	TweenService:Create(Group, TweenInfo.new(0.04), { GroupTransparency = 0 }):Play()
+	TweenService:Create(Fill, TweenInfo.new(0.06, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		Size = UDim2.fromScale(PredictedHealth / math.max(MaximumHealth, 1), 1),
+	}):Play()
+	HealthLabel.Text = `{math.ceil(PredictedHealth)}/{MaximumHealth}`
+	local Info = GetCrateInfo(Model:GetAttribute("CrateId"))
+	task.delay(if Info then Info.HealthBarHideDelay else 1.6, function()
+		if Model.Parent and CratePredictions[Model] == State and State.VisibilityId == VisibilityId then
+			TweenService:Create(Group, TweenInfo.new(0.25), { GroupTransparency = 1 }):Play()
+		end
+	end)
+end
+
+local function HoldPredictedHealth(Model, State)
+	if not Model.Parent then return end
+	local PendingDamage = 0
+	for _, Prediction in State.Pending do PendingDamage += Prediction.Damage end
+	local PredictedHealth = math.max(0, State.ConfirmedHealth - PendingDamage)
+	local MaximumHealth = Model:GetAttribute("MaxHealth") or State.ConfirmedHealth
+	local Group, Fill, HealthLabel = GetHealthInterface(Model)
+	if not Group then return end
+	Group.GroupTransparency = 0
+	Fill.Size = UDim2.fromScale(PredictedHealth / math.max(MaximumHealth, 1), 1)
+	HealthLabel.Text = `{math.ceil(PredictedHealth)}/{MaximumHealth}`
+end
+
+local function ReconcileCrateHealth(Model, State)
+	local NewHealth = Model:GetAttribute("Health")
+	if type(NewHealth) ~= "number" then return end
+	local AppliedDamage = math.max(0, State.ConfirmedHealth - NewHealth)
+	State.ConfirmedHealth = NewHealth
+	while AppliedDamage > 0.001 and #State.Pending > 0 do
+		local Prediction = State.Pending[1]
+		local ConsumedDamage = math.min(Prediction.Damage, AppliedDamage)
+		Prediction.Damage -= ConsumedDamage
+		AppliedDamage -= ConsumedDamage
+		if Prediction.Damage <= 0.001 then table.remove(State.Pending, 1) end
+	end
+	State.HoldUntil = os.clock() + 0.25
+	RenderPredictedHealth(Model, State)
+end
+
+local function PredictCrateDamage(Model, Damage, Info)
+	local Health = Model:GetAttribute("Health")
+	if type(Health) ~= "number" or Health <= 0 then return end
+	local State = CratePredictions[Model]
+	if not State then
+		State = {
+			ConfirmedHealth = Health,
+			Pending = {},
+			VisibilityId = 0,
+		}
+		CratePredictions[Model] = State
+		State.HealthConnection = Model:GetAttributeChangedSignal("Health"):Connect(function() ReconcileCrateHealth(Model, State) end)
+		Model.Destroying:Once(function()
+			if State.HealthConnection then State.HealthConnection:Disconnect() end
+			CratePredictions[Model] = nil
+		end)
+	end
+	local Prediction = { Damage = Damage }
+	table.insert(State.Pending, Prediction)
+	State.HoldUntil = os.clock() + Info.PredictionTimeout
+	RenderPredictedHealth(Model, State)
+	task.delay(Info.PredictionTimeout, function()
+		if CratePredictions[Model] ~= State then return end
+		local Index = table.find(State.Pending, Prediction)
+		if Index then table.remove(State.Pending, Index); RenderPredictedHealth(Model, State) end
+	end)
 end
 
 local function GetTargetModel(Part): Model?
@@ -33,6 +135,7 @@ local function GetTargetModel(Part): Model?
 end
 
 local function ShowPredictedImpact(Model, Handle, Info)
+	if CollectionService:HasTag(Model, "Crate") then PredictCrateDamage(Model, Info.CrateDamage, Info) end
 	local Highlight = Instance.new("Highlight")
 	Highlight.FillColor = Color3.new(1, 1, 1)
 	Highlight.FillTransparency = 0.35
@@ -81,7 +184,13 @@ local function Swing(Tool, Info)
 	TweenService:Create(
 		Tool,
 		TweenInfo.new(Info.ImpactDelay, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
-		{ Grip = OriginalGrip * CFrame.Angles(0, math.rad(18), math.rad(72)) }
+		{
+			Grip = OriginalGrip * CFrame.Angles(
+				math.rad(Info.SwingRotationDegrees.X),
+				math.rad(Info.SwingRotationDegrees.Y),
+				math.rad(Info.SwingRotationDegrees.Z)
+			),
+		}
 	):Play()
 	task.delay(Info.ImpactDelay, function()
 		if Tool.Parent == LocalPlayer.Character then DetectTargets(Tool, Info) end
@@ -118,6 +227,12 @@ end
 
 function BatController:Init()
 	Network = Networker.client.new("BatController", self)
+	RunService.RenderStepped:Connect(function()
+		local Now = os.clock()
+		for Model, State in CratePredictions do
+			if #State.Pending > 0 or Now < (State.HoldUntil or 0) then HoldPredictedHealth(Model, State) end
+		end
+	end)
 	task.spawn(function()
 		HookContainer(LocalPlayer:WaitForChild("Backpack"))
 	end)

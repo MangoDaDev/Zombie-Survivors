@@ -5,6 +5,8 @@ local function GetPaintParts(Model: Model): { BasePart }
 	for _, Descendant in Model:GetDescendants() do
 		if Descendant:IsA("BasePart")
 			and Descendant.Name ~= "BoundingBox"
+			and Descendant.Name ~= "Dirt"
+			and Descendant:FindFirstAncestor("Dirt") == nil
 			and Descendant.Transparency < 1
 			and Descendant:GetAttribute("NoPaint") ~= true
 		then
@@ -23,9 +25,9 @@ function PaintRenderer.Add(Model: Model, Count: number, HP: number, DirtColor: C
 	local Targets = {}
 	local RandomGenerator = Random.new((tonumber(string.byte(Model.Name, 1)) or 1) * 127)
 	for Index, Part in Parts do
-		local OriginalColor = Part.Color
-		Part:SetAttribute("PaintOriginalColor", OriginalColor)
 		if Index <= Count then
+			local OriginalColor = Part.Color
+			Part:SetAttribute("PaintOriginalColor", OriginalColor)
 			local DirtAmount = RandomGenerator:NextNumber(MinimumAmount, MaximumAmount)
 			Part:SetAttribute("PaintDirtAmount", DirtAmount)
 			Part:SetAttribute("PaintHP", HP)
