@@ -94,7 +94,11 @@ local function attachCarriedModel(player: Player, state: CarryState): boolean
 
 	model.Name = `Carried_{itemInfo.Name}`
 	model.PrimaryPart = boundingBox
-	model:PivotTo(humanoidRootPart.CFrame * (itemInfo.CarryOffset or DEFAULT_CARRY_OFFSET))
+	model:PivotTo(
+		humanoidRootPart.CFrame
+			* (itemInfo.CarryOffset or DEFAULT_CARRY_OFFSET)
+			* CFrame.Angles(0, math.rad(180), 0)
+	)
 	prepareParts(model, boundingBox)
 
 	local carryWeld = Instance.new("WeldConstraint")

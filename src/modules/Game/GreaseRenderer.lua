@@ -98,7 +98,7 @@ function GreaseRenderer.Add(Model: Model, Count: number, HP: number, Color: Colo
 		Patch.Shape = Enum.PartType.Cylinder
 		Patch.Anchored = false
 		Patch.CanCollide = false
-		Patch.CanQuery = false
+		Patch.CanQuery = true
 		Patch.CanTouch = false
 		Patch.CastShadow = false
 		Patch.Massless = true

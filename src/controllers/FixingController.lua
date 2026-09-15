@@ -1,5 +1,4 @@
 local ContextActionService = game:GetService("ContextActionService")
-local GuiService = game:GetService("GuiService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -258,6 +257,10 @@ local function GetScreenWorldPosition(Camera, ScreenPosition, Depth): Vector3
 	return Camera.CFrame:PointToWorldSpace(CameraPosition)
 end
 
+local function GetCursorPosition(): Vector2
+	return UserInputService:GetMouseLocation()
+end
+
 local function GetPlayerArmColor(Character): Color3
 	for _, Name in { "RightHand", "Right Arm", "RightLowerArm", "RightUpperArm" } do
 		local Part = Character:FindFirstChild(Name, true)
@@ -368,7 +371,7 @@ end
 
 local function GetAimPosition(): (Vector3?, BasePart?, Vector3?)
 	local Camera = Workspace.CurrentCamera
-	local MousePosition = UserInputService:GetMouseLocation() - GuiService:GetGuiInset()
+	local MousePosition = GetCursorPosition()
 	local Ray = Camera:ViewportPointToRay(MousePosition.X, MousePosition.Y)
 	local FixingItem = GetFixingItemModel()
 	if not FixingItem then return nil, nil, nil end
@@ -384,7 +387,7 @@ local function GetDesiredToolCFrame(ToolInfo): CFrame
 	local Camera = Workspace.CurrentCamera
 	local RotationDegrees = ToolInfo.SurfaceRotationDegrees or Vector3.zero
 	local ViewportSize = Camera.ViewportSize
-	local CursorPosition = UserInputService:GetMouseLocation() - GuiService:GetGuiInset()
+	local CursorPosition = GetCursorPosition()
 	local CursorDirection = Vector2.new(
 		math.clamp(CursorPosition.X / math.max(ViewportSize.X, 1) * 2 - 1, -1, 1),
 		math.clamp(CursorPosition.Y / math.max(ViewportSize.Y, 1) * 2 - 1, -1, 1)
@@ -502,7 +505,7 @@ function FixingController.Init()
 		end
 		local AimPosition, AimPart = GetAimPosition()
 		local Camera = Workspace.CurrentCamera
-		local MousePosition = UserInputService:GetMouseLocation() - GuiService:GetGuiInset()
+		local MousePosition = GetCursorPosition()
 		if AimPosition and ToolEndPart and ToolBeam then
 			local Blend = 1 - math.exp(-CleaningConfig.SprayEndpointResponsiveness * DeltaTime)
 			SmoothedToolPosition = if SmoothedToolPosition then SmoothedToolPosition:Lerp(AimPosition, Blend) else AimPosition

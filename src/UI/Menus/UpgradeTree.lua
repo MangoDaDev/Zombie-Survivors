@@ -33,6 +33,14 @@ local function ClampCamera(Position: Vector2): Vector2
 	return Vector2.new(math.clamp(Position.X, -Bounds.X, Bounds.X), math.clamp(Position.Y, -Bounds.Y, Bounds.Y))
 end
 
+local function IsCameraNearUpgrade(Position: Vector2): boolean
+	local ClosestDistance = math.huge
+	for _, Upgrade in UpgradeConfig.Upgrades do
+		ClosestDistance = math.min(ClosestDistance, (Upgrade.Position - Position).Magnitude)
+	end
+	return ClosestDistance <= UpgradeConfig.CameraRecoveryDistance
+end
+
 local function GetMysteryTransparency(Distance: number?): number
 	if Distance == nil then
 		return 1
@@ -569,7 +577,9 @@ return function()
 				Activated = function()
 					local Opening = not IsOpen()
 					if Opening then
-						CameraTarget(if StartUpgrade then StartUpgrade.Position else Vector2.zero)
+						if not IsCameraNearUpgrade(CameraTarget()) then
+							CameraTarget(if StartUpgrade then StartUpgrade.Position else Vector2.zero)
+						end
 						ZoomTarget(UpgradeConfig.DefaultZoom)
 						GuidanceController.OpenedUpgradeTree()
 					end
