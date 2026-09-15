@@ -5,6 +5,7 @@ local ServerStorage = game:GetService("ServerStorage")
 local TweenService = game:GetService("TweenService")
 
 local CarryController = require(ServerStorage.Controllers.CarryController)
+local GuidanceController = require(ServerStorage.Controllers.GuidanceController)
 local CleaningConfig = require(ReplicatedStorage.Modules.Game.CleaningConfig)
 local DirtRenderer = require(ReplicatedStorage.Modules.Game.DirtRenderer)
 local GreaseRenderer = require(ReplicatedStorage.Modules.Game.GreaseRenderer)
@@ -44,10 +45,31 @@ local function IsToolUnlocked(Player, ToolId): boolean
 	return UpgradeLogic.IsToolUnlocked(DataService:get(Player, "Upgrades"), ToolId)
 end
 
+local function ShowToolRequirement(Player, ToolId)
+	local ToolInfo = GetToolInfo(ToolId)
+	local Upgrade = UpgradeLogic.GetToolUnlockUpgrade(ToolId)
+	local DisplayName = if ToolInfo then ToolInfo.DisplayName else ToolId
+	GuidanceController.Show(Player, `Requires {DisplayName}`, nil, if Upgrade then `Upgrade:{Upgrade.Id}` else nil)
+end
+
 local function SaveState(Player, ItemId, State)
 	local Fixing = DataService:get(Player, "Fixing") or {}
 	Fixing[tostring(ItemId)] = State
 	DataService:set(Player, "Fixing", Fixing)
+end
+
+local function CompleteRestorationState(Player, ItemId, ItemInfo, State)
+	State.Completed = true
+	if State.CompletionRewardClaimed == true then
+		SaveState(Player, ItemId, State)
+		return
+	end
+	State.CompletionRewardClaimed = true
+	SaveState(Player, ItemId, State)
+	local Reward = math.max(CleaningConfig.MinimumRestorationReward, math.round(ItemInfo.Price * CleaningConfig.RestorationRewardRate))
+	DataService:update(Player, "Cash", function(Cash)
+		return (if type(Cash) == "number" then Cash else 0) + Reward
+	end)
 end
 
 local function GetCleaningTool(Player, ToolId): Tool?
@@ -316,7 +338,11 @@ local function StartFixing(Player)
 	local TableModel = Museum and Museum:FindFirstChild("Table")
 	local PromptPart = TableModel and TableModel:FindFirstChild("PromptPart")
 	local Prompt = PromptPart and PromptPart:FindFirstChild("FixItemPrompt")
-	if not ItemId or not Info or not PromptPart or not PromptPart:IsA("BasePart") then return end
+	if not ItemId or not Info then
+		GuidanceController.Show(Player, "Equip An Item")
+		return
+	end
+	if not PromptPart or not PromptPart:IsA("BasePart") then return end
 	local RootPart = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
 	local Inventory = DataService:get(Player, "Inventory")
 	if not RootPart or not RootPart:IsA("BasePart") or (RootPart.Position - PromptPart.Position).Magnitude > 13 or type(Inventory) ~= "table" or table.find(Inventory, ItemId) == nil then return end
@@ -324,7 +350,10 @@ local function StartFixing(Player)
 	if not Template or not Template:IsA("Model") then return end
 	local Fixing = DataService:get(Player, "Fixing") or {}
 	local State = Fixing[tostring(ItemId)] or { Completed = false }
-	if State.Completed == true then return end
+	if State.Completed == true then
+		GuidanceController.Show(Player, "Ready To Display")
+		return
+	end
 	local Steps = CleaningConfig.GetStepsForItem(Info)
 	if #Steps == 0 then return end
 	local Model = Template:Clone()
@@ -341,8 +370,20 @@ local function StartFixing(Player)
 	end
 	NormalizeState(State, Model, Steps)
 	local StepIndex = GetFirstAvailableIncompleteStep(Player, State, Steps)
-	if not GetFirstIncompleteStep(State, Steps) then State.Completed = true; SaveState(Player, ItemId, State); Model:Destroy(); return end
-	if not StepIndex then Model:Destroy(); return end
+	if not GetFirstIncompleteStep(State, Steps) then
+		CompleteRestorationState(Player, ItemId, Info, State)
+		Model:Destroy()
+		GuidanceController.Advance(Player, "CleanThis")
+		GuidanceController.Show(Player, "Ready To Display")
+		return
+	end
+	if not StepIndex then
+		local RequiredStepIndex = GetFirstIncompleteStep(State, Steps)
+		local RequiredStep = RequiredStepIndex and Steps[RequiredStepIndex]
+		Model:Destroy()
+		if RequiredStep then ShowToolRequirement(Player, RequiredStep.ToolId) end
+		return
+	end
 	local CameraPart = TableModel and TableModel:FindFirstChild("CamPart")
 	if not CameraPart or not CameraPart:IsA("BasePart") then Model:Destroy(); return end
 	local ItemDistance = CleaningConfig.MinimumItemCameraDistance + math.max(Box.Size.X, Box.Size.Y, Box.Size.Z) * CleaningConfig.ItemCameraDistancePerStud
@@ -407,6 +448,7 @@ local function StartFixing(Player)
 	SaveState(Player, ItemId, State)
 	PrepareAllTargets(Session)
 	PrepareCurrentStep(Player, Session)
+	GuidanceController.Advance(Player, "StartCleaning")
 	if GetStepProgress(Session) >= CleaningConfig.AutoCompletionThreshold then task.defer(CompleteCurrentStep, Player, Session) end
 end
 
@@ -458,7 +500,10 @@ CompleteCurrentStep = function(Player, Session)
 			if Sessions[Player] ~= Session or Session.TransitionId ~= TransitionId then return end
 			local NextStepIndex = GetFirstAvailableIncompleteStep(Player, Session.State, Session.Steps)
 			if not NextStepIndex then
+				local RequiredStepIndex = GetFirstIncompleteStep(Session.State, Session.Steps)
+				local RequiredStep = RequiredStepIndex and Session.Steps[RequiredStepIndex]
 				ClearSession(Player)
+				if RequiredStep then ShowToolRequirement(Player, RequiredStep.ToolId) end
 				return
 			end
 			Session.StepIndex = NextStepIndex
@@ -467,8 +512,9 @@ CompleteCurrentStep = function(Player, Session)
 		end)
 		return
 	end
-	Session.State.Completed = true
-	SaveState(Player, Session.ItemId, Session.State)
+	CompleteRestorationState(Player, Session.ItemId, Session.ItemInfo, Session.State)
+	GuidanceController.Advance(Player, "CleanThis")
+	GuidanceController.Show(Player, "Ready To Display")
 	PlayFullCompletionFeedback(Session)
 	task.delay(CleaningConfig.FullCompletionDelay, function() if Sessions[Player] == Session then ClearSession(Player) end end)
 end
@@ -476,7 +522,8 @@ end
 function FixingController.SelectTool(_, Player, ToolId)
 	local Session = Sessions[Player]
 	local ToolInfo = if type(ToolId) == "string" then GetToolInfo(ToolId) else nil
-	if not Session or not ToolInfo or not IsToolUnlocked(Player, ToolId) then return end
+	if not Session or not ToolInfo then return end
+	if not IsToolUnlocked(Player, ToolId) then ShowToolRequirement(Player, ToolId); return end
 	local Tool = GetCleaningTool(Player, ToolId)
 	if not Tool then return end
 	for Index, Step in Session.Steps do
@@ -571,6 +618,7 @@ function FixingController.StartUsingTool(_, Player, ToolId)
 	Session.IsUsingTool = true
 	Session.ActiveToolId = ToolId
 	Session.LastApplication = os.clock()
+	GuidanceController.Advance(Player, "UseTool")
 end
 
 function FixingController.StopUsingTool(_, Player)

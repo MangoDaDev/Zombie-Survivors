@@ -9,6 +9,7 @@ local ItemInfoBillboard = require(ReplicatedStorage.Modules.UI.ItemInfoBillboard
 local RestorationVisuals = require(ReplicatedStorage.Modules.Game.RestorationVisuals)
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
 local UpgradeLogic = require(ReplicatedStorage.Modules.Game.UpgradeLogic)
+local GuidanceController = require(ServerStorage.Controllers.GuidanceController)
 local MuseumController = require(ServerStorage.Controllers.MuseumController)
 local Networker = require(ReplicatedStorage.Packages.networker)
 local PlayerStateController = require(ServerStorage.Controllers.PlayerStateController)
@@ -212,6 +213,7 @@ local function deliverItem(player: Player)
 	end
 	tool.Parent = backpack
 	PlayerStateController.Set(player, "IsCarryingItem", false)
+	GuidanceController.Advance(player, "BringItemHome")
 	task.delay(0.1, function()
 		local character = player.Character
 		if character and tool.Parent == backpack then tool.Parent = character end
@@ -335,6 +337,7 @@ function CarryController.StartCarrying(player: Player, itemId: number, DirtCount
 		humanoid:UnequipTools()
 	end
 	PlayerStateController.Set(player, "IsCarryingItem", true)
+	GuidanceController.Advance(player, "PickUpItem")
 	PlaySound(player, "Buy")
 	return true
 end

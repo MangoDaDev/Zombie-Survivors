@@ -76,6 +76,13 @@ function UpgradeLogic.IsToolUnlocked(Ownership, ToolId: string): boolean
 	return false
 end
 
+function UpgradeLogic.GetToolUnlockUpgrade(ToolId: string)
+	for _, Upgrade in UpgradeConfig.Upgrades do
+		local Effect = Upgrade.Effect
+		if Effect and Effect.Type == "ToolUnlock" and Effect.ToolId == ToolId then return Upgrade end
+	end
+end
+
 function UpgradeLogic.GetToolStrengthMultiplier(Ownership, ToolId: string): number
 	local Multiplier = UpgradeConfig.DefaultToolStrengthMultiplier
 	for _, Upgrade in UpgradeConfig.Upgrades do

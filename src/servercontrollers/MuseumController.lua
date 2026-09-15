@@ -1,7 +1,9 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerStorage = game:GetService("ServerStorage")
 local Workspace = game:GetService("Workspace")
 
+local GuidanceController = require(ServerStorage.Controllers.GuidanceController)
 local ItemsInfo = require(ReplicatedStorage.Modules.Game.ItemsInfo)
 local ItemInfoBillboard = require(ReplicatedStorage.Modules.UI.ItemInfoBillboard)
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
@@ -164,6 +166,7 @@ local function sellDisplayedItem(player: Player, displayState: DisplayState)
 	local itemInfo = itemId and getItemInfo(itemId)
 	if not itemInfo or clearDisplay(player, displayState) == nil then return end
 	dataService:update(player, "Cash", function(cash) return (if type(cash) == "number" then cash else 0) + itemInfo.Price end)
+	GuidanceController.Advance(player, "EarnMoney")
 	Sounds.Play("Kaching", displayState.itemCFrame, SFX_MAX_DISTANCE)
 end
 
@@ -197,6 +200,7 @@ local function placeEquippedItem(player: Player, assignment: MuseumAssignment, d
 		end
 	end
 	if Tool == nil or type(ItemId) ~= "number" or getItemInfo(ItemId) == nil then
+		GuidanceController.Show(player, "Equip Restored Item")
 		return
 	end
 
@@ -208,6 +212,7 @@ local function placeEquippedItem(player: Player, assignment: MuseumAssignment, d
 	local fixing = dataService:get(player, "Fixing") or {}
 	local fixingState = fixing[tostring(ItemId)]
 	if fixingState == nil or fixingState.Completed ~= true then
+		GuidanceController.Show(player, "Finish Restoration", assignment.museum:FindFirstChild("PromptPart", true))
 		return
 	end
 	if inventoryPosition == nil or not setDisplayItem(player, displayState, ItemId) then
@@ -220,6 +225,7 @@ local function placeEquippedItem(player: Player, assignment: MuseumAssignment, d
 	dataService:arrayRemove(player, "Inventory", inventoryPosition)
 	Tool:Destroy()
 
+	GuidanceController.Advance(player, "DisplayItem")
 	Sounds.Play("Equip", displayState.itemCFrame, SFX_MAX_DISTANCE)
 end
 

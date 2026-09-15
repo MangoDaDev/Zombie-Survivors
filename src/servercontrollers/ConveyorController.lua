@@ -7,6 +7,7 @@ local ConveyorItem = require(ServerStorage.Classes.ConveyorItem)
 local DirtRenderer = require(ReplicatedStorage.Modules.Game.DirtRenderer)
 local ItemsInfo = require(ReplicatedStorage.Modules.Game.ItemsInfo)
 local GetRandomFromWeightedTable = require(ReplicatedStorage.Modules.Math.GetRandomFromWeightedTable)
+local GuidanceController = require(ServerStorage.Controllers.GuidanceController)
 
 local CONFIG = {
 	Luck = 1,
@@ -85,7 +86,11 @@ local function getItemInfo(itemName: string)
 end
 
 local function purchaseItem(item, player: Player)
-	if item.Purchased or item.UniqueId == nil or not CarryController.CanCarry(player) then
+	if item.Purchased or item.UniqueId == nil then
+		return
+	end
+	if not CarryController.CanCarry(player) then
+		GuidanceController.Show(player, "Already Carrying")
 		return
 	end
 
@@ -101,6 +106,7 @@ local function purchaseItem(item, player: Player)
 	local itemInfo = getItemInfo(item.ItemName)
 	local cash = dataService:get(player, "Cash")
 	if itemInfo == nil or type(cash) ~= "number" or cash < itemInfo.Price then
+		GuidanceController.Show(player, "Need More Cash")
 		return
 	end
 

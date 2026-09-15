@@ -1,12 +1,12 @@
 local Debris = game:GetService("Debris")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local StarterGui = game:GetService("StarterGui")
 local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 
 local CrateInfo = require(ReplicatedStorage.Modules.Game.CrateInfo)
 local CrateRuntime = require(ReplicatedStorage.Modules.Game.CrateRuntime)
 local GetRandomFromWeightedTable = require(ReplicatedStorage.Modules.Math.GetRandomFromWeightedTable)
+local GuidanceController = require(ReplicatedStorage.Controllers.GuidanceController)
 local ItemsInfo = require(ReplicatedStorage.Modules.Game.ItemsInfo)
 local MultiplyNumberSequence = require(ReplicatedStorage.Modules.Math.MultiplyNumberSequence)
 local Networker = require(ReplicatedStorage.Packages.networker)
@@ -17,50 +17,33 @@ local CrateController = {}
 local RevealFolder: Folder
 local Reveals = {}
 local RandomGenerator = Random.new()
-local PurchaseFeedbackDuration = 3
 
 local PurchaseFeedbackMessages = {
-	AlreadyCarrying = function(ItemName)
-		return "Can't Buy Item", `Deliver your current item before buying {ItemName}.`
+	AlreadyCarrying = function()
+		return "Deliver Item First"
 	end,
-	Expired = function(ItemName)
-		return "Reward Expired", `{ItemName} was not purchased in time.`
+	Expired = function()
+		return "Reward Expired"
 	end,
-	Fixing = function(ItemName)
-		return "Can't Buy Item", `Finish or exit cleaning before buying {ItemName}.`
+	Fixing = function()
+		return "Finish Cleaning"
 	end,
-	NotEnoughCash = function(ItemName, Detail)
-		return "Not Enough Cash", `You need ${math.max(0, math.ceil(Detail or 0))} more for {ItemName}.`
+	NotEnoughCash = function(_, Detail)
+		return `Need ${math.max(0, math.ceil(Detail or 0))} More`
 	end,
-	NotReady = function(ItemName)
-		return "Item Revealing", `{ItemName} will be available when its reveal finishes.`
+	NotReady = function()
+		return "Reveal In Progress"
 	end,
-	PurchasedByAnother = function(ItemName)
-		return "Already Purchased", `Another player bought {ItemName}.`
+	PurchasedByAnother = function()
+		return "Already Purchased"
 	end,
-	Success = function(ItemName, Detail)
-		return "Item Purchased", `Bought {ItemName} for ${math.max(0, math.ceil(Detail or 0))}.`
+	Success = function()
+		return "Item Purchased"
 	end,
-	Unavailable = function(ItemName)
-		return "Item Unavailable", `{ItemName} is no longer available.`
+	Unavailable = function()
+		return "Item Unavailable"
 	end,
 }
-
-local function ShowNotification(Title, Message)
-	task.spawn(function()
-		for _ = 1, 5 do
-			local Succeeded = pcall(function()
-				StarterGui:SetCore("SendNotification", {
-					Title = Title,
-					Text = Message,
-					Duration = PurchaseFeedbackDuration,
-				})
-			end)
-			if Succeeded then return end
-			task.wait(0.2)
-		end
-	end)
-end
 
 local function GetCrateInfo(CrateId)
 	for _, Info in CrateInfo.Crates do
@@ -255,8 +238,7 @@ function CrateController.PurchaseFeedback(_, Status, ItemName, Detail)
 	local GetMessage = PurchaseFeedbackMessages[Status]
 	if type(Status) ~= "string" or type(ItemName) ~= "string" or not GetMessage then return end
 	if Detail ~= nil and type(Detail) ~= "number" then return end
-	local Title, Message = GetMessage(ItemName, Detail)
-	ShowNotification(Title, Message)
+	GuidanceController.ShowLocal(GetMessage(ItemName, Detail))
 end
 
 function CrateController.Init()

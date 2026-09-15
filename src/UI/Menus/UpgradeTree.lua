@@ -6,6 +6,7 @@ local UpgradeConfig = require(ReplicatedStorage.Modules.Game.UpgradeConfig)
 local UpgradeLogic = require(ReplicatedStorage.Modules.Game.UpgradeLogic)
 local DataService = require(ReplicatedStorage.Packages.dataservice).client
 local FormatNumber = require(ReplicatedStorage.Modules.Math.FormatNumber)
+local GuidanceController = require(ReplicatedStorage.Controllers.GuidanceController)
 local Images = require(ReplicatedStorage.Modules.UI.Images)
 local Networker = require(ReplicatedStorage.Packages.networker)
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
@@ -97,6 +98,7 @@ local function CreateNode(Properties)
 		end
 		if not CanAfford() then
 			Sounds.Play("Error", LocalPlayer.PlayerGui)
+			GuidanceController.ShowLocal("Need More Cash")
 			return
 		end
 		Properties.Purchase(Upgrade)
@@ -391,7 +393,7 @@ return function()
 		end
 		IsPurchasing(true)
 		task.spawn(function()
-			local Success, _, NewOwnership = Network:fetch("Purchase", Upgrade.Id)
+			local Success, Reason, NewOwnership = Network:fetch("Purchase", Upgrade.Id)
 			if Success and type(NewOwnership) == "table" then
 				Ownership(NewOwnership)
 				LastPurchasedId(Upgrade.Id)
@@ -403,6 +405,17 @@ return function()
 				end)
 			else
 				Sounds.Play("Error", LocalPlayer.PlayerGui)
+				if type(Reason) == "string" then
+					local Messages = {
+						["Invalid request"] = "Try Again",
+						["That upgrade cannot be purchased"] = "Upgrade Unavailable",
+						["Already purchased"] = "Already Purchased",
+						["Requirements not met"] = "Requirements Not Met",
+						["Not enough cash"] = "Need More Cash",
+					}
+					local Message = Messages[Reason] or "Try Again"
+					GuidanceController.ShowLocal(Message)
+				end
 			end
 			IsPurchasing(false)
 		end)
@@ -519,6 +532,7 @@ return function()
 					if Opening then
 						CameraTarget(if StartUpgrade then StartUpgrade.Position else Vector2.zero)
 						ZoomTarget(UpgradeConfig.DefaultZoom)
+						GuidanceController.OpenedUpgradeTree()
 					end
 					IsOpen(Opening)
 					Sounds.Play("Click", LocalPlayer.PlayerGui)

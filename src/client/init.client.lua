@@ -14,6 +14,7 @@ local modules_to_init = {
 	ReplicatedStorage.Controllers.MuseumVisitorController,
 	ReplicatedStorage.Controllers.TopbarController,
 	ReplicatedStorage.UI.UIOrigin,
+	ReplicatedStorage.Controllers.GuidanceController,
 	ReplicatedStorage.Controllers.InventoryController,
 	ReplicatedStorage.Controllers.FixingController,
 }

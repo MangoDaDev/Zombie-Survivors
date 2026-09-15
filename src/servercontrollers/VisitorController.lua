@@ -7,6 +7,7 @@ local ItemsInfo = require(ReplicatedStorage.Modules.Game.ItemsInfo)
 local MuseumVisitor = require(ServerStorage.Classes.MuseumVisitor)
 local MuseumController = require(ServerStorage.Controllers.MuseumController)
 local UpgradeLogic = require(ReplicatedStorage.Modules.Game.UpgradeLogic)
+local GuidanceController = require(ServerStorage.Controllers.GuidanceController)
 
 local CONFIG = {
 	InitialSpawnDelay = 5,
@@ -263,6 +264,7 @@ local function runVisit(player: Player, token)
 					dataService:update(player, "Cash", function(cash)
 						return (if type(cash) == "number" then cash else 0) + itemInfo.GuestPay
 					end)
+					GuidanceController.Advance(player, "EarnMoney")
 					visitor:ShowCash(itemInfo.GuestPay)
 				end
 			end
