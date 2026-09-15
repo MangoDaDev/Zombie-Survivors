@@ -18,7 +18,10 @@ local Images = {
 	Spray = "rbxassetid://",
 	SprayPaint = "rbxassetid://",
 	Sponge = "rbxassetid://",
-	Bat = "rbxassetid://",
+	Bat = "rbxthumb://type=Asset&id=101656379682770&w=420&h=420",
+	WoodenBat = "rbxthumb://type=Asset&id=101656379682770&w=420&h=420",
+	StoneBat = "rbxthumb://type=Asset&id=8379307300&w=420&h=420",
+	GoldBat = "rbxthumb://type=Asset&id=62000617&w=420&h=420",
 
 	FixIcons = {
 		Dirt = "rbxassetid://111727278981257",

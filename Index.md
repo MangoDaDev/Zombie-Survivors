@@ -60,7 +60,7 @@ Quick reference for the project's first-party Luau scripts. Generated Wally depe
 | `src/modules/Game/_PlayerFreezeState.lua` | PlayerFreezeState | Stores and manages the local character's anchored freeze state. |
 | `src/modules/Game/CleaningConfig.lua` | CleaningConfig | Registers restoration steps and tools, shared viewmodel positioning, Sponge surface/scrub motion, screen-space brushes, VFX, auto-completion, and item-step helpers. |
 | `src/modules/Game/CollisionGroups.lua` | CollisionGroups | Defines shared player and NPC collision-group names used by server characters and client-rendered visitors. |
-| `src/modules/Game/BatInfo.lua` | BatInfo | Configures Wooden, Stone, and Gold crate-only bat tiers with progressively improved crate damage, timing, range, predicted reactions, validation, and sounds. |
+| `src/modules/Game/BatInfo.lua` | BatInfo | Configures Wooden, Stone, and Gold crate-only bat tiers with distinct icon keys, progressively improved damage, timing, range, validation, and sounds. |
 | `src/modules/Game/CrateInfo.lua` | CrateInfo | Configures regular and pity-only crate tiers, bat-scaled health and loot luck, performance-conscious population limits, reveal pacing, UI, sounds, and the synchronized reset cycle. |
 | `src/modules/Game/DataTemplate.lua` | DataTemplate | Defines saved defaults for cash, inventory, museum displays, restoration state, and persistent upgrade ownership. |
 | `src/modules/Game/DirtRenderer.lua` | DirtRenderer | Calculates surface-area-scaled dirt counts and adds or removes dense dirt layers without treating other restoration overlays as item surfaces. |
@@ -108,7 +108,7 @@ Quick reference for the project's first-party Luau scripts. Generated Wally depe
 
 | Path | Name | Responsibility |
 | --- | --- | --- |
-| `src/modules/UI/Images.lua` | Images | Catalogs named image asset IDs and explicit placeholders used by project interfaces and upgrade nodes. |
+| `src/modules/UI/Images.lua` | Images | Catalogs named image asset IDs, including distinct Wooden, Stone, and Gold Bat icons, for project interfaces and upgrade nodes. |
 | `src/modules/UI/FixingInterface.lua` | FixingInterface | Bridges Fixing HUD actions to the client Fixing controller. |
 | `src/modules/UI/ItemInfoBillboard.lua` | ItemInfoBillboard | Creates a size-aware elevated item billboard prioritizing guest payment above price and showing required restoration steps. |
 | `src/modules/UI/PlayVFX.lua` | PlayVFX | Clones, starts, and cleans up reusable visual and sound effects. |
@@ -133,7 +133,7 @@ Quick reference for the project's first-party Luau scripts. Generated Wally depe
 | Path | Name | Responsibility |
 | --- | --- | --- |
 | `src/servercontrollers/CarryController.lua` | CarryController | Handles purchased-item carrying, museum delivery, inventory persistence, equipped-item detection, and invisible hotbar Tool selectors for the fixing viewmodel. |
-| `src/servercontrollers/BatController.lua` | BatController | Supplies the highest purchased bat, applies tier-independent cooldown progression, validates swings, and relays crate reactions. |
+| `src/servercontrollers/BatController.lua` | BatController | Supplies the highest purchased bat with its tier-specific hotbar icon, applies cooldown progression, validates swings, and relays crate reactions. |
 | `src/servercontrollers/CharacterController.lua` | CharacterController | Authorizes character spawning and applies the configured R6 avatar animations. |
 | `src/servercontrollers/CollisionController.lua` | CollisionController | Registers collision groups and assigns character parts so players do not collide with players or NPCs while retaining environment collisions. |
 | `src/servercontrollers/ConveyorController.lua` | ConveyorController | Retains the inactive legacy conveyor spawning and purchase implementation. |

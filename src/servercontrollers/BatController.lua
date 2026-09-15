@@ -5,6 +5,7 @@ local ServerStorage = game:GetService("ServerStorage")
 
 local BatInfo = require(ReplicatedStorage.Modules.Game.BatInfo)
 local CrateController = require(ServerStorage.Controllers.CrateController)
+local Images = require(ReplicatedStorage.Modules.UI.Images)
 local Networker = require(ReplicatedStorage.Packages.networker)
 local UpgradeLogic = require(ReplicatedStorage.Modules.Game.UpgradeLogic)
 
@@ -61,6 +62,7 @@ local function EnsureBat(Player)
 	end
 	if MatchingBat then
 		MatchingBat:SetAttribute("SwingCooldownMultiplier", CooldownMultiplier)
+		MatchingBat.TextureId = Images[Info.Icon] or ""
 		return
 	end
 	local Backpack = Player:FindFirstChildOfClass("Backpack")
@@ -69,6 +71,7 @@ local function EnsureBat(Player)
 	local Tool = Template:Clone()
 	Tool.Name = Info.DisplayName
 	Tool.CanBeDropped = false
+	Tool.TextureId = Images[Info.Icon] or ""
 	Tool:SetAttribute("BatId", Info.Id)
 	Tool:SetAttribute("SwingCooldownMultiplier", CooldownMultiplier)
 	Tool:SetAttribute("InitialToolOrder", 0)
