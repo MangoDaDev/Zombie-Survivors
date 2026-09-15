@@ -61,6 +61,7 @@ function UpgradeLogic.GetVisitorsPerDisplay(Ownership): number
 end
 
 function UpgradeLogic.IsToolUnlocked(Ownership, ToolId: string): boolean
+	if ToolId == "Spray" then return true end
 	for _, Upgrade in UpgradeConfig.Upgrades do
 		local Effect = Upgrade.Effect
 		if

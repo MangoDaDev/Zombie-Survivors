@@ -277,7 +277,16 @@ function CarryController.SetFixingMode(player: Player, enabled: boolean, Initial
 					Tool:SetAttribute("InitialToolOrder", 1)
 					Tool:AddTag("satchelSlot")
 					for _, Descendant in Tool:GetDescendants() do
-						if Descendant:IsA("BasePart") then Descendant.CanCollide = false end
+						if Descendant:IsA("BasePart") then
+							Descendant:SetAttribute("ViewmodelTransparency", Descendant.Transparency)
+							Descendant.Transparency = 1
+							Descendant.CanCollide = false
+							Descendant.CanQuery = false
+							Descendant.CanTouch = false
+							Descendant.CastShadow = false
+						elseif Descendant:IsA("ParticleEmitter") or Descendant:IsA("Beam") or Descendant:IsA("Trail") then
+							Descendant.Enabled = false
+						end
 					end
 					Tool.Parent = backpack
 					if ToolInfo.Id == InitialToolId then InitialTool = Tool end

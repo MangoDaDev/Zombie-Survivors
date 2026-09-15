@@ -226,9 +226,17 @@ local function ClearSession(Player)
 	if not Session then return end
 	SaveState(Player, Session.ItemId, Session.State)
 	if Session.Connection then Session.Connection:Disconnect() end
+	if Session.CharacterConnection then Session.CharacterConnection:Disconnect() end
+	if Session.HumanoidDiedConnection then Session.HumanoidDiedConnection:Disconnect() end
 	ClearTargets(Session)
 	if Session.Model then Session.Model:Destroy() end
 	if Session.RootPart and Session.RootPart.Parent then Session.RootPart.Anchored = Session.RootWasAnchored end
+	if Session.Humanoid and Session.Humanoid.Parent then
+		Session.Humanoid.AutoRotate = Session.HumanoidAutoRotate
+		Session.Humanoid.WalkSpeed = Session.HumanoidWalkSpeed
+		Session.Humanoid.JumpPower = Session.HumanoidJumpPower
+		Session.Humanoid.JumpHeight = Session.HumanoidJumpHeight
+	end
 	Sessions[Player] = nil
 	Player:SetAttribute("IsFixing", false)
 	Player:SetAttribute("CleaningStepName", nil)
@@ -327,9 +335,19 @@ local function StartFixing(Player)
 	Model:PivotTo(CFrame.new(ItemPosition) * PromptPart.CFrame.Rotation * CFrame.Angles(math.rad(CleaningConfig.ItemTiltDegrees), 0, 0))
 	Model.Parent = Museum
 	local RootWasAnchored = RootPart.Anchored
+	local Humanoid = Player.Character and Player.Character:FindFirstChildOfClass("Humanoid")
+	if not Humanoid then Model:Destroy(); return end
+	local HumanoidAutoRotate = Humanoid.AutoRotate
+	local HumanoidWalkSpeed = Humanoid.WalkSpeed
+	local HumanoidJumpPower = Humanoid.JumpPower
+	local HumanoidJumpHeight = Humanoid.JumpHeight
 	RootPart.AssemblyLinearVelocity = Vector3.zero
 	RootPart.AssemblyAngularVelocity = Vector3.zero
 	RootPart.Anchored = true
+	Humanoid.AutoRotate = false
+	Humanoid.WalkSpeed = 0
+	Humanoid.JumpPower = 0
+	Humanoid.JumpHeight = 0
 	Player:SetAttribute("IsFixing", true)
 	CarryController.SetFixingMode(Player, true, Steps[StepIndex].ToolId)
 	local Session = {
@@ -340,6 +358,11 @@ local function StartFixing(Player)
 		Model = Model,
 		RootPart = RootPart,
 		RootWasAnchored = RootWasAnchored,
+		Humanoid = Humanoid,
+		HumanoidAutoRotate = HumanoidAutoRotate,
+		HumanoidWalkSpeed = HumanoidWalkSpeed,
+		HumanoidJumpPower = HumanoidJumpPower,
+		HumanoidJumpHeight = HumanoidJumpHeight,
 		Prompt = if Prompt and Prompt:IsA("ProximityPrompt") then Prompt else nil,
 		IsUsingTool = false,
 		ActiveToolId = nil,
@@ -353,13 +376,17 @@ local function StartFixing(Player)
 		LastProgress = -1,
 	}
 	Session.Connection = RunService.Heartbeat:Connect(function(DeltaTime)
-		if not Model.Parent then return end
+		if not Model.Parent or not RootPart.Parent or Humanoid.Health <= 0 then task.defer(ClearSession, Player); return end
 		local TargetRotationSpeed = if Session.IsUsingTool then 0 else CONFIG.RotationSpeed
 		local Blend = 1 - math.exp(-CONFIG.RotationResponsiveness * DeltaTime)
 		Session.CurrentRotationSpeed += (TargetRotationSpeed - Session.CurrentRotationSpeed) * Blend
 		if math.abs(TargetRotationSpeed - Session.CurrentRotationSpeed) < math.rad(0.05) then Session.CurrentRotationSpeed = TargetRotationSpeed end
 		Model:PivotTo(Model:GetPivot() * CFrame.Angles(0, Session.CurrentRotationSpeed * DeltaTime, 0))
 	end)
+	Session.CharacterConnection = Player.CharacterRemoving:Connect(function(RemovingCharacter)
+		if RemovingCharacter == RootPart.Parent then task.defer(ClearSession, Player) end
+	end)
+	Session.HumanoidDiedConnection = Humanoid.Died:Connect(function() task.defer(ClearSession, Player) end)
 	Sessions[Player] = Session
 	if Session.Prompt then Session.Prompt.Enabled = false end
 	SaveState(Player, ItemId, State)
@@ -569,6 +596,10 @@ function FixingController.OnPlayerRemoving(Player)
 	ClearSession(Player)
 	local PromptConnection = PromptConnections[Player]
 	if PromptConnection then PromptConnection:Disconnect(); PromptConnections[Player] = nil end
+end
+
+function FixingController.OnCharacterAdded(Player)
+	if Sessions[Player] then ClearSession(Player) end
 end
 
 return FixingController

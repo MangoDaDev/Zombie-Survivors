@@ -32,11 +32,19 @@ local SmoothedToolPosition: Vector3?
 local SmoothedVisualToolCFrame: CFrame?
 local CurrentToolColor: Color3?
 local FakeArm: Part?
-local ToolGrip: Motor6D?
-local ToolGripTransform = CFrame.identity
+local ViewmodelContainer: Folder?
+local ViewmodelTool: Tool?
+local ViewmodelHandle: BasePart?
+local ViewmodelSourceTool: Tool?
+local ViewmodelPartOffsets: { [BasePart]: CFrame } = {}
+local PlayerControls
+local ControlsDisabled = false
 local OriginalFieldOfView: number?
+local OriginalCameraType: Enum.CameraType?
 local StopToolEffects
 local UpdateVisualTool
+local GetFixingItemModel
+local HideCharacterPart
 
 local CAMERA_BINDING_NAME = "CleaningCameraAndArm"
 local TOOL_SOUND_MAX_DISTANCE = 50
@@ -109,14 +117,23 @@ local function WatchCharacter(Character: Model)
 	CharacterConnections = {
 		Character.ChildAdded:Connect(function() task.defer(UpdateFixPrompt); task.defer(UpdateToolInterface) end),
 		Character.ChildRemoved:Connect(function() task.defer(UpdateFixPrompt); task.defer(UpdateToolInterface) end),
+		Character.DescendantAdded:Connect(function(Descendant)
+			if LocalPlayer:GetAttribute("IsFixing") == true and Descendant:IsA("BasePart") then HideCharacterPart(Descendant) end
+		end),
 	}
 	task.defer(UpdateFixPrompt)
 	task.defer(UpdateToolInterface)
 end
 
-local function IsFixingToolPart(Part: BasePart): boolean
-	local Tool = Part:FindFirstAncestorOfClass("Tool")
-	return Tool ~= nil and type(Tool:GetAttribute("FixingTool")) == "string"
+HideCharacterPart = function(Part: BasePart)
+	if HiddenParts[Part] == nil then HiddenParts[Part] = Part.LocalTransparencyModifier end
+	Part.LocalTransparencyModifier = 1
+end
+
+local function HideCharacter(Character: Model)
+	for _, Descendant in Character:GetDescendants() do
+		if Descendant:IsA("BasePart") then HideCharacterPart(Descendant) end
+	end
 end
 
 StopToolEffects = function()
@@ -186,17 +203,21 @@ local function Restore()
 	ActiveToolId = nil
 	RequestedToolId = nil
 	StopToolEffects()
-	if ToolGrip and ToolGrip.Parent then ToolGrip.Transform = ToolGripTransform end
-	ToolGrip = nil
-	ToolGripTransform = CFrame.identity
+	if ViewmodelContainer then ViewmodelContainer:Destroy(); ViewmodelContainer = nil end
+	ViewmodelTool = nil
+	ViewmodelHandle = nil
+	ViewmodelSourceTool = nil
+	ViewmodelPartOffsets = {}
 	SmoothedVisualToolCFrame = nil
-	if FakeArm then FakeArm:Destroy(); FakeArm = nil end
+	FakeArm = nil
 	for Part, Transparency in HiddenParts do if Part.Parent then Part.LocalTransparencyModifier = Transparency end end
 	HiddenParts = {}
 	if CameraBound then RunService:UnbindFromRenderStep(CAMERA_BINDING_NAME); CameraBound = false end
 	local Camera = Workspace.CurrentCamera
-	Camera.CameraType = Enum.CameraType.Custom
+	if OriginalCameraType then Camera.CameraType = OriginalCameraType; OriginalCameraType = nil end
 	if OriginalFieldOfView then Camera.FieldOfView = OriginalFieldOfView; OriginalFieldOfView = nil end
+	if ControlsDisabled and PlayerControls then PlayerControls:Enable() end
+	ControlsDisabled = false
 	LocalPlayer:SetAttribute("CleaningRadiusVisible", false)
 	LocalPlayer:SetAttribute("CleaningBrushRadius", nil)
 end
@@ -218,7 +239,11 @@ local function GetPlayerArmColor(Character): Color3
 	return if BodyColors then BodyColors.RightArmColor.Color else Color3.fromRGB(255, 204, 153)
 end
 
-local function CreateFakeArm(Character)
+local function CreateViewmodelContainer(Character)
+	local Camera = Workspace.CurrentCamera
+	ViewmodelContainer = Instance.new("Folder")
+	ViewmodelContainer.Name = "LocalFixingViewmodel"
+	ViewmodelContainer.Parent = Camera
 	FakeArm = Instance.new("Part")
 	FakeArm.Name = "LocalFixingArm"
 	FakeArm.Anchored = true
@@ -228,7 +253,51 @@ local function CreateFakeArm(Character)
 	FakeArm.CastShadow = false
 	FakeArm.Color = GetPlayerArmColor(Character)
 	FakeArm.Material = Enum.Material.SmoothPlastic
-	FakeArm.Parent = Workspace
+	FakeArm.Parent = ViewmodelContainer
+end
+
+local function DestroyViewmodelTool()
+	StopToolEffects()
+	if ViewmodelTool then ViewmodelTool:Destroy() end
+	ViewmodelTool = nil
+	ViewmodelHandle = nil
+	ViewmodelSourceTool = nil
+	ViewmodelPartOffsets = {}
+	SmoothedVisualToolCFrame = nil
+end
+
+local function CreateViewmodelTool(SourceTool: Tool)
+	DestroyViewmodelTool()
+	if not ViewmodelContainer then return end
+	local Clone = SourceTool:Clone()
+	local Handle = Clone:FindFirstChild("Handle", true)
+	if not Handle or not Handle:IsA("BasePart") then Clone:Destroy(); return end
+	Clone.Name = `Local{SourceTool.Name}Viewmodel`
+	for _, Descendant in Clone:GetDescendants() do
+		if Descendant:IsA("BasePart") then
+			ViewmodelPartOffsets[Descendant] = Handle.CFrame:ToObjectSpace(Descendant.CFrame)
+			local ViewmodelTransparency = Descendant:GetAttribute("ViewmodelTransparency")
+			if type(ViewmodelTransparency) == "number" then Descendant.Transparency = ViewmodelTransparency end
+			Descendant:SetAttribute("ViewmodelTransparency", nil)
+			Descendant.Anchored = true
+			Descendant.CanCollide = false
+			Descendant.CanQuery = false
+			Descendant.CanTouch = false
+			Descendant.CastShadow = false
+			Descendant.LocalTransparencyModifier = 0
+		elseif Descendant:IsA("ParticleEmitter") or Descendant:IsA("Beam") or Descendant:IsA("Trail") then
+			Descendant.Enabled = false
+		elseif Descendant:IsA("LuaSourceContainer") then
+			Descendant:Destroy()
+		end
+	end
+	for _, Descendant in Clone:GetDescendants() do
+		if Descendant:IsA("Weld") or Descendant:IsA("WeldConstraint") or Descendant:IsA("Motor6D") then Descendant:Destroy() end
+	end
+	Clone.Parent = ViewmodelContainer
+	ViewmodelTool = Clone
+	ViewmodelHandle = Handle
+	ViewmodelSourceTool = SourceTool
 end
 
 local function EnterFixingView()
@@ -240,19 +309,21 @@ local function EnterFixingView()
 	local TableModel = Museum and Museum:FindFirstChild("Table")
 	local CameraPart = TableModel and TableModel:FindFirstChild("CamPart")
 	if not Character or not CameraPart or not CameraPart:IsA("BasePart") then return end
-	for _, Part in Character:GetDescendants() do
-		if Part:IsA("BasePart") and not IsFixingToolPart(Part) then
-			HiddenParts[Part] = Part.LocalTransparencyModifier
-			Part.LocalTransparencyModifier = 1
-		end
-	end
-	CreateFakeArm(Character)
+	HideCharacter(Character)
+	CreateViewmodelContainer(Character)
+	if PlayerControls then PlayerControls:Disable(); ControlsDisabled = true end
 	local Camera = Workspace.CurrentCamera
 	OriginalFieldOfView = Camera.FieldOfView
+	OriginalCameraType = Camera.CameraType
 	Camera.FieldOfView = CleaningConfig.CameraFieldOfView
 	Camera.CameraType = Enum.CameraType.Scriptable
 	Camera.CFrame = CameraPart.CFrame
 	RunService:BindToRenderStep(CAMERA_BINDING_NAME, Enum.RenderPriority.Last.Value, function(DeltaTime)
+		if not CameraPart.Parent then
+			Restore()
+			FixingController.Networker:fire("Exit")
+			return
+		end
 		Camera.CFrame = CameraPart.CFrame
 		if UpdateVisualTool then UpdateVisualTool(DeltaTime) end
 	end)
@@ -260,7 +331,7 @@ local function EnterFixingView()
 	task.defer(UpdateToolInterface)
 end
 
-local function GetFixingItemModel(): Model?
+GetFixingItemModel = function(): Model?
 	local Museums = Workspace:FindFirstChild("PlayerMuseums")
 	local Museum = Museums and Museums:FindFirstChild(`Museum_{LocalPlayer.UserId}`)
 	if not Museum then return nil end
@@ -284,15 +355,6 @@ local function GetAimPosition(): (Vector3?, BasePart?, Vector3?)
 	return Result.Position, if Result.Instance:IsA("BasePart") then Result.Instance else nil, Result.Normal
 end
 
-local function GetToolGrip(Tool): Motor6D?
-	local Character = LocalPlayer.Character
-	if not Character then return nil end
-	for _, Descendant in Character:GetDescendants() do
-		if Descendant:IsA("Motor6D") and Descendant.Part1 and Descendant.Part1:IsDescendantOf(Tool) then return Descendant end
-	end
-	return nil
-end
-
 local function GetDesiredToolCFrame(ToolInfo): CFrame
 	local Camera = Workspace.CurrentCamera
 	local RotationDegrees = ToolInfo.SurfaceRotationDegrees or Vector3.zero
@@ -313,25 +375,48 @@ local function GetDesiredToolCFrame(ToolInfo): CFrame
 		* CFrame.Angles(math.rad(-CursorDirection.Y * CursorRotation.X), math.rad(CursorDirection.X * CursorRotation.Y), 0)
 end
 
+local function GetSpongeUseCFrame(AimPosition: Vector3, SurfaceNormal: Vector3): CFrame
+	local Camera = Workspace.CurrentCamera
+	local Up = SurfaceNormal.Unit
+	local Right = Camera.CFrame.RightVector - Up * Camera.CFrame.RightVector:Dot(Up)
+	if Right.Magnitude < 0.01 then Right = Camera.CFrame.UpVector - Up * Camera.CFrame.UpVector:Dot(Up) end
+	Right = Right.Unit
+	local Back = Right:Cross(Up).Unit
+	local ScrubTime = os.clock() * CleaningConfig.SpongeScrubFrequency
+	local ScrubOffset = Right * math.sin(ScrubTime) * CleaningConfig.SpongeScrubDistance
+		+ Back * math.sin(ScrubTime * 0.5) * CleaningConfig.SpongeScrubSideDistance
+	local Position = AimPosition + Up * CleaningConfig.SpongeSurfaceOffset + ScrubOffset
+	return CFrame.fromMatrix(Position, Right, Up, Back)
+end
+
+local function PositionViewmodelTool(ToolCFrame: CFrame)
+	for Part, Offset in ViewmodelPartOffsets do
+		if Part.Parent then Part.CFrame = ToolCFrame * Offset end
+	end
+end
+
 UpdateVisualTool = function(DeltaTime)
 	if LocalPlayer:GetAttribute("IsFixing") ~= true then return end
 	local Tool, ToolInfo = GetEquippedCleaningTool()
-	local NewToolGrip = Tool and GetToolGrip(Tool) or nil
-	if NewToolGrip ~= ToolGrip then
-		if ToolGrip and ToolGrip.Parent then ToolGrip.Transform = ToolGripTransform end
-		ToolGrip = NewToolGrip
-		ToolGripTransform = if ToolGrip then ToolGrip.Transform else CFrame.identity
-		SmoothedVisualToolCFrame = nil
+	if Tool ~= ViewmodelSourceTool then
+		if Tool then CreateViewmodelTool(Tool) else DestroyViewmodelTool() end
 	end
-	if not Tool or not ToolInfo or not ToolGrip or not ToolGrip.Part0 or not ToolGrip.Part1 then
+	if not Tool or not ToolInfo or not ViewmodelTool or not ViewmodelHandle then
 		if FakeArm then FakeArm.Transparency = 1 end
 		return
 	end
 	local DesiredCFrame = GetDesiredToolCFrame(ToolInfo)
 	local Responsiveness = ToolInfo.PositionResponsiveness or CleaningConfig.ToolPositionResponsiveness
+	if UsingTool and ToolInfo.Id == "Sponge" then
+		local AimPosition, _, SurfaceNormal = GetAimPosition()
+		if AimPosition and SurfaceNormal then
+			DesiredCFrame = GetSpongeUseCFrame(AimPosition, SurfaceNormal)
+			Responsiveness = CleaningConfig.SpongeSurfaceResponsiveness
+		end
+	end
 	local Blend = 1 - math.exp(-Responsiveness * DeltaTime)
 	SmoothedVisualToolCFrame = if SmoothedVisualToolCFrame then SmoothedVisualToolCFrame:Lerp(DesiredCFrame, Blend) else DesiredCFrame
-	ToolGrip.Transform = ToolGrip.C0:Inverse() * ToolGrip.Part0.CFrame:Inverse() * SmoothedVisualToolCFrame * ToolGrip.C1
+	PositionViewmodelTool(SmoothedVisualToolCFrame)
 	if FakeArm then
 		local Camera = Workspace.CurrentCamera
 		local ArmStart = GetScreenWorldPosition(Camera, CleaningConfig.FakeArmScreenPosition, CleaningConfig.FakeArmCameraDepth)
@@ -349,6 +434,8 @@ end
 
 function FixingController:Init()
 	self.Networker = Networker.client.new("FixingController", self)
+	local PlayerModule = LocalPlayer:WaitForChild("PlayerScripts"):WaitForChild("PlayerModule")
+	PlayerControls = require(PlayerModule):GetControls()
 	task.spawn(function()
 		local Museums = Workspace:WaitForChild("PlayerMuseums")
 		local Museum = Museums:WaitForChild(`Museum_{LocalPlayer.UserId}`)
@@ -417,7 +504,8 @@ function FixingController:Init()
 			then
 				UsingTool = true
 				ActiveToolId = ToolInfo.Id
-				StartToolEffects(Tool, ToolInfo)
+				if Tool ~= ViewmodelSourceTool then CreateViewmodelTool(Tool) end
+				if ViewmodelTool then StartToolEffects(ViewmodelTool, ToolInfo) end
 				self.Networker:fire("StartUsingTool", ToolInfo.Id)
 			end
 		elseif Input.KeyCode == Enum.KeyCode.Q and LocalPlayer:GetAttribute("IsFixing") == true then self.Networker:fire("Exit") end
@@ -434,7 +522,10 @@ function FixingController:Init()
 end
 
 function FixingController.OnCharacterAdded(Character)
-	if LocalPlayer:GetAttribute("IsFixing") == true then Restore() end
+	if LocalPlayer:GetAttribute("IsFixing") == true then
+		Restore()
+		FixingController.Networker:fire("Exit")
+	end
 	WatchCharacter(Character)
 end
 
