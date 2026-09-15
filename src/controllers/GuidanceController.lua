@@ -58,10 +58,9 @@ local function GetStarterTarget(): Model?
 	local Reward = GetNearestModel(Workspace:FindFirstChild("CrateRewards"), function(Model)
 		local ItemName = string.match(Model.Name, "^CrateReward_(.+)$")
 		local ItemInfo = ItemName and GetItemInfo(ItemName)
-		return ItemInfo
-			and ItemInfo.Price <= Cash
-			and #ItemInfo.RestorationSteps == 1
-			and ItemInfo.RestorationSteps[1] == "Spray"
+		if not ItemInfo or ItemInfo.Price > Cash then return false end
+		local Steps = CleaningConfig.GetStepsForItem(ItemInfo)
+		return #Steps == 1 and Steps[1].Id == "Spray"
 	end)
 	if Reward then return Reward end
 	if StarterCrate and StarterCrate.Parent then return StarterCrate end
@@ -144,16 +143,16 @@ local function UpdateBeam(Target: Instance?)
 
 	GuidanceBeam = Instance.new("Beam")
 	GuidanceBeam.Name = "GuidanceBeam"
-	GuidanceBeam.Attachment0 = BeamStartAttachment
-	GuidanceBeam.Attachment1 = BeamEndAttachment
+	GuidanceBeam.Attachment0 = BeamEndAttachment
+	GuidanceBeam.Attachment1 = BeamStartAttachment
 	GuidanceBeam.Color = ColorSequence.new(Color3.fromRGB(120, 166, 184))
 	GuidanceBeam.FaceCamera = true
 	GuidanceBeam.LightEmission = 0.35
 	GuidanceBeam.Segments = 12
 	GuidanceBeam.Texture = Images.ObjectiveArrow or ""
-	GuidanceBeam.TextureLength = 2.5
+	GuidanceBeam.TextureLength = 1.05
 	GuidanceBeam.TextureMode = Enum.TextureMode.Wrap
-	GuidanceBeam.TextureSpeed = 1
+	GuidanceBeam.TextureSpeed = -1
 	GuidanceBeam.Transparency = NumberSequence.new(0.12)
 	GuidanceBeam.Width0 = 1.05
 	GuidanceBeam.Width1 = 1.05

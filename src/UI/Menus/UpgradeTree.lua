@@ -23,7 +23,7 @@ local Spring = Vide.spring
 local LocalPlayer = Players.LocalPlayer
 
 local StateColors = {
-	Available = Color3.fromRGB(235, 238, 240),
+	Available = Color3.fromRGB(105, 109, 114),
 	Purchased = Color3.fromRGB(235, 238, 240),
 }
 local TreeCanvasSize = UpgradeConfig.CameraBounds * 2 + Vector2.one * UpgradeConfig.NodeSize * 2
@@ -44,6 +44,33 @@ local function GetMysteryTransparency(Distance: number?): number
 		return 0.58
 	end
 	return 0
+end
+
+local function CreateConnection(FromUpgrade, ToUpgrade, Ownership, RevealDistances)
+	local FromPosition = TreeCanvasSize / 2 + FromUpgrade.Position
+	local ToPosition = TreeCanvasSize / 2 + ToUpgrade.Position
+	local Offset = ToPosition - FromPosition
+	local Midpoint = (FromPosition + ToPosition) / 2
+	return Create "Frame" {
+		Name = `{FromUpgrade.Id}To{ToUpgrade.Id}`,
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		BackgroundColor3 = function()
+			return if UpgradeLogic.IsPurchased(Ownership(), ToUpgrade.Id)
+				then StateColors.Purchased
+				else StateColors.Available
+		end,
+		BackgroundTransparency = 0.18,
+		BorderSizePixel = 0,
+		Position = UDim2.fromOffset(Midpoint.X, Midpoint.Y),
+		Rotation = math.deg(math.atan2(Offset.Y, Offset.X)),
+		Size = UDim2.fromOffset(Offset.Magnitude, 6),
+		Visible = function()
+			local Distances = RevealDistances()
+			return Distances[FromUpgrade.Id] ~= nil and Distances[ToUpgrade.Id] ~= nil
+		end,
+		ZIndex = 1,
+		Create "UICorner" { CornerRadius = UDim.new(1, 0) },
+	}
 end
 
 local function CreateNode(Properties)
@@ -149,7 +176,7 @@ local function CreateNode(Properties)
 			Image = Images.Hexagon,
 			ImageColor3 = function()
 				if not IsDetailed() then
-					return Color3.fromRGB(105, 109, 114)
+					return Color3.new(0, 0, 0)
 				end
 				return StateColors[State()] or Color3.fromRGB(105, 109, 114)
 			end,
@@ -422,6 +449,18 @@ return function()
 	end
 
 	local CanvasChildren = {}
+	local UpgradesById = {}
+	for _, Upgrade in UpgradeConfig.Upgrades do
+		UpgradesById[Upgrade.Id] = Upgrade
+	end
+	for _, Upgrade in UpgradeConfig.Upgrades do
+		for _, ConnectedId in Upgrade.ConnectedUpgrades do
+			local ConnectedUpgrade = UpgradesById[ConnectedId]
+			if ConnectedUpgrade then
+				table.insert(CanvasChildren, CreateConnection(Upgrade, ConnectedUpgrade, Ownership, RevealDistances))
+			end
+		end
+	end
 	for _, Upgrade in UpgradeConfig.Upgrades do
 		table.insert(
 			CanvasChildren,

@@ -128,6 +128,7 @@ local function createTool(player: Player, itemId: number): Tool?
 	tool.Name = itemInfo.Name
 	tool.CanBeDropped = false
 	tool.RequiresHandle = true
+	tool.Grip = tool.Grip * CFrame.Angles(0, math.rad(180), 0)
 	tool:AddTag("satchelSlot")
 
 	handle.Name = "Handle"

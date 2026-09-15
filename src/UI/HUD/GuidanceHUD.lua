@@ -31,9 +31,13 @@ return function()
 			local CurrentTarget = Target()
 			local ViewportSize = Workspace.CurrentCamera.ViewportSize
 			local ScreenPosition
+			local HeightOffset = 135
 			if CurrentTarget and CurrentTarget:IsA("GuiObject") and CurrentTarget.Visible then
 				ScreenPosition = CurrentTarget.AbsolutePosition + CurrentTarget.AbsoluteSize / 2
 			elseif CurrentTarget then
+				if CurrentTarget:IsA("Model") and CurrentTarget.Parent and CurrentTarget.Parent.Name == "CrateRewards" then
+					HeightOffset = 170
+				end
 				local WorldPosition = GetWorldPosition(CurrentTarget)
 				if WorldPosition then
 					local Projected = Workspace.CurrentCamera:WorldToViewportPoint(WorldPosition)
@@ -43,7 +47,7 @@ return function()
 			if ScreenPosition then
 				local IndicatorPosition = Vector2.new(
 					math.clamp(ScreenPosition.X, 120, ViewportSize.X - 120),
-					math.clamp(ScreenPosition.Y - 120, 60, ViewportSize.Y - 90)
+					math.clamp(ScreenPosition.Y - HeightOffset, 60, ViewportSize.Y - 90)
 				)
 				local Direction = ScreenPosition - IndicatorPosition
 				if Direction.Magnitude > 1 then ArrowRotation(math.deg(math.atan2(Direction.Y, Direction.X))) end

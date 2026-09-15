@@ -415,8 +415,11 @@ local function GetSpongeUseCFrame(AimPosition: Vector3, SurfaceNormal: Vector3):
 end
 
 local function PositionViewmodelTool(ToolCFrame: CFrame)
+	local RotationDegrees = CleaningConfig.ToolRotationCorrectionDegrees
+	local CorrectedToolCFrame = ToolCFrame
+		* CFrame.Angles(math.rad(RotationDegrees.X), math.rad(RotationDegrees.Y), math.rad(RotationDegrees.Z))
 	for Part, Offset in ViewmodelPartOffsets do
-		if Part.Parent then Part.CFrame = ToolCFrame * Offset end
+		if Part.Parent then Part.CFrame = CorrectedToolCFrame * Offset end
 	end
 end
 

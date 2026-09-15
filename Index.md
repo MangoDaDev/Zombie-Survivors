@@ -59,7 +59,7 @@ Quick reference for the project's first-party Luau scripts. Generated Wally depe
 | Path | Name | Responsibility |
 | --- | --- | --- |
 | `src/modules/Game/_PlayerFreezeState.lua` | PlayerFreezeState | Stores and manages the local character's anchored freeze state. |
-| `src/modules/Game/CleaningConfig.lua` | CleaningConfig | Registers restoration steps and tools, completion rewards, shared viewmodel positioning, Sponge surface/scrub motion, screen-space brushes, VFX, auto-completion, and item-step helpers. |
+| `src/modules/Game/CleaningConfig.lua` | CleaningConfig | Registers restoration tools and derives item actions automatically from item prices and upgrade unlock costs, alongside rewards, viewmodel positioning, brushes, VFX, and completion behavior. |
 | `src/modules/Game/CollisionGroups.lua` | CollisionGroups | Defines shared player and NPC collision-group names used by server characters and client-rendered visitors. |
 | `src/modules/Game/BatInfo.lua` | BatInfo | Configures Wooden, Stone, and Gold crate-only bat tiers with distinct icon keys, progressively improved damage, timing, range, validation, and sounds. |
 | `src/modules/Game/CrateInfo.lua` | CrateInfo | Configures regular and pity-only crate tiers, the optimized new-player drop sequence, rarity-based spawn-depth bias, health, loot luck, population limits, reveal pacing, and the synchronized reset cycle. |
@@ -67,10 +67,10 @@ Quick reference for the project's first-party Luau scripts. Generated Wally depe
 | `src/modules/Game/DirtRenderer.lua` | DirtRenderer | Calculates surface-area-scaled dirt counts and adds or removes dense dirt layers without treating other restoration overlays as item surfaces. |
 | `src/modules/Game/FreezePlayer.lua` | FreezePlayer | Freezes the local player, optionally at a target CFrame. |
 | `src/modules/Game/GreaseRenderer.lua` | GreaseRenderer | Places dirt-density translucent yellow-brown circular surface patches and manages their shared HP, fade, removal, and deterministic cleanup. |
-| `src/modules/Game/ItemsInfo.lua` | ItemsInfo | Configures all 100 Studio item assets with stable IDs, balanced rarity weights, economy, durability, movement, and rarity-weighted restoration requirements with dirt-only starter items. |
+| `src/modules/Game/ItemsInfo.lua` | ItemsInfo | Configures all 100 Studio item assets with stable IDs, balanced rarity weights, economy, durability, and movement values consumed by automatic restoration-action selection. |
 | `src/modules/Game/PaintRenderer.lua` | PaintRenderer | Applies randomized brown color damage while preserving and gradually restoring each target part's original color. |
 | `src/modules/Game/RarityInfo.lua` | RarityInfo | Defines the Common through Secret rarity tiers, name gradients, reveal-effect timing, and a simple white Secret treatment. |
-| `src/modules/Game/RestorationVisuals.lua` | RestorationVisuals | Applies each item's configured unfinished Dirt, Paint, and Grease appearance consistently across rewards, carrying, inventory, and legacy sources. |
+| `src/modules/Game/RestorationVisuals.lua` | RestorationVisuals | Applies each item's automatically derived unfinished Dirt, Paint, and Grease appearance consistently across rewards, carrying, inventory, and legacy sources. |
 | `src/modules/Game/TutorialConfig.lua` | TutorialConfig | Defines the short ordered objectives used by the persistent guided tutorial. |
 | `src/modules/Game/UpgradeConfig.lua` | UpgradeConfig | Defines the faster early cost curve for capacity, Spray stat tiers, Paint/Sponge tools, Stone/Gold bats, and bat cooldown tiers. |
 | `src/modules/Game/UpgradeLogic.lua` | UpgradeLogic | Resolves ownership, prerequisites, visibility, capacity, automatic base Spray access, tool unlock sources and stats, bat tiers, and bat cooldown. |
@@ -159,5 +159,5 @@ Quick reference for the project's first-party Luau scripts. Generated Wally depe
 | `src/UI/HUD/CrateResetTimer.lua` | CrateResetTimer | Displays the globally synchronized time remaining until the next crate-area reset. |
 | `src/UI/HUD/FixingOverlay.lua` | FixingOverlay | Shows the exit-cleaning control while the player is in Fixing mode. |
 | `src/UI/HUD/GuidanceHUD.lua` | GuidanceHUD | Shows one compact instruction and directional marker above its current world or interface target without covering target billboards. |
-| `src/UI/Menus/UpgradeTree.lua` | UpgradeTree | Opens centered on Start and renders a compact line-free hex layout on one movable and scalable canvas, with masked ghost details, drag panning, zoom, reveals, and purchasing. |
+| `src/UI/Menus/UpgradeTree.lua` | UpgradeTree | Opens centered on Start and renders connected ownership-colored upgrade branches on one movable and scalable canvas, with masked ghost details, drag panning, zoom, reveals, and purchasing. |
 | `src/UI/UIOrigin.lua` | UIOrigin | Mounts the Vide application once into the local PlayerGui. |

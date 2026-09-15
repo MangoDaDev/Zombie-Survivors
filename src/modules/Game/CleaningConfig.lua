@@ -1,3 +1,5 @@
+local UpgradeConfig = require(script.Parent.UpgradeConfig)
+
 local CleaningConfig = {
 	AutoCompletionThreshold = 0.9,
 	BrushRadiusPixels = 54,
@@ -13,6 +15,7 @@ local CleaningConfig = {
 	ToolCameraDepth = 1.65,
 	ToolCursorMovementScale = Vector2.new(0.018, 0.012),
 	ToolCursorRotationDegrees = Vector2.new(4, 6),
+	ToolRotationCorrectionDegrees = Vector3.new(0, -90, 0),
 	FakeArmThickness = 0.38,
 	FakeArmScreenPosition = Vector2.new(0.92, 0.88),
 	FakeArmCameraDepth = 0.85,
@@ -121,17 +124,33 @@ function CleaningConfig.GetStep(StepId: string)
 	end
 end
 
+function CleaningConfig.GetToolUnlockCost(ToolId: string): number
+	if ToolId == "Spray" then return 0 end
+	for _, Upgrade in UpgradeConfig.Upgrades do
+		local Effect = Upgrade.Effect
+		if Effect and Effect.Type == "ToolUnlock" and Effect.ToolId == ToolId then
+			return Upgrade.Cost
+		end
+	end
+	return math.huge
+end
+
 function CleaningConfig.GetStepsForItem(ItemInfo): { any }
 	local Steps = {}
-	for _, StepId in ItemInfo.RestorationSteps or {} do
-		local StepInfo = CleaningConfig.GetStep(StepId)
-		if StepInfo then table.insert(Steps, StepInfo) end
+	local ItemPrice = if type(ItemInfo.Price) == "number" then ItemInfo.Price else 0
+	for _, StepInfo in CleaningConfig.Steps do
+		if ItemPrice >= CleaningConfig.GetToolUnlockCost(StepInfo.ToolId) then
+			table.insert(Steps, StepInfo)
+		end
 	end
 	return Steps
 end
 
 function CleaningConfig.ItemHasStep(ItemInfo, StepId: string): boolean
-	return table.find(ItemInfo.RestorationSteps or {}, StepId) ~= nil
+	for _, StepInfo in CleaningConfig.GetStepsForItem(ItemInfo) do
+		if StepInfo.Id == StepId then return true end
+	end
+	return false
 end
 
 return CleaningConfig
