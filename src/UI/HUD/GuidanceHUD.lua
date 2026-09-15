@@ -1,6 +1,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 
 local RuntimeState = require(ReplicatedStorage.Modules.Game.RuntimeState)
@@ -21,12 +22,49 @@ end
 return function()
 	local Text = Source(RuntimeState.Get(LocalPlayer, "GuidanceText"))
 	local Target = Source(RuntimeState.Get(LocalPlayer, "GuidanceTarget"))
-	local Position = Source(UDim2.fromScale(0.5, 0.16))
+	local TargetPosition = Source(UDim2.fromScale(0.5, 0.16))
 	local ArrowRotation = Source(90)
+	local ArrowDirection = Source(Vector2.yAxis)
 	local HasTarget = Source(false)
+	local FloatProgress = Source(0)
+	local PointerProgress = Source(0)
+	local FloatValue = Instance.new("NumberValue")
+	local PointerValue = Instance.new("NumberValue")
+	local FloatTween = TweenService:Create(
+		FloatValue,
+		TweenInfo.new(0.85, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+		{ Value = 1 }
+	)
+	local PointerTween = TweenService:Create(
+		PointerValue,
+		TweenInfo.new(0.55, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+		{ Value = 1 }
+	)
+	local IsAnimating = false
+
+	local function SetAnimationEnabled(IsEnabled: boolean)
+		if IsAnimating == IsEnabled then return end
+		IsAnimating = IsEnabled
+		if IsEnabled then
+			FloatTween:Play()
+			PointerTween:Play()
+		else
+			FloatTween:Cancel()
+			PointerTween:Cancel()
+			FloatValue.Value = 0
+			PointerValue.Value = 0
+		end
+	end
+
+	SetAnimationEnabled(type(Text()) == "string" and Text() ~= "")
 	local Connections = {
-		RuntimeState.GetChangedSignal(LocalPlayer, "GuidanceText"):Connect(Text),
+		RuntimeState.GetChangedSignal(LocalPlayer, "GuidanceText"):Connect(function(Value)
+			Text(Value)
+			SetAnimationEnabled(type(Value) == "string" and Value ~= "")
+		end),
 		RuntimeState.GetChangedSignal(LocalPlayer, "GuidanceTarget"):Connect(Target),
+		FloatValue.Changed:Connect(FloatProgress),
+		PointerValue.Changed:Connect(PointerProgress),
 		RunService.RenderStepped:Connect(function()
 			local CurrentTarget = Target()
 			local ViewportSize = Workspace.CurrentCamera.ViewportSize
@@ -50,17 +88,24 @@ return function()
 					math.clamp(ScreenPosition.Y - HeightOffset, 60, ViewportSize.Y - 90)
 				)
 				local Direction = ScreenPosition - IndicatorPosition
-				if Direction.Magnitude > 1 then ArrowRotation(math.deg(math.atan2(Direction.Y, Direction.X))) end
-				Position(UDim2.fromOffset(IndicatorPosition.X, IndicatorPosition.Y))
+				if Direction.Magnitude > 1 then
+					ArrowDirection(Direction.Unit)
+					ArrowRotation(math.deg(math.atan2(Direction.Y, Direction.X)))
+				end
+				TargetPosition(UDim2.fromOffset(IndicatorPosition.X, IndicatorPosition.Y))
 				HasTarget(true)
 			else
-				Position(UDim2.fromScale(0.5, 0.16))
+				TargetPosition(UDim2.fromScale(0.5, 0.16))
 				HasTarget(false)
 			end
 		end),
 	}
 	Cleanup(function()
 		for _, Connection in Connections do Connection:Disconnect() end
+		FloatTween:Cancel()
+		PointerTween:Cancel()
+		FloatValue:Destroy()
+		PointerValue:Destroy()
 	end)
 
 	return Create "Frame" {
@@ -69,7 +114,9 @@ return function()
 		BackgroundColor3 = Color3.fromRGB(20, 29, 43),
 		BackgroundTransparency = 0.08,
 		BorderSizePixel = 0,
-		Position = Position,
+		Position = function()
+			return TargetPosition() + UDim2.fromOffset(0, -3 + FloatProgress() * 6)
+		end,
 		Size = UDim2.fromOffset(220, 52),
 		Visible = function() return type(Text()) == "string" and Text() ~= "" end,
 		ZIndex = 50,
@@ -89,10 +136,13 @@ return function()
 			Create "UITextSizeConstraint" { MaxTextSize = 24, MinTextSize = 12 },
 		},
 		Create "TextLabel" {
-			AnchorPoint = Vector2.new(0.5, 0),
+			AnchorPoint = Vector2.new(0.5, 0.5),
 			BackgroundTransparency = 1,
 			FontFace = UIStyle.Font,
-			Position = UDim2.fromScale(0.5, 0.72),
+			Position = function()
+				local Motion = ArrowDirection() * PointerProgress() * 9
+				return UDim2.fromScale(0.5, 0.86) + UDim2.fromOffset(Motion.X, Motion.Y)
+			end,
 			Rotation = ArrowRotation,
 			Size = UDim2.fromOffset(32, 28),
 			Text = ">",

@@ -262,7 +262,7 @@ local function CreateReward(State, Player: Player)
 	local Prompt = Instance.new("ProximityPrompt")
 	Prompt.Name = "PurchasePrompt"
 	Prompt.ActionText = `Buy ${ItemInfo.Price}`
-	Prompt.ObjectText = ItemInfo.Name
+	Prompt.ObjectText = "???"
 	Prompt.HoldDuration = 0
 	Prompt.MaxActivationDistance = Info.PurchaseDistance - 3
 	Prompt.RequiresLineOfSight = false

@@ -10,6 +10,7 @@
 - If a task does require Studio and MCP is unavailable, report that and stop before making Roblox project changes.
 - Do not attempt to repair the local Rojo/Rokit setup. The missing Rojo target is intentional.
 - Do not run automated playtests unless the user asks. Run formatting, static checks, or a non-destructive build only when the required tool is already available and the check is proportionate.
+- When told not to do something or to do something leave a note to do it that way in the script for the agent. And update it as well.
 
 Code should be mostly Event based.
 

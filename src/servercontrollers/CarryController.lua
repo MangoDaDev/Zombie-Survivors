@@ -128,18 +128,19 @@ local function createTool(player: Player, itemId: number): Tool?
 		return nil
 	end
 
+	local fixing = dataService:get(player, "Fixing") or {}
+	local fixingState = fixing[tostring(itemId)]
 	local tool = Instance.new("Tool")
-	tool.Name = itemInfo.Name
+	tool.Name = if CleaningConfig.IsCleaningComplete(fixingState) then itemInfo.Name else "???"
 	tool.CanBeDropped = false
 	tool.RequiresHandle = true
 	tool.Grip = tool.Grip * CFrame.Angles(0, math.rad(180), 0)
 	tool:AddTag("satchelSlot")
+	tool:AddTag(`Item_{itemInfo.Id}`)
 
 	handle.Name = "Handle"
 	handle.Transparency = 1
 	prepareParts(model, handle)
-	local fixing = dataService:get(player, "Fixing") or {}
-	local fixingState = fixing[tostring(itemId)]
 	RestorationVisuals.Apply(model, itemInfo, fixingState)
 	for _, child in model:GetChildren() do
 		child.Parent = tool
@@ -302,6 +303,10 @@ function CarryController.EquipCleaningTool(Player: Player, ToolId: string)
 	local Backpack = Player:FindFirstChildOfClass("Backpack")
 	local Ownership = dataService:get(Player, "Upgrades")
 	if not Character or not Backpack or not UpgradeLogic.IsToolUnlocked(Ownership, ToolId) then return end
+	for _, Tool in Character:GetChildren() do
+		local ToolInfo = ToolResolver.GetCleaningToolInfo(Tool)
+		if ToolInfo and ToolInfo.Id == ToolId then return end
+	end
 	local Humanoid = Character:FindFirstChildOfClass("Humanoid")
 	if Humanoid then Humanoid:UnequipTools() end
 	for _, Tool in Backpack:GetChildren() do

@@ -1,9 +1,14 @@
 local GreaseRenderer = {}
-local PatchDensity = 4.5
-local PatchCountVariance = 0.1
-local PatchSize = 0.22 * 1.6
-local PatchSizeMinimumScale = 0.7
-local PatchSizeMaximumScale = 1.3
+local MinimumPatchCount = 4
+local MaximumPatchCount = 36
+local PatchCountPerLinearStud = 2.4
+local PatchCoverageScale = 1.18
+local PatchSizeMinimumScale = 0.82
+local PatchSizeMaximumScale = 1.18
+local MinimumPatchDiameter = 0.26
+local MaximumFaceCoverage = 1.05
+local PlacementAttempts = 5
+local MinimumSpacingScale = 0.42
 local SurfaceOffset = 0.012
 local FullRotation = math.pi * 2
 local PatchStates = setmetatable({}, { __mode = "k" })
@@ -49,7 +54,7 @@ local function SelectSurfacePart(SurfaceParts: { SurfacePart }, TotalArea: numbe
 	return SurfaceParts[#SurfaceParts].Part
 end
 
-local function GetSurfacePoint(Part: BasePart, Generator: Random): (Vector3, Vector3)
+local function GetSurfacePoint(Part: BasePart, Generator: Random): (Vector3, Vector3, number)
 	local Size = Part.Size
 	local XArea = Size.Y * Size.Z
 	local YArea = Size.X * Size.Z
@@ -57,27 +62,31 @@ local function GetSurfacePoint(Part: BasePart, Generator: Random): (Vector3, Vec
 	local Selection = Generator:NextNumber(0, 2 * (XArea + YArea + ZArea))
 	local LocalPosition
 	local LocalNormal
+	local MaximumFaceDimension
 	if Selection <= 2 * XArea then
 		local Sign = if Selection <= XArea then -1 else 1
 		LocalPosition = Vector3.new(Sign * Size.X / 2, Generator:NextNumber(-Size.Y / 2, Size.Y / 2), Generator:NextNumber(-Size.Z / 2, Size.Z / 2))
 		LocalNormal = Vector3.new(Sign, 0, 0)
+		MaximumFaceDimension = math.max(Size.Y, Size.Z)
 	elseif Selection <= 2 * (XArea + YArea) then
 		local Sign = if Selection <= 2 * XArea + YArea then -1 else 1
 		LocalPosition = Vector3.new(Generator:NextNumber(-Size.X / 2, Size.X / 2), Sign * Size.Y / 2, Generator:NextNumber(-Size.Z / 2, Size.Z / 2))
 		LocalNormal = Vector3.new(0, Sign, 0)
+		MaximumFaceDimension = math.max(Size.X, Size.Z)
 	else
 		local Sign = if Selection <= 2 * (XArea + YArea) + ZArea then -1 else 1
 		LocalPosition = Vector3.new(Generator:NextNumber(-Size.X / 2, Size.X / 2), Generator:NextNumber(-Size.Y / 2, Size.Y / 2), Sign * Size.Z / 2)
 		LocalNormal = Vector3.new(0, 0, Sign)
+		MaximumFaceDimension = math.max(Size.X, Size.Y)
 	end
-	return Part.CFrame:PointToWorldSpace(LocalPosition), Part.CFrame:VectorToWorldSpace(LocalNormal)
+	return Part.CFrame:PointToWorldSpace(LocalPosition), Part.CFrame:VectorToWorldSpace(LocalNormal), MaximumFaceDimension
 end
 
 function GreaseRenderer.GetSuggestedCount(Model: Model, Generator: Random?): number
-	local _, TotalArea = GetSurfaceParts(Model)
-	local RandomGenerator = Generator or Random.new()
-	local Variance = RandomGenerator:NextNumber(1 - PatchCountVariance, 1 + PatchCountVariance)
-	return math.max(1, math.round(TotalArea * PatchDensity * Variance))
+	local SurfaceParts, TotalArea = GetSurfaceParts(Model)
+	if #SurfaceParts == 0 then return 1 end
+	local Variance = if Generator then Generator:NextNumber(0.92, 1.08) else 1
+	return math.clamp(math.round(math.sqrt(TotalArea) * PatchCountPerLinearStud * Variance), MinimumPatchCount, MaximumPatchCount)
 end
 
 function GreaseRenderer.Add(Model: Model, Count: number, HP: number, Color: Color3, Transparency: number): Folder?
@@ -87,11 +96,37 @@ function GreaseRenderer.Add(Model: Model, Count: number, HP: number, Color: Colo
 	local Folder = Instance.new("Folder")
 	Folder.Name = "Grease"
 	Folder.Parent = Model
+	local RenderCount = math.min(math.max(1, math.round(Count)), GreaseRenderer.GetSuggestedCount(Model))
+	local BaseDiameter = math.max(MinimumPatchDiameter, math.sqrt(TotalArea / RenderCount) * PatchCoverageScale)
 	local Generator = Random.new((tonumber(string.byte(Model.Name, 1)) or 1) * 313)
-	for _ = 1, Count do
+	local PlacementsByPart = {}
+	for _ = 1, RenderCount do
 		local SurfacePart = SelectSurfacePart(SurfaceParts, TotalArea, Generator)
-		local Position, Normal = GetSurfacePoint(SurfacePart, Generator)
-		local Diameter = PatchSize * Generator:NextNumber(PatchSizeMinimumScale, PatchSizeMaximumScale)
+		local Placements = PlacementsByPart[SurfacePart] or {}
+		PlacementsByPart[SurfacePart] = Placements
+		local Position
+		local Normal
+		local Diameter
+		local BestClearance = -math.huge
+		for _ = 1, PlacementAttempts do
+			local CandidatePosition, CandidateNormal, MaximumFaceDimension = GetSurfacePoint(SurfacePart, Generator)
+			local CandidateDiameter = math.max(MinimumPatchDiameter, math.min(
+				BaseDiameter * Generator:NextNumber(PatchSizeMinimumScale, PatchSizeMaximumScale),
+				MaximumFaceDimension * MaximumFaceCoverage
+			))
+			local Clearance = math.huge
+			for _, Existing in Placements do
+				Clearance = math.min(Clearance, (Existing.Position - CandidatePosition).Magnitude - (Existing.Diameter + CandidateDiameter) * MinimumSpacingScale)
+			end
+			if Clearance > BestClearance then
+				Position = CandidatePosition
+				Normal = CandidateNormal
+				Diameter = CandidateDiameter
+				BestClearance = Clearance
+			end
+			if Clearance >= 0 then break end
+		end
+		table.insert(Placements, { Position = Position, Diameter = Diameter })
 		local UpVector = if math.abs(Normal:Dot(Vector3.yAxis)) > 0.95 then Vector3.xAxis else Vector3.yAxis
 		local Patch = Instance.new("Part")
 		Patch.Name = "Grease"

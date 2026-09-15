@@ -9,6 +9,7 @@ local GuidanceController = require(ServerStorage.Controllers.GuidanceController)
 local CleaningConfig = require(ReplicatedStorage.Modules.Game.CleaningConfig)
 local DirtRenderer = require(ReplicatedStorage.Modules.Game.DirtRenderer)
 local GreaseRenderer = require(ReplicatedStorage.Modules.Game.GreaseRenderer)
+local ItemInfoBillboard = require(ReplicatedStorage.Modules.UI.ItemInfoBillboard)
 local ItemsInfo = require(ReplicatedStorage.Modules.Game.ItemsInfo)
 local MuseumController = require(ServerStorage.Controllers.MuseumController)
 local Networker = require(ReplicatedStorage.Packages.networker)
@@ -153,6 +154,10 @@ local function GetStepProgress(Session): number
 	return math.clamp((RemovedCount + PartialProgress) / math.max(StepState.Total, 1), 0, 1)
 end
 
+local function GetCompletionThreshold(Step): number
+	return if Step and Step.Type == "Dirt" then CleaningConfig.DirtCompletionThreshold else CleaningConfig.AutoCompletionThreshold
+end
+
 local function UpdateProgress(Player, Session, Force)
 	local Progress = GetStepProgress(Session)
 	if Force or math.abs(Progress - Session.LastProgress) >= 0.005 then
@@ -286,8 +291,10 @@ end
 
 local function NormalizeState(State, Model, Steps)
 	State.Steps = if type(State.Steps) == "table" then State.Steps else {}
-	local DirtTotal = if type(State.Total) == "number" and State.Total >= 1 then math.round(State.Total) else DirtRenderer.GetSuggestedCount(Model)
-	local DirtRemaining = if type(State.Remaining) == "number" then math.clamp(math.round(State.Remaining), 0, DirtTotal) else DirtTotal
+	local DirtTotal = DirtRenderer.GetSuggestedCount(Model)
+	local PreviousDirtTotal = if type(State.Total) == "number" and State.Total >= 1 then math.round(State.Total) else DirtTotal
+	local PreviousDirtRemaining = if type(State.Remaining) == "number" then math.clamp(State.Remaining, 0, PreviousDirtTotal) else PreviousDirtTotal
+	local DirtRemaining = math.round(DirtTotal * PreviousDirtRemaining / math.max(PreviousDirtTotal, 1))
 	local DirtState
 	for _, Step in Steps do
 		local Existing = State.Steps[Step.Id]
@@ -302,6 +309,11 @@ local function NormalizeState(State, Model, Steps)
 				Completed = false,
 			}
 			State.Steps[Step.Id] = Existing
+		end
+		if type(Existing.Total) == "number" and Existing.Total >= 1 and Existing.Total ~= Total then
+			local PreviousRemaining = if type(Existing.Remaining) == "number" then math.clamp(Existing.Remaining, 0, Existing.Total) else Existing.Total
+			Existing.Remaining = math.round(Total * PreviousRemaining / Existing.Total)
+			Existing.Total = Total
 		end
 		if type(Existing.Total) ~= "number" or Existing.Total < 1 then Existing.Total = Total end
 		if type(Existing.Remaining) ~= "number" then Existing.Remaining = Existing.Total end
@@ -390,6 +402,7 @@ local function StartFixing(Player)
 	local ItemPosition = CameraPart.CFrame:PointToWorldSpace(Vector3.new(0, CleaningConfig.ItemVerticalOffset, -ItemDistance))
 	Model:PivotTo(CFrame.new(ItemPosition) * PromptPart.CFrame.Rotation * CFrame.Angles(math.rad(CleaningConfig.ItemTiltDegrees), 0, 0))
 	Model.Parent = Museum
+	ItemInfoBillboard(Info, Box, State)
 	local RootWasAnchored = RootPart.Anchored
 	local Humanoid = Player.Character and Player.Character:FindFirstChildOfClass("Humanoid")
 	if not Humanoid then Model:Destroy(); return end
@@ -449,7 +462,7 @@ local function StartFixing(Player)
 	PrepareAllTargets(Session)
 	PrepareCurrentStep(Player, Session)
 	GuidanceController.Advance(Player, "StartCleaning")
-	if GetStepProgress(Session) >= CleaningConfig.AutoCompletionThreshold then task.defer(CompleteCurrentStep, Player, Session) end
+	if GetStepProgress(Session) >= GetCompletionThreshold(Session.Steps[Session.StepIndex]) then task.defer(CompleteCurrentStep, Player, Session) end
 end
 
 local function PlayFullCompletionFeedback(Session)
@@ -478,6 +491,70 @@ local function PlayFullCompletionFeedback(Session)
 	Debris:AddItem(Highlight, CleaningConfig.FullCompletionDelay)
 end
 
+local function PlayNameRevealFeedback(Session)
+	local PrimaryPart = Session.Model.PrimaryPart
+	if not PrimaryPart then
+		return
+	end
+
+	local Billboard = ItemInfoBillboard(Session.ItemInfo, PrimaryPart, Session.State)
+	local NameLabel = Billboard:FindFirstChild("ItemName")
+	if NameLabel and NameLabel:IsA("TextLabel") then
+		local Scale = Instance.new("UIScale")
+		Scale.Scale = 0.2
+		Scale.Parent = NameLabel
+		NameLabel.Rotation = -7
+		NameLabel.TextTransparency = 1
+		local Stroke = NameLabel:FindFirstChildOfClass("UIStroke")
+		if Stroke then
+			Stroke.Transparency = 1
+			TweenService:Create(Stroke, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Transparency = 0 }):Play()
+		end
+		TweenService:Create(NameLabel, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			Rotation = 0,
+			TextTransparency = 0,
+		}):Play()
+		TweenService:Create(Scale, TweenInfo.new(0.55, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+	end
+
+	local RarityOrder = { Common = 1, Uncommon = 2, Rare = 3, Epic = 4, Legendary = 5, Mythic = 6, Secret = 7 }
+	local RarityTemplates = { Secret = "Omniscient" }
+	local RarityLevel = RarityOrder[Session.ItemInfo.Rarity] or 1
+	local RevealSoundName = if RarityLevel >= 6 then "Reward5" elseif RarityLevel >= 4 then "Reward4" elseif RarityLevel >= 3 then "Reward3" else "Reward2"
+	Sounds.Play(RevealSoundName, Session.RootPart, CONFIG.FeedbackSoundMaxDistance)
+
+	local PinwheelFolder = ReplicatedStorage.Assets.VFX:FindFirstChild("RarityPinwheels")
+	local TemplateName = RarityTemplates[Session.ItemInfo.Rarity] or Session.ItemInfo.Rarity
+	local Template = PinwheelFolder and PinwheelFolder:FindFirstChild(TemplateName)
+	if Template and Template:IsA("Attachment") then
+		local Effect = Template:Clone()
+		Effect.Name = "NameRevealEffect"
+		Effect.Parent = PrimaryPart
+		local MaximumLifetime = 0
+		for _, Emitter in Effect:GetDescendants() do
+			if Emitter:IsA("ParticleEmitter") then
+				Emitter.Enabled = false
+				Emitter:Emit(if RarityLevel >= 5 then 2 else 1)
+				MaximumLifetime = math.max(MaximumLifetime, Emitter.Lifetime.Max)
+			end
+		end
+		Debris:AddItem(Effect, MaximumLifetime + 0.5)
+	end
+
+	local Highlight = Instance.new("Highlight")
+	Highlight.Name = "NameRevealHighlight"
+	Highlight.FillColor = if RarityLevel >= 5 then Color3.fromRGB(255, 219, 77) else Color3.fromRGB(130, 220, 255)
+	Highlight.FillTransparency = 0.05
+	Highlight.OutlineColor = Color3.new(1, 1, 1)
+	Highlight.OutlineTransparency = 0
+	Highlight.Parent = Session.Model
+	TweenService:Create(Highlight, TweenInfo.new(0.8, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		FillTransparency = 1,
+		OutlineTransparency = 1,
+	}):Play()
+	Debris:AddItem(Highlight, 0.85)
+end
+
 CompleteCurrentStep = function(Player, Session)
 	if Sessions[Player] ~= Session or Session.Completing then return end
 	Session.Completing = true
@@ -493,6 +570,9 @@ CompleteCurrentStep = function(Player, Session)
 	PlayerStateController.Set(Player, "CleaningProgress", 1)
 	PlayerStateController.Set(Player, "CleaningStepComplete", true)
 	Sounds.Play(Step.CompletionSoundName, Session.RootPart, CONFIG.FeedbackSoundMaxDistance)
+	if Step.Type == "Dirt" then
+		PlayNameRevealFeedback(Session)
+	end
 	if GetFirstIncompleteStep(Session.State, Session.Steps) then
 		Session.TransitionId += 1
 		local TransitionId = Session.TransitionId
@@ -528,6 +608,10 @@ function FixingController.SelectTool(_, Player, ToolId)
 	if not Tool then return end
 	for Index, Step in Session.Steps do
 		if Step.ToolId ~= ToolId then continue end
+		if Session.StepIndex == Index then
+			CarryController.EquipCleaningTool(Player, ToolId)
+			return
+		end
 		Session.TransitionId += 1
 		Session.Completing = false
 		Session.IsUsingTool = false
@@ -549,12 +633,12 @@ function FixingController.SelectTool(_, Player, ToolId)
 	PlayerStateController.Set(Player, "CleaningStepComplete", true)
 end
 
-function FixingController.ApplyTool(_, Player, ToolId, BrushPosition, ViewportSize)
+function FixingController.ApplyTool(_, Player, ToolId, BrushPosition, ViewportSize, AimTarget)
 	local Session = Sessions[Player]
 	local Step = Session and Session.Steps[Session.StepIndex]
 	local ToolInfo = if type(ToolId) == "string" then GetToolInfo(ToolId) else nil
 	local Tool = Step and GetCleaningTool(Player, Step.ToolId)
-	if not Session or Session.Completing or not Session.IsUsingTool or Session.ActiveToolId ~= ToolId or not Step or Step.ToolId ~= ToolId or not ToolInfo or not Tool
+	if not Session or Session.Completing or not Step or Step.ToolId ~= ToolId or not ToolInfo or not Tool
 		or not IsToolUnlocked(Player, ToolId)
 		or Tool.Parent ~= Player.Character
 		or typeof(BrushPosition) ~= "Vector2" or typeof(ViewportSize) ~= "Vector2"
@@ -565,6 +649,12 @@ function FixingController.ApplyTool(_, Player, ToolId, BrushPosition, ViewportSi
 	local TableModel = Museum and Museum:FindFirstChild("Table")
 	local CameraPart = TableModel and TableModel:FindFirstChild("CamPart")
 	if not CameraPart or not CameraPart:IsA("BasePart") then return end
+	if not Session.IsUsingTool or Session.ActiveToolId ~= ToolId then
+		Session.IsUsingTool = true
+		Session.ActiveToolId = ToolId
+		Session.LastApplication = os.clock()
+		GuidanceController.Advance(Player, "UseTool")
+	end
 	local Now = os.clock()
 	local Ownership = DataService:get(Player, "Upgrades")
 	local StrengthMultiplier = UpgradeLogic.GetToolStrengthMultiplier(Ownership, ToolId)
@@ -576,7 +666,13 @@ function FixingController.ApplyTool(_, Player, ToolId, BrushPosition, ViewportSi
 	local ProgressChanged = false
 	for _, Target in GetTargets(Session) do
 		local ScreenPosition = GetScreenPosition(Target.Position, CameraPart.CFrame, ViewportSize)
-		if ScreenPosition and (ScreenPosition - BrushPosition).Magnitude <= RadiusPixels then
+		local IsDirectSpongeTarget = Step.Type == "Grease"
+			and typeof(AimTarget) == "Instance"
+			and AimTarget == Target
+			and Session.Grease ~= nil
+			and Target.Parent == Session.Grease
+		local IsWithinBrush = ScreenPosition ~= nil and (ScreenPosition - BrushPosition).Magnitude <= RadiusPixels
+		if IsDirectSpongeTarget or IsWithinBrush then
 			if Step.Type == "Dirt" then
 				PlayDirtFeedback(Session, Target, Now)
 				local HP = GetTargetHP(Target, Step) - Damage
@@ -593,7 +689,7 @@ function FixingController.ApplyTool(_, Player, ToolId, BrushPosition, ViewportSi
 	end
 	if ProgressChanged then SaveState(Player, Session.ItemId, Session.State) end
 	local Progress = UpdateProgress(Player, Session, false)
-	if StepState.Remaining <= 0 or Progress >= CleaningConfig.AutoCompletionThreshold then CompleteCurrentStep(Player, Session) end
+	if StepState.Remaining <= 0 or Progress >= GetCompletionThreshold(Step) then CompleteCurrentStep(Player, Session) end
 end
 
 function FixingController.StartUsingTool(_, Player, ToolId)

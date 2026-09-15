@@ -23,6 +23,7 @@ local OverrideText: string?
 local OverrideTarget: Instance?
 local OverrideTargetKind: string?
 local StarterCrate: Model?
+local OpenUpgradesCompletedLocally = false
 
 local function GetMuseum(): Model?
 	local Museums = Workspace:FindFirstChild("PlayerMuseums")
@@ -172,6 +173,11 @@ end
 local function RefreshTutorial()
 	if OverrideId > 0 then return end
 	local StepId = DataService:get("TutorialStep")
+	if StepId ~= "OpenUpgrades" then OpenUpgradesCompletedLocally = false end
+	if StepId == "OpenUpgrades" and OpenUpgradesCompletedLocally then
+		SetGuidance(nil, nil)
+		return
+	end
 	if StepId ~= "PickUpItem" then StarterCrate = nil end
 	local Step = type(StepId) == "string" and TutorialConfig.GetStep(StepId) or nil
 	local Text = Step and Step.Text
@@ -210,6 +216,11 @@ function GuidanceController.ShowMessage(_, Text, Target, TargetKind)
 end
 
 function GuidanceController.OpenedUpgradeTree()
+	local StepId = DataService:get("TutorialStep")
+	if StepId == "OpenUpgrades" then
+		OpenUpgradesCompletedLocally = true
+		SetGuidance(nil, nil)
+	end
 	if Network then Network:fire("OpenedUpgrades") end
 	if OverrideId > 0 and OverrideText and OverrideTargetKind then
 		task.defer(function()

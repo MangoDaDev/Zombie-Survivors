@@ -1,5 +1,6 @@
 local Players = game:GetService "Players"
 local ReplicatedStorage = game:GetService "ReplicatedStorage"
+local TweenService = game:GetService "TweenService"
 local UserInputService = game:GetService "UserInputService"
 
 local UpgradeConfig = require(ReplicatedStorage.Modules.Game.UpgradeConfig)
@@ -294,8 +295,12 @@ end
 return function()
 	local Ownership = Source(UpgradeLogic.NormalizeOwnership(DataService:get "Upgrades"))
 	local Cash = Source(DataService:get "Cash" or 0)
+	local TutorialStep = Source(DataService:get "TutorialStep")
 	local IsOpen = Source(false)
 	local IsPurchasing = Source(false)
+	local IsOpenButtonHovered = Source(false)
+	local IsOpenButtonPressed = Source(false)
+	local TutorialPulse = Source(0)
 	local LastPurchasedId = Source ""
 	local StartUpgrade = UpgradeConfig.Get("Start")
 	local CameraTarget = Source(if StartUpgrade then StartUpgrade.Position else Vector2.zero)
@@ -306,13 +311,42 @@ return function()
 	local RevealDistances = Derive(function()
 		return UpgradeLogic.GetRevealDistances(Ownership(), UpgradeConfig.MaximumMysteryDistance)
 	end)
+	local IsOpenUpgradesStep = Derive(function()
+		return TutorialStep() == "OpenUpgrades"
+	end)
+	local OpenButtonScale = Spring(
+		Derive(function()
+			if IsOpenButtonPressed() then return 0.9 end
+			if IsOpenUpgradesStep() then return 1.04 + TutorialPulse() * 0.06 end
+			return if IsOpenButtonHovered() then 1.05 else 1
+		end),
+		0.12,
+		0.82
+	)
 	local Network = Networker.client.new("UpgradeController", {})
+	local TutorialPulseValue = Instance.new("NumberValue")
+	local TutorialPulseTween = TweenService:Create(
+		TutorialPulseValue,
+		TweenInfo.new(0.7, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+		{ Value = 1 }
+	)
 	local Viewport: Frame?
 	local ViewportConnection: RBXScriptConnection?
 	local DragInput: InputObject?
 	local LastDragPosition: Vector2?
 	local DragDistance = 0
 	local DraggedLastInput = false
+
+	local function UpdateTutorialPulse()
+		if IsOpenUpgradesStep() then
+			TutorialPulseTween:Play()
+		else
+			TutorialPulseTween:Cancel()
+			TutorialPulseValue.Value = 0
+		end
+	end
+
+	UpdateTutorialPulse()
 
 	local function BeginDrag(Input: InputObject)
 		if
@@ -412,11 +446,20 @@ return function()
 	local CashConnection = DataService:getChangedSignal("Cash"):Connect(function(Value)
 		Cash(if type(Value) == "number" then Value else 0)
 	end)
+	local TutorialConnection = DataService:getChangedSignal("TutorialStep"):Connect(function(Value)
+		TutorialStep(Value)
+		UpdateTutorialPulse()
+	end)
+	local TutorialPulseConnection = TutorialPulseValue.Changed:Connect(TutorialPulse)
 	Cleanup(function()
 		InputChangedConnection:Disconnect()
 		InputEndedConnection:Disconnect()
 		UpgradeConnection:Disconnect()
 		CashConnection:Disconnect()
+		TutorialConnection:Disconnect()
+		TutorialPulseConnection:Disconnect()
+		TutorialPulseTween:Cancel()
+		TutorialPulseValue:Destroy()
 		if ViewportConnection then
 			ViewportConnection:Disconnect()
 		end
@@ -542,16 +585,29 @@ return function()
 		BackgroundTransparency = 1,
 		Size = UDim2.fromScale(1, 1),
 		ZIndex = 20,
+		-- Keep the existing UI hierarchy intact; button feedback is applied through reactive properties.
 		Create "Frame" {
 			Name = "OpenButton",
 			AnchorPoint = Vector2.new(0, 0.5),
-			BackgroundColor3 = Color3.fromRGB(50, 54, 61),
+			BackgroundColor3 = function()
+				return Color3.fromRGB(50, 54, 61):Lerp(Color3.fromRGB(42, 112, 132), TutorialPulse() * 0.72)
+			end,
 			BorderSizePixel = 0,
-			Position = UDim2.fromScale(0.015, 0.52),
-			Size = UDim2.fromOffset(68, 68),
+			Position = UDim2.fromScale(0.018, 0.52),
+			Size = function()
+				local ButtonSize = 90 * OpenButtonScale()
+				return UDim2.fromOffset(ButtonSize, ButtonSize)
+			end,
 			ZIndex = 25,
-			Create "UICorner" { CornerRadius = UDim.new(0, 16) },
-			Create "UIStroke" { Color = Color3.fromRGB(103, 125, 140), Thickness = 3 },
+			Create "UICorner" { CornerRadius = UDim.new(0, 19) },
+			Create "UIStroke" {
+				Color = function()
+					return Color3.fromRGB(103, 125, 140):Lerp(Color3.fromRGB(116, 229, 255), TutorialPulse())
+				end,
+				Thickness = function()
+					return 3 + TutorialPulse() * 2
+				end,
+			},
 			Create "ImageLabel" {
 				BackgroundTransparency = 1,
 				Image = Images.Upgrade,
@@ -570,17 +626,47 @@ return function()
 				ZIndex = 26,
 			},
 			Create "TextButton" {
+				AutoButtonColor = false,
 				BackgroundTransparency = 1,
 				Size = UDim2.fromScale(1, 1),
 				Text = "",
 				ZIndex = 27,
+				MouseEnter = function()
+					IsOpenButtonHovered(true)
+					Sounds.Play("HoverStart", LocalPlayer.PlayerGui)
+				end,
+				MouseLeave = function()
+					IsOpenButtonHovered(false)
+					IsOpenButtonPressed(false)
+				end,
+				InputBegan = function(Input)
+					if
+						Input.UserInputType == Enum.UserInputType.MouseButton1
+						or Input.UserInputType == Enum.UserInputType.Touch
+					then
+						IsOpenButtonPressed(true)
+					end
+				end,
+				InputEnded = function(Input)
+					if
+						Input.UserInputType == Enum.UserInputType.MouseButton1
+						or Input.UserInputType == Enum.UserInputType.Touch
+					then
+						IsOpenButtonPressed(false)
+					end
+				end,
 				Activated = function()
+					IsOpenButtonPressed(false)
 					local Opening = not IsOpen()
 					if Opening then
 						if not IsCameraNearUpgrade(CameraTarget()) then
 							CameraTarget(if StartUpgrade then StartUpgrade.Position else Vector2.zero)
 						end
 						ZoomTarget(UpgradeConfig.DefaultZoom)
+						if IsOpenUpgradesStep() then
+							TutorialPulseTween:Cancel()
+							TutorialPulseValue.Value = 0
+						end
 						GuidanceController.OpenedUpgradeTree()
 					end
 					IsOpen(Opening)

@@ -7,7 +7,9 @@ local function GetPaintParts(Model: Model): { BasePart }
 		if Descendant:IsA("BasePart")
 			and Descendant.Name ~= "BoundingBox"
 			and Descendant.Name ~= "Dirt"
+			and Descendant.Name ~= "Grease"
 			and Descendant:FindFirstAncestor("Dirt") == nil
+			and Descendant:FindFirstAncestor("Grease") == nil
 			and Descendant.Transparency < 1
 		then
 			table.insert(Parts, Descendant)
@@ -28,29 +30,38 @@ function PaintRenderer.Add(Model: Model, Count: number, HP: number, DirtColor: C
 		if Index <= Count then
 			local OriginalColor = Part.Color
 			local DirtAmount = RandomGenerator:NextNumber(MinimumAmount, MaximumAmount)
+			local Hue, Saturation, Value = OriginalColor:ToHSV()
+			local FadedColor = Color3.fromHSV(
+				Hue,
+				Saturation * RandomGenerator:NextNumber(0.08, 0.24),
+				math.clamp(Value * RandomGenerator:NextNumber(0.48, 0.7), 0.12, 0.68)
+			)
+			local WornTint = DirtColor:Lerp(Color3.fromRGB(58, 60, 54), RandomGenerator:NextNumber(0.18, 0.48))
+			local DamagedColor = FadedColor:Lerp(WornTint, DirtAmount)
 			PaintStates[Part] = {
-				DirtAmount = DirtAmount,
 				CurrentHealth = HP,
+				DamagedColor = DamagedColor,
 				MaximumHealth = HP,
 				OriginalColor = OriginalColor,
 			}
-			Part.Color = OriginalColor:Lerp(DirtColor, DirtAmount)
+			Part.Color = DamagedColor
 			table.insert(Targets, Part)
 		end
 	end
 	return Targets
 end
 
-function PaintRenderer.Damage(Part: BasePart, Damage: number, DirtColor: Color3): boolean
+function PaintRenderer.Damage(Part: BasePart, Damage: number, _DirtColor: Color3): boolean
 	local State = PaintStates[Part]
 	if not State then return false end
 	local OriginalColor = State.OriginalColor
-	local DirtAmount = State.DirtAmount
+	local DamagedColor = State.DamagedColor
 	local MaximumHP = State.MaximumHealth
 	local HP = State.CurrentHealth
 	local NewHP = math.max(0, HP - Damage)
 	State.CurrentHealth = NewHP
-	Part.Color = OriginalColor:Lerp(DirtColor, DirtAmount * NewHP / math.max(MaximumHP, 0.001))
+	local RestoredAmount = 1 - NewHP / math.max(MaximumHP, 0.001)
+	Part.Color = DamagedColor:Lerp(OriginalColor, RestoredAmount)
 	return HP > 0 and NewHP <= 0
 end
 

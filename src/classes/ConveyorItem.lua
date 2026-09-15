@@ -105,7 +105,7 @@ function ConveyorItem:Render()
 
 	local prompt = Instance.new("ProximityPrompt")
 	prompt.ActionText = `Buy ${itemInfo.Price}`
-	prompt.ObjectText = self.ItemName
+	prompt.ObjectText = "???"
 	prompt.HoldDuration = 0
 	prompt.MaxActivationDistance = PROMPT_DISTANCE
 	prompt.RequiresLineOfSight = false

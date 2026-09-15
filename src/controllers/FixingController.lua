@@ -258,6 +258,7 @@ local function GetScreenWorldPosition(Camera, ScreenPosition, Depth): Vector3
 end
 
 local function GetCursorPosition(): Vector2
+	-- Keep cleaning input in raw screen space so it matches the IgnoreGuiInset HUD.
 	return UserInputService:GetMouseLocation()
 end
 
@@ -528,7 +529,7 @@ function FixingController.Init()
 		elseif ToolBeam then
 			ToolBeam.Enabled = false
 		end
-		Network:fire("ApplyTool", ToolInfo.Id, MousePosition, Camera.ViewportSize)
+		Network:fire("ApplyTool", ToolInfo.Id, MousePosition, Camera.ViewportSize, AimPart)
 	end)
 	UserInputService.InputBegan:Connect(function(Input, Processed)
 		if Processed then return end

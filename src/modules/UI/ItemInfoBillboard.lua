@@ -76,10 +76,12 @@ return function(itemInfo, adornee: BasePart, fixingState): BillboardGui
 	billboard.Parent = adornee
 
 	local nameLabel = Instance.new("TextLabel")
+	nameLabel.Name = "ItemName"
 	nameLabel.BackgroundTransparency = 1
 	nameLabel.FontFace = COMIC_FONT
 	nameLabel.Size = UDim2.fromScale(1, 0.3)
-	nameLabel.Text = itemInfo.Name
+	local IsCleaningComplete = CleaningConfig.IsCleaningComplete(fixingState)
+	nameLabel.Text = if IsCleaningComplete then itemInfo.Name else "???"
 	nameLabel.TextColor3 = Color3.new(1, 1, 1)
 	nameLabel.TextScaled = true
 	nameLabel.TextWrapped = true
@@ -87,7 +89,9 @@ return function(itemInfo, adornee: BasePart, fixingState): BillboardGui
 	addStroke(nameLabel)
 	local rarityGradient = Instance.new("UIGradient")
 	rarityGradient.Name = "RarityGradient"
-	rarityGradient.Color = RarityInfo.Get(itemInfo.Rarity).Gradient
+	rarityGradient.Color = if IsCleaningComplete
+		then RarityInfo.Get(itemInfo.Rarity).Gradient
+		else ColorSequence.new(Color3.fromRGB(168, 168, 168), Color3.fromRGB(225, 225, 225))
 	rarityGradient.Parent = nameLabel
 
 	createStatRow(Images.Binoculars, itemInfo.GuestPay, UDim2.fromScale(0, 0.3), "$", 0.34, 0.14).Parent = billboard

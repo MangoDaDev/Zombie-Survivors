@@ -8,6 +8,7 @@ local ToolResolver = {}
 local BatsByName = {}
 local CleaningToolsByName = {}
 local ItemsByName = {}
+local ItemsByTag = {}
 
 for _, Info in BatInfo do
 	BatsByName[Info.DisplayName] = Info
@@ -19,6 +20,7 @@ end
 
 for _, Info in ItemsInfo do
 	ItemsByName[Info.Name] = Info
+	ItemsByTag[`Item_{Info.Id}`] = Info
 end
 
 function ToolResolver.GetBatInfo(Tool)
@@ -30,7 +32,15 @@ function ToolResolver.GetCleaningToolInfo(Tool)
 end
 
 function ToolResolver.GetItemInfo(Tool)
-	return Tool and Tool:IsA("Tool") and ItemsByName[Tool.Name] or nil
+	if not Tool or not Tool:IsA("Tool") then
+		return nil
+	end
+	for Tag, Info in ItemsByTag do
+		if Tool:HasTag(Tag) then
+			return Info
+		end
+	end
+	return ItemsByName[Tool.Name]
 end
 
 return ToolResolver

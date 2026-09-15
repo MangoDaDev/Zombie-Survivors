@@ -2,6 +2,7 @@ local UpgradeConfig = require(script.Parent.UpgradeConfig)
 
 local CleaningConfig = {
 	AutoCompletionThreshold = 0.9,
+	DirtCompletionThreshold = 1,
 	BrushRadiusPixels = 54,
 	CameraFieldOfView = 70,
 	MinimumItemCameraDistance = 3.9,
@@ -87,9 +88,9 @@ local CleaningConfig = {
 			DisplayName = "Restoring Paint",
 			ToolId = "SprayPaint",
 			TargetHP = 2,
-			DirtColor = Color3.fromRGB(105, 72, 43),
-			DirtAmountMinimum = 0.4,
-			DirtAmountMaximum = 0.8,
+			DirtColor = Color3.fromRGB(88, 68, 50),
+			DirtAmountMinimum = 0.78,
+			DirtAmountMaximum = 0.96,
 			CompletionSoundName = "Reward1",
 		},
 		{
@@ -151,6 +152,24 @@ function CleaningConfig.ItemHasStep(ItemInfo, StepId: string): boolean
 		if StepInfo.Id == StepId then return true end
 	end
 	return false
+end
+
+function CleaningConfig.IsCleaningComplete(FixingState): boolean
+	if type(FixingState) ~= "table" then
+		return false
+	end
+	if FixingState.Completed == true then
+		return true
+	end
+	if type(FixingState.Steps) == "table" then
+		for _, StepInfo in CleaningConfig.Steps do
+			if StepInfo.Type == "Dirt" then
+				local StepState = FixingState.Steps[StepInfo.Id]
+				return type(StepState) == "table" and StepState.Completed == true
+			end
+		end
+	end
+	return type(FixingState.Remaining) == "number" and FixingState.Remaining <= 0
 end
 
 return CleaningConfig
