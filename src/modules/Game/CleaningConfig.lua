@@ -2,7 +2,6 @@ local UpgradeConfig = require(script.Parent.UpgradeConfig)
 
 local CleaningConfig = {
 	AutoCompletionThreshold = 0.9,
-	DirtCompletionThreshold = 1,
 	BrushRadiusPixels = 54,
 	CameraFieldOfView = 70,
 	MinimumItemCameraDistance = 3.9,

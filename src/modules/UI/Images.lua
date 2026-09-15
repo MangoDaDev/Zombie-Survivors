@@ -20,7 +20,11 @@ local Images = {
 	Sponge = "rbxassetid://123208274489359",
 	WoodenBat = "rbxassetid://71860797320768",
 	StoneBat = "rbxassetid://138894146261760",
+	BronzeBat = "rbxassetid://124720062419393",
 	GoldBat = "rbxassetid://75025107278341",
+	EmeraldBat = "rbxassetid://111478517832404",
+	DiamondBat = "rbxassetid://113517459215926",
+	ObsidianBat = "rbxassetid://140370237259106",
 	ObjectiveArrow = "rbxassetid://123892753905134",
 
 	FixIcons = {

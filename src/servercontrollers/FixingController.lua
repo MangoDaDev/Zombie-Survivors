@@ -22,9 +22,6 @@ local UpgradeLogic = require(ReplicatedStorage.Modules.Game.UpgradeLogic)
 local CONFIG = {
 	RotationSpeed = math.rad(12),
 	RotationResponsiveness = 5,
-	DirtFeedbackInterval = 0.16,
-	DirtFeedbackInTime = 0.06,
-	DirtFeedbackOutTime = 0.1,
 	FeedbackSoundMaxDistance = 50,
 }
 local FixingController = {}
@@ -84,18 +81,6 @@ local function GetCleaningTool(Player, ToolId): Tool?
 	return nil
 end
 
-local function GetScreenPosition(WorldPosition, CameraCFrame, ViewportSize): Vector2?
-	local CameraPosition = CameraCFrame:PointToObjectSpace(WorldPosition)
-	local Depth = -CameraPosition.Z
-	if Depth <= 0.1 then return nil end
-	local HalfHeight = Depth * math.tan(math.rad(CleaningConfig.CameraFieldOfView / 2))
-	local HalfWidth = HalfHeight * ViewportSize.X / ViewportSize.Y
-	return Vector2.new(
-		(CameraPosition.X / HalfWidth + 1) * ViewportSize.X / 2,
-		(1 - CameraPosition.Y / HalfHeight) * ViewportSize.Y / 2
-	)
-end
-
 local function GetStepState(Session)
 	local Step = Session.Steps[Session.StepIndex]
 	return Step and Session.State.Steps[Step.Id]
@@ -152,10 +137,6 @@ local function GetStepProgress(Session): number
 		if MaximumHP > 0 and CurrentHP > 0 then PartialProgress += 1 - math.clamp(CurrentHP / MaximumHP, 0, 1) end
 	end
 	return math.clamp((RemovedCount + PartialProgress) / math.max(StepState.Total, 1), 0, 1)
-end
-
-local function GetCompletionThreshold(Step): number
-	return if Step and Step.Type == "Dirt" then CleaningConfig.DirtCompletionThreshold else CleaningConfig.AutoCompletionThreshold
 end
 
 local function UpdateProgress(Player, Session, Force)
@@ -229,38 +210,12 @@ local function PrepareCurrentStep(Player, Session)
 	if not Step or not StepState then return end
 	Session.LastProgress = -1
 	PlayerStateController.Set(Player, "CleaningStepName", Step.DisplayName)
+	PlayerStateController.Set(Player, "CleaningStepTotal", StepState.Total)
+	PlayerStateController.Set(Player, "CleaningStepRemaining", StepState.Remaining)
 	PlayerStateController.Set(Player, "CleaningStepToolId", Step.ToolId)
 	PlayerStateController.Set(Player, "CleaningStepComplete", StepState.Completed == true)
 	UpdateProgress(Player, Session, true)
 	CarryController.EquipCleaningTool(Player, Step.ToolId)
-end
-
-local function PlayDirtFeedback(Session, Dirt, Now)
-	local LastFeedback = Session.DirtFeedbackTimes[Dirt] or 0
-	if Now - LastFeedback < CONFIG.DirtFeedbackInterval then return end
-	Session.DirtFeedbackTimes[Dirt] = Now
-	local OriginalSize = Dirt.Size
-	local OriginalColor = Dirt.Color
-	local HitSize = OriginalSize * Vector3.new(1.18, 0.82, 1.12)
-	local HitColor = OriginalColor:Lerp(Color3.new(1, 1, 1), 0.7)
-	local HitTween = TweenService:Create(Dirt, TweenInfo.new(CONFIG.DirtFeedbackInTime, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-		Size = HitSize,
-		Color = HitColor,
-	})
-	HitTween.Completed:Once(function()
-		if Dirt.Parent then
-			TweenService:Create(Dirt, TweenInfo.new(CONFIG.DirtFeedbackOutTime, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-				Size = OriginalSize,
-				Color = OriginalColor,
-			}):Play()
-		end
-	end)
-	HitTween:Play()
-	if Now - Session.LastFeedbackSound >= CONFIG.DirtFeedbackInterval then
-		Session.LastFeedbackSound = Now
-		local Sound = Sounds.Play(CleaningConfig.DirtDamageSoundName, Session.Model.PrimaryPart or Session.Model, CONFIG.FeedbackSoundMaxDistance)
-		if Sound then Sound.Volume *= 0.45; Sound.PlaybackSpeed = Random.new():NextNumber(0.92, 1.08) end
-	end
 end
 
 local function ClearSession(Player)
@@ -285,6 +240,9 @@ local function ClearSession(Player)
 	PlayerStateController.Set(Player, "CleaningStepToolId", nil)
 	PlayerStateController.Set(Player, "CleaningProgress", nil)
 	PlayerStateController.Set(Player, "CleaningStepComplete", nil)
+	PlayerStateController.Set(Player, "CleaningItemId", nil)
+	PlayerStateController.Set(Player, "CleaningStepTotal", nil)
+	PlayerStateController.Set(Player, "CleaningStepRemaining", nil)
 	CarryController.SetFixingMode(Player, false)
 	if Session.Prompt and Session.Prompt.Parent then Session.Prompt.Enabled = true end
 end
@@ -417,6 +375,7 @@ local function StartFixing(Player)
 	Humanoid.WalkSpeed = 0
 	Humanoid.JumpPower = 0
 	Humanoid.JumpHeight = 0
+	PlayerStateController.Set(Player, "CleaningItemId", ItemId)
 	PlayerStateController.Set(Player, "IsFixing", true)
 	CarryController.SetFixingMode(Player, true, Steps[StepIndex].ToolId)
 	local Session = {
@@ -435,10 +394,7 @@ local function StartFixing(Player)
 		Prompt = if Prompt and Prompt:IsA("ProximityPrompt") then Prompt else nil,
 		IsUsingTool = false,
 		ActiveToolId = nil,
-		LastApplication = os.clock(),
 		CurrentRotationSpeed = CONFIG.RotationSpeed,
-		DirtFeedbackTimes = {},
-		LastFeedbackSound = 0,
 		StepIndex = StepIndex,
 		Completing = false,
 		TransitionId = 0,
@@ -462,7 +418,7 @@ local function StartFixing(Player)
 	PrepareAllTargets(Session)
 	PrepareCurrentStep(Player, Session)
 	GuidanceController.Advance(Player, "StartCleaning")
-	if GetStepProgress(Session) >= GetCompletionThreshold(Session.Steps[Session.StepIndex]) then task.defer(CompleteCurrentStep, Player, Session) end
+	if GetStepProgress(Session) >= CleaningConfig.AutoCompletionThreshold then task.defer(CompleteCurrentStep, Player, Session) end
 end
 
 local function PlayFullCompletionFeedback(Session)
@@ -617,7 +573,6 @@ function FixingController.SelectTool(_, Player, ToolId)
 		Session.IsUsingTool = false
 		Session.ActiveToolId = nil
 		Session.StepIndex = Index
-		Session.LastApplication = os.clock()
 		PrepareCurrentStep(Player, Session)
 		return
 	end
@@ -633,63 +588,38 @@ function FixingController.SelectTool(_, Player, ToolId)
 	PlayerStateController.Set(Player, "CleaningStepComplete", true)
 end
 
-function FixingController.ApplyTool(_, Player, ToolId, BrushPosition, ViewportSize, AimTarget)
+function FixingController.ReportProgress(_, Player, ToolId, Remaining)
 	local Session = Sessions[Player]
 	local Step = Session and Session.Steps[Session.StepIndex]
-	local ToolInfo = if type(ToolId) == "string" then GetToolInfo(ToolId) else nil
+	local StepState = Session and GetStepState(Session)
 	local Tool = Step and GetCleaningTool(Player, Step.ToolId)
-	if not Session or Session.Completing or not Step or Step.ToolId ~= ToolId or not ToolInfo or not Tool
+	if not Session or Session.Completing or not Step or not StepState or Step.ToolId ~= ToolId or not Tool
 		or not IsToolUnlocked(Player, ToolId)
 		or Tool.Parent ~= Player.Character
-		or typeof(BrushPosition) ~= "Vector2" or typeof(ViewportSize) ~= "Vector2"
+		or type(Remaining) ~= "number"
+		or Remaining ~= Remaining
+		or math.abs(Remaining) == math.huge
 	then return end
-	if ViewportSize.X < 200 or ViewportSize.Y < 200 or ViewportSize.X > 10000 or ViewportSize.Y > 10000 then return end
-	if BrushPosition.X < 0 or BrushPosition.Y < 0 or BrushPosition.X > ViewportSize.X or BrushPosition.Y > ViewportSize.Y then return end
-	local Museum = MuseumController.GetMuseum(Player)
-	local TableModel = Museum and Museum:FindFirstChild("Table")
-	local CameraPart = TableModel and TableModel:FindFirstChild("CamPart")
-	if not CameraPart or not CameraPart:IsA("BasePart") then return end
-	if not Session.IsUsingTool or Session.ActiveToolId ~= ToolId then
-		Session.IsUsingTool = true
-		Session.ActiveToolId = ToolId
-		Session.LastApplication = os.clock()
-		GuidanceController.Advance(Player, "UseTool")
-	end
-	local Now = os.clock()
-	local Ownership = DataService:get(Player, "Upgrades")
-	local StrengthMultiplier = UpgradeLogic.GetToolStrengthMultiplier(Ownership, ToolId)
-	local RadiusMultiplier = UpgradeLogic.GetToolRadiusMultiplier(Ownership, ToolId)
-	local RadiusPixels = ToolInfo.RadiusPixels * RadiusMultiplier
-	local Damage = ToolInfo.StrengthPerSecond * StrengthMultiplier * math.clamp(Now - Session.LastApplication, 0, 0.2)
-	Session.LastApplication = Now
-	local StepState = GetStepState(Session)
-	local ProgressChanged = false
-	for _, Target in GetTargets(Session) do
-		local ScreenPosition = GetScreenPosition(Target.Position, CameraPart.CFrame, ViewportSize)
-		local IsDirectSpongeTarget = Step.Type == "Grease"
-			and typeof(AimTarget) == "Instance"
-			and AimTarget == Target
-			and Session.Grease ~= nil
-			and Target.Parent == Session.Grease
-		local IsWithinBrush = ScreenPosition ~= nil and (ScreenPosition - BrushPosition).Magnitude <= RadiusPixels
-		if IsDirectSpongeTarget or IsWithinBrush then
-			if Step.Type == "Dirt" then
-				PlayDirtFeedback(Session, Target, Now)
-				local HP = GetTargetHP(Target, Step) - Damage
-				DirtRenderer.SetHealth(Target, HP)
-				if HP <= 0 then Target:Destroy(); StepState.Remaining -= 1; Session.State.Remaining = StepState.Remaining; ProgressChanged = true end
-			elseif Step.Type == "Paint" and PaintRenderer.Damage(Target, Damage, Step.DirtColor) then
-				StepState.Remaining -= 1
-				ProgressChanged = true
-			elseif Step.Type == "Grease" and GreaseRenderer.Damage(Target, Damage) then
-				StepState.Remaining -= 1
-				ProgressChanged = true
-			end
-		end
-	end
-	if ProgressChanged then SaveState(Player, Session.ItemId, Session.State) end
-	local Progress = UpdateProgress(Player, Session, false)
-	if StepState.Remaining <= 0 or Progress >= GetCompletionThreshold(Step) then CompleteCurrentStep(Player, Session) end
+	local ResolvedRemaining = math.clamp(math.round(Remaining), 0, StepState.Remaining)
+	if ResolvedRemaining == StepState.Remaining then return end
+	StepState.Remaining = ResolvedRemaining
+	if Step.Type == "Dirt" then Session.State.Remaining = ResolvedRemaining end
+	PlayerStateController.Set(Player, "CleaningStepRemaining", ResolvedRemaining)
+	SaveState(Player, Session.ItemId, Session.State)
+end
+
+function FixingController.CompleteStep(_, Player, ToolId)
+	-- Keep cleaning completion client-authoritative; only verify the required unlocked tool is equipped.
+	local Session = Sessions[Player]
+	local Step = Session and Session.Steps[Session.StepIndex]
+	local StepState = Session and GetStepState(Session)
+	local Tool = Step and GetCleaningTool(Player, Step.ToolId)
+	if not Session or Session.Completing or not Step or not StepState or Step.ToolId ~= ToolId
+		or not Session.IsUsingTool or Session.ActiveToolId ~= ToolId
+		or not IsToolUnlocked(Player, ToolId)
+		or not Tool or Tool.Parent ~= Player.Character
+	then return end
+	CompleteCurrentStep(Player, Session)
 end
 
 function FixingController.StartUsingTool(_, Player, ToolId)
@@ -713,7 +643,6 @@ function FixingController.StartUsingTool(_, Player, ToolId)
 	end
 	Session.IsUsingTool = true
 	Session.ActiveToolId = ToolId
-	Session.LastApplication = os.clock()
 	GuidanceController.Advance(Player, "UseTool")
 end
 
@@ -732,7 +661,8 @@ function FixingController.Init()
 	Network = Networker.server.new("FixingController", FixingController, {
 		FixingController.SelectTool,
 		FixingController.StartUsingTool,
-		FixingController.ApplyTool,
+		FixingController.ReportProgress,
+		FixingController.CompleteStep,
 		FixingController.StopUsingTool,
 		FixingController.Exit,
 	})

@@ -2,12 +2,14 @@ local ContextActionService = game:GetService("ContextActionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
 
 local CleaningConfig = require(ReplicatedStorage.Modules.Game.CleaningConfig)
 local DataService = require(ReplicatedStorage.Packages.dataservice).client
 local FixingInterface = require(ReplicatedStorage.Modules.UI.FixingInterface)
+local ItemsInfo = require(ReplicatedStorage.Modules.Game.ItemsInfo)
 local Networker = require(ReplicatedStorage.Packages.networker)
 local RuntimeState = require(ReplicatedStorage.Modules.Game.RuntimeState)
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
@@ -47,6 +49,16 @@ local StopToolEffects
 local UpdateVisualTool
 local GetFixingItemModel
 local HideCharacterPart
+local ReportLocalProgress
+local LocalTargetStates = {}
+local LocalStepCaches = {}
+local LocalStepId: string?
+local LocalStepTotal = 0
+local LocalStepRemaining = 0
+local LastReportedRemaining = 0
+local LastProgressReport = 0
+local CompletionRequested = false
+local LastDirtFeedback = 0
 
 local CAMERA_BINDING_NAME = "CleaningCameraAndArm"
 local DISABLE_CONTROLS_ACTION_NAME = "DisableFixingControls"
@@ -104,6 +116,7 @@ local function UpdateToolInterface()
 	if IsFixing and Tool and ToolInfo and ToolInfo.Id ~= RequiredToolId and RequestedToolId ~= ToolInfo.Id then
 		RequestedToolId = ToolInfo.Id
 		if UsingTool then
+			ReportLocalProgress(true)
 			UsingTool = false
 			ActiveToolId = nil
 			StopToolEffects()
@@ -119,6 +132,7 @@ local function UpdateToolInterface()
 	RuntimeState.Set(LocalPlayer, "CleaningRadiusVisible", IsApplicable)
 	RuntimeState.Set(LocalPlayer, "CleaningBrushRadius", if IsApplicable then GetToolRadius(ToolInfo) else nil)
 	if UsingTool and (not IsApplicable or ToolInfo.Id ~= ActiveToolId) then
+		ReportLocalProgress(true)
 		UsingTool = false
 		ActiveToolId = nil
 		StopToolEffects()
@@ -247,6 +261,13 @@ local function Restore()
 	EnablePlayerControls()
 	RuntimeState.Set(LocalPlayer, "CleaningRadiusVisible", false)
 	RuntimeState.Set(LocalPlayer, "CleaningBrushRadius", nil)
+	LocalTargetStates = {}
+	LocalStepCaches = {}
+	LocalStepId = nil
+	LocalStepTotal = 0
+	LocalStepRemaining = 0
+	LastReportedRemaining = 0
+	CompletionRequested = false
 end
 
 local function GetScreenWorldPosition(Camera, ScreenPosition, Depth): Vector3
@@ -384,6 +405,210 @@ local function GetAimPosition(): (Vector3?, BasePart?, Vector3?)
 	return Result.Position, if Result.Instance:IsA("BasePart") then Result.Instance else nil, Result.Normal
 end
 
+local function GetItemInfo(ItemId: number)
+	for _, ItemInfo in ItemsInfo do
+		if ItemInfo.Id == ItemId then return ItemInfo end
+	end
+end
+
+local function GetPaintParts(Container: Instance): { BasePart }
+	local Parts = {}
+	for _, Descendant in Container:GetDescendants() do
+		if Descendant:IsA("BasePart")
+			and Descendant.Name ~= "BoundingBox"
+			and Descendant.Name ~= "Dirt"
+			and Descendant.Name ~= "Grease"
+			and Descendant:FindFirstAncestor("Dirt") == nil
+			and Descendant:FindFirstAncestor("Grease") == nil
+			and Descendant.Transparency < 1
+		then
+			table.insert(Parts, Descendant)
+		end
+	end
+	return Parts
+end
+
+local function ResetLocalStep()
+	LocalTargetStates = {}
+	LocalStepId = nil
+	LocalStepTotal = 0
+	LocalStepRemaining = 0
+	LastReportedRemaining = 0
+	LastProgressReport = 0
+	CompletionRequested = false
+end
+
+local function PrepareLocalStep(ToolId: string): boolean
+	if LocalStepId then
+		LocalStepCaches[LocalStepId] = {
+			TargetStates = LocalTargetStates,
+			Total = LocalStepTotal,
+			Remaining = LocalStepRemaining,
+			LastReportedRemaining = LastReportedRemaining,
+			CompletionRequested = CompletionRequested,
+		}
+	end
+	local CachedStep = LocalStepCaches[ToolId]
+	if CachedStep then
+		LocalTargetStates = CachedStep.TargetStates
+		LocalStepId = ToolId
+		LocalStepTotal = CachedStep.Total
+		LocalStepRemaining = CachedStep.Remaining
+		LastReportedRemaining = CachedStep.LastReportedRemaining
+		CompletionRequested = CachedStep.CompletionRequested
+		return #LocalTargetStates > 0
+	end
+	ResetLocalStep()
+	local Step = CleaningConfig.GetStep(ToolId)
+	local Model = GetFixingItemModel()
+	local ItemId = RuntimeState.Get(LocalPlayer, "CleaningItemId")
+	local ItemInfo = if type(ItemId) == "number" then GetItemInfo(ItemId) else nil
+	if not Step or not Model or not ItemInfo then return false end
+
+	local Targets = {}
+	local OriginalColors = {}
+	if Step.Type == "Dirt" then
+		local Dirt = Model:FindFirstChild("Dirt")
+		if Dirt then
+			for _, Target in Dirt:GetChildren() do
+				if Target:IsA("BasePart") then table.insert(Targets, Target) end
+			end
+		end
+	elseif Step.Type == "Grease" then
+		local Grease = Model:FindFirstChild("Grease")
+		if Grease then
+			for _, Target in Grease:GetChildren() do
+				if Target:IsA("BasePart") then table.insert(Targets, Target) end
+			end
+		end
+	else
+		Targets = GetPaintParts(Model)
+		local Template = ReplicatedStorage.Assets.Models.Items:FindFirstChild(ItemInfo.AssetName)
+		if Template then
+			local TemplateParts = GetPaintParts(Template)
+			for Index, Target in Targets do
+				local TemplatePart = TemplateParts[Index]
+				if TemplatePart then OriginalColors[Target] = TemplatePart.Color end
+			end
+		end
+	end
+
+	local MaximumHealth = if Step.Type == "Dirt" then ItemInfo.DirtHP else Step.TargetHP
+	for _, Target in Targets do
+		table.insert(LocalTargetStates, {
+			Part = Target,
+			CurrentHealth = MaximumHealth,
+			MaximumHealth = MaximumHealth,
+			DamagedColor = Target.Color,
+			OriginalColor = OriginalColors[Target],
+			BaseTransparency = Target.Transparency,
+			Completed = false,
+		})
+	end
+	LocalStepId = ToolId
+	LocalStepTotal = RuntimeState.Get(LocalPlayer, "CleaningStepTotal", #Targets)
+	LocalStepRemaining = RuntimeState.Get(LocalPlayer, "CleaningStepRemaining", #Targets)
+	LastReportedRemaining = LocalStepRemaining
+	return #LocalTargetStates > 0
+end
+
+ReportLocalProgress = function(Force: boolean)
+	if not LocalStepId or LocalStepRemaining == LastReportedRemaining then return end
+	local Now = os.clock()
+	if not Force and Now - LastProgressReport < 0.15 then return end
+	LastProgressReport = Now
+	LastReportedRemaining = LocalStepRemaining
+	Network:fire("ReportProgress", LocalStepId, LocalStepRemaining)
+end
+
+local function PlayLocalDirtFeedback(Target: BasePart)
+	local OriginalSize = Target.Size
+	local OriginalColor = Target.Color
+	local Tween = TweenService:Create(Target, TweenInfo.new(0.06, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+		Size = OriginalSize * Vector3.new(1.18, 0.82, 1.12),
+		Color = OriginalColor:Lerp(Color3.new(1, 1, 1), 0.7),
+	})
+	Tween.Completed:Once(function()
+		if Target.Parent then
+			TweenService:Create(Target, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+				Size = OriginalSize,
+				Color = OriginalColor,
+			}):Play()
+		end
+	end)
+	Tween:Play()
+	local Now = os.clock()
+	if Now - LastDirtFeedback >= 0.16 then
+		LastDirtFeedback = Now
+		local Model = GetFixingItemModel()
+		if Model then Sounds.Play(CleaningConfig.DirtDamageSoundName, Model.PrimaryPart or Model, TOOL_SOUND_MAX_DISTANCE) end
+	end
+end
+
+local function GetLocalProgress(): number
+	local PartialProgress = 0
+	for _, State in LocalTargetStates do
+		if not State.Completed and State.MaximumHealth > 0 then
+			PartialProgress += 1 - math.clamp(State.CurrentHealth / State.MaximumHealth, 0, 1)
+		end
+	end
+	return math.clamp((LocalStepTotal - LocalStepRemaining + PartialProgress) / math.max(LocalStepTotal, 1), 0, 1)
+end
+
+local function ApplyToolLocally(ToolInfo, DeltaTime: number, MousePosition: Vector2, AimPart: BasePart?)
+	-- Cleaning interaction is intentionally client-authoritative so brush feedback never waits on network latency.
+	if LocalStepId ~= ToolInfo.Id and not PrepareLocalStep(ToolInfo.Id) then return end
+	local Step = CleaningConfig.GetStep(ToolInfo.Id)
+	if not Step or CompletionRequested then return end
+	local Ownership = DataService:get("Upgrades")
+	local Strength = ToolInfo.StrengthPerSecond * UpgradeLogic.GetToolStrengthMultiplier(Ownership, ToolInfo.Id)
+	local Damage = Strength * math.clamp(DeltaTime, 0, 0.2)
+	local Radius = GetToolRadius(ToolInfo)
+	local Camera = Workspace.CurrentCamera
+	local ProgressChanged = false
+
+	for _, State in LocalTargetStates do
+		local Target = State.Part
+		if State.Completed or not Target.Parent then continue end
+		local ScreenPosition, IsVisible = Camera:WorldToViewportPoint(Target.Position)
+		local IsDirectSpongeTarget = Step.Type == "Grease" and AimPart == Target
+		local IsWithinBrush = IsVisible and (Vector2.new(ScreenPosition.X, ScreenPosition.Y) - MousePosition).Magnitude <= Radius
+		if not IsDirectSpongeTarget and not IsWithinBrush then continue end
+
+		local PreviousHealth = State.CurrentHealth
+		State.CurrentHealth = math.max(0, PreviousHealth - Damage)
+		if Step.Type == "Dirt" then
+			local Now = os.clock()
+			if Now - (State.LastFeedback or 0) >= 0.16 then
+				State.LastFeedback = Now
+				PlayLocalDirtFeedback(Target)
+			end
+		elseif Step.Type == "Grease" then
+			local BaseTransparency = State.BaseTransparency
+			Target.Transparency = BaseTransparency + (1 - BaseTransparency) * (1 - State.CurrentHealth / math.max(State.MaximumHealth, 0.001))
+		elseif State.OriginalColor then
+			local RestoredAmount = 1 - State.CurrentHealth / math.max(State.MaximumHealth, 0.001)
+			Target.Color = State.DamagedColor:Lerp(State.OriginalColor, RestoredAmount)
+		end
+
+		if PreviousHealth > 0 and State.CurrentHealth <= 0 then
+			State.Completed = true
+			LocalStepRemaining = math.max(0, LocalStepRemaining - 1)
+			ProgressChanged = true
+			if Step.Type == "Dirt" or Step.Type == "Grease" then Target:Destroy() end
+		end
+	end
+
+	if ProgressChanged then ReportLocalProgress(false) end
+	local Progress = GetLocalProgress()
+	RuntimeState.Set(LocalPlayer, "CleaningProgress", Progress)
+	if Progress >= CleaningConfig.AutoCompletionThreshold then
+		CompletionRequested = true
+		ReportLocalProgress(true)
+		Network:fire("CompleteStep", ToolInfo.Id)
+	end
+end
+
 local function GetDesiredToolCFrame(ToolInfo): CFrame
 	local Camera = Workspace.CurrentCamera
 	local RotationDegrees = ToolInfo.SurfaceRotationDegrees or Vector3.zero
@@ -490,7 +715,10 @@ function FixingController.Init()
 		end
 	end)
 	FixingInterface.ExitRequested:Connect(function()
-		if RuntimeState.Get(LocalPlayer, "IsFixing", false) == true then Network:fire("Exit") end
+		if RuntimeState.Get(LocalPlayer, "IsFixing", false) == true then
+			ReportLocalProgress(true)
+			Network:fire("Exit")
+		end
 	end)
 	RunService.RenderStepped:Connect(function(DeltaTime)
 		if not UsingTool then return end
@@ -529,7 +757,7 @@ function FixingController.Init()
 		elseif ToolBeam then
 			ToolBeam.Enabled = false
 		end
-		Network:fire("ApplyTool", ToolInfo.Id, MousePosition, Camera.ViewportSize, AimPart)
+		ApplyToolLocally(ToolInfo, DeltaTime, MousePosition, AimPart)
 	end)
 	UserInputService.InputBegan:Connect(function(Input, Processed)
 		if Processed then return end
@@ -545,11 +773,13 @@ function FixingController.Init()
 				Network:fire("StartUsingTool", ToolInfo.Id)
 			end
 		elseif Input.KeyCode == Enum.KeyCode.Q and RuntimeState.Get(LocalPlayer, "IsFixing", false) == true then
+			ReportLocalProgress(true)
 			Network:fire("Exit")
 		end
 	end)
 	UserInputService.InputEnded:Connect(function(Input)
 		if Input.UserInputType == Enum.UserInputType.MouseButton1 and UsingTool then
+			ReportLocalProgress(true)
 			UsingTool = false
 			ActiveToolId = nil
 			StopToolEffects()
