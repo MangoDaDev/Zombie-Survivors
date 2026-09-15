@@ -1,4 +1,5 @@
 local PaintRenderer = {}
+local PaintStates = setmetatable({}, { __mode = "k" })
 
 local function GetPaintParts(Model: Model): { BasePart }
 	local Parts = {}
@@ -8,7 +9,6 @@ local function GetPaintParts(Model: Model): { BasePart }
 			and Descendant.Name ~= "Dirt"
 			and Descendant:FindFirstAncestor("Dirt") == nil
 			and Descendant.Transparency < 1
-			and Descendant:GetAttribute("NoPaint") ~= true
 		then
 			table.insert(Parts, Descendant)
 		end
@@ -27,11 +27,13 @@ function PaintRenderer.Add(Model: Model, Count: number, HP: number, DirtColor: C
 	for Index, Part in Parts do
 		if Index <= Count then
 			local OriginalColor = Part.Color
-			Part:SetAttribute("PaintOriginalColor", OriginalColor)
 			local DirtAmount = RandomGenerator:NextNumber(MinimumAmount, MaximumAmount)
-			Part:SetAttribute("PaintDirtAmount", DirtAmount)
-			Part:SetAttribute("PaintHP", HP)
-			Part:SetAttribute("PaintMaxHP", HP)
+			PaintStates[Part] = {
+				DirtAmount = DirtAmount,
+				CurrentHealth = HP,
+				MaximumHealth = HP,
+				OriginalColor = OriginalColor,
+			}
 			Part.Color = OriginalColor:Lerp(DirtColor, DirtAmount)
 			table.insert(Targets, Part)
 		end
@@ -40,26 +42,34 @@ function PaintRenderer.Add(Model: Model, Count: number, HP: number, DirtColor: C
 end
 
 function PaintRenderer.Damage(Part: BasePart, Damage: number, DirtColor: Color3): boolean
-	local OriginalColor = Part:GetAttribute("PaintOriginalColor")
-	local DirtAmount = Part:GetAttribute("PaintDirtAmount")
-	local MaximumHP = Part:GetAttribute("PaintMaxHP")
-	local HP = Part:GetAttribute("PaintHP")
-	if typeof(OriginalColor) ~= "Color3" or type(DirtAmount) ~= "number" or type(MaximumHP) ~= "number" or type(HP) ~= "number" then return false end
+	local State = PaintStates[Part]
+	if not State then return false end
+	local OriginalColor = State.OriginalColor
+	local DirtAmount = State.DirtAmount
+	local MaximumHP = State.MaximumHealth
+	local HP = State.CurrentHealth
 	local NewHP = math.max(0, HP - Damage)
-	Part:SetAttribute("PaintHP", NewHP)
+	State.CurrentHealth = NewHP
 	Part.Color = OriginalColor:Lerp(DirtColor, DirtAmount * NewHP / math.max(MaximumHP, 0.001))
 	return HP > 0 and NewHP <= 0
+end
+
+function PaintRenderer.GetHealth(Part: BasePart): (number, number)
+	local State = PaintStates[Part]
+
+	if not State then
+		return 0, 1
+	end
+
+	return State.CurrentHealth, State.MaximumHealth
 end
 
 function PaintRenderer.Clear(Targets: { BasePart })
 	for _, Part in Targets do
 		if Part.Parent then
-			local OriginalColor = Part:GetAttribute("PaintOriginalColor")
-			if typeof(OriginalColor) == "Color3" then Part.Color = OriginalColor end
-			Part:SetAttribute("PaintOriginalColor", nil)
-			Part:SetAttribute("PaintDirtAmount", nil)
-			Part:SetAttribute("PaintHP", nil)
-			Part:SetAttribute("PaintMaxHP", nil)
+			local State = PaintStates[Part]
+			if State then Part.Color = State.OriginalColor end
+			PaintStates[Part] = nil
 		end
 	end
 end

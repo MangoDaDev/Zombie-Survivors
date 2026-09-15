@@ -6,6 +6,7 @@ local PatchSizeMinimumScale = 0.7
 local PatchSizeMaximumScale = 1.3
 local SurfaceOffset = 0.012
 local FullRotation = math.pi * 2
+local PatchStates = setmetatable({}, { __mode = "k" })
 
 type SurfacePart = {
 	Part: BasePart,
@@ -28,7 +29,6 @@ local function GetSurfaceParts(Model: Model): ({ SurfacePart }, number)
 			and Descendant:FindFirstAncestor("Dirt") == nil
 			and Descendant:FindFirstAncestor("Grease") == nil
 			and Descendant.Transparency < 1
-			and Descendant:GetAttribute("NoGrease") ~= true
 		then
 			local Area = GetSurfaceArea(Descendant)
 			if Area > 0 then
@@ -109,9 +109,11 @@ function GreaseRenderer.Add(Model: Model, Count: number, HP: number, Color: Colo
 		Patch.CFrame = CFrame.lookAt(Position + Normal * SurfaceOffset, Position + Normal, UpVector)
 			* CFrame.Angles(0, math.pi / 2, 0)
 			* CFrame.Angles(Generator:NextNumber(0, FullRotation), 0, 0)
-		Patch:SetAttribute("HP", HP)
-		Patch:SetAttribute("MaxHP", HP)
-		Patch:SetAttribute("BaseTransparency", Transparency)
+		PatchStates[Patch] = {
+			BaseTransparency = Transparency,
+			CurrentHealth = HP,
+			MaximumHealth = HP,
+		}
 		Patch.Parent = Folder
 		local Weld = Instance.new("WeldConstraint")
 		Weld.Part0 = SurfacePart
@@ -122,15 +124,26 @@ function GreaseRenderer.Add(Model: Model, Count: number, HP: number, Color: Colo
 end
 
 function GreaseRenderer.Damage(Patch: BasePart, Damage: number): boolean
-	local HP = Patch:GetAttribute("HP")
-	local MaximumHP = Patch:GetAttribute("MaxHP")
-	if type(HP) ~= "number" or type(MaximumHP) ~= "number" then return false end
+	local State = PatchStates[Patch]
+	if not State then return false end
+	local HP = State.CurrentHealth
+	local MaximumHP = State.MaximumHealth
 	local NewHP = math.max(0, HP - Damage)
-	Patch:SetAttribute("HP", NewHP)
-	local BaseTransparency = Patch:GetAttribute("BaseTransparency") or 0.25
+	State.CurrentHealth = NewHP
+	local BaseTransparency = State.BaseTransparency
 	Patch.Transparency = BaseTransparency + (1 - BaseTransparency) * (1 - NewHP / math.max(MaximumHP, 0.001))
 	if HP > 0 and NewHP <= 0 then Patch:Destroy(); return true end
 	return false
+end
+
+function GreaseRenderer.GetHealth(Patch: BasePart): (number, number)
+	local State = PatchStates[Patch]
+
+	if not State then
+		return 0, 1
+	end
+
+	return State.CurrentHealth, State.MaximumHealth
 end
 
 function GreaseRenderer.Clear(Model: Model)

@@ -8,8 +8,11 @@ local Workspace = game:GetService("Workspace")
 
 local BatInfo = require(ReplicatedStorage.Modules.Game.BatInfo)
 local CrateInfo = require(ReplicatedStorage.Modules.Game.CrateInfo)
+local DataService = require(ReplicatedStorage.Packages.dataservice).client
 local Networker = require(ReplicatedStorage.Packages.networker)
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
+local ToolResolver = require(ReplicatedStorage.Modules.Game.ToolResolver)
+local UpgradeLogic = require(ReplicatedStorage.Modules.Game.UpgradeLogic)
 
 local LocalPlayer = Players.LocalPlayer
 local BatController = {}
@@ -215,8 +218,9 @@ local function Swing(Tool, Info)
 	local Handle = Tool:FindFirstChild("Handle")
 	if not Handle or not Handle:IsA("BasePart") then Tool.Enabled = true; return end
 	local OriginalGrip = Tool.Grip
-	local CooldownMultiplier = Tool:GetAttribute("SwingCooldownMultiplier")
-	local SwingCooldown = Info.SwingCooldown * (if type(CooldownMultiplier) == "number" then CooldownMultiplier else 1)
+	local Ownership = DataService:get("Upgrades")
+	local CooldownMultiplier = UpgradeLogic.GetBatCooldownMultiplier(Ownership)
+	local SwingCooldown = Info.SwingCooldown * CooldownMultiplier
 	local Trail = Handle:FindFirstChildOfClass("Trail")
 	if Trail then Trail.Enabled = true end
 	Sounds.Play(Info.SwingSoundName, Handle, 70)
@@ -247,8 +251,7 @@ end
 
 local function HookTool(Tool)
 	if not Tool:IsA("Tool") or HookedTools[Tool] then return end
-	local BatId = Tool:GetAttribute("BatId")
-	local Info = if type(BatId) == "string" then GetBatInfo(BatId) else nil
+	local Info = ToolResolver.GetBatInfo(Tool)
 	if not Info then return end
 	HookedTools[Tool] = true
 	Tool.Equipped:Connect(function()
@@ -264,8 +267,8 @@ local function HookContainer(Container)
 	Container.ChildAdded:Connect(HookTool)
 end
 
-function BatController:Init()
-	Network = Networker.client.new("BatController", self)
+function BatController.Init()
+	Network = Networker.client.new("BatController", BatController)
 	RunService.RenderStepped:Connect(function()
 		local Now = os.clock()
 		for Model, State in CratePredictions do
@@ -277,7 +280,7 @@ function BatController:Init()
 	end)
 end
 
-function BatController:ReactToCrate(Model, AttackerPosition, BatId)
+function BatController.ReactToCrate(_, Model, AttackerPosition, BatId)
 	local Info = if type(BatId) == "string" then GetBatInfo(BatId) else nil
 	if typeof(Model) ~= "Instance" or not Model:IsA("Model") or not CollectionService:HasTag(Model, "Crate")
 		or typeof(AttackerPosition) ~= "Vector3" or not Info

@@ -7,6 +7,8 @@ local BatInfo = require(ReplicatedStorage.Modules.Game.BatInfo)
 local CrateController = require(ServerStorage.Controllers.CrateController)
 local Images = require(ReplicatedStorage.Modules.UI.Images)
 local Networker = require(ReplicatedStorage.Packages.networker)
+local PlayerStateController = require(ServerStorage.Controllers.PlayerStateController)
+local ToolResolver = require(ReplicatedStorage.Modules.Game.ToolResolver)
 local UpgradeLogic = require(ReplicatedStorage.Modules.Game.UpgradeLogic)
 
 local BatController = {}
@@ -35,13 +37,13 @@ local function RemoveBats(Player)
 	for _, Container in { Player.Character, Player:FindFirstChildOfClass("Backpack") } do
 		if not Container then continue end
 		for _, Child in Container:GetChildren() do
-			if Child:IsA("Tool") and type(Child:GetAttribute("BatId")) == "string" then Child:Destroy() end
+			if ToolResolver.GetBatInfo(Child) then Child:Destroy() end
 		end
 	end
 end
 
 local function EnsureBat(Player)
-	if Player.Parent ~= Players or Player:GetAttribute("IsFixing") == true then return end
+	if Player.Parent ~= Players or PlayerStateController.Get(Player, "IsFixing", false) == true then return end
 	local Ownership = DataService:get(Player, "Upgrades")
 	local Info = GetBatInfo(UpgradeLogic.GetBatId(Ownership)) or BatInfo[1]
 	local CooldownMultiplier = UpgradeLogic.GetBatCooldownMultiplier(Ownership)
@@ -49,10 +51,10 @@ local function EnsureBat(Player)
 	for _, Container in { Player.Character, Player:FindFirstChildOfClass("Backpack") } do
 		if Container then
 			for _, Child in Container:GetChildren() do
-				if Child:IsA("Tool") and type(Child:GetAttribute("BatId")) == "string" then
-					if Child:GetAttribute("BatId") == Info.Id and not MatchingBat then
+				local ChildInfo = ToolResolver.GetBatInfo(Child)
+				if ChildInfo then
+					if ChildInfo.Id == Info.Id and not MatchingBat then
 						MatchingBat = Child
-						Child:SetAttribute("InitialToolOrder", 0)
 					else
 						Child:Destroy()
 					end
@@ -61,7 +63,6 @@ local function EnsureBat(Player)
 		end
 	end
 	if MatchingBat then
-		MatchingBat:SetAttribute("SwingCooldownMultiplier", CooldownMultiplier)
 		MatchingBat.TextureId = Images[Info.Icon] or ""
 		return
 	end
@@ -72,9 +73,6 @@ local function EnsureBat(Player)
 	Tool.Name = Info.DisplayName
 	Tool.CanBeDropped = false
 	Tool.TextureId = Images[Info.Icon] or ""
-	Tool:SetAttribute("BatId", Info.Id)
-	Tool:SetAttribute("SwingCooldownMultiplier", CooldownMultiplier)
-	Tool:SetAttribute("InitialToolOrder", 0)
 	Tool:AddTag("satchelSlot")
 	Tool.Parent = Backpack
 end
@@ -116,13 +114,13 @@ local function RecordPositions(Now)
 	end
 end
 
-function BatController:Swing(Player, Targets)
-	if type(Targets) ~= "table" or #Targets > 16 or Player:GetAttribute("IsFixing") == true then return end
+function BatController.Swing(_, Player, Targets)
+	if type(Targets) ~= "table" or #Targets > 16 or PlayerStateController.Get(Player, "IsFixing", false) == true then return end
 	local Character = Player.Character
 	local RootPart = Character and Character:FindFirstChild("HumanoidRootPart")
 	local Tool = Character and Character:FindFirstChildOfClass("Tool")
-	local BatId = Tool and Tool:GetAttribute("BatId")
-	local Info = if type(BatId) == "string" then GetBatInfo(BatId) else nil
+	local Info = ToolResolver.GetBatInfo(Tool)
+	local BatId = Info and Info.Id
 	local Ownership = DataService:get(Player, "Upgrades")
 	local OwnedBatId = UpgradeLogic.GetBatId(Ownership)
 	local CooldownMultiplier = UpgradeLogic.GetBatCooldownMultiplier(Ownership)
@@ -150,8 +148,8 @@ function BatController:Swing(Player, Targets)
 	end
 end
 
-function BatController:Init()
-	Network = Networker.server.new("BatController", self, { BatController.Swing })
+function BatController.Init()
+	Network = Networker.server.new("BatController", BatController, { BatController.Swing })
 	RunService.Heartbeat:Connect(function()
 		RecordPositions(os.clock())
 	end)
@@ -162,8 +160,8 @@ function BatController.SetDataService(Service)
 end
 
 function BatController.OnPlayerAdded(Player)
-	PlayerConnections[Player] = Player:GetAttributeChangedSignal("IsFixing"):Connect(function()
-		if Player:GetAttribute("IsFixing") == true then RemoveBats(Player) else task.defer(EnsureBat, Player) end
+	PlayerConnections[Player] = PlayerStateController.GetChangedSignal(Player, "IsFixing"):Connect(function(IsFixing)
+		if IsFixing == true then RemoveBats(Player) else task.defer(EnsureBat, Player) end
 	end)
 	UpgradeConnections[Player] = DataService:getChangedSignal(Player, "Upgrades"):Connect(function()
 		task.defer(EnsureBat, Player)

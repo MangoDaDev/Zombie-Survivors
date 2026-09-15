@@ -11,6 +11,8 @@ local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
 local UpgradeLogic = require(ReplicatedStorage.Modules.Game.UpgradeLogic)
 local MuseumController = require(ServerStorage.Controllers.MuseumController)
 local Networker = require(ReplicatedStorage.Packages.networker)
+local PlayerStateController = require(ServerStorage.Controllers.PlayerStateController)
+local ToolResolver = require(ReplicatedStorage.Modules.Game.ToolResolver)
 
 local DEFAULT_CARRY_OFFSET = CFrame.new(0, 0, -3) * CFrame.Angles(0, math.rad(90), 0)
 local SFX_MAX_DISTANCE = 80
@@ -107,7 +109,7 @@ local function attachCarriedModel(player: Player, state: CarryState): boolean
 	return true
 end
 
-local function createTool(player: Player, itemId: number, inventoryPosition: number): Tool?
+local function createTool(player: Player, itemId: number): Tool?
 	local itemInfo = getItemInfo(itemId)
 	local template = itemInfo and ReplicatedStorage.Assets.Models.Items:FindFirstChild(itemInfo.AssetName)
 	if template == nil or not template:IsA("Model") then
@@ -125,8 +127,6 @@ local function createTool(player: Player, itemId: number, inventoryPosition: num
 	tool.Name = itemInfo.Name
 	tool.CanBeDropped = false
 	tool.RequiresHandle = true
-	tool:SetAttribute("ItemId", itemId)
-	tool:SetAttribute("InitialToolOrder", inventoryPosition)
 	tool:AddTag("satchelSlot")
 
 	handle.Name = "Handle"
@@ -134,7 +134,6 @@ local function createTool(player: Player, itemId: number, inventoryPosition: num
 	prepareParts(model, handle)
 	local fixing = dataService:get(player, "Fixing") or {}
 	local fixingState = fixing[tostring(itemId)]
-	tool:SetAttribute("NeedsFixing", fixingState ~= nil and fixingState.Completed ~= true)
 	RestorationVisuals.Apply(model, itemInfo, fixingState)
 	for _, child in model:GetChildren() do
 		child.Parent = tool
@@ -146,13 +145,7 @@ end
 
 local function removeManagedTools(container: Instance)
 	for _, child in container:GetChildren() do
-		if
-			child:IsA("Tool")
-			and (
-				type(child:GetAttribute("ItemId")) == "number"
-				or type(child:GetAttribute("FixingTool")) == "string"
-			)
-		then
+		if child:IsA("Tool") and (ToolResolver.GetItemInfo(child) or ToolResolver.GetCleaningToolInfo(child)) then
 			child:Destroy()
 		end
 	end
@@ -182,9 +175,9 @@ local function restoreInventory(player: Player, character: Model)
 	end
 	if fixingChanged then dataService:set(player, "Fixing", fixing) end
 
-	for inventoryPosition, itemId in inventory do
+	for _, itemId in inventory do
 		if type(itemId) == "number" then
-			local tool = createTool(player, itemId, inventoryPosition)
+			local tool = createTool(player, itemId)
 			if tool then
 				tool.Parent = backpack
 			end
@@ -207,8 +200,7 @@ local function deliverItem(player: Player)
 		return
 	end
 
-	local inventoryPosition = #inventory + 1
-	local tool = createTool(player, state.itemId, inventoryPosition)
+	local tool = createTool(player, state.itemId)
 	if tool == nil then
 		return
 	end
@@ -219,7 +211,7 @@ local function deliverItem(player: Player)
 		state.model:Destroy()
 	end
 	tool.Parent = backpack
-	player:SetAttribute("IsCarryingItem", false)
+	PlayerStateController.Set(player, "IsCarryingItem", false)
 	task.delay(0.1, function()
 		local character = player.Character
 		if character and tool.Parent == backpack then tool.Parent = character end
@@ -228,7 +220,10 @@ local function deliverItem(player: Player)
 end
 
 function CarryController.CanCarry(player: Player): boolean
-	return player.Parent == Players and carryStates[player] == nil and player.Character ~= nil and player:GetAttribute("IsFixing") ~= true
+	return player.Parent == Players
+		and carryStates[player] == nil
+		and player.Character ~= nil
+		and PlayerStateController.Get(player, "IsFixing", false) ~= true
 end
 
 function CarryController.MoveCarriedItemToInventory(player: Player): number?
@@ -237,7 +232,7 @@ function CarryController.MoveCarriedItemToInventory(player: Player): number?
 	dataService:arrayInsert(player, "Inventory", state.itemId)
 	if state.model then state.model:Destroy() end
 	carryStates[player] = nil
-	player:SetAttribute("IsCarryingItem", false)
+	PlayerStateController.Set(player, "IsCarryingItem", false)
 	return state.itemId
 end
 
@@ -245,8 +240,8 @@ function CarryController.GetEquippedItemId(player: Player): number?
 	local Character = player.Character
 	if not Character then return nil end
 	for _, Tool in Character:GetChildren() do
-		local ItemId = Tool:GetAttribute("ItemId")
-		if Tool:IsA("Tool") and type(ItemId) == "number" and Tool:HasTag("satchelSlot") then return ItemId end
+		local ItemInfo = ToolResolver.GetItemInfo(Tool)
+		if ItemInfo and Tool:HasTag("satchelSlot") then return ItemInfo.Id end
 	end
 	return nil
 end
@@ -272,13 +267,9 @@ function CarryController.SetFixingMode(player: Player, enabled: boolean, Initial
 					local Tool = Template:Clone()
 					Tool.Name = ToolInfo.DisplayName
 					Tool.CanBeDropped = false
-					Tool:SetAttribute("FixingTool", ToolInfo.TemplateName)
-					Tool:SetAttribute("CleaningToolId", ToolInfo.Id)
-					Tool:SetAttribute("InitialToolOrder", 1)
 					Tool:AddTag("satchelSlot")
 					for _, Descendant in Tool:GetDescendants() do
 						if Descendant:IsA("BasePart") then
-							Descendant:SetAttribute("ViewmodelTransparency", Descendant.Transparency)
 							Descendant.Transparency = 1
 							Descendant.CanCollide = false
 							Descendant.CanQuery = false
@@ -307,7 +298,8 @@ function CarryController.EquipCleaningTool(Player: Player, ToolId: string)
 	local Humanoid = Character:FindFirstChildOfClass("Humanoid")
 	if Humanoid then Humanoid:UnequipTools() end
 	for _, Tool in Backpack:GetChildren() do
-		if Tool:IsA("Tool") and Tool:GetAttribute("CleaningToolId") == ToolId then
+		local ToolInfo = ToolResolver.GetCleaningToolInfo(Tool)
+		if ToolInfo and ToolInfo.Id == ToolId then
 			Tool.Parent = Character
 			return
 		end
@@ -342,13 +334,13 @@ function CarryController.StartCarrying(player: Player, itemId: number, DirtCount
 	if humanoid then
 		humanoid:UnequipTools()
 	end
-	player:SetAttribute("IsCarryingItem", true)
+	PlayerStateController.Set(player, "IsCarryingItem", true)
 	PlaySound(player, "Buy")
 	return true
 end
 
 function CarryController.OnPlayerAdded(player: Player)
-	player:SetAttribute("IsCarryingItem", false)
+	PlayerStateController.Set(player, "IsCarryingItem", false)
 	local museum = MuseumController.GetMuseum(player)
 	local museumArea = museum and museum:FindFirstChild("MuseumArea")
 	if museumArea == nil or not museumArea:IsA("BasePart") then
@@ -381,7 +373,7 @@ function CarryController.SetDataService(service)
 	dataService = service
 end
 
-function CarryController:SaveInventoryOrder(player: Player, itemIds)
+function CarryController.SaveInventoryOrder(_, player: Player, itemIds)
 	if player.Parent ~= Players or type(itemIds) ~= "table" then
 		return
 	end
@@ -425,9 +417,9 @@ function CarryController:SaveInventoryOrder(player: Player, itemIds)
 	dataService:set(player, "Inventory", orderedInventory)
 end
 
-function CarryController:Init()
+function CarryController.Init()
 	MuseumController.SetInventoryRefreshHandler(CarryController.RefreshInventory)
-	Networker.server.new("InventoryController", self, {
+	Networker.server.new("InventoryController", CarryController, {
 		CarryController.SaveInventoryOrder,
 	})
 end

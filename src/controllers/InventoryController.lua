@@ -4,21 +4,15 @@ local UserInputService = game:GetService("UserInputService")
 
 local localPlayer = Players.LocalPlayer
 local Networker = require(ReplicatedStorage.Packages.networker)
-local UIStyle = require(ReplicatedStorage.Modules.UI.UIStyle)
+local RuntimeState = require(ReplicatedStorage.Modules.Game.RuntimeState)
+local ToolResolver = require(ReplicatedStorage.Modules.Game.ToolResolver)
 
 local InventoryController = {}
 
-function InventoryController:Init()
+function InventoryController.Init()
 	task.spawn(function()
-		local PackageIndex = ReplicatedStorage.Packages:FindFirstChild("_Index")
-		if PackageIndex then
-			for _, Package in PackageIndex:GetChildren() do
-				local SatchelModule = Package.Name:match("^upliftgames_satchel@") and Package:FindFirstChild("satchel")
-				if SatchelModule and SatchelModule:IsA("ModuleScript") then SatchelModule:SetAttribute("FontFace", UIStyle.Font); break end
-			end
-		end
 		local satchel = require(ReplicatedStorage.Packages.satchel)
-		local networker = Networker.client.new("InventoryController", self)
+		local networker = Networker.client.new("InventoryController", InventoryController)
 		local lastInventoryOrder: string?
 
 		local function EnsureBatFirst()
@@ -31,7 +25,7 @@ function InventoryController:Init()
 					local Slot = satchel:GetSlotForTool(Tool)
 					if Slot then
 						SlotsByIndex[Slot.Index] = Slot
-						if type(Tool:GetAttribute("BatId")) == "string" then BatSlot = Slot end
+						if ToolResolver.GetBatInfo(Tool) then BatSlot = Slot end
 					end
 				end
 			end
@@ -44,7 +38,7 @@ function InventoryController:Init()
 		end
 
 		local function updateBackpack()
-			local isCarrying = localPlayer:GetAttribute("IsCarryingItem") == true
+			local isCarrying = RuntimeState.Get(localPlayer, "IsCarryingItem", false) == true
 			if isCarrying then
 				satchel:UnequipAllTools()
 			end
@@ -56,12 +50,12 @@ function InventoryController:Init()
 				return
 			end
 			for _, child in container:GetChildren() do
-				local itemId = child:GetAttribute("ItemId")
-				if child:IsA("Tool") and type(itemId) == "number" then
+				local ItemInfo = ToolResolver.GetItemInfo(child)
+				if ItemInfo then
 					local slot = satchel:GetSlotForTool(child)
 					if slot then
 						table.insert(tools, {
-							itemId = itemId,
+							itemId = ItemInfo.Id,
 							slotIndex = slot.Index,
 						})
 					end
@@ -70,7 +64,7 @@ function InventoryController:Init()
 		end
 
 		local function saveInventoryOrder()
-			if localPlayer:GetAttribute("IsFixing") == true then return end
+			if RuntimeState.Get(localPlayer, "IsFixing", false) == true then return end
 			local tools = {}
 			addToolsFrom(localPlayer:FindFirstChildOfClass("Backpack"), tools)
 			addToolsFrom(localPlayer.Character, tools)
@@ -95,8 +89,8 @@ function InventoryController:Init()
 			task.defer(saveInventoryOrder)
 		end
 
-		localPlayer:GetAttributeChangedSignal("IsCarryingItem"):Connect(updateBackpack)
-		localPlayer:GetAttributeChangedSignal("IsFixing"):Connect(updateBackpack)
+		RuntimeState.GetChangedSignal(localPlayer, "IsCarryingItem"):Connect(updateBackpack)
+		RuntimeState.GetChangedSignal(localPlayer, "IsFixing"):Connect(updateBackpack)
 		satchel.BackpackItemAdded.Event:Connect(function()
 			task.defer(function()
 				EnsureBatFirst()

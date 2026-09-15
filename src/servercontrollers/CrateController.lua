@@ -32,6 +32,7 @@ local PityLabels = {}
 local RandomGenerator = Random.new()
 local IsResetting = false
 local ResetGeneration = 0
+local PurchaseFeedbackDistancePadding = 8
 
 local function GetItemInfo(ItemId)
 	for _, ItemInfo in ItemsInfo do
@@ -146,9 +147,32 @@ local function CreateBreakShards(State)
 	end
 end
 
-local function RemoveReward(RewardId)
+local function SendPurchaseFeedback(Player, Status, ItemName, Detail)
+	Network:fire(Player, "PurchaseFeedback", Status, ItemName, Detail)
+end
+
+local function NotifyNearbyPlayers(Reward, Status, ExcludedPlayer)
+	local ItemInfo = GetItemInfo(Reward.ItemId)
+	if not ItemInfo or not Reward.Model or not Reward.Model.Parent then return end
+	local Position = Reward.Model:GetPivot().Position
+	local MaximumDistance = Reward.Info.PurchaseDistance + PurchaseFeedbackDistancePadding
+	for _, Player in Players:GetPlayers() do
+		if Player == ExcludedPlayer then continue end
+		local RootPart = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
+		if RootPart and RootPart:IsA("BasePart") and (RootPart.Position - Position).Magnitude <= MaximumDistance then
+			SendPurchaseFeedback(Player, Status, ItemInfo.Name)
+		end
+	end
+end
+
+local function RemoveReward(RewardId, Reason, PurchasingPlayer)
 	local Reward = Rewards[RewardId]
 	if not Reward then return end
+	if Reason == "Purchased" then
+		NotifyNearbyPlayers(Reward, "PurchasedByAnother", PurchasingPlayer)
+	elseif Reason == "Expired" then
+		NotifyNearbyPlayers(Reward, "Expired")
+	end
 	Rewards[RewardId] = nil
 	if Reward.Connection then Reward.Connection:Disconnect() end
 	if Reward.Model then Reward.Model:Destroy() end
@@ -157,16 +181,28 @@ end
 
 local function PurchaseReward(RewardId, Player)
 	local Reward = Rewards[RewardId]
-	if not Reward or Reward.Purchased or Workspace:GetServerTimeNow() < Reward.AvailableAt or not CarryController.CanCarry(Player) then return end
-	local RootPart = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
+	if not Reward then return end
 	local ItemInfo = GetItemInfo(Reward.ItemId)
+	if not ItemInfo then return end
+	if Reward.Purchased then SendPurchaseFeedback(Player, "PurchasedByAnother", ItemInfo.Name); return end
+	if Workspace:GetServerTimeNow() < Reward.AvailableAt then SendPurchaseFeedback(Player, "NotReady", ItemInfo.Name); return end
+	if Player:GetAttribute("IsFixing") == true then SendPurchaseFeedback(Player, "Fixing", ItemInfo.Name); return end
+	if Player:GetAttribute("IsCarryingItem") == true then SendPurchaseFeedback(Player, "AlreadyCarrying", ItemInfo.Name); return end
+	if not CarryController.CanCarry(Player) then SendPurchaseFeedback(Player, "Unavailable", ItemInfo.Name); return end
+	local RootPart = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
 	local Cash = DataService:get(Player, "Cash")
-	if not RootPart or not RootPart:IsA("BasePart") or not ItemInfo or type(Cash) ~= "number" or Cash < ItemInfo.Price then return end
+	if not RootPart or not RootPart:IsA("BasePart") or type(Cash) ~= "number" then SendPurchaseFeedback(Player, "Unavailable", ItemInfo.Name); return end
+	if Cash < ItemInfo.Price then SendPurchaseFeedback(Player, "NotEnoughCash", ItemInfo.Name, ItemInfo.Price - Cash); return end
 	if (RootPart.Position - Reward.Model:GetPivot().Position).Magnitude > Reward.Info.PurchaseDistance then return end
 	Reward.Purchased = true
-	if not CarryController.StartCarrying(Player, Reward.ItemId, Reward.DirtCount) then Reward.Purchased = false; return end
+	if not CarryController.StartCarrying(Player, Reward.ItemId, Reward.DirtCount) then
+		Reward.Purchased = false
+		SendPurchaseFeedback(Player, "Unavailable", ItemInfo.Name)
+		return
+	end
 	DataService:set(Player, "Cash", Cash - ItemInfo.Price)
-	RemoveReward(RewardId)
+	SendPurchaseFeedback(Player, "Success", ItemInfo.Name, ItemInfo.Price)
+	RemoveReward(RewardId, "Purchased", Player)
 end
 
 local function CreateReward(State)
@@ -238,7 +274,7 @@ local function CreateReward(State)
 			Prompt.Enabled = true
 		end)
 	end)
-	task.delay(Info.RevealLifetime, function() if Rewards[RewardId] == Reward then RemoveReward(RewardId) end end)
+	task.delay(Info.RevealLifetime, function() if Rewards[RewardId] == Reward then RemoveReward(RewardId, "Expired") end end)
 end
 
 local function BreakCrate(State)

@@ -7,6 +7,7 @@ local data_service = require(ReplicatedStorage.Packages.dataservice).client
 data_service:init()
 
 local modules_to_init = {
+	ReplicatedStorage.Controllers.PlayerStateController,
 	ReplicatedStorage.Controllers.CharacterController,
 	ReplicatedStorage.Controllers.CrateController,
 	ReplicatedStorage.Controllers.BatController,
@@ -29,7 +30,7 @@ for _, module_script in modules_to_init do
 	table.insert(initialized_modules, module)
 
 	if module.Init then
-		module:Init()
+		module.Init()
 	elseif module.init then
 		module:init()
 	end

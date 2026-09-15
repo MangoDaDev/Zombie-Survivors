@@ -11,6 +11,80 @@
 - Do not attempt to repair the local Rojo/Rokit setup. The missing Rojo target is intentional.
 - Do not run automated playtests unless the user asks. Run formatting, static checks, or a non-destructive build only when the required tool is already available and the check is proportionate.
 
+Code should be mostly Event based.
+
+Example code: Follow this style:
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+
+local Networker = require(ReplicatedStorage.Packages.networker)
+local Signal = require(ReplicatedStorage.Packages.signal)
+
+local localPlayer = Players.LocalPlayer
+
+local readySignal = Signal.new()
+local deathConnection: RBXScriptConnection?
+
+local CharacterController = {
+	networker = nil :: Networker.Client?,
+	ready = false,
+}
+
+local function disconnectDeathConnection()
+	if not deathConnection then
+		return
+	end
+
+	deathConnection:Disconnect()
+	deathConnection = nil
+end
+
+function CharacterController:Init()
+	self.networker = Networker.client.new("CharacterController", self)
+
+	self.ready = true
+	readySignal:Fire()
+end
+
+function CharacterController:WaitUntilReady()
+	if self.ready then
+		return
+	end
+
+	readySignal:Wait()
+end
+
+function CharacterController:RequestCharacter(): boolean
+	self:WaitUntilReady()
+
+	local networker = self.networker :: Networker.Client
+	return networker:fetch("RequestCharacter") == true
+end
+
+function CharacterController.OnCharacterAdded(character: Model)
+	disconnectDeathConnection()
+
+	local humanoid = character:WaitForChild("Humanoid") :: Humanoid
+	local camera = Workspace.CurrentCamera
+
+	if camera.CameraType == Enum.CameraType.Custom then
+		camera.CameraSubject = humanoid
+	end
+
+	deathConnection = humanoid.Died:Connect(function()
+		task.delay(Players.RespawnTime, function()
+			if localPlayer.Character == character or localPlayer.Character == nil then
+				CharacterController:RequestCharacter()
+			end
+		end)
+	end)
+end
+
+return CharacterController
+
+
 ## Template architecture
 
 - This is a reusable Luau Roblox template managed with Rojo. `default.project.json` is the source-to-DataModel map.
@@ -64,6 +138,19 @@
 - Clean up connections, tasks, temporary instances, networkers, and cached player/character state.
 - Use `pcall` only where failure is expected from an external Roblox operation, not to hide ordinary coding errors.
 - Keep tunable values such as speeds, cooldowns, limits, and probabilities in a focused configuration table when they are genuinely likely to change.
+ATTRIBUTES SHOULD NOT BE USED OR CREATED IN CODE! STORE EVERYTHING IN THE CODE, IN TABLES.
+## Coding Rules
+
+* **Do not use Roblox Attributes anywhere.** Never use `SetAttribute`, `GetAttribute`, `GetAttributes`, or Attribute changed signals.
+* Store configuration, metadata, and runtime state in **Luau tables**, preferably organized inside appropriate ModuleScripts.
+* Do not replace Attributes with unnecessary `ValueObject`s. Keep data in code unless an Instance is genuinely required.
+* Keep the code clean, modular, readable, and maintainable.
+* Avoid spaghetti code, giant functions, excessive nesting, duplicated logic, and random patches added to unrelated scripts.
+* Use reusable functions/modules for shared behaviour and configuration tables for differences between items/tools.
+* Keep each system focused on its own responsibility.
+* Maintain a **single source of truth** for important data instead of hardcoding the same values across multiple scripts.
+* Follow good modern Luau practices and integrate changes into the existing architecture rather than creating duplicate systems.
+* Do not overengineer. Use sensible abstractions only where they improve the code.
 
 ## Codebase index
 

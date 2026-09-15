@@ -14,6 +14,7 @@ data_service:init({
 })
 
 local modules_to_init = {
+	ServerStorage.Controllers.PlayerStateController,
 	ServerStorage.Controllers.DataController,
 	ServerStorage.Controllers.CollisionController,
 	ServerStorage.Controllers.CharacterController,
@@ -39,7 +40,7 @@ for _, module_script in modules_to_init do
 	table.insert(initialized_modules, module)
 
 	if module.Init then
-		module:Init()
+		module.Init()
 	elseif module.init then
 		module:init()
 	end

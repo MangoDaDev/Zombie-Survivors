@@ -1,18 +1,20 @@
 local Debris = game:GetService("Debris")
 
 local DEFAULT_LIFETIME = 5
+local EMIT_AMOUNTS = {
+	Smoke1 = 120,
+}
 
 local function startEffect(instance: Instance): number
 	if instance:IsA("ParticleEmitter") then
-		local emitAmount = instance:GetAttribute("EmitAmount")
+		local emitAmount = EMIT_AMOUNTS[instance.Name]
 		if type(emitAmount) == "number" and emitAmount > 0 then
 			instance:Emit(emitAmount)
 		end
 		return instance.Lifetime.Max
 	elseif instance:IsA("Beam") or instance:IsA("Trail") then
 		instance.Enabled = true
-		local duration = instance:GetAttribute("Duration")
-		return if type(duration) == "number" then duration else DEFAULT_LIFETIME
+		return DEFAULT_LIFETIME
 	elseif instance:IsA("Sound") then
 		instance:Play()
 		return math.max(instance.TimeLength, DEFAULT_LIFETIME)

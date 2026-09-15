@@ -6,6 +6,7 @@ local DirtSizeMaximumScale = 1.3
 local DirtDensity = 4.5
 local DirtCountVariance = 0.1
 local FullRotation = math.pi * 2
+local HealthByPart = setmetatable({}, { __mode = "k" })
 
 type SurfacePart = {
 	Part: BasePart,
@@ -27,7 +28,6 @@ local function GetSurfaceParts(Model: Model): ({ SurfacePart }, number)
 			and Descendant.Name ~= "Grease"
 			and Descendant:FindFirstAncestor("Grease") == nil
 			and Descendant.Transparency < 1
-			and Descendant:GetAttribute("NoDirt") ~= true
 		then
 			local Area = GetPartSurfaceArea(Descendant)
 			if Area > 0 then
@@ -130,7 +130,10 @@ function DirtRenderer.Add(Model: Model, Count: number, HP: number?): Folder?
 			RandomGenerator,
 			math.max(DirtDimensions.X, DirtDimensions.Y, DirtDimensions.Z)
 		)
-		Dirt:SetAttribute("HP", HP or 1)
+		HealthByPart[Dirt] = {
+			Current = HP or 1,
+			Maximum = HP or 1,
+		}
 		Dirt.Parent = Folder
 		local Weld = Instance.new("WeldConstraint")
 		Weld.Part0 = SurfacePart
@@ -138,6 +141,24 @@ function DirtRenderer.Add(Model: Model, Count: number, HP: number?): Folder?
 		Weld.Parent = Dirt
 	end
 	return Folder
+end
+
+function DirtRenderer.GetHealth(Dirt: BasePart): (number, number)
+	local Health = HealthByPart[Dirt]
+
+	if not Health then
+		return 0, 1
+	end
+
+	return Health.Current, Health.Maximum
+end
+
+function DirtRenderer.SetHealth(Dirt: BasePart, Health: number)
+	local State = HealthByPart[Dirt]
+
+	if State then
+		State.Current = Health
+	end
 end
 
 function DirtRenderer.Clear(Model: Model)

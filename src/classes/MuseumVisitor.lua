@@ -22,9 +22,26 @@ local WalkSwingAngle = math.rad(28)
 local WalkBlendResponsiveness = 12
 
 local renderFolder: Folder?
+local RenderedVisitors = {}
+local RenderConnection: RBXScriptConnection?
 
 local MuseumVisitor = {}
 MuseumVisitor.__index = MuseumVisitor
+
+local function StartRenderLoop()
+	if RenderConnection then return end
+	RenderConnection = RunService.RenderStepped:Connect(function(DeltaTime)
+		for Visitor in RenderedVisitors do
+			Visitor:Update(DeltaTime)
+		end
+	end)
+end
+
+local function StopRenderLoopIfEmpty()
+	if next(RenderedVisitors) or not RenderConnection then return end
+	RenderConnection:Disconnect()
+	RenderConnection = nil
+end
 
 local function GetFeetOffset(Model: Model): Vector3
 	local RootPart = Model:FindFirstChild("HumanoidRootPart")
@@ -137,9 +154,8 @@ function MuseumVisitor:Render()
 	self.fadeTargetAlpha = 0
 	self.fadeStartedAt = Workspace:GetServerTimeNow()
 	self.fadeDuration = FADE_DURATION
-	self.renderConnection = RunService.RenderStepped:Connect(function(DeltaTime)
-		self:Update(DeltaTime)
-	end)
+	RenderedVisitors[self] = true
+	StartRenderLoop()
 end
 
 function MuseumVisitor:Update(DeltaTime: number)
@@ -272,10 +288,8 @@ function MuseumVisitor:FadeOut(duration: number)
 end
 
 function MuseumVisitor:Destroy()
-	if self.renderConnection then
-		self.renderConnection:Disconnect()
-		self.renderConnection = nil
-	end
+	RenderedVisitors[self] = nil
+	StopRenderLoopIfEmpty()
 	if self.model then
 		self.model:Destroy()
 		self.model = nil

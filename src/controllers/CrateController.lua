@@ -1,5 +1,6 @@
 local Debris = game:GetService("Debris")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local StarterGui = game:GetService("StarterGui")
 local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 
@@ -15,6 +16,50 @@ local CrateController = {}
 local RevealFolder: Folder
 local Reveals = {}
 local RandomGenerator = Random.new()
+local PurchaseFeedbackDuration = 3
+
+local PurchaseFeedbackMessages = {
+	AlreadyCarrying = function(ItemName)
+		return "Can't Buy Item", `Deliver your current item before buying {ItemName}.`
+	end,
+	Expired = function(ItemName)
+		return "Reward Expired", `{ItemName} was not purchased in time.`
+	end,
+	Fixing = function(ItemName)
+		return "Can't Buy Item", `Finish or exit cleaning before buying {ItemName}.`
+	end,
+	NotEnoughCash = function(ItemName, Detail)
+		return "Not Enough Cash", `You need ${math.max(0, math.ceil(Detail or 0))} more for {ItemName}.`
+	end,
+	NotReady = function(ItemName)
+		return "Item Revealing", `{ItemName} will be available when its reveal finishes.`
+	end,
+	PurchasedByAnother = function(ItemName)
+		return "Already Purchased", `Another player bought {ItemName}.`
+	end,
+	Success = function(ItemName, Detail)
+		return "Item Purchased", `Bought {ItemName} for ${math.max(0, math.ceil(Detail or 0))}.`
+	end,
+	Unavailable = function(ItemName)
+		return "Item Unavailable", `{ItemName} is no longer available.`
+	end,
+}
+
+local function ShowNotification(Title, Message)
+	task.spawn(function()
+		for _ = 1, 5 do
+			local Succeeded = pcall(function()
+				StarterGui:SetCore("SendNotification", {
+					Title = Title,
+					Text = Message,
+					Duration = PurchaseFeedbackDuration,
+				})
+			end)
+			if Succeeded then return end
+			task.wait(0.2)
+		end
+	end)
+end
 
 local function GetCrateInfo(CrateId)
 	for _, Info in CrateInfo.Crates do
@@ -190,6 +235,14 @@ function CrateController:RemoveReveal(RewardId)
 	Reveal.Cancelled = true
 	if Reveal.Model then Reveal.Model:Destroy() end
 	Reveals[RewardId] = nil
+end
+
+function CrateController:PurchaseFeedback(Status, ItemName, Detail)
+	local GetMessage = PurchaseFeedbackMessages[Status]
+	if type(Status) ~= "string" or type(ItemName) ~= "string" or not GetMessage then return end
+	if Detail ~= nil and type(Detail) ~= "number" then return end
+	local Title, Message = GetMessage(ItemName, Detail)
+	ShowNotification(Title, Message)
 end
 
 function CrateController:Init()
