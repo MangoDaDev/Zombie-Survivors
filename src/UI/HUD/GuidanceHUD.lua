@@ -43,7 +43,7 @@ return function()
 			if ScreenPosition then
 				local IndicatorPosition = Vector2.new(
 					math.clamp(ScreenPosition.X, 120, ViewportSize.X - 120),
-					math.clamp(ScreenPosition.Y - 72, 70, ViewportSize.Y - 90)
+					math.clamp(ScreenPosition.Y - 120, 60, ViewportSize.Y - 90)
 				)
 				local Direction = ScreenPosition - IndicatorPosition
 				if Direction.Magnitude > 1 then ArrowRotation(math.deg(math.atan2(Direction.Y, Direction.X))) end

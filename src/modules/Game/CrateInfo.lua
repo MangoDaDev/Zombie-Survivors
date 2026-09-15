@@ -1,6 +1,6 @@
 local SharedCrateInfo = {
 	TemplateFolderName = "Crates",
-	RespawnDelay = 1.5,
+	RespawnDelay = 0.75,
 	SpawnPadding = 4,
 	MinimumSpawnSeparation = 8,
 	ScaleMinimum = 0.9,
@@ -29,7 +29,7 @@ end
 
 local CrateInfo = {
 	Reset = {
-		Interval = 300,
+		Interval = 150,
 		MinimumWallVisibleTime = 5,
 		SpawnInterval = 0.08,
 		WallTemplateName = "ResetWall",
@@ -38,12 +38,13 @@ local CrateInfo = {
 		PartName = "PityDisplay",
 		PixelsPerStud = 16,
 	},
+	NewPlayerDropSequence = { 1, 6, 17 },
 	Crates = {
 		CreateCrate({
 			Id = "CommonCrate",
 			DisplayName = "Common",
 			TemplateName = "CommonCrate",
-			Health = 24,
+			Health = 12,
 			MaximumActive = 48,
 			SpawnDepthBias = -0.9,
 			ActualLootLuck = 1,
@@ -53,7 +54,7 @@ local CrateInfo = {
 			Id = "UncommonCrate",
 			DisplayName = "Uncommon",
 			TemplateName = "UncommonCrate",
-			Health = 80,
+			Health = 48,
 			MaximumActive = 36,
 			SpawnDepthBias = -0.45,
 			ActualLootLuck = 2,
@@ -63,7 +64,7 @@ local CrateInfo = {
 			Id = "RareCrate",
 			DisplayName = "Rare",
 			TemplateName = "RareCrate",
-			Health = 240,
+			Health = 160,
 			MaximumActive = 24,
 			SpawnDepthBias = 0.1,
 			ActualLootLuck = 4,

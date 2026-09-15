@@ -14,11 +14,13 @@ local FormatTime = require(ReplicatedStorage.Modules.Math.FormatTime)
 local GetRandomFromWeightedTable = require(ReplicatedStorage.Modules.Math.GetRandomFromWeightedTable)
 local ItemInfoBillboard = require(ReplicatedStorage.Modules.UI.ItemInfoBillboard)
 local ItemsInfo = require(ReplicatedStorage.Modules.Game.ItemsInfo)
+local GuidanceController = require(ServerStorage.Controllers.GuidanceController)
 local MuseumController = require(ServerStorage.Controllers.MuseumController)
 local Networker = require(ReplicatedStorage.Packages.networker)
 local PlayerStateController = require(ServerStorage.Controllers.PlayerStateController)
 local RestorationVisuals = require(ReplicatedStorage.Modules.Game.RestorationVisuals)
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
+local TutorialConfig = require(ReplicatedStorage.Modules.Game.TutorialConfig)
 local UIStyle = require(ReplicatedStorage.Modules.UI.UIStyle)
 
 local CrateController = {}
@@ -40,6 +42,21 @@ local function GetItemInfo(ItemId)
 	for _, ItemInfo in ItemsInfo do
 		if ItemInfo.Id == ItemId then return ItemInfo end
 	end
+end
+
+local function GetRewardItemInfo(Player: Player, Info)
+	local GuaranteedDropCount = DataService:get(Player, "GuaranteedDropCount")
+	local IsNewPlayer = GuaranteedDropCount ~= 0
+		or DataService:get(Player, "TutorialStep") == TutorialConfig.InitialStep
+	if type(GuaranteedDropCount) == "number" and IsNewPlayer then
+		local GuaranteedItemId = CrateInfo.NewPlayerDropSequence[GuaranteedDropCount + 1]
+		local GuaranteedItemInfo = GuaranteedItemId and GetItemInfo(GuaranteedItemId)
+		if GuaranteedItemInfo then
+			DataService:set(Player, "GuaranteedDropCount", GuaranteedDropCount + 1)
+			return GuaranteedItemInfo
+		end
+	end
+	return GetRandomFromWeightedTable.GetRandomFromWeightedTable(ItemsInfo, "ChanceWeight", nil, Info.ActualLootLuck)
 end
 
 local function GetRevealDuration(Info): number
@@ -217,9 +234,9 @@ local function PurchaseReward(RewardId, Player)
 	RemoveReward(RewardId, "Purchased", Player)
 end
 
-local function CreateReward(State)
+local function CreateReward(State, Player: Player)
 	local Info = State.Info
-	local ItemInfo = GetRandomFromWeightedTable.GetRandomFromWeightedTable(ItemsInfo, "ChanceWeight", nil, Info.ActualLootLuck)
+	local ItemInfo = GetRewardItemInfo(Player, Info)
 	if not ItemInfo then return end
 	local Template = ReplicatedStorage.Assets.Models.Items:FindFirstChild(ItemInfo.AssetName)
 	if not Template or not Template:IsA("Model") then return end
@@ -289,7 +306,7 @@ local function CreateReward(State)
 	task.delay(Info.RevealLifetime, function() if Rewards[RewardId] == Reward then RemoveReward(RewardId, "Expired") end end)
 end
 
-local function BreakCrate(State)
+local function BreakCrate(State, Player: Player)
 	if Crates[State.Model] ~= State then return end
 	local BreakGeneration = ResetGeneration
 	Crates[State.Model] = nil
@@ -307,7 +324,7 @@ local function BreakCrate(State)
 	Sounds.Play(SoundName, SoundAnchor, 90)
 	Debris:AddItem(SoundAnchor, 5)
 	CreateBreakShards(State)
-	CreateReward(State)
+	CreateReward(State, Player)
 	State.Model:Destroy()
 	task.delay(State.Info.RespawnDelay, function()
 		if State.Info.Respawns ~= false and ResetGeneration == BreakGeneration then CrateController.Spawn(State.Info) end
@@ -331,7 +348,7 @@ function CrateController.DamageCrate(Player, Model, Damage): boolean
 			TweenService:Create(State.HealthGroup, TweenInfo.new(0.25), { GroupTransparency = 1 }):Play()
 		end
 	end)
-	if State.Health <= 0 then BreakCrate(State) end
+	if State.Health <= 0 then BreakCrate(State, Player) end
 	return true
 end
 
@@ -452,6 +469,7 @@ local function ResetCrates(BoundaryTime)
 		end
 	end
 	ClearCrateArea()
+	GuidanceController.ResetTutorialCrates()
 	SpawnAllCrates(BoundaryTime)
 	local RemainingWallTime = CrateInfo.Reset.MinimumWallVisibleTime - (Workspace:GetServerTimeNow() - ResetStartedAt)
 	if RemainingWallTime > 0 then task.wait(RemainingWallTime) end

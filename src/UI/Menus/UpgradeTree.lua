@@ -23,8 +23,8 @@ local Spring = Vide.spring
 local LocalPlayer = Players.LocalPlayer
 
 local StateColors = {
-	Available = Color3.fromRGB(45, 190, 229),
-	Purchased = Color3.fromRGB(75, 235, 148),
+	Available = Color3.fromRGB(235, 238, 240),
+	Purchased = Color3.fromRGB(235, 238, 240),
 }
 local TreeCanvasSize = UpgradeConfig.CameraBounds * 2 + Vector2.one * UpgradeConfig.NodeSize * 2
 
@@ -149,9 +149,9 @@ local function CreateNode(Properties)
 			Image = Images.Hexagon,
 			ImageColor3 = function()
 				if not IsDetailed() then
-					return Color3.fromRGB(5, 6, 8)
+					return Color3.fromRGB(105, 109, 114)
 				end
-				return StateColors[State()] or Color3.fromRGB(35, 41, 52)
+				return StateColors[State()] or Color3.fromRGB(105, 109, 114)
 			end,
 			Rotation = 90,
 			ScaleType = Enum.ScaleType.Fit,
@@ -456,7 +456,7 @@ return function()
 	local ViewportProperties = {
 		Name = "TreeViewport",
 		Active = true,
-		BackgroundColor3 = Color3.fromRGB(16, 22, 34),
+		BackgroundColor3 = Color3.fromRGB(36, 39, 44),
 		BackgroundTransparency = 0.08,
 		BorderSizePixel = 0,
 		ClipsDescendants = true,
@@ -498,13 +498,13 @@ return function()
 		Create "Frame" {
 			Name = "OpenButton",
 			AnchorPoint = Vector2.new(0, 0.5),
-			BackgroundColor3 = Color3.fromRGB(31, 42, 62),
+			BackgroundColor3 = Color3.fromRGB(50, 54, 61),
 			BorderSizePixel = 0,
 			Position = UDim2.fromScale(0.015, 0.52),
 			Size = UDim2.fromOffset(68, 68),
 			ZIndex = 25,
 			Create "UICorner" { CornerRadius = UDim.new(0, 16) },
-			Create "UIStroke" { Color = Color3.fromRGB(72, 209, 238), Thickness = 3 },
+			Create "UIStroke" { Color = Color3.fromRGB(103, 125, 140), Thickness = 3 },
 			Create "ImageLabel" {
 				BackgroundTransparency = 1,
 				Image = Images.Upgrade,
@@ -542,7 +542,7 @@ return function()
 		Create "CanvasGroup" {
 			Name = "UpgradeTree",
 			AnchorPoint = Vector2.new(0.5, 0.5),
-			BackgroundColor3 = Color3.fromRGB(10, 15, 26),
+			BackgroundColor3 = Color3.fromRGB(29, 32, 37),
 			BorderSizePixel = 0,
 			GroupTransparency = PanelTransparency,
 			Interactable = IsOpen,
@@ -556,7 +556,7 @@ return function()
 			Create "UISizeConstraint" { MaxSize = Vector2.new(1_100, 650) },
 			Create "UIScale" { Scale = PanelScale },
 			Create "UICorner" { CornerRadius = UDim.new(0, 20) },
-			Create "UIStroke" { Color = Color3.fromRGB(56, 91, 124), Thickness = 3 },
+			Create "UIStroke" { Color = Color3.fromRGB(87, 99, 110), Thickness = 3 },
 			Create "TextLabel" {
 				BackgroundTransparency = 1,
 				FontFace = UIStyle.Font,
@@ -570,7 +570,7 @@ return function()
 			},
 			Create "TextButton" {
 				AnchorPoint = Vector2.new(1, 0),
-				BackgroundColor3 = Color3.fromRGB(174, 55, 67),
+				BackgroundColor3 = Color3.fromRGB(142, 74, 80),
 				Position = UDim2.fromScale(0.975, 0.025),
 				Size = UDim2.fromOffset(40, 36),
 				Text = "X",
@@ -593,7 +593,7 @@ return function()
 				ZIndex = 26,
 				Create "UIListLayout" { FillDirection = Enum.FillDirection.Vertical, Padding = UDim.new(0, 8) },
 				Create "TextButton" {
-					BackgroundColor3 = Color3.fromRGB(35, 48, 68),
+					BackgroundColor3 = Color3.fromRGB(54, 59, 66),
 					FontFace = UIStyle.Font,
 					Size = UDim2.fromOffset(42, 42),
 					Text = "+",
@@ -607,7 +607,7 @@ return function()
 					Create "UICorner" { CornerRadius = UDim.new(0, 10) },
 				},
 				Create "TextButton" {
-					BackgroundColor3 = Color3.fromRGB(35, 48, 68),
+					BackgroundColor3 = Color3.fromRGB(54, 59, 66),
 					FontFace = UIStyle.Font,
 					Size = UDim2.fromOffset(42, 42),
 					Text = "−",

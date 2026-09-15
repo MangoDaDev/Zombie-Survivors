@@ -10,9 +10,9 @@ local UpgradeLogic = require(ReplicatedStorage.Modules.Game.UpgradeLogic)
 local GuidanceController = require(ServerStorage.Controllers.GuidanceController)
 
 local CONFIG = {
-	InitialSpawnDelay = 5,
-	BetweenVisitorsMin = 8,
-	BetweenVisitorsMax = 14,
+	InitialSpawnDelay = 1,
+	BetweenVisitorsMin = 4,
+	BetweenVisitorsMax = 7,
 	BaseActiveVisitors = 6,
 	VisitorsPerDisplayBonus = 3,
 	DisplayBonus = 1,
@@ -20,9 +20,9 @@ local CONFIG = {
 	MoveSpeed = 8,
 	ActivityCountMin = 4,
 	ActivityCountMax = 7,
-	InspectChance = 0.6,
-	InspectDurationMin = 2,
-	InspectDurationMax = 4,
+	InspectChance = 0.8,
+	InspectDurationMin = 1,
+	InspectDurationMax = 2,
 	WanderPauseMin = 1,
 	WanderPauseMax = 2,
 	ViewPartMargin = 0.75,
@@ -201,6 +201,8 @@ local function ReleaseDisplay(Player: Player, DisplayState)
 end
 
 local function runVisit(player: Player, token)
+	if #MuseumController.GetOccupiedDisplays(player) == 0 then return end
+
 	local museum = MuseumController.GetMuseum(player)
 	local spawnPart = museum and museum:FindFirstChild("SpawnCFrame")
 	local floor = museum and getLargestFloor(museum)
@@ -311,7 +313,7 @@ function VisitorController.OnPlayerAdded(player: Player)
 					ActiveCount += 1
 				end
 			end
-			if ActiveCount < GetActiveVisitorLimit(player) then
+			if ActiveCount < GetActiveVisitorLimit(player) and #MuseumController.GetOccupiedDisplays(player) > 0 then
 				task.spawn(runVisit, player, token)
 			end
 			task.wait(math.random(CONFIG.BetweenVisitorsMin, CONFIG.BetweenVisitorsMax))

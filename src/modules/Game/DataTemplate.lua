@@ -1,7 +1,8 @@
 local TutorialConfig = require(script.Parent.TutorialConfig)
 
 return {
-	Cash = 100,
+	Cash = 300,
+	GuaranteedDropCount = 0,
 	Inventory = {},
 	Displays = {},
 	Fixing = {},

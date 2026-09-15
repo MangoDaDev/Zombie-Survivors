@@ -18,6 +18,16 @@ local RevealFolder: Folder
 local Reveals = {}
 local RandomGenerator = Random.new()
 
+local PinwheelTemplates = {
+	Common = "Common",
+	Uncommon = "Uncommon",
+	Rare = "Rare",
+	Epic = "Epic",
+	Legendary = "Legendary",
+	Mythic = "Mythic",
+	Secret = "Omniscient",
+}
+
 local PurchaseFeedbackMessages = {
 	AlreadyCarrying = function()
 		return "Deliver Item First"
@@ -143,7 +153,8 @@ end
 
 local function CreateRarityEffect(Model: Model, Rarity: string)
 	local PinwheelFolder = ReplicatedStorage.Assets.VFX:FindFirstChild("RarityPinwheels")
-	local Template = PinwheelFolder and PinwheelFolder:FindFirstChild(Rarity)
+	local TemplateName = PinwheelTemplates[Rarity]
+	local Template = PinwheelFolder and TemplateName and PinwheelFolder:FindFirstChild(TemplateName)
 	if not Template or not Template:IsA("Attachment") then return end
 	local BoundingCFrame, BoundingSize = Model:GetBoundingBox()
 	local Camera = Workspace.CurrentCamera
@@ -164,7 +175,7 @@ local function CreateRarityEffect(Model: Model, Rarity: string)
 	Effect.Parent = Anchor
 	local SizeScale = math.clamp(MaximumSize / 3, 1, 3)
 	local MaximumLifetime = 0
-	for _, Emitter in Effect:GetChildren() do
+	for _, Emitter in Effect:GetDescendants() do
 		if not Emitter:IsA("ParticleEmitter") then continue end
 		Emitter.Size = MultiplyNumberSequence(Emitter.Size, SizeScale)
 		Emitter.Enabled = true
@@ -174,7 +185,7 @@ local function CreateRarityEffect(Model: Model, Rarity: string)
 	local Duration = RarityInfo.Get(Rarity).RevealEffectDuration or 1
 	task.delay(Duration, function()
 		if not Effect.Parent then return end
-		for _, Emitter in Effect:GetChildren() do
+		for _, Emitter in Effect:GetDescendants() do
 			if Emitter:IsA("ParticleEmitter") then Emitter.Enabled = false end
 		end
 	end)

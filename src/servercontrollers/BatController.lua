@@ -5,6 +5,7 @@ local ServerStorage = game:GetService("ServerStorage")
 
 local BatInfo = require(ReplicatedStorage.Modules.Game.BatInfo)
 local CrateController = require(ServerStorage.Controllers.CrateController)
+local GuidanceController = require(ServerStorage.Controllers.GuidanceController)
 local Images = require(ReplicatedStorage.Modules.UI.Images)
 local Networker = require(ReplicatedStorage.Packages.networker)
 local PlayerStateController = require(ServerStorage.Controllers.PlayerStateController)
@@ -137,8 +138,16 @@ function BatController.Swing(_, Player, Targets)
 		if typeof(Target) ~= "Instance" or HitTargets[Target] then continue end
 		HitTargets[Target] = true
 		if Target:IsA("Model") and Target:HasTag("Crate") then
+			if DataService:get(Player, "TutorialStep") == "PickUpItem" then
+				local TutorialCrate = GuidanceController.GetTutorialCrateForPlayer(Player)
+				if Target ~= TutorialCrate then
+					if TutorialCrate then GuidanceController.Show(Player, "Break Highlighted Crate", TutorialCrate) end
+					continue
+				end
+			end
 			if IsTargetInRange(Player, RootPart, Target:GetPivot().Position, Info, Now) then
 				local Damaged = CrateController.DamageCrate(Player, Target, Info.CrateDamage)
+				if Damaged and not Target.Parent then GuidanceController.MarkTutorialCrateBroken(Player, Target) end
 				if Damaged and Target.Parent then
 					Network:fireAllExcept(Player, "ReactToCrate", Target, RootPart.Position, Info.Id)
 				end

@@ -47,7 +47,7 @@ return function()
 		BackgroundColor3 = Color3.fromRGB(34, 15, 17),
 		BackgroundTransparency = 0.12,
 		BorderSizePixel = 0,
-		Position = UDim2.fromScale(0.5, 0.025),
+		Position = UDim2.new(0.5, 0, 0.025, 40),
 		Size = UDim2.fromScale(0.26, 0.055),
 		Create "UICorner" {
 			CornerRadius = UDim.new(0, 12),

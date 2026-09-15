@@ -23,8 +23,8 @@ local CleaningConfig = {
 	SpongeScrubFrequency = 9,
 	StepTransitionDelay = 0.45,
 	FullCompletionDelay = 1,
-	RestorationRewardRate = 0.5,
-	MinimumRestorationReward = 20,
+	RestorationRewardRate = 0.75,
+	MinimumRestorationReward = 30,
 	DirtDamageSoundName = "Hooked",
 	Tools = {
 		{

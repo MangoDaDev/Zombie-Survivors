@@ -4,6 +4,8 @@ local Workspace = game:GetService("Workspace")
 
 local DataService = require(ReplicatedStorage.Packages.dataservice).client
 local CleaningConfig = require(ReplicatedStorage.Modules.Game.CleaningConfig)
+local CrateRuntime = require(ReplicatedStorage.Modules.Game.CrateRuntime)
+local Images = require(ReplicatedStorage.Modules.UI.Images)
 local ItemsInfo = require(ReplicatedStorage.Modules.Game.ItemsInfo)
 local Networker = require(ReplicatedStorage.Packages.networker)
 local RuntimeState = require(ReplicatedStorage.Modules.Game.RuntimeState)
@@ -13,10 +15,14 @@ local LocalPlayer = Players.LocalPlayer
 local GuidanceController = {}
 local Network
 local Highlight: Highlight?
+local GuidanceBeam: Beam?
+local BeamStartAttachment: Attachment?
+local BeamEndAttachment: Attachment?
 local OverrideId = 0
 local OverrideText: string?
 local OverrideTarget: Instance?
 local OverrideTargetKind: string?
+local StarterCrate: Model?
 
 local function GetMuseum(): Model?
 	local Museums = Workspace:FindFirstChild("PlayerMuseums")
@@ -58,9 +64,11 @@ local function GetStarterTarget(): Model?
 			and ItemInfo.RestorationSteps[1] == "Spray"
 	end)
 	if Reward then return Reward end
-	return GetNearestModel(Workspace:FindFirstChild("Crates"), function(Model)
-		return Model.Name == "CommonCrate"
-	end)
+	if StarterCrate and StarterCrate.Parent then return StarterCrate end
+	if not Network then return nil end
+	local Target = Network:fetch("GetTutorialCrate")
+	StarterCrate = if typeof(Target) == "Instance" and Target:IsA("Model") then Target else nil
+	return StarterCrate
 end
 
 local function GetDisplay(Occupied: boolean): Model?
@@ -106,6 +114,52 @@ local function ResolveTarget(StepId: string, TargetKind: string?): Instance?
 	end
 end
 
+local function ClearBeam()
+	if GuidanceBeam then GuidanceBeam:Destroy(); GuidanceBeam = nil end
+	if BeamStartAttachment then BeamStartAttachment:Destroy(); BeamStartAttachment = nil end
+	if BeamEndAttachment then BeamEndAttachment:Destroy(); BeamEndAttachment = nil end
+end
+
+local function GetBeamTargetPart(Target: Instance?): BasePart?
+	if Target and Target:IsA("BasePart") then return Target end
+	if not Target or not Target:IsA("Model") then return nil end
+	return Target.PrimaryPart or Target:FindFirstChildWhichIsA("BasePart", true)
+end
+
+local function UpdateBeam(Target: Instance?)
+	ClearBeam()
+	local Character = LocalPlayer.Character
+	local RootPart = Character and Character:FindFirstChild("HumanoidRootPart")
+	local TargetPart = GetBeamTargetPart(Target)
+	if not RootPart or not RootPart:IsA("BasePart") or not TargetPart then return end
+
+	BeamStartAttachment = Instance.new("Attachment")
+	BeamStartAttachment.Name = "GuidanceBeamStart"
+	BeamStartAttachment.Position = Vector3.zero
+	BeamStartAttachment.Parent = RootPart
+
+	BeamEndAttachment = Instance.new("Attachment")
+	BeamEndAttachment.Name = "GuidanceBeamEnd"
+	BeamEndAttachment.Parent = TargetPart
+
+	GuidanceBeam = Instance.new("Beam")
+	GuidanceBeam.Name = "GuidanceBeam"
+	GuidanceBeam.Attachment0 = BeamStartAttachment
+	GuidanceBeam.Attachment1 = BeamEndAttachment
+	GuidanceBeam.Color = ColorSequence.new(Color3.fromRGB(120, 166, 184))
+	GuidanceBeam.FaceCamera = true
+	GuidanceBeam.LightEmission = 0.35
+	GuidanceBeam.Segments = 12
+	GuidanceBeam.Texture = Images.ObjectiveArrow or ""
+	GuidanceBeam.TextureLength = 2.5
+	GuidanceBeam.TextureMode = Enum.TextureMode.Wrap
+	GuidanceBeam.TextureSpeed = 1
+	GuidanceBeam.Transparency = NumberSequence.new(0.12)
+	GuidanceBeam.Width0 = 1.05
+	GuidanceBeam.Width1 = 1.05
+	GuidanceBeam.Parent = RootPart
+end
+
 local function SetGuidance(Text: string?, Target: Instance?)
 	RuntimeState.Set(LocalPlayer, "GuidanceText", Text)
 	RuntimeState.Set(LocalPlayer, "GuidanceTarget", Target)
@@ -113,11 +167,13 @@ local function SetGuidance(Text: string?, Target: Instance?)
 		Highlight.Adornee = if Target and (Target:IsA("Model") or Target:IsA("BasePart")) then Target else nil
 		Highlight.Enabled = Highlight.Adornee ~= nil
 	end
+	UpdateBeam(Target)
 end
 
 local function RefreshTutorial()
 	if OverrideId > 0 then return end
 	local StepId = DataService:get("TutorialStep")
+	if StepId ~= "PickUpItem" then StarterCrate = nil end
 	local Step = type(StepId) == "string" and TutorialConfig.GetStep(StepId) or nil
 	local Text = Step and Step.Text
 	if StepId == "PickUpItem" then
@@ -178,6 +234,15 @@ function GuidanceController.Init()
 	DataService:getChangedSignal("TutorialStep"):Connect(RefreshTutorial)
 	DataService:getChangedSignal("Cash"):Connect(RefreshTutorial)
 	RuntimeState.GetChangedSignal(LocalPlayer, "CleaningStepToolId"):Connect(RefreshTutorial)
+	CrateRuntime.GetResetChangedSignal():Connect(function(_, IsResetting)
+		if DataService:get("TutorialStep") ~= "PickUpItem" then return end
+		StarterCrate = nil
+		if IsResetting then
+			SetGuidance("Wait For Crates", nil)
+		else
+			task.defer(RefreshTutorial)
+		end
+	end)
 	Workspace.DescendantAdded:Connect(function(Descendant)
 		local StepId = DataService:get("TutorialStep")
 		if type(StepId) ~= "string" or not TutorialConfig.GetStep(StepId) then return end
@@ -188,6 +253,11 @@ function GuidanceController.Init()
 		if RuntimeState.Get(LocalPlayer, "GuidanceTarget") == Descendant then task.defer(RefreshTutorial) end
 	end)
 	RefreshTutorial()
+end
+
+function GuidanceController.OnCharacterAdded()
+	StarterCrate = nil
+	task.defer(RefreshTutorial)
 end
 
 return GuidanceController

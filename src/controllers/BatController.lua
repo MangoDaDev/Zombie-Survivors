@@ -11,6 +11,7 @@ local CrateInfo = require(ReplicatedStorage.Modules.Game.CrateInfo)
 local CrateRuntime = require(ReplicatedStorage.Modules.Game.CrateRuntime)
 local DataService = require(ReplicatedStorage.Packages.dataservice).client
 local Networker = require(ReplicatedStorage.Packages.networker)
+local RuntimeState = require(ReplicatedStorage.Modules.Game.RuntimeState)
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
 local ToolResolver = require(ReplicatedStorage.Modules.Game.ToolResolver)
 local UpgradeLogic = require(ReplicatedStorage.Modules.Game.UpgradeLogic)
@@ -176,6 +177,11 @@ local function GetTargetModel(Part): Model?
 	return nil
 end
 
+local function CanTargetCrate(Model: Model): boolean
+	if DataService:get("TutorialStep") ~= "PickUpItem" then return true end
+	return RuntimeState.Get(LocalPlayer, "GuidanceTarget") == Model
+end
+
 local function ShowPredictedImpact(Model, Handle, Info)
 	if CollectionService:HasTag(Model, "Crate") then
 		PredictCrateDamage(Model, Info.CrateDamage, Info)
@@ -209,7 +215,7 @@ local function DetectTargets(Tool, Info)
 	local Seen = {}
 	for _, Part in Workspace:GetPartBoundsInBox(HitboxCFrame, HitboxSize, Parameters) do
 		local Model = GetTargetModel(Part)
-		if Model and not Seen[Model] then
+		if Model and not Seen[Model] and CanTargetCrate(Model) then
 			Seen[Model] = true
 			table.insert(Targets, Model)
 			ShowPredictedImpact(Model, Handle, Info)

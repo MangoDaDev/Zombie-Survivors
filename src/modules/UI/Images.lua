@@ -21,6 +21,7 @@ local Images = {
 	WoodenBat = "rbxassetid://71860797320768",
 	StoneBat = "rbxassetid://138894146261760",
 	GoldBat = "rbxassetid://75025107278341",
+	ObjectiveArrow = "rbxassetid://123892753905134",
 
 	FixIcons = {
 		Dirt = "rbxassetid://111727278981257",
