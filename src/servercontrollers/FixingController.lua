@@ -477,14 +477,17 @@ function FixingController:ApplyTool(Player, ToolId, BrushPosition, ViewportSize)
 	local CameraPart = TableModel and TableModel:FindFirstChild("CamPart")
 	if not CameraPart or not CameraPart:IsA("BasePart") then return end
 	local Now = os.clock()
-	local StrengthMultiplier = UpgradeLogic.GetToolStrengthMultiplier(DataService:get(Player, "Upgrades"), ToolId)
+	local Ownership = DataService:get(Player, "Upgrades")
+	local StrengthMultiplier = UpgradeLogic.GetToolStrengthMultiplier(Ownership, ToolId)
+	local RadiusMultiplier = UpgradeLogic.GetToolRadiusMultiplier(Ownership, ToolId)
+	local RadiusPixels = ToolInfo.RadiusPixels * RadiusMultiplier
 	local Damage = ToolInfo.StrengthPerSecond * StrengthMultiplier * math.clamp(Now - Session.LastApplication, 0, 0.2)
 	Session.LastApplication = Now
 	local StepState = GetStepState(Session)
 	local ProgressChanged = false
 	for _, Target in GetTargets(Session) do
 		local ScreenPosition = GetScreenPosition(Target.Position, CameraPart.CFrame, ViewportSize)
-		if ScreenPosition and (ScreenPosition - BrushPosition).Magnitude <= ToolInfo.RadiusPixels then
+		if ScreenPosition and (ScreenPosition - BrushPosition).Magnitude <= RadiusPixels then
 			if Step.Type == "Dirt" then
 				PlayDirtFeedback(Session, Target, Now)
 				local HP = GetTargetHP(Target, Step) - Damage

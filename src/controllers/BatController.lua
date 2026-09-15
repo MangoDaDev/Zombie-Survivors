@@ -159,7 +159,7 @@ end
 local function GetTargetModel(Part): Model?
 	local Current = Part
 	while Current and Current ~= Workspace do
-		if Current:IsA("Model") and (CollectionService:HasTag(Current, "Crate") or Current:FindFirstChildOfClass("Humanoid")) then
+		if Current:IsA("Model") and CollectionService:HasTag(Current, "Crate") then
 			return Current
 		end
 		Current = Current.Parent
@@ -182,8 +182,7 @@ local function ShowPredictedImpact(Model, Handle, Info)
 	Highlight.Parent = Model
 	TweenService:Create(Highlight, TweenInfo.new(0.16), { FillTransparency = 1 }):Play()
 	Debris:AddItem(Highlight, 0.18)
-	local SoundNames = if CollectionService:HasTag(Model, "Crate") then Info.ImpactSoundNames else Info.PlayerHitSoundNames
-	local SoundName = SoundNames[RandomGenerator:NextInteger(1, #SoundNames)]
+	local SoundName = Info.ImpactSoundNames[RandomGenerator:NextInteger(1, #Info.ImpactSoundNames)]
 	Sounds.Play(SoundName, Handle, 70)
 end
 

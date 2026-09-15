@@ -6,7 +6,6 @@ local ServerStorage = game:GetService("ServerStorage")
 local BatInfo = require(ReplicatedStorage.Modules.Game.BatInfo)
 local CrateController = require(ServerStorage.Controllers.CrateController)
 local Networker = require(ReplicatedStorage.Packages.networker)
-local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
 local UpgradeLogic = require(ReplicatedStorage.Modules.Game.UpgradeLogic)
 
 local BatController = {}
@@ -17,7 +16,6 @@ local UpgradeConnections: { [Player]: RBXScriptConnection } = {}
 local LastSwings: { [Player]: number } = {}
 local PositionHistory: { [Player]: { { Time: number, CFrame: CFrame } } } = {}
 local LastPositionSamples: { [Player]: number } = {}
-local RandomGenerator = Random.new()
 local MaximumValidationHistoryWindow = 0
 local MinimumValidationSampleInterval = math.huge
 
@@ -145,22 +143,6 @@ function BatController:Swing(Player, Targets)
 				end
 			end
 			continue
-		end
-		if Target:IsA("Model") and Target ~= Character then
-			local Humanoid = Target:FindFirstChildOfClass("Humanoid")
-			local TargetRoot = Target:FindFirstChild("HumanoidRootPart")
-			local TargetPlayer = Players:GetPlayerFromCharacter(Target)
-			if Humanoid and TargetRoot and TargetRoot:IsA("BasePart") and TargetPlayer and Humanoid.Health > 0
-				and IsTargetInRange(Player, RootPart, TargetRoot.Position, Info, Now)
-			then
-				Humanoid:TakeDamage(Info.PlayerDamage)
-				local Direction = TargetRoot.Position - RootPart.Position
-				if Direction.Magnitude > 0 then
-					TargetRoot:ApplyImpulse((Direction.Unit * Info.PlayerKnockback + Vector3.new(0, Info.PlayerKnockback * 0.3, 0)) * TargetRoot.AssemblyMass)
-				end
-				local SoundName = Info.PlayerHitSoundNames[RandomGenerator:NextInteger(1, #Info.PlayerHitSoundNames)]
-				Sounds.Play(SoundName, TargetRoot, 75)
-			end
 		end
 	end
 end

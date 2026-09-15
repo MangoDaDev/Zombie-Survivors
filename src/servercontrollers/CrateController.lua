@@ -468,9 +468,7 @@ local function UpdatePityDisplay()
 		local Label = PityLabels[Info.Id]
 		if Label and Label.Parent then
 			local Remaining = math.max(0, math.ceil(GetNextAlignedTime(Info.PityInterval, Now) - Now))
-			local DisplayName = if Info.Id == "SecretCrate"
-				then '<font color="#FFFFFF">S</font><font color="#25252B">E</font><font color="#FFFFFF">C</font><font color="#6F6F78">R</font><font color="#FFFFFF">E</font><font color="#151518">T</font>'
-				else `<font color="#FF3041">MYTHICAL</font>`
+			local DisplayName = if Info.Id == "SecretCrate" then "SECRET" else `<font color="#FF3041">MYTHICAL</font>`
 			Label.Text = `<b>{DisplayName}</b> Crate in <b>{FormatTime(Remaining)}</b>`
 		end
 	end

@@ -91,6 +91,22 @@ function UpgradeLogic.GetToolStrengthMultiplier(Ownership, ToolId: string): numb
 	return Multiplier
 end
 
+function UpgradeLogic.GetToolRadiusMultiplier(Ownership, ToolId: string): number
+	local Multiplier = UpgradeConfig.DefaultToolRadiusMultiplier
+	for _, Upgrade in UpgradeConfig.Upgrades do
+		local Effect = Upgrade.Effect
+		if
+			UpgradeLogic.IsPurchased(Ownership, Upgrade.Id)
+			and Effect
+			and Effect.Type == "ToolStrength"
+			and Effect.ToolId == ToolId
+		then
+			Multiplier = math.max(Multiplier, Effect.RadiusMultiplier or Multiplier)
+		end
+	end
+	return Multiplier
+end
+
 function UpgradeLogic.GetBatId(Ownership): string
 	local BatId = UpgradeConfig.DefaultBatId
 	local HighestTier = 0

@@ -10,6 +10,7 @@ local DataService = require(ReplicatedStorage.Packages.dataservice).client
 local FixingInterface = require(ReplicatedStorage.Modules.UI.FixingInterface)
 local Networker = require(ReplicatedStorage.Packages.networker)
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
+local UpgradeLogic = require(ReplicatedStorage.Modules.Game.UpgradeLogic)
 
 local LocalPlayer = Players.LocalPlayer
 local FixingController = {}
@@ -59,6 +60,11 @@ local function GetEquippedCleaningTool(): (Tool?, any?)
 	return nil, nil
 end
 
+local function GetToolRadius(ToolInfo): number
+	local Ownership = DataService:get("Upgrades")
+	return ToolInfo.RadiusPixels * UpgradeLogic.GetToolRadiusMultiplier(Ownership, ToolInfo.Id)
+end
+
 local function UpdateToolInterface()
 	local Tool, ToolInfo = GetEquippedCleaningTool()
 	local RequiredToolId = LocalPlayer:GetAttribute("CleaningStepToolId")
@@ -80,7 +86,7 @@ local function UpdateToolInterface()
 		and ToolInfo.Id == RequiredToolId
 		and LocalPlayer:GetAttribute("CleaningStepComplete") ~= true
 	LocalPlayer:SetAttribute("CleaningRadiusVisible", IsApplicable)
-	LocalPlayer:SetAttribute("CleaningBrushRadius", if IsApplicable then ToolInfo.RadiusPixels else nil)
+	LocalPlayer:SetAttribute("CleaningBrushRadius", if IsApplicable then GetToolRadius(ToolInfo) else nil)
 	if UsingTool and (not IsApplicable or ToolInfo.Id ~= ActiveToolId) then
 		UsingTool = false
 		ActiveToolId = nil
@@ -351,6 +357,7 @@ function FixingController:Init()
 		UpdateToolInterface()
 	end)
 	DataService:getChangedSignal("Fixing"):Connect(UpdateFixPrompt)
+	DataService:getChangedSignal("Upgrades"):Connect(UpdateToolInterface)
 	LocalPlayer:GetAttributeChangedSignal("CleaningStepComplete"):Connect(function()
 		if LocalPlayer:GetAttribute("CleaningStepComplete") == true then UsingTool = false; ActiveToolId = nil; StopToolEffects() end
 	end)
@@ -380,7 +387,7 @@ function FixingController:Init()
 			local CameraPosition = Camera.CFrame:PointToObjectSpace(SmoothedToolPosition)
 			local Depth = math.max(-CameraPosition.Z, 0.1)
 			local WorldUnitsPerPixel = 2 * Depth * math.tan(math.rad(Camera.FieldOfView / 2)) / math.max(Camera.ViewportSize.Y, 1)
-			ToolBeam.Width1 = ToolInfo.RadiusPixels * 2 * WorldUnitsPerPixel * ToolInfo.VFXWidthScale
+			ToolBeam.Width1 = GetToolRadius(ToolInfo) * 2 * WorldUnitsPerPixel * ToolInfo.VFXWidthScale
 			if ToolInfo.ColorFromTarget and AimPart then
 				local OriginalColor = AimPart:GetAttribute("PaintOriginalColor")
 				local TargetColor = if typeof(OriginalColor) == "Color3" then OriginalColor else AimPart.Color

@@ -18,16 +18,7 @@ local RarityInfo = {
 		Gradient = ColorSequence.new(Color3.fromRGB(145, 0, 13), Color3.fromRGB(255, 62, 62)),
 	},
 	Secret = {
-		Gradient = ColorSequence.new({
-			ColorSequenceKeypoint.new(0, Color3.fromRGB(8, 8, 10)),
-			ColorSequenceKeypoint.new(0.18, Color3.fromRGB(255, 255, 255)),
-			ColorSequenceKeypoint.new(0.22, Color3.fromRGB(45, 45, 50)),
-			ColorSequenceKeypoint.new(0.47, Color3.fromRGB(235, 235, 240)),
-			ColorSequenceKeypoint.new(0.52, Color3.fromRGB(0, 0, 0)),
-			ColorSequenceKeypoint.new(0.76, Color3.fromRGB(255, 255, 255)),
-			ColorSequenceKeypoint.new(0.81, Color3.fromRGB(70, 70, 76)),
-			ColorSequenceKeypoint.new(1, Color3.fromRGB(245, 245, 245)),
-		}),
+		Gradient = ColorSequence.new(Color3.new(1, 1, 1)),
 	},
 }
 
