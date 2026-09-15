@@ -3,6 +3,7 @@ local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
 local FormatTime = require(ReplicatedStorage.Modules.Math.FormatTime)
+local CrateRuntime = require(ReplicatedStorage.Modules.Game.CrateRuntime)
 local UIStyle = require(ReplicatedStorage.Modules.UI.UIStyle)
 local Vide = require(ReplicatedStorage.Packages.vide)
 
@@ -15,11 +16,12 @@ return function()
 	local LastSecond = -1
 
 	local function UpdateTimer()
-		if Workspace:GetAttribute("CratesResetting") == true then
+		local NextResetTime, IsResetting = CrateRuntime.GetResetState()
+
+		if IsResetting then
 			TimerText("Crates Resetting...")
 			return
 		end
-		local NextResetTime = Workspace:GetAttribute("NextCrateResetTime")
 		if type(NextResetTime) ~= "number" then
 			TimerText("Crates Reset in --:--")
 			return
@@ -31,8 +33,7 @@ return function()
 	end
 
 	local Connections = {
-		Workspace:GetAttributeChangedSignal("NextCrateResetTime"):Connect(UpdateTimer),
-		Workspace:GetAttributeChangedSignal("CratesResetting"):Connect(UpdateTimer),
+		CrateRuntime.GetResetChangedSignal():Connect(UpdateTimer),
 		RunService.Heartbeat:Connect(UpdateTimer),
 	}
 	Cleanup(function()

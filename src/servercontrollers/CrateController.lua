@@ -16,6 +16,7 @@ local ItemInfoBillboard = require(ReplicatedStorage.Modules.UI.ItemInfoBillboard
 local ItemsInfo = require(ReplicatedStorage.Modules.Game.ItemsInfo)
 local MuseumController = require(ServerStorage.Controllers.MuseumController)
 local Networker = require(ReplicatedStorage.Packages.networker)
+local PlayerStateController = require(ServerStorage.Controllers.PlayerStateController)
 local RestorationVisuals = require(ReplicatedStorage.Modules.Game.RestorationVisuals)
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
 local UIStyle = require(ReplicatedStorage.Modules.UI.UIStyle)
@@ -32,6 +33,7 @@ local PityLabels = {}
 local RandomGenerator = Random.new()
 local IsResetting = false
 local ResetGeneration = 0
+local NextResetTime
 local PurchaseFeedbackDistancePadding = 8
 
 local function GetItemInfo(ItemId)
@@ -186,8 +188,8 @@ local function PurchaseReward(RewardId, Player)
 	if not ItemInfo then return end
 	if Reward.Purchased then SendPurchaseFeedback(Player, "PurchasedByAnother", ItemInfo.Name); return end
 	if Workspace:GetServerTimeNow() < Reward.AvailableAt then SendPurchaseFeedback(Player, "NotReady", ItemInfo.Name); return end
-	if Player:GetAttribute("IsFixing") == true then SendPurchaseFeedback(Player, "Fixing", ItemInfo.Name); return end
-	if Player:GetAttribute("IsCarryingItem") == true then SendPurchaseFeedback(Player, "AlreadyCarrying", ItemInfo.Name); return end
+	if PlayerStateController.Get(Player, "IsFixing", false) == true then SendPurchaseFeedback(Player, "Fixing", ItemInfo.Name); return end
+	if PlayerStateController.Get(Player, "IsCarryingItem", false) == true then SendPurchaseFeedback(Player, "AlreadyCarrying", ItemInfo.Name); return end
 	if not CarryController.CanCarry(Player) then SendPurchaseFeedback(Player, "Unavailable", ItemInfo.Name); return end
 	local RootPart = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
 	local Cash = DataService:get(Player, "Cash")
@@ -216,13 +218,14 @@ local function CreateReward(State)
 	if not Box or not Box:IsA("BasePart") then Model:Destroy(); return end
 	Model.PrimaryPart = Box
 	Model.Name = `CrateReward_{ItemInfo.Name}`
+	local RevealTransparencies = {}
 	for _, Part in Model:GetDescendants() do
 		if Part:IsA("BasePart") then
 			Part.Anchored = true
 			Part.CanCollide = false
 			Part.CanQuery = false
 			Part.CanTouch = false
-			Part:SetAttribute("RevealTransparency", Part.Transparency)
+			RevealTransparencies[Part] = Part.Transparency
 			Part.Transparency = 1
 		end
 	end
@@ -249,6 +252,7 @@ local function CreateReward(State)
 		Prompt = Prompt,
 		AvailableAt = Workspace:GetServerTimeNow() + RevealDuration + Info.RevealFadeTime,
 		Purchased = false,
+		RevealTransparencies = RevealTransparencies,
 	}
 	Rewards[RewardId] = Reward
 	Reward.Connection = Prompt.Triggered:Connect(function(Player) PurchaseReward(RewardId, Player) end)
@@ -257,7 +261,7 @@ local function CreateReward(State)
 		if Rewards[RewardId] ~= Reward then return end
 		for _, Part in Model:GetDescendants() do
 			if Part:IsA("BasePart") then
-				local RevealTransparency = Part:GetAttribute("RevealTransparency") or 0
+				local RevealTransparency = Reward.RevealTransparencies[Part] or 0
 				TweenService:Create(Part, TweenInfo.new(Info.RevealFadeTime, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 					Transparency = RevealTransparency,
 				}):Play()
@@ -265,9 +269,7 @@ local function CreateReward(State)
 		end
 		task.delay(Info.RevealFadeTime, function()
 			if Rewards[RewardId] ~= Reward then return end
-			for _, Part in Model:GetDescendants() do
-				if Part:IsA("BasePart") then Part:SetAttribute("RevealTransparency", nil) end
-			end
+			Reward.RevealTransparencies = nil
 			local FixingState = { Total = Reward.DirtCount, Remaining = Reward.DirtCount, Completed = false }
 			RestorationVisuals.Apply(Model, ItemInfo, FixingState)
 			ItemInfoBillboard(ItemInfo, Box, FixingState)
@@ -307,7 +309,7 @@ function CrateController.DamageCrate(Player, Model, Damage): boolean
 	local RootPart = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
 	if not State or not RootPart or not RootPart:IsA("BasePart") or type(Damage) ~= "number" then return false end
 	State.Health = math.max(0, State.Health - math.clamp(Damage, 0, State.Info.Health))
-	State.Model:SetAttribute("Health", State.Health)
+	Network:fireAll("UpdateCrateHealth", State.Model, State.Info.Id, State.Health, State.Info.Health)
 	State.VisibilityId += 1
 	local VisibilityId = State.VisibilityId
 	TweenService:Create(State.HealthGroup, TweenInfo.new(0.08), { GroupTransparency = 0 }):Play()
@@ -347,9 +349,6 @@ function CrateController.Spawn(Info, AllowDuringReset): boolean
 	end
 	local GroundCFrame = CFrame.new(SpawnCFrame.Position) * CFrame.Angles(0, YRotation, 0)
 	SetModelOnGround(Model, GroundCFrame)
-	Model:SetAttribute("CrateId", Info.Id)
-	Model:SetAttribute("Health", Info.Health)
-	Model:SetAttribute("MaxHealth", Info.Health)
 	Model.Parent = CrateFolder
 	CollectionService:AddTag(Model, "Crate")
 	local HealthGroup, HealthFill, HealthLabel = CreateHealthBar(Model, Info)
@@ -366,6 +365,7 @@ function CrateController.Spawn(Info, AllowDuringReset): boolean
 		YRotation = YRotation,
 		VisibilityId = 0,
 	}
+	Network:fireAll("UpdateCrateHealth", Model, Info.Id, Info.Health, Info.Health)
 	return true
 end
 
@@ -432,7 +432,7 @@ local function ResetCrates(BoundaryTime)
 	if IsResetting then return end
 	IsResetting = true
 	ResetGeneration += 1
-	Workspace:SetAttribute("CratesResetting", true)
+	Network:fireAll("UpdateResetState", NextResetTime, true)
 	SetResetWallVisible(true)
 	local ResetStartedAt = Workspace:GetServerTimeNow()
 	local Area = Workspace:FindFirstChild("CrateSpawnArea")
@@ -446,7 +446,7 @@ local function ResetCrates(BoundaryTime)
 	local RemainingWallTime = CrateInfo.Reset.MinimumWallVisibleTime - (Workspace:GetServerTimeNow() - ResetStartedAt)
 	if RemainingWallTime > 0 then task.wait(RemainingWallTime) end
 	SetResetWallVisible(false)
-	Workspace:SetAttribute("CratesResetting", false)
+	Network:fireAll("UpdateResetState", NextResetTime, false)
 	IsResetting = false
 end
 
@@ -519,9 +519,8 @@ local function StartResetSchedule()
 	local Now = Workspace:GetServerTimeNow()
 	local Interval = CrateInfo.Reset.Interval
 	local PreviousBoundary = math.floor(Now / Interval) * Interval
-	local NextResetTime = PreviousBoundary + Interval
-	Workspace:SetAttribute("NextCrateResetTime", NextResetTime)
-	Workspace:SetAttribute("CratesResetting", false)
+	NextResetTime = PreviousBoundary + Interval
+	Network:fireAll("UpdateResetState", NextResetTime, false)
 	if Now - PreviousBoundary < CrateInfo.Reset.MinimumWallVisibleTime then
 		ResetCrates(PreviousBoundary)
 	else
@@ -534,13 +533,33 @@ local function StartResetSchedule()
 			Now = Workspace:GetServerTimeNow()
 		end
 		NextResetTime = GetNextResetTime(Now)
-		Workspace:SetAttribute("NextCrateResetTime", NextResetTime)
+		Network:fireAll("UpdateResetState", NextResetTime, false)
 		ResetCrates(NextResetTime - Interval)
 	end
 end
 
 function CrateController.SetDataService(Service) DataService = Service end
-function CrateController:Init()
+
+function CrateController.GetRuntimeState(_, Player)
+	local CrateStates = {}
+
+	for Model, State in Crates do
+		table.insert(CrateStates, {
+			Model = Model,
+			CrateId = State.Info.Id,
+			Health = State.Health,
+			MaximumHealth = State.Info.Health,
+		})
+	end
+
+	return {
+		Crates = CrateStates,
+		IsResetting = IsResetting,
+		NextResetTime = NextResetTime,
+	}
+end
+
+function CrateController.Init()
 	CrateFolder = Instance.new("Folder")
 	CrateFolder.Name = "Crates"
 	CrateFolder.Parent = Workspace
@@ -555,7 +574,9 @@ function CrateController:Init()
 		ResetWall.Parent = Workspace
 		SetResetWallVisible(false)
 	end
-	Network = Networker.server.new("CrateController", self)
+	Network = Networker.server.new("CrateController", CrateController, {
+		CrateController.GetRuntimeState,
+	})
 	CreatePityDisplay()
 	task.spawn(function()
 		while true do UpdatePityDisplay(); task.wait(1) end

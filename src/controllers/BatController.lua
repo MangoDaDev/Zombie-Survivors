@@ -8,6 +8,7 @@ local Workspace = game:GetService("Workspace")
 
 local BatInfo = require(ReplicatedStorage.Modules.Game.BatInfo)
 local CrateInfo = require(ReplicatedStorage.Modules.Game.CrateInfo)
+local CrateRuntime = require(ReplicatedStorage.Modules.Game.CrateRuntime)
 local DataService = require(ReplicatedStorage.Packages.dataservice).client
 local Networker = require(ReplicatedStorage.Packages.networker)
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
@@ -53,7 +54,8 @@ local function RenderPredictedHealth(Model, State)
 	for _, Prediction in State.Pending do PendingDamage += Prediction.Damage end
 	local PredictedHealth = math.max(0, State.ConfirmedHealth - PendingDamage)
 	if State.ConfirmedHealth > 0 and PredictedHealth <= 0 then PredictedHealth = 1 end
-	local MaximumHealth = Model:GetAttribute("MaxHealth") or State.ConfirmedHealth
+	local RuntimeCrate = CrateRuntime.Get(Model)
+	local MaximumHealth = RuntimeCrate and RuntimeCrate.MaximumHealth or State.ConfirmedHealth
 	local Group, Fill, HealthLabel = GetHealthInterface(Model)
 	if not Group then return end
 	State.VisibilityId += 1
@@ -63,7 +65,7 @@ local function RenderPredictedHealth(Model, State)
 		Size = UDim2.fromScale(PredictedHealth / math.max(MaximumHealth, 1), 1),
 	}):Play()
 	HealthLabel.Text = `{math.ceil(PredictedHealth)}/{MaximumHealth}`
-	local Info = GetCrateInfo(Model:GetAttribute("CrateId"))
+	local Info = GetCrateInfo(RuntimeCrate and RuntimeCrate.CrateId or Model.Name)
 	task.delay(if Info then Info.HealthBarHideDelay else 1.6, function()
 		if Model.Parent and CratePredictions[Model] == State and State.VisibilityId == VisibilityId then
 			TweenService:Create(Group, TweenInfo.new(0.25), { GroupTransparency = 1 }):Play()
@@ -77,7 +79,8 @@ local function HoldPredictedHealth(Model, State)
 	for _, Prediction in State.Pending do PendingDamage += Prediction.Damage end
 	local PredictedHealth = math.max(0, State.ConfirmedHealth - PendingDamage)
 	if State.ConfirmedHealth > 0 and PredictedHealth <= 0 then PredictedHealth = 1 end
-	local MaximumHealth = Model:GetAttribute("MaxHealth") or State.ConfirmedHealth
+	local RuntimeCrate = CrateRuntime.Get(Model)
+	local MaximumHealth = RuntimeCrate and RuntimeCrate.MaximumHealth or State.ConfirmedHealth
 	local Group, Fill, HealthLabel = GetHealthInterface(Model)
 	if not Group then return end
 	Group.GroupTransparency = 0
@@ -112,8 +115,7 @@ local function ReactToCrate(Model, AttackerPosition, Info)
 	end)
 end
 
-local function ReconcileCrateHealth(Model, State)
-	local NewHealth = Model:GetAttribute("Health")
+local function ReconcileCrateHealth(Model, State, NewHealth)
 	if type(NewHealth) ~= "number" then return end
 	if NewHealth > State.ConfirmedHealth then
 		return
@@ -132,7 +134,8 @@ local function ReconcileCrateHealth(Model, State)
 end
 
 local function PredictCrateDamage(Model, Damage, Info)
-	local Health = Model:GetAttribute("Health")
+	local RuntimeCrate = CrateRuntime.Get(Model)
+	local Health = RuntimeCrate and RuntimeCrate.Health or Info.Health
 	if type(Health) ~= "number" or Health <= 0 then return end
 	local State = CratePredictions[Model]
 	if not State then
@@ -142,10 +145,13 @@ local function PredictCrateDamage(Model, Damage, Info)
 			VisibilityId = 0,
 		}
 		CratePredictions[Model] = State
-		State.HealthConnection = Model:GetAttributeChangedSignal("Health"):Connect(function() ReconcileCrateHealth(Model, State) end)
+		State.HealthConnection = CrateRuntime.GetHealthChangedSignal(Model):Connect(function(NewHealth)
+			ReconcileCrateHealth(Model, State, NewHealth)
+		end)
 		Model.Destroying:Once(function()
 			if State.HealthConnection then State.HealthConnection:Disconnect() end
 			CratePredictions[Model] = nil
+			CrateRuntime.Clear(Model)
 		end)
 	end
 	local Prediction = { Damage = Damage }

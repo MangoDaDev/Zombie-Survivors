@@ -12,7 +12,9 @@ local ItemsInfo = require(ReplicatedStorage.Modules.Game.ItemsInfo)
 local MuseumController = require(ServerStorage.Controllers.MuseumController)
 local Networker = require(ReplicatedStorage.Packages.networker)
 local PaintRenderer = require(ReplicatedStorage.Modules.Game.PaintRenderer)
+local PlayerStateController = require(ServerStorage.Controllers.PlayerStateController)
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
+local ToolResolver = require(ReplicatedStorage.Modules.Game.ToolResolver)
 local UpgradeLogic = require(ReplicatedStorage.Modules.Game.UpgradeLogic)
 
 local CONFIG = {
@@ -25,6 +27,7 @@ local CONFIG = {
 }
 local FixingController = {}
 local DataService
+local Network
 local Sessions = {}
 local PromptConnections: { [Player]: RBXScriptConnection } = {}
 local CompleteCurrentStep
@@ -51,7 +54,8 @@ local function GetCleaningTool(Player, ToolId): Tool?
 	for _, Container in { Player.Character, Player:FindFirstChildOfClass("Backpack") } do
 		if not Container then continue end
 		for _, Child in Container:GetChildren() do
-			if Child:IsA("Tool") and Child:GetAttribute("CleaningToolId") == ToolId then return Child end
+			local ToolInfo = ToolResolver.GetCleaningToolInfo(Child)
+			if ToolInfo and ToolInfo.Id == ToolId then return Child end
 		end
 	end
 	return nil
@@ -90,11 +94,27 @@ local function GetTargets(Session): { BasePart }
 end
 
 local function GetTargetHP(Target, Step): number
-	return Target:GetAttribute(if Step.Type == "Paint" then "PaintHP" else "HP") or 0
+	if Step.Type == "Paint" then
+		return PaintRenderer.GetHealth(Target)
+	elseif Step.Type == "Grease" then
+		return GreaseRenderer.GetHealth(Target)
+	end
+
+	return DirtRenderer.GetHealth(Target)
 end
 
 local function GetTargetMaxHP(Target, Step): number
-	return Target:GetAttribute(if Step.Type == "Paint" then "PaintMaxHP" else "MaxHP") or 1
+	local _, MaximumHealth
+
+	if Step.Type == "Paint" then
+		_, MaximumHealth = PaintRenderer.GetHealth(Target)
+	elseif Step.Type == "Grease" then
+		_, MaximumHealth = GreaseRenderer.GetHealth(Target)
+	else
+		_, MaximumHealth = DirtRenderer.GetHealth(Target)
+	end
+
+	return MaximumHealth
 end
 
 local function GetStepProgress(Session): number
@@ -115,7 +135,7 @@ local function UpdateProgress(Player, Session, Force)
 	local Progress = GetStepProgress(Session)
 	if Force or math.abs(Progress - Session.LastProgress) >= 0.005 then
 		Session.LastProgress = Progress
-		Player:SetAttribute("CleaningProgress", Progress)
+		PlayerStateController.Set(Player, "CleaningProgress", Progress)
 	end
 	return Progress
 end
@@ -157,11 +177,6 @@ local function PrepareAllTargets(Session)
 		local StepState = Session.State.Steps[Step.Id]
 		if Step.Type == "Dirt" and StepState.Completed ~= true then
 			Session.Dirt = DirtRenderer.Add(Session.Model, StepState.Remaining, Session.ItemInfo.DirtHP)
-			if Session.Dirt then
-				for _, Dirt in Session.Dirt:GetChildren() do
-					if Dirt:IsA("BasePart") then Dirt:SetAttribute("MaxHP", Session.ItemInfo.DirtHP) end
-				end
-			end
 		end
 	end
 end
@@ -186,9 +201,9 @@ local function PrepareCurrentStep(Player, Session)
 	local StepState = GetStepState(Session)
 	if not Step or not StepState then return end
 	Session.LastProgress = -1
-	Player:SetAttribute("CleaningStepName", Step.DisplayName)
-	Player:SetAttribute("CleaningStepToolId", Step.ToolId)
-	Player:SetAttribute("CleaningStepComplete", StepState.Completed == true)
+	PlayerStateController.Set(Player, "CleaningStepName", Step.DisplayName)
+	PlayerStateController.Set(Player, "CleaningStepToolId", Step.ToolId)
+	PlayerStateController.Set(Player, "CleaningStepComplete", StepState.Completed == true)
 	UpdateProgress(Player, Session, true)
 	CarryController.EquipCleaningTool(Player, Step.ToolId)
 end
@@ -238,11 +253,11 @@ local function ClearSession(Player)
 		Session.Humanoid.JumpHeight = Session.HumanoidJumpHeight
 	end
 	Sessions[Player] = nil
-	Player:SetAttribute("IsFixing", false)
-	Player:SetAttribute("CleaningStepName", nil)
-	Player:SetAttribute("CleaningStepToolId", nil)
-	Player:SetAttribute("CleaningProgress", nil)
-	Player:SetAttribute("CleaningStepComplete", nil)
+	PlayerStateController.Set(Player, "IsFixing", false)
+	PlayerStateController.Set(Player, "CleaningStepName", nil)
+	PlayerStateController.Set(Player, "CleaningStepToolId", nil)
+	PlayerStateController.Set(Player, "CleaningProgress", nil)
+	PlayerStateController.Set(Player, "CleaningStepComplete", nil)
 	CarryController.SetFixingMode(Player, false)
 	if Session.Prompt and Session.Prompt.Parent then Session.Prompt.Enabled = true end
 end
@@ -316,7 +331,7 @@ local function StartFixing(Player)
 	local Box = Model:FindFirstChild("BoundingBox")
 	if not Box or not Box:IsA("BasePart") then Model:Destroy(); return end
 	Model.PrimaryPart = Box
-	Model:SetAttribute("FixingItemOwnerUserId", Player.UserId)
+	Model.Name = `FixingItem_{Player.UserId}`
 	for _, Part in Model:GetDescendants() do
 		if Part:IsA("BasePart") then
 			Part.Anchored = true
@@ -348,7 +363,7 @@ local function StartFixing(Player)
 	Humanoid.WalkSpeed = 0
 	Humanoid.JumpPower = 0
 	Humanoid.JumpHeight = 0
-	Player:SetAttribute("IsFixing", true)
+	PlayerStateController.Set(Player, "IsFixing", true)
 	CarryController.SetFixingMode(Player, true, Steps[StepIndex].ToolId)
 	local Session = {
 		ItemId = ItemId,
@@ -433,8 +448,8 @@ CompleteCurrentStep = function(Player, Session)
 	if Step.Type == "Dirt" then Session.State.Remaining = 0 end
 	ClearCurrentTargets(Session)
 	SaveState(Player, Session.ItemId, Session.State)
-	Player:SetAttribute("CleaningProgress", 1)
-	Player:SetAttribute("CleaningStepComplete", true)
+	PlayerStateController.Set(Player, "CleaningProgress", 1)
+	PlayerStateController.Set(Player, "CleaningStepComplete", true)
 	Sounds.Play(Step.CompletionSoundName, Session.RootPart, CONFIG.FeedbackSoundMaxDistance)
 	if GetFirstIncompleteStep(Session.State, Session.Steps) then
 		Session.TransitionId += 1
@@ -458,7 +473,7 @@ CompleteCurrentStep = function(Player, Session)
 	task.delay(CleaningConfig.FullCompletionDelay, function() if Sessions[Player] == Session then ClearSession(Player) end end)
 end
 
-function FixingController:SelectTool(Player, ToolId)
+function FixingController.SelectTool(_, Player, ToolId)
 	local Session = Sessions[Player]
 	local ToolInfo = if type(ToolId) == "string" then GetToolInfo(ToolId) else nil
 	if not Session or not ToolInfo or not IsToolUnlocked(Player, ToolId) then return end
@@ -481,13 +496,13 @@ function FixingController:SelectTool(Player, ToolId)
 	Session.IsUsingTool = false
 	Session.ActiveToolId = nil
 	Session.StepIndex = nil
-	Player:SetAttribute("CleaningStepName", `{ToolInfo.DisplayName} Not Needed`)
-	Player:SetAttribute("CleaningStepToolId", ToolId)
-	Player:SetAttribute("CleaningProgress", 1)
-	Player:SetAttribute("CleaningStepComplete", true)
+	PlayerStateController.Set(Player, "CleaningStepName", `{ToolInfo.DisplayName} Not Needed`)
+	PlayerStateController.Set(Player, "CleaningStepToolId", ToolId)
+	PlayerStateController.Set(Player, "CleaningProgress", 1)
+	PlayerStateController.Set(Player, "CleaningStepComplete", true)
 end
 
-function FixingController:ApplyTool(Player, ToolId, BrushPosition, ViewportSize)
+function FixingController.ApplyTool(_, Player, ToolId, BrushPosition, ViewportSize)
 	local Session = Sessions[Player]
 	local Step = Session and Session.Steps[Session.StepIndex]
 	local ToolInfo = if type(ToolId) == "string" then GetToolInfo(ToolId) else nil
@@ -518,7 +533,7 @@ function FixingController:ApplyTool(Player, ToolId, BrushPosition, ViewportSize)
 			if Step.Type == "Dirt" then
 				PlayDirtFeedback(Session, Target, Now)
 				local HP = GetTargetHP(Target, Step) - Damage
-				Target:SetAttribute("HP", HP)
+				DirtRenderer.SetHealth(Target, HP)
 				if HP <= 0 then Target:Destroy(); StepState.Remaining -= 1; Session.State.Remaining = StepState.Remaining; ProgressChanged = true end
 			elseif Step.Type == "Paint" and PaintRenderer.Damage(Target, Damage, Step.DirtColor) then
 				StepState.Remaining -= 1
@@ -534,7 +549,7 @@ function FixingController:ApplyTool(Player, ToolId, BrushPosition, ViewportSize)
 	if StepState.Remaining <= 0 or Progress >= CleaningConfig.AutoCompletionThreshold then CompleteCurrentStep(Player, Session) end
 end
 
-function FixingController:StartUsingTool(Player, ToolId)
+function FixingController.StartUsingTool(_, Player, ToolId)
 	local Session = Sessions[Player]
 	local Step = Session and Session.Steps[Session.StepIndex]
 	local StepState = Session and GetStepState(Session)
@@ -558,15 +573,19 @@ function FixingController:StartUsingTool(Player, ToolId)
 	Session.LastApplication = os.clock()
 end
 
-function FixingController:StopUsingTool(Player)
+function FixingController.StopUsingTool(_, Player)
 	local Session = Sessions[Player]
 	if Session then Session.IsUsingTool = false; Session.ActiveToolId = nil end
 end
 
-function FixingController:Exit(Player) ClearSession(Player) end
+function FixingController.Exit(_, Player)
+	ClearSession(Player)
+end
+
 function FixingController.SetDataService(Service) DataService = Service end
-function FixingController:Init()
-	self.Networker = Networker.server.new("FixingController", self, {
+
+function FixingController.Init()
+	Network = Networker.server.new("FixingController", FixingController, {
 		FixingController.SelectTool,
 		FixingController.StartUsingTool,
 		FixingController.ApplyTool,
@@ -576,7 +595,7 @@ function FixingController:Init()
 end
 
 function FixingController.OnPlayerAdded(Player)
-	Player:SetAttribute("IsFixing", false)
+	PlayerStateController.Set(Player, "IsFixing", false)
 	local Museum = MuseumController.GetMuseum(Player)
 	local TableModel = Museum and Museum:FindFirstChild("Table")
 	local Part = TableModel and TableModel:FindFirstChild("PromptPart")

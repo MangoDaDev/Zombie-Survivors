@@ -5,6 +5,7 @@ local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 
 local CrateInfo = require(ReplicatedStorage.Modules.Game.CrateInfo)
+local CrateRuntime = require(ReplicatedStorage.Modules.Game.CrateRuntime)
 local GetRandomFromWeightedTable = require(ReplicatedStorage.Modules.Math.GetRandomFromWeightedTable)
 local ItemsInfo = require(ReplicatedStorage.Modules.Game.ItemsInfo)
 local MultiplyNumberSequence = require(ReplicatedStorage.Modules.Math.MultiplyNumberSequence)
@@ -197,7 +198,7 @@ local function CreateRarityEffect(Model: Model, Rarity: string)
 	Debris:AddItem(Anchor, Duration + MaximumLifetime + 0.25)
 end
 
-function CrateController:StartReveal(RewardId, ActualItemId, GroundCFrame, CrateId)
+function CrateController.StartReveal(_, RewardId, ActualItemId, GroundCFrame, CrateId)
 	local Info = GetCrateInfo(CrateId)
 	local ActualItemInfo = GetItemInfo(ActualItemId)
 	if type(RewardId) ~= "string" or not Info or not ActualItemInfo or typeof(GroundCFrame) ~= "CFrame" then return end
@@ -229,7 +230,7 @@ function CrateController:StartReveal(RewardId, ActualItemId, GroundCFrame, Crate
 	end)
 end
 
-function CrateController:RemoveReveal(RewardId)
+function CrateController.RemoveReveal(_, RewardId)
 	local Reveal = Reveals[RewardId]
 	if not Reveal then return end
 	Reveal.Cancelled = true
@@ -237,7 +238,20 @@ function CrateController:RemoveReveal(RewardId)
 	Reveals[RewardId] = nil
 end
 
-function CrateController:PurchaseFeedback(Status, ItemName, Detail)
+function CrateController.UpdateCrateHealth(_, Model, CrateId, Health, MaximumHealth)
+	if typeof(Model) ~= "Instance" or not Model:IsA("Model") then return end
+	if type(CrateId) ~= "string" or type(Health) ~= "number" or type(MaximumHealth) ~= "number" then return end
+
+	CrateRuntime.Set(Model, CrateId, Health, MaximumHealth)
+end
+
+function CrateController.UpdateResetState(_, NextResetTime, IsResetting)
+	if NextResetTime ~= nil and type(NextResetTime) ~= "number" then return end
+
+	CrateRuntime.SetResetState(NextResetTime, IsResetting)
+end
+
+function CrateController.PurchaseFeedback(_, Status, ItemName, Detail)
 	local GetMessage = PurchaseFeedbackMessages[Status]
 	if type(Status) ~= "string" or type(ItemName) ~= "string" or not GetMessage then return end
 	if Detail ~= nil and type(Detail) ~= "number" then return end
@@ -245,11 +259,20 @@ function CrateController:PurchaseFeedback(Status, ItemName, Detail)
 	ShowNotification(Title, Message)
 end
 
-function CrateController:Init()
+function CrateController.Init()
 	RevealFolder = Instance.new("Folder")
 	RevealFolder.Name = "LocalCrateReveals"
 	RevealFolder.Parent = Workspace
-	Networker.client.new("CrateController", self)
+	local CrateNetwork = Networker.client.new("CrateController", CrateController)
+	local Snapshot = CrateNetwork:fetch("GetRuntimeState")
+
+	if type(Snapshot) == "table" then
+		CrateRuntime.SetResetState(Snapshot.NextResetTime, Snapshot.IsResetting)
+
+		for _, State in Snapshot.Crates or {} do
+			CrateController.UpdateCrateHealth(nil, State.Model, State.CrateId, State.Health, State.MaximumHealth)
+		end
+	end
 end
 
 return CrateController

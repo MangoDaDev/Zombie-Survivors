@@ -6,6 +6,7 @@ local ItemsInfo = require(ReplicatedStorage.Modules.Game.ItemsInfo)
 local ItemInfoBillboard = require(ReplicatedStorage.Modules.UI.ItemInfoBillboard)
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
 local TeleportPlayer = require(ReplicatedStorage.Modules.Game.TeleportPlayer)
+local ToolResolver = require(ReplicatedStorage.Modules.Game.ToolResolver)
 local UpgradeLogic = require(ReplicatedStorage.Modules.Game.UpgradeLogic)
 
 local museumAssets = ReplicatedStorage.Assets.Models.Museum
@@ -109,9 +110,6 @@ local function createDisplayedItem(player: Player, displayState: DisplayState, i
 			descendant.CanTouch = false
 		end
 	end
-	itemModel:SetAttribute("OwnerUserId", player.UserId)
-	itemModel:SetAttribute("ItemId", itemId)
-	itemModel:SetAttribute("DisplayIndex", displayState.index)
 	itemModel:PivotTo(displayState.itemCFrame.CFrame * CFrame.new(0, boundingBox.Size.Y / 2, 0))
 	itemModel.Parent = displayState.model
 	ItemInfoBillboard(itemInfo, boundingBox)
@@ -119,7 +117,6 @@ local function createDisplayedItem(player: Player, displayState: DisplayState, i
 end
 
 local function UpdateDisplayPrompts(DisplayState: DisplayState)
-	DisplayState.model:SetAttribute("Unlocked", true)
 	DisplayState.prompt.ActionText = if DisplayState.itemId == nil then "Place Item" else "Occupied"
 	DisplayState.prompt.ObjectText = "Display"
 	DisplayState.prompt.Enabled = DisplayState.itemId == nil
@@ -139,7 +136,6 @@ local function setDisplayItem(player: Player, displayState: DisplayState, itemId
 
 	displayState.itemId = itemId
 	displayState.itemModel = itemModel
-	displayState.model:SetAttribute("ItemId", itemId)
 	UpdateDisplayPrompts(displayState)
 	return true
 end
@@ -149,7 +145,6 @@ local function clearDisplay(player: Player, displayState: DisplayState): number?
 	if itemId == nil then return nil end
 	displayState.itemId = nil
 	if displayState.itemModel then displayState.itemModel:Destroy(); displayState.itemModel = nil end
-	displayState.model:SetAttribute("ItemId", nil)
 	UpdateDisplayPrompts(displayState)
 	local displays = copyDisplays(dataService:get(player, "Displays"))
 	displays[tostring(displayState.index)] = nil
@@ -194,10 +189,10 @@ local function placeEquippedItem(player: Player, assignment: MuseumAssignment, d
 	local ItemId
 	local CharacterChildren = if Character then Character:GetChildren() else {}
 	for _, Child in CharacterChildren do
-		local ChildItemId = Child:GetAttribute("ItemId")
-		if Child:IsA("Tool") and type(ChildItemId) == "number" and Child:HasTag("satchelSlot") then
+		local ItemInfo = ToolResolver.GetItemInfo(Child)
+		if ItemInfo and Child:HasTag("satchelSlot") then
 			Tool = Child
-			ItemId = ChildItemId
+			ItemId = ItemInfo.Id
 			break
 		end
 	end
@@ -261,8 +256,6 @@ local function CreateDisplays(player: Player, assignment: MuseumAssignment)
 		local display = displayTemplate:Clone()
 		display.Name = `Display_{index}`
 		moveModelToCFrame(display, marker.CFrame)
-		display:SetAttribute("OwnerUserId", player.UserId)
-		display:SetAttribute("DisplayIndex", index)
 		display.Parent = assignment.museum
 
 		local itemCFrame = display:FindFirstChild("ItemCFrame")
@@ -398,7 +391,7 @@ function MuseumController.GetOccupiedDisplays(player: Player): { DisplayState }
 	return occupiedDisplays
 end
 
-function MuseumController:Init()
+function MuseumController.Init()
 	playerMuseums = Instance.new("Folder")
 	playerMuseums.Name = "PlayerMuseums"
 	playerMuseums.Parent = Workspace
@@ -428,7 +421,6 @@ function MuseumController.OnPlayerAdded(player: Player)
 	local museum = museumTemplate:Clone()
 	museum.Name = `Museum_{player.UserId}`
 	moveModelToCFrame(museum, position.CFrame)
-	museum:SetAttribute("OwnerUserId", player.UserId)
 	museum.Parent = playerMuseums
 
 	local assignment: MuseumAssignment = {

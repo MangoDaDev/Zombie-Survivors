@@ -3,6 +3,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Button = require(script.Parent.Parent.Classes.Button)
 local FixingInterface = require(ReplicatedStorage.Modules.UI.FixingInterface)
+local RuntimeState = require(ReplicatedStorage.Modules.Game.RuntimeState)
 local Vide = require(ReplicatedStorage.Packages.vide)
 
 local Cleanup = Vide.cleanup
@@ -12,12 +13,12 @@ local Source = Vide.source
 local LocalPlayer = Players.LocalPlayer
 
 return function()
-	local IsFixing = Source(LocalPlayer:GetAttribute("IsFixing") == true)
-	local AttributeConnection = LocalPlayer:GetAttributeChangedSignal("IsFixing"):Connect(function()
-		IsFixing(LocalPlayer:GetAttribute("IsFixing") == true)
+	local IsFixing = Source(RuntimeState.Get(LocalPlayer, "IsFixing", false) == true)
+	local StateConnection = RuntimeState.GetChangedSignal(LocalPlayer, "IsFixing"):Connect(function(Value)
+		IsFixing(Value == true)
 	end)
 	Cleanup(function()
-		AttributeConnection:Disconnect()
+		StateConnection:Disconnect()
 	end)
 
 	return Create "Frame" {

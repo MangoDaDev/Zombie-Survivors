@@ -159,7 +159,7 @@ local function spawnItem(path: { CFrame })
 	})
 end
 
-function ConveyorController:Init()
+function ConveyorController.Init()
 	local paths = getConveyorPaths()
 	assert(#paths == 2, `Expected two conveyor paths, found {#paths}`)
 	ConveyorItem.SetPurchaseHandler(purchaseItem)

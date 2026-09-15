@@ -24,7 +24,7 @@ local function OwnershipMatches(Value, Ownership): boolean
 	return true
 end
 
-function UpgradeController:Purchase(Player: Player, UpgradeId: string)
+function UpgradeController.Purchase(_, Player: Player, UpgradeId: string)
 	if PurchaseLocks[Player] or Player.Parent ~= Players or type(UpgradeId) ~= "string" then return false, "Invalid request" end
 	local Upgrade = UpgradeConfig.Get(UpgradeId)
 	if not Upgrade or Upgrade.Purchasable == false then return false, "That upgrade cannot be purchased" end
@@ -52,8 +52,8 @@ end
 
 function UpgradeController.SetDataService(Service) DataService = Service end
 
-function UpgradeController:Init()
-	Networker.server.new("UpgradeController", self, { UpgradeController.Purchase })
+function UpgradeController.Init()
+	Networker.server.new("UpgradeController", UpgradeController, { UpgradeController.Purchase })
 end
 
 function UpgradeController.OnPlayerAdded(Player: Player)

@@ -9,26 +9,25 @@ local localPlayer = Players.LocalPlayer
 local readySignal = Signal.new()
 local deathConnection: RBXScriptConnection?
 
-local CharacterController = {
-	networker = nil :: Networker.Client?,
-	ready = false,
-}
+local CharacterController = {}
+local CharacterNetwork: Networker.Client?
+local IsReady = false
 
-function CharacterController:Init()
-	self.networker = Networker.client.new("CharacterController", self)
-	self.ready = true
+function CharacterController.Init()
+	CharacterNetwork = Networker.client.new("CharacterController", CharacterController)
+	IsReady = true
 	readySignal:Fire()
 end
 
-function CharacterController:WaitUntilReady()
-	if not self.ready then
+function CharacterController.WaitUntilReady()
+	if not IsReady then
 		readySignal:Wait()
 	end
 end
 
-function CharacterController:RequestCharacter(): boolean
-	self:WaitUntilReady()
-	return (self.networker :: Networker.Client):fetch("RequestCharacter") == true
+function CharacterController.RequestCharacter(): boolean
+	CharacterController.WaitUntilReady()
+	return (CharacterNetwork :: Networker.Client):fetch("RequestCharacter") == true
 end
 
 function CharacterController.OnCharacterAdded(character: Model)
@@ -44,7 +43,7 @@ function CharacterController.OnCharacterAdded(character: Model)
 	deathConnection = humanoid.Died:Connect(function()
 		task.delay(Players.RespawnTime, function()
 			if localPlayer.Character == character or localPlayer.Character == nil then
-				CharacterController:RequestCharacter()
+				CharacterController.RequestCharacter()
 			end
 		end)
 	end)

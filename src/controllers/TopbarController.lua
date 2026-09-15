@@ -15,7 +15,7 @@ local groupButton
 
 local TopbarController = {}
 
-function TopbarController:Toggle(enabled: boolean)
+function TopbarController.Toggle(enabled: boolean)
 	if inviteButton then
 		inviteButton:setEnabled(enabled)
 	end
@@ -25,7 +25,7 @@ function TopbarController:Toggle(enabled: boolean)
 	end
 end
 
-function TopbarController:Init()
+function TopbarController.Init()
 	inviteButton = TopbarPlus.new():setName("Invite"):setLabel("Invite"):setTextFont(UIStyle.Font.Family):setWidth(44):setImage(Images.Invite):notify()
 
 	inviteButton:bindEvent("selected", function()

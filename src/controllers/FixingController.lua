@@ -1,3 +1,4 @@
+local ContextActionService = game:GetService("ContextActionService")
 local GuiService = game:GetService("GuiService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -9,11 +10,14 @@ local CleaningConfig = require(ReplicatedStorage.Modules.Game.CleaningConfig)
 local DataService = require(ReplicatedStorage.Packages.dataservice).client
 local FixingInterface = require(ReplicatedStorage.Modules.UI.FixingInterface)
 local Networker = require(ReplicatedStorage.Packages.networker)
+local RuntimeState = require(ReplicatedStorage.Modules.Game.RuntimeState)
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
+local ToolResolver = require(ReplicatedStorage.Modules.Game.ToolResolver)
 local UpgradeLogic = require(ReplicatedStorage.Modules.Game.UpgradeLogic)
 
 local LocalPlayer = Players.LocalPlayer
 local FixingController = {}
+local Network
 local CameraBound = false
 local HiddenParts: { [BasePart]: number } = {}
 local UsingTool = false
@@ -37,7 +41,6 @@ local ViewmodelTool: Tool?
 local ViewmodelHandle: BasePart?
 local ViewmodelSourceTool: Tool?
 local ViewmodelPartOffsets: { [BasePart]: CFrame } = {}
-local PlayerControls
 local ControlsDisabled = false
 local OriginalFieldOfView: number?
 local OriginalCameraType: Enum.CameraType?
@@ -47,7 +50,31 @@ local GetFixingItemModel
 local HideCharacterPart
 
 local CAMERA_BINDING_NAME = "CleaningCameraAndArm"
+local DISABLE_CONTROLS_ACTION_NAME = "DisableFixingControls"
+local DISABLE_CONTROLS_PRIORITY = Enum.ContextActionPriority.High.Value
 local TOOL_SOUND_MAX_DISTANCE = 50
+
+local function SinkPlayerAction(): Enum.ContextActionResult
+	return Enum.ContextActionResult.Sink
+end
+
+local function DisablePlayerControls()
+	if ControlsDisabled then return end
+	ContextActionService:BindActionAtPriority(
+		DISABLE_CONTROLS_ACTION_NAME,
+		SinkPlayerAction,
+		false,
+		DISABLE_CONTROLS_PRIORITY,
+		table.unpack(Enum.PlayerActions:GetEnumItems())
+	)
+	ControlsDisabled = true
+end
+
+local function EnablePlayerControls()
+	if not ControlsDisabled then return end
+	ContextActionService:UnbindAction(DISABLE_CONTROLS_ACTION_NAME)
+	ControlsDisabled = false
+end
 
 local function GetToolInfo(ToolId: string)
 	for _, ToolInfo in CleaningConfig.Tools do
@@ -59,11 +86,8 @@ local function GetEquippedCleaningTool(): (Tool?, any?)
 	local Character = LocalPlayer.Character
 	if not Character then return nil, nil end
 	for _, Child in Character:GetChildren() do
-		if Child:IsA("Tool") then
-			local ToolId = Child:GetAttribute("CleaningToolId")
-			local ToolInfo = if type(ToolId) == "string" then GetToolInfo(ToolId) else nil
-			if ToolInfo then return Child, ToolInfo end
-		end
+		local ToolInfo = ToolResolver.GetCleaningToolInfo(Child)
+		if ToolInfo then return Child, ToolInfo end
 	end
 	return nil, nil
 end
@@ -75,8 +99,8 @@ end
 
 local function UpdateToolInterface()
 	local Tool, ToolInfo = GetEquippedCleaningTool()
-	local RequiredToolId = LocalPlayer:GetAttribute("CleaningStepToolId")
-	local IsFixing = LocalPlayer:GetAttribute("IsFixing") == true
+	local RequiredToolId = RuntimeState.Get(LocalPlayer, "CleaningStepToolId")
+	local IsFixing = RuntimeState.Get(LocalPlayer, "IsFixing", false) == true
 	if ToolInfo and ToolInfo.Id == RequiredToolId then RequestedToolId = nil end
 	if IsFixing and Tool and ToolInfo and ToolInfo.Id ~= RequiredToolId and RequestedToolId ~= ToolInfo.Id then
 		RequestedToolId = ToolInfo.Id
@@ -84,32 +108,35 @@ local function UpdateToolInterface()
 			UsingTool = false
 			ActiveToolId = nil
 			StopToolEffects()
-			FixingController.Networker:fire("StopUsingTool")
+			Network:fire("StopUsingTool")
 		end
-		FixingController.Networker:fire("SelectTool", ToolInfo.Id)
+		Network:fire("SelectTool", ToolInfo.Id)
 	end
 	local IsApplicable = IsFixing
 		and Tool ~= nil
 		and ToolInfo ~= nil
 		and ToolInfo.Id == RequiredToolId
-		and LocalPlayer:GetAttribute("CleaningStepComplete") ~= true
-	LocalPlayer:SetAttribute("CleaningRadiusVisible", IsApplicable)
-	LocalPlayer:SetAttribute("CleaningBrushRadius", if IsApplicable then GetToolRadius(ToolInfo) else nil)
+		and RuntimeState.Get(LocalPlayer, "CleaningStepComplete", false) ~= true
+	RuntimeState.Set(LocalPlayer, "CleaningRadiusVisible", IsApplicable)
+	RuntimeState.Set(LocalPlayer, "CleaningBrushRadius", if IsApplicable then GetToolRadius(ToolInfo) else nil)
 	if UsingTool and (not IsApplicable or ToolInfo.Id ~= ActiveToolId) then
 		UsingTool = false
 		ActiveToolId = nil
 		StopToolEffects()
-		FixingController.Networker:fire("StopUsingTool")
+		Network:fire("StopUsingTool")
 	end
 end
 
 local function UpdateFixPrompt()
 	if not FixPrompt then return end
 	local Tool = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Tool")
-	local ItemId = Tool and Tool:GetAttribute("ItemId")
+	local ItemInfo = ToolResolver.GetItemInfo(Tool)
+	local ItemId = ItemInfo and ItemInfo.Id
 	local Fixing = DataService:get("Fixing") or {}
 	local State = if type(ItemId) == "number" then Fixing[tostring(ItemId)] else nil
-	FixPrompt.Enabled = LocalPlayer:GetAttribute("IsFixing") ~= true and type(ItemId) == "number" and (type(State) ~= "table" or State.Completed ~= true)
+	FixPrompt.Enabled = RuntimeState.Get(LocalPlayer, "IsFixing", false) ~= true
+		and type(ItemId) == "number"
+		and (type(State) ~= "table" or State.Completed ~= true)
 end
 
 local function WatchCharacter(Character: Model)
@@ -118,7 +145,9 @@ local function WatchCharacter(Character: Model)
 		Character.ChildAdded:Connect(function() task.defer(UpdateFixPrompt); task.defer(UpdateToolInterface) end),
 		Character.ChildRemoved:Connect(function() task.defer(UpdateFixPrompt); task.defer(UpdateToolInterface) end),
 		Character.DescendantAdded:Connect(function(Descendant)
-			if LocalPlayer:GetAttribute("IsFixing") == true and Descendant:IsA("BasePart") then HideCharacterPart(Descendant) end
+			if RuntimeState.Get(LocalPlayer, "IsFixing", false) == true and Descendant:IsA("BasePart") then
+				HideCharacterPart(Descendant)
+			end
 		end),
 	}
 	task.defer(UpdateFixPrompt)
@@ -216,10 +245,9 @@ local function Restore()
 	local Camera = Workspace.CurrentCamera
 	if OriginalCameraType then Camera.CameraType = OriginalCameraType; OriginalCameraType = nil end
 	if OriginalFieldOfView then Camera.FieldOfView = OriginalFieldOfView; OriginalFieldOfView = nil end
-	if ControlsDisabled and PlayerControls then PlayerControls:Enable() end
-	ControlsDisabled = false
-	LocalPlayer:SetAttribute("CleaningRadiusVisible", false)
-	LocalPlayer:SetAttribute("CleaningBrushRadius", nil)
+	EnablePlayerControls()
+	RuntimeState.Set(LocalPlayer, "CleaningRadiusVisible", false)
+	RuntimeState.Set(LocalPlayer, "CleaningBrushRadius", nil)
 end
 
 local function GetScreenWorldPosition(Camera, ScreenPosition, Depth): Vector3
@@ -266,19 +294,18 @@ local function DestroyViewmodelTool()
 	SmoothedVisualToolCFrame = nil
 end
 
-local function CreateViewmodelTool(SourceTool: Tool)
+local function CreateViewmodelTool(SourceTool: Tool, ToolInfo)
 	DestroyViewmodelTool()
 	if not ViewmodelContainer then return end
-	local Clone = SourceTool:Clone()
+	local Template = ReplicatedStorage.Assets.Tools:FindFirstChild(ToolInfo.TemplateName)
+	if not Template or not Template:IsA("Tool") then return end
+	local Clone = Template:Clone()
 	local Handle = Clone:FindFirstChild("Handle", true)
 	if not Handle or not Handle:IsA("BasePart") then Clone:Destroy(); return end
 	Clone.Name = `Local{SourceTool.Name}Viewmodel`
 	for _, Descendant in Clone:GetDescendants() do
 		if Descendant:IsA("BasePart") then
 			ViewmodelPartOffsets[Descendant] = Handle.CFrame:ToObjectSpace(Descendant.CFrame)
-			local ViewmodelTransparency = Descendant:GetAttribute("ViewmodelTransparency")
-			if type(ViewmodelTransparency) == "number" then Descendant.Transparency = ViewmodelTransparency end
-			Descendant:SetAttribute("ViewmodelTransparency", nil)
 			Descendant.Anchored = true
 			Descendant.CanCollide = false
 			Descendant.CanQuery = false
@@ -302,7 +329,7 @@ end
 
 local function EnterFixingView()
 	Restore()
-	if LocalPlayer:GetAttribute("IsFixing") ~= true then return end
+	if RuntimeState.Get(LocalPlayer, "IsFixing", false) ~= true then return end
 	local Character = LocalPlayer.Character
 	local Museums = Workspace:FindFirstChild("PlayerMuseums")
 	local Museum = Museums and Museums:FindFirstChild(`Museum_{LocalPlayer.UserId}`)
@@ -311,7 +338,7 @@ local function EnterFixingView()
 	if not Character or not CameraPart or not CameraPart:IsA("BasePart") then return end
 	HideCharacter(Character)
 	CreateViewmodelContainer(Character)
-	if PlayerControls then PlayerControls:Disable(); ControlsDisabled = true end
+	DisablePlayerControls()
 	local Camera = Workspace.CurrentCamera
 	OriginalFieldOfView = Camera.FieldOfView
 	OriginalCameraType = Camera.CameraType
@@ -321,7 +348,7 @@ local function EnterFixingView()
 	RunService:BindToRenderStep(CAMERA_BINDING_NAME, Enum.RenderPriority.Last.Value, function(DeltaTime)
 		if not CameraPart.Parent then
 			Restore()
-			FixingController.Networker:fire("Exit")
+			Network:fire("Exit")
 			return
 		end
 		Camera.CFrame = CameraPart.CFrame
@@ -335,10 +362,8 @@ GetFixingItemModel = function(): Model?
 	local Museums = Workspace:FindFirstChild("PlayerMuseums")
 	local Museum = Museums and Museums:FindFirstChild(`Museum_{LocalPlayer.UserId}`)
 	if not Museum then return nil end
-	for _, Child in Museum:GetChildren() do
-		if Child:IsA("Model") and Child:GetAttribute("FixingItemOwnerUserId") == LocalPlayer.UserId then return Child end
-	end
-	return nil
+	local Model = Museum:FindFirstChild(`FixingItem_{LocalPlayer.UserId}`)
+	return if Model and Model:IsA("Model") then Model else nil
 end
 
 local function GetAimPosition(): (Vector3?, BasePart?, Vector3?)
@@ -396,10 +421,10 @@ local function PositionViewmodelTool(ToolCFrame: CFrame)
 end
 
 UpdateVisualTool = function(DeltaTime)
-	if LocalPlayer:GetAttribute("IsFixing") ~= true then return end
+	if RuntimeState.Get(LocalPlayer, "IsFixing", false) ~= true then return end
 	local Tool, ToolInfo = GetEquippedCleaningTool()
 	if Tool ~= ViewmodelSourceTool then
-		if Tool then CreateViewmodelTool(Tool) else DestroyViewmodelTool() end
+		if Tool and ToolInfo then CreateViewmodelTool(Tool, ToolInfo) else DestroyViewmodelTool() end
 	end
 	if not Tool or not ToolInfo or not ViewmodelTool or not ViewmodelHandle then
 		if FakeArm then FakeArm.Transparency = 1 end
@@ -432,39 +457,44 @@ UpdateVisualTool = function(DeltaTime)
 	end
 end
 
-function FixingController:Init()
-	self.Networker = Networker.client.new("FixingController", self)
-	local PlayerModule = LocalPlayer:WaitForChild("PlayerScripts"):WaitForChild("PlayerModule")
-	PlayerControls = require(PlayerModule):GetControls()
+function FixingController.Init()
+	Network = Networker.client.new("FixingController", FixingController)
 	task.spawn(function()
 		local Museums = Workspace:WaitForChild("PlayerMuseums")
 		local Museum = Museums:WaitForChild(`Museum_{LocalPlayer.UserId}`)
 		FixPrompt = Museum:WaitForChild("Table"):WaitForChild("PromptPart"):WaitForChild("FixItemPrompt") :: ProximityPrompt
 		UpdateFixPrompt()
 	end)
-	LocalPlayer:GetAttributeChangedSignal("IsFixing"):Connect(function() EnterFixingView(); UpdateFixPrompt() end)
-	LocalPlayer:GetAttributeChangedSignal("CleaningStepToolId"):Connect(function()
+	RuntimeState.GetChangedSignal(LocalPlayer, "IsFixing"):Connect(function()
+		EnterFixingView()
+		UpdateFixPrompt()
+	end)
+	RuntimeState.GetChangedSignal(LocalPlayer, "CleaningStepToolId"):Connect(function()
 		RequestedToolId = nil
 		UpdateToolInterface()
 	end)
 	DataService:getChangedSignal("Fixing"):Connect(UpdateFixPrompt)
 	DataService:getChangedSignal("Upgrades"):Connect(UpdateToolInterface)
-	LocalPlayer:GetAttributeChangedSignal("CleaningStepComplete"):Connect(function()
-		if LocalPlayer:GetAttribute("CleaningStepComplete") == true then UsingTool = false; ActiveToolId = nil; StopToolEffects() end
+	RuntimeState.GetChangedSignal(LocalPlayer, "CleaningStepComplete"):Connect(function(IsComplete)
+		if IsComplete == true then
+			UsingTool = false
+			ActiveToolId = nil
+			StopToolEffects()
+		end
 	end)
 	FixingInterface.ExitRequested:Connect(function()
-		if LocalPlayer:GetAttribute("IsFixing") == true then self.Networker:fire("Exit") end
+		if RuntimeState.Get(LocalPlayer, "IsFixing", false) == true then Network:fire("Exit") end
 	end)
 	RunService.RenderStepped:Connect(function(DeltaTime)
 		if not UsingTool then return end
 		local Tool, ToolInfo = GetEquippedCleaningTool()
-		if not Tool or not ToolInfo or ToolInfo.Id ~= ActiveToolId or ToolInfo.Id ~= LocalPlayer:GetAttribute("CleaningStepToolId")
-			or LocalPlayer:GetAttribute("CleaningStepComplete") == true
+		if not Tool or not ToolInfo or ToolInfo.Id ~= ActiveToolId or ToolInfo.Id ~= RuntimeState.Get(LocalPlayer, "CleaningStepToolId")
+			or RuntimeState.Get(LocalPlayer, "CleaningStepComplete", false) == true
 		then
 			UsingTool = false
 			ActiveToolId = nil
 			StopToolEffects()
-			self.Networker:fire("StopUsingTool")
+			Network:fire("StopUsingTool")
 			return
 		end
 		local AimPosition, AimPart = GetAimPosition()
@@ -480,8 +510,7 @@ function FixingController:Init()
 			local WorldUnitsPerPixel = 2 * Depth * math.tan(math.rad(Camera.FieldOfView / 2)) / math.max(Camera.ViewportSize.Y, 1)
 			ToolBeam.Width1 = GetToolRadius(ToolInfo) * 2 * WorldUnitsPerPixel * ToolInfo.VFXWidthScale
 			if ToolInfo.ColorFromTarget and AimPart then
-				local OriginalColor = AimPart:GetAttribute("PaintOriginalColor")
-				local TargetColor = if typeof(OriginalColor) == "Color3" then OriginalColor else AimPart.Color
+				local TargetColor = AimPart.Color
 				if CurrentToolColor then
 					local ColorBlend = 1 - math.exp(-(ToolInfo.ColorResponsiveness or 14) * DeltaTime)
 					CurrentToolColor = CurrentToolColor:Lerp(TargetColor, ColorBlend)
@@ -493,38 +522,40 @@ function FixingController:Init()
 		elseif ToolBeam then
 			ToolBeam.Enabled = false
 		end
-		self.Networker:fire("ApplyTool", ToolInfo.Id, MousePosition, Camera.ViewportSize)
+		Network:fire("ApplyTool", ToolInfo.Id, MousePosition, Camera.ViewportSize)
 	end)
 	UserInputService.InputBegan:Connect(function(Input, Processed)
 		if Processed then return end
-		if Input.UserInputType == Enum.UserInputType.MouseButton1 and LocalPlayer:GetAttribute("IsFixing") == true and not UsingTool then
+		if Input.UserInputType == Enum.UserInputType.MouseButton1 and RuntimeState.Get(LocalPlayer, "IsFixing", false) == true and not UsingTool then
 			local Tool, ToolInfo = GetEquippedCleaningTool()
-			if Tool and ToolInfo and ToolInfo.Id == LocalPlayer:GetAttribute("CleaningStepToolId")
-				and LocalPlayer:GetAttribute("CleaningStepComplete") ~= true
+			if Tool and ToolInfo and ToolInfo.Id == RuntimeState.Get(LocalPlayer, "CleaningStepToolId")
+				and RuntimeState.Get(LocalPlayer, "CleaningStepComplete", false) ~= true
 			then
 				UsingTool = true
 				ActiveToolId = ToolInfo.Id
-				if Tool ~= ViewmodelSourceTool then CreateViewmodelTool(Tool) end
+				if Tool ~= ViewmodelSourceTool then CreateViewmodelTool(Tool, ToolInfo) end
 				if ViewmodelTool then StartToolEffects(ViewmodelTool, ToolInfo) end
-				self.Networker:fire("StartUsingTool", ToolInfo.Id)
+				Network:fire("StartUsingTool", ToolInfo.Id)
 			end
-		elseif Input.KeyCode == Enum.KeyCode.Q and LocalPlayer:GetAttribute("IsFixing") == true then self.Networker:fire("Exit") end
+		elseif Input.KeyCode == Enum.KeyCode.Q and RuntimeState.Get(LocalPlayer, "IsFixing", false) == true then
+			Network:fire("Exit")
+		end
 	end)
 	UserInputService.InputEnded:Connect(function(Input)
 		if Input.UserInputType == Enum.UserInputType.MouseButton1 and UsingTool then
 			UsingTool = false
 			ActiveToolId = nil
 			StopToolEffects()
-			self.Networker:fire("StopUsingTool")
+			Network:fire("StopUsingTool")
 		end
 	end)
 	EnterFixingView()
 end
 
 function FixingController.OnCharacterAdded(Character)
-	if LocalPlayer:GetAttribute("IsFixing") == true then
+	if RuntimeState.Get(LocalPlayer, "IsFixing", false) == true then
 		Restore()
-		FixingController.Networker:fire("Exit")
+		Network:fire("Exit")
 	end
 	WatchCharacter(Character)
 end

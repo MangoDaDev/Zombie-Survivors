@@ -22,8 +22,8 @@ local CATEGORY_KEYWORDS = {
 
 local CharacterController = {
 	Config = CONFIG,
-	networker = nil :: Networker.Server?,
 }
+local CharacterNetwork: Networker.Server?
 
 local readyPlayers: { [Player]: boolean } = {}
 local loadingPlayers: { [Player]: boolean } = {}
@@ -73,7 +73,7 @@ local function applyR6Animations(character: Model, humanoid: Humanoid)
 	humanoid:ApplyDescription(description)
 end
 
-function CharacterController:RequestCharacter(player: Player): boolean
+function CharacterController.RequestCharacter(_, player: Player): boolean
 	if not readyPlayers[player] or loadingPlayers[player] or player.Parent ~= Players then
 		return false
 	end
@@ -93,8 +93,8 @@ function CharacterController:RequestCharacter(player: Player): boolean
 	return player.Character ~= nil
 end
 
-function CharacterController:Init()
-	self.networker = Networker.server.new("CharacterController", self, {
+function CharacterController.Init()
+	CharacterNetwork = Networker.server.new("CharacterController", CharacterController, {
 		CharacterController.RequestCharacter,
 	})
 end

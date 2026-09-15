@@ -14,7 +14,7 @@ local function AssignPart(Descendant: Instance)
 	if Descendant:IsA("BasePart") then Descendant.CollisionGroup = CollisionGroups.PlayerCharacters end
 end
 
-function CollisionController:Init()
+function CollisionController.Init()
 	RegisterGroup(CollisionGroups.PlayerCharacters)
 	RegisterGroup(CollisionGroups.NPCCharacters)
 	PhysicsService:CollisionGroupSetCollidable(CollisionGroups.PlayerCharacters, CollisionGroups.PlayerCharacters, false)

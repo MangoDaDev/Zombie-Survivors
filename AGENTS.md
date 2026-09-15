@@ -22,61 +22,59 @@ local Workspace = game:GetService("Workspace")
 local Networker = require(ReplicatedStorage.Packages.networker)
 local Signal = require(ReplicatedStorage.Packages.signal)
 
-local localPlayer = Players.LocalPlayer
+local LocalPlayer = Players.LocalPlayer
 
-local readySignal = Signal.new()
-local deathConnection: RBXScriptConnection?
+local ReadySignal = Signal.new()
+local DeathConnection: RBXScriptConnection?
+local CharacterNetwork: Networker.Client?
+local IsReady = false
 
-local CharacterController = {
-	networker = nil :: Networker.Client?,
-	ready = false,
-}
+local CharacterController = {}
 
-local function disconnectDeathConnection()
-	if not deathConnection then
+local function DisconnectDeathConnection()
+	if not DeathConnection then
 		return
 	end
 
-	deathConnection:Disconnect()
-	deathConnection = nil
+	DeathConnection:Disconnect()
+	DeathConnection = nil
 end
 
-function CharacterController:Init()
-	self.networker = Networker.client.new("CharacterController", self)
+function CharacterController.Init()
+	CharacterNetwork = Networker.client.new("CharacterController", CharacterController)
 
-	self.ready = true
-	readySignal:Fire()
+	IsReady = true
+	ReadySignal:Fire()
 end
 
-function CharacterController:WaitUntilReady()
-	if self.ready then
+function CharacterController.WaitUntilReady()
+	if IsReady then
 		return
 	end
 
-	readySignal:Wait()
+	ReadySignal:Wait()
 end
 
-function CharacterController:RequestCharacter(): boolean
-	self:WaitUntilReady()
+function CharacterController.RequestCharacter(): boolean
+	CharacterController.WaitUntilReady()
 
-	local networker = self.networker :: Networker.Client
-	return networker:fetch("RequestCharacter") == true
+	return (CharacterNetwork :: Networker.Client):fetch("RequestCharacter") == true
 end
 
-function CharacterController.OnCharacterAdded(character: Model)
-	disconnectDeathConnection()
+function CharacterController.OnCharacterAdded(Character: Model)
+	DisconnectDeathConnection()
 
-	local humanoid = character:WaitForChild("Humanoid") :: Humanoid
-	local camera = Workspace.CurrentCamera
+	local Humanoid = Character:WaitForChild("Humanoid") :: Humanoid
+	local Camera = Workspace.CurrentCamera
 
-	if camera.CameraType == Enum.CameraType.Custom then
-		camera.CameraSubject = humanoid
+	if Camera.CameraType == Enum.CameraType.Custom then
+		Camera.CameraSubject = Humanoid
 	end
 
-	deathConnection = humanoid.Died:Connect(function()
+	DeathConnection = Humanoid.Died:Connect(function()
 		task.delay(Players.RespawnTime, function()
-			if localPlayer.Character == character or localPlayer.Character == nil then
-				CharacterController:RequestCharacter()
+			if LocalPlayer.Character == Character or LocalPlayer.Character == nil then
+				CharacterController.RequestCharacter()
 			end
 		end)
 	end)
@@ -129,6 +127,8 @@ return CharacterController
 - Use `camelCase` for local variables and private functions.
 - Use `UPPER_SNAKE_CASE` for constants, except declarative information/data modules where ordinary keys may be clearer.
 - Use `PascalCase` for public methods, exposed members, controller lifecycle methods, and module/class names.
+- Treat controller tables as namespaces: use dot functions, keep mutable state in focused module-scope variables, and never use `self` to reference a controller.
+- Networker callbacks that receive the controller table should accept it as an unused first parameter (`_`) instead of treating it as controller state.
 - Follow the surrounding file's established style when making a small targeted edit; do not rename unrelated code solely for style consistency.
 - Prefer simple, direct Roblox code that an intermediate Luau developer can comfortably modify.
 - Search existing controllers, modules, UI components, utilities, and packages before adding a new system.
@@ -138,7 +138,7 @@ return CharacterController
 - Clean up connections, tasks, temporary instances, networkers, and cached player/character state.
 - Use `pcall` only where failure is expected from an external Roblox operation, not to hide ordinary coding errors.
 - Keep tunable values such as speeds, cooldowns, limits, and probabilities in a focused configuration table when they are genuinely likely to change.
-ATTRIBUTES SHOULD NOT BE USED OR CREATED IN CODE! STORE EVERYTHING IN THE CODE, IN TABLES.
+- Separate logical sections with a blank line and prefer one statement per line. Keep code comfortably spaced without fragmenting closely related operations.
 ## Coding Rules
 
 * **Do not use Roblox Attributes anywhere.** Never use `SetAttribute`, `GetAttribute`, `GetAttributes`, or Attribute changed signals.

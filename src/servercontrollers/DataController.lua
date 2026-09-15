@@ -9,7 +9,7 @@ function DataController.SetDataService(Service)
 	DataService = Service
 end
 
-function DataController:Init()
+function DataController.Init()
 	Players.PlayerRemoving:Connect(function(Player)
 		ResettingPlayers[Player] = nil
 	end)

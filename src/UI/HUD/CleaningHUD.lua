@@ -4,6 +4,7 @@ local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
 local CleaningConfig = require(ReplicatedStorage.Modules.Game.CleaningConfig)
+local RuntimeState = require(ReplicatedStorage.Modules.Game.RuntimeState)
 local UIStyle = require(ReplicatedStorage.Modules.UI.UIStyle)
 local Vide = require(ReplicatedStorage.Packages.vide)
 
@@ -15,32 +16,32 @@ local Spring = Vide.spring
 local LocalPlayer = Players.LocalPlayer
 
 return function()
-	local IsFixing = Source(LocalPlayer:GetAttribute("IsFixing") == true)
-	local RadiusVisible = Source(LocalPlayer:GetAttribute("CleaningRadiusVisible") == true)
-	local BrushRadius = Source(LocalPlayer:GetAttribute("CleaningBrushRadius") or CleaningConfig.BrushRadiusPixels)
-	local StepName = Source(LocalPlayer:GetAttribute("CleaningStepName") or "Cleaning")
-	local StepComplete = Source(LocalPlayer:GetAttribute("CleaningStepComplete") == true)
-	local ProgressTarget = Source(LocalPlayer:GetAttribute("CleaningProgress") or 0)
+	local IsFixing = Source(RuntimeState.Get(LocalPlayer, "IsFixing", false) == true)
+	local RadiusVisible = Source(RuntimeState.Get(LocalPlayer, "CleaningRadiusVisible", false) == true)
+	local BrushRadius = Source(RuntimeState.Get(LocalPlayer, "CleaningBrushRadius", CleaningConfig.BrushRadiusPixels))
+	local StepName = Source(RuntimeState.Get(LocalPlayer, "CleaningStepName", "Cleaning"))
+	local StepComplete = Source(RuntimeState.Get(LocalPlayer, "CleaningStepComplete", false) == true)
+	local ProgressTarget = Source(RuntimeState.Get(LocalPlayer, "CleaningProgress", 0))
 	local Progress = Spring(ProgressTarget, 0.16, 0.85)
 	local CursorPosition = Source(UserInputService:GetMouseLocation())
 	local Connections = {
-		LocalPlayer:GetAttributeChangedSignal("IsFixing"):Connect(function()
-			IsFixing(LocalPlayer:GetAttribute("IsFixing") == true)
+		RuntimeState.GetChangedSignal(LocalPlayer, "IsFixing"):Connect(function(Value)
+			IsFixing(Value == true)
 		end),
-		LocalPlayer:GetAttributeChangedSignal("CleaningRadiusVisible"):Connect(function()
-			RadiusVisible(LocalPlayer:GetAttribute("CleaningRadiusVisible") == true)
+		RuntimeState.GetChangedSignal(LocalPlayer, "CleaningRadiusVisible"):Connect(function(Value)
+			RadiusVisible(Value == true)
 		end),
-		LocalPlayer:GetAttributeChangedSignal("CleaningBrushRadius"):Connect(function()
-			BrushRadius(LocalPlayer:GetAttribute("CleaningBrushRadius") or CleaningConfig.BrushRadiusPixels)
+		RuntimeState.GetChangedSignal(LocalPlayer, "CleaningBrushRadius"):Connect(function(Value)
+			BrushRadius(Value or CleaningConfig.BrushRadiusPixels)
 		end),
-		LocalPlayer:GetAttributeChangedSignal("CleaningStepName"):Connect(function()
-			StepName(LocalPlayer:GetAttribute("CleaningStepName") or "Cleaning")
+		RuntimeState.GetChangedSignal(LocalPlayer, "CleaningStepName"):Connect(function(Value)
+			StepName(Value or "Cleaning")
 		end),
-		LocalPlayer:GetAttributeChangedSignal("CleaningStepComplete"):Connect(function()
-			StepComplete(LocalPlayer:GetAttribute("CleaningStepComplete") == true)
+		RuntimeState.GetChangedSignal(LocalPlayer, "CleaningStepComplete"):Connect(function(Value)
+			StepComplete(Value == true)
 		end),
-		LocalPlayer:GetAttributeChangedSignal("CleaningProgress"):Connect(function()
-			ProgressTarget(LocalPlayer:GetAttribute("CleaningProgress") or 0)
+		RuntimeState.GetChangedSignal(LocalPlayer, "CleaningProgress"):Connect(function(Value)
+			ProgressTarget(Value or 0)
 		end),
 		RunService.RenderStepped:Connect(function()
 			CursorPosition(UserInputService:GetMouseLocation())
