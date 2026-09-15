@@ -61,7 +61,7 @@ Quick reference for the project's first-party Luau scripts. Generated Wally depe
 | `src/modules/Game/CleaningConfig.lua` | CleaningConfig | Registers restoration steps and tools, shared viewmodel positioning, Sponge surface/scrub motion, screen-space brushes, VFX, auto-completion, and item-step helpers. |
 | `src/modules/Game/CollisionGroups.lua` | CollisionGroups | Defines shared player and NPC collision-group names used by server characters and client-rendered visitors. |
 | `src/modules/Game/BatInfo.lua` | BatInfo | Configures Wooden, Stone, and Gold crate-only bat tiers with distinct icon keys, progressively improved damage, timing, range, validation, and sounds. |
-| `src/modules/Game/CrateInfo.lua` | CrateInfo | Configures regular and pity-only crate tiers, bat-scaled health and loot luck, performance-conscious population limits, reveal pacing, UI, sounds, and the synchronized reset cycle. |
+| `src/modules/Game/CrateInfo.lua` | CrateInfo | Configures regular and pity-only crate tiers, rarity-based spawn-depth bias, bat-scaled health and loot luck, population limits, reveal pacing, UI, sounds, and the synchronized reset cycle. |
 | `src/modules/Game/DataTemplate.lua` | DataTemplate | Defines saved defaults for cash, inventory, museum displays, restoration state, and persistent upgrade ownership. |
 | `src/modules/Game/DirtRenderer.lua` | DirtRenderer | Calculates surface-area-scaled dirt counts and adds or removes dense dirt layers without treating other restoration overlays as item surfaces. |
 | `src/modules/Game/FreezePlayer.lua` | FreezePlayer | Freezes the local player, optionally at a target CFrame. |
@@ -137,7 +137,7 @@ Quick reference for the project's first-party Luau scripts. Generated Wally depe
 | `src/servercontrollers/CharacterController.lua` | CharacterController | Authorizes character spawning and applies the configured R6 avatar animations. |
 | `src/servercontrollers/CollisionController.lua` | CollisionController | Registers collision groups and assigns character parts so players do not collide with players or NPCs while retaining environment collisions. |
 | `src/servercontrollers/ConveyorController.lua` | ConveyorController | Retains the inactive legacy conveyor spawning and purchase implementation. |
-| `src/servercontrollers/CrateController.lua` | CrateController | Spawns tiered and globally aligned pity crates, owns health, loot rolls, purchases, and nearby sold/expiry feedback, updates the outlined PityDisplay countdown, and performs synchronized area resets behind the reset wall. |
+| `src/servercontrollers/CrateController.lua` | CrateController | Spawns dense tiered crate fields with rarity-biased depth and globally aligned pity crates, owns health, loot rolls, purchases, and nearby sold/expiry feedback, updates the outlined PityDisplay countdown, and performs synchronized area resets behind the reset wall. |
 | `src/servercontrollers/DataController.lua` | DataController | Handles the self-service `/resetdata` chat command and resets the requesting player's profile through DataService. |
 | `src/servercontrollers/FixingController.lua` | FixingController | Owns fixing sessions, freezes/restores characters, validates freely selected tools, renders unfinished damage layers, applies upgrades, and preserves progress. |
 | `src/servercontrollers/MuseumController.lua` | MuseumController | Assigns museum plots and physically creates only the purchased 8–12 displays while handling placement, removal, selling, and visitor-facing exhibits. |

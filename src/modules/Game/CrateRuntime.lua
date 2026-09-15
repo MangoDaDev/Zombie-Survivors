@@ -48,7 +48,7 @@ function CrateRuntime.Clear(Model)
 	local HealthSignal = HealthSignals[Model]
 
 	if HealthSignal then
-		HealthSignal:Destroy()
+		HealthSignal:DisconnectAll()
 	end
 
 	HealthSignals[Model] = nil

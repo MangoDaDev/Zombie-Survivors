@@ -114,7 +114,17 @@ local function GetSpawnCFrame(Info): CFrame?
 	if not Area or not Area:IsA("BasePart") then return nil end
 	for _ = 1, 12 do
 		local X = RandomGenerator:NextNumber(-Area.Size.X / 2 + Info.SpawnPadding, Area.Size.X / 2 - Info.SpawnPadding)
-		local Z = RandomGenerator:NextNumber(-Area.Size.Z / 2 + Info.SpawnPadding, Area.Size.Z / 2 - Info.SpawnPadding)
+		local MinimumZ = -Area.Size.Z / 2 + Info.SpawnPadding
+		local MaximumZ = Area.Size.Z / 2 - Info.SpawnPadding
+		local SpawnDepth = RandomGenerator:NextNumber()
+		local SpawnDepthBias = math.clamp(Info.SpawnDepthBias or 0, -1, 1)
+		local BiasPower = 1 + math.abs(SpawnDepthBias) * 3
+		if SpawnDepthBias < 0 then
+			SpawnDepth = SpawnDepth ^ BiasPower
+		elseif SpawnDepthBias > 0 then
+			SpawnDepth = 1 - (1 - SpawnDepth) ^ BiasPower
+		end
+		local Z = MaximumZ + (MinimumZ - MaximumZ) * SpawnDepth
 		local Position = Area.CFrame:PointToWorldSpace(Vector3.new(X, Area.Size.Y / 2, Z))
 		local IsClear = true
 		for _, State in Crates do

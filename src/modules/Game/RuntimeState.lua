@@ -71,7 +71,7 @@ function RuntimeState.Clear(Player)
 
 	if PlayerSignals then
 		for _, ChangedSignal in PlayerSignals do
-			ChangedSignal:Destroy()
+			ChangedSignal:DisconnectAll()
 		end
 	end
 
