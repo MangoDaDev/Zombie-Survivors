@@ -293,19 +293,24 @@ local function GetToolGrip(Tool): Motor6D?
 	return nil
 end
 
-local function GetDesiredToolCFrame(ToolInfo, AimPosition, AimNormal): CFrame
+local function GetDesiredToolCFrame(ToolInfo): CFrame
 	local Camera = Workspace.CurrentCamera
 	local RotationDegrees = ToolInfo.SurfaceRotationDegrees or Vector3.zero
-	if ToolInfo.PositionMode == "Surface" and UsingTool and AimPosition and AimNormal then
-		local UpVector = if math.abs(AimNormal:Dot(Camera.CFrame.UpVector)) > 0.96 then Camera.CFrame.RightVector else Camera.CFrame.UpVector
-		return CFrame.lookAt(AimPosition + AimNormal * (ToolInfo.SurfaceOffset or 0), AimPosition + AimNormal, UpVector)
-			* CFrame.Angles(math.rad(RotationDegrees.X), math.rad(RotationDegrees.Y), math.rad(RotationDegrees.Z))
-	end
-	local ScreenPosition = ToolInfo.ScreenPosition or Vector2.new(0.82, 0.82)
-	local ToolPosition = GetScreenWorldPosition(Camera, ScreenPosition, ToolInfo.ScreenDepth or 1.65)
-	local TargetPosition = AimPosition or Camera.CFrame:PointToWorldSpace(Vector3.new(0, 0, -10))
+	local ViewportSize = Camera.ViewportSize
+	local CursorPosition = UserInputService:GetMouseLocation() - GuiService:GetGuiInset()
+	local CursorDirection = Vector2.new(
+		math.clamp(CursorPosition.X / math.max(ViewportSize.X, 1) * 2 - 1, -1, 1),
+		math.clamp(CursorPosition.Y / math.max(ViewportSize.Y, 1) * 2 - 1, -1, 1)
+	)
+	local MovementScale = CleaningConfig.ToolCursorMovementScale
+	local ScreenPosition = CleaningConfig.ToolScreenPosition
+		+ Vector2.new(CursorDirection.X * MovementScale.X, CursorDirection.Y * MovementScale.Y)
+	local ToolPosition = GetScreenWorldPosition(Camera, ScreenPosition, CleaningConfig.ToolCameraDepth)
+	local TargetPosition = Camera.CFrame:PointToWorldSpace(Vector3.new(0, 0, -10))
+	local CursorRotation = CleaningConfig.ToolCursorRotationDegrees
 	return CFrame.lookAt(ToolPosition, TargetPosition, Camera.CFrame.UpVector)
 		* CFrame.Angles(math.rad(RotationDegrees.X), math.rad(RotationDegrees.Y), math.rad(RotationDegrees.Z))
+		* CFrame.Angles(math.rad(-CursorDirection.Y * CursorRotation.X), math.rad(CursorDirection.X * CursorRotation.Y), 0)
 end
 
 UpdateVisualTool = function(DeltaTime)
@@ -322,8 +327,7 @@ UpdateVisualTool = function(DeltaTime)
 		if FakeArm then FakeArm.Transparency = 1 end
 		return
 	end
-	local AimPosition, _, AimNormal = GetAimPosition()
-	local DesiredCFrame = GetDesiredToolCFrame(ToolInfo, AimPosition, AimNormal)
+	local DesiredCFrame = GetDesiredToolCFrame(ToolInfo)
 	local Responsiveness = ToolInfo.PositionResponsiveness or CleaningConfig.ToolPositionResponsiveness
 	local Blend = 1 - math.exp(-Responsiveness * DeltaTime)
 	SmoothedVisualToolCFrame = if SmoothedVisualToolCFrame then SmoothedVisualToolCFrame:Lerp(DesiredCFrame, Blend) else DesiredCFrame

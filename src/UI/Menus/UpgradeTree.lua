@@ -25,14 +25,11 @@ local StateColors = {
 	Available = Color3.fromRGB(45, 190, 229),
 	Purchased = Color3.fromRGB(75, 235, 148),
 }
+local TreeCanvasSize = UpgradeConfig.CameraBounds * 2 + Vector2.one * UpgradeConfig.NodeSize * 2
 
 local function ClampCamera(Position: Vector2): Vector2
 	local Bounds = UpgradeConfig.CameraBounds
 	return Vector2.new(math.clamp(Position.X, -Bounds.X, Bounds.X), math.clamp(Position.Y, -Bounds.Y, Bounds.Y))
-end
-
-local function GetNodeScreenPosition(ViewportSize: Vector2, CameraPosition: Vector2, Zoom: number, Upgrade): Vector2
-	return ViewportSize / 2 + (Upgrade.Position - CameraPosition) * Zoom
 end
 
 local function GetMysteryTransparency(Distance: number?): number
@@ -110,19 +107,8 @@ local function CreateNode(Properties)
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		BackgroundTransparency = 1,
 		GroupTransparency = Transparency,
-		Position = function()
-			local Position = GetNodeScreenPosition(
-				Properties.ViewportSize(),
-				Properties.CameraPosition(),
-				Properties.Zoom(),
-				Upgrade
-			)
-			return UDim2.fromOffset(Position.X, Position.Y)
-		end,
-		Size = function()
-			local Size = UpgradeConfig.NodeSize * Properties.Zoom()
-			return UDim2.fromOffset(Size, Size)
-		end,
+		Position = UDim2.fromOffset(TreeCanvasSize.X / 2 + Upgrade.Position.X, TreeCanvasSize.Y / 2 + Upgrade.Position.Y),
+		Size = UDim2.fromOffset(UpgradeConfig.NodeSize, UpgradeConfig.NodeSize),
 		Visible = function()
 			return Transparency() < 0.985
 		end,
@@ -136,7 +122,9 @@ local function CreateNode(Properties)
 			FontFace = UIStyle.Font,
 			Position = UDim2.fromScale(0.5, 0.08),
 			Size = UDim2.fromScale(0.82, 0.28),
-			Text = Upgrade.Name,
+			Text = function()
+				return if IsDetailed() then Upgrade.Name else "???"
+			end,
 			TextColor3 = Color3.fromRGB(241, 246, 255),
 			TextScaled = true,
 			TextTransparency = function()
@@ -192,7 +180,9 @@ local function CreateNode(Properties)
 			FontFace = UIStyle.Font,
 			Position = UDim2.fromScale(0.5, 0.9),
 			Size = UDim2.fromScale(0.72, 0.18),
-			Text = `${FormatNumber(Upgrade.Cost) or "0"}`,
+			Text = function()
+				return if IsDetailed() then `${FormatNumber(Upgrade.Cost) or "0"}` else "$???"
+			end,
 			TextColor3 = function()
 				if State() == "Available" and not CanAfford() then
 					return Color3.fromRGB(255, 75, 75)
@@ -427,9 +417,6 @@ return function()
 				Ownership = Ownership,
 				Cash = Cash,
 				RevealDistances = RevealDistances,
-				ViewportSize = ViewportSize,
-				CameraPosition = CameraPosition,
-				Zoom = Zoom,
 				IsPurchasing = IsPurchasing,
 				LastPurchasedId = LastPurchasedId,
 				BeginDrag = BeginDrag,
@@ -437,6 +424,20 @@ return function()
 				Purchase = Purchase,
 			}
 		)
+	end
+	local CanvasProperties = {
+		Name = "TreeCanvas",
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		BackgroundTransparency = 1,
+		Position = function()
+			local Position = ViewportSize() / 2 - CameraPosition() * Zoom()
+			return UDim2.fromOffset(Position.X, Position.Y)
+		end,
+		Size = UDim2.fromOffset(TreeCanvasSize.X, TreeCanvasSize.Y),
+		Create "UIScale" { Scale = Zoom },
+	}
+	for _, Child in CanvasChildren do
+		table.insert(CanvasProperties, Child)
 	end
 
 	local ViewportProperties = {
@@ -458,10 +459,8 @@ return function()
 			end)
 		end),
 		Create "UICorner" { CornerRadius = UDim.new(0, 15) },
+		Create "Frame"(CanvasProperties),
 	}
-	for _, Child in CanvasChildren do
-		table.insert(ViewportProperties, Child)
-	end
 
 	local PanelScale = Spring(
 		Derive(function()

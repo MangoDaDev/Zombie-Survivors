@@ -28,8 +28,8 @@ Quick reference for the project's first-party Luau scripts. Generated Wally depe
 | `src/controllers/CharacterController.lua` | CharacterController | Requests character spawning and manages local camera and respawn behavior. |
 | `src/controllers/BatController.lua` | BatController | Predicts responsive crate-only bat swings, applies saved cooldown multipliers, crate reactions, forgiving hitboxes, trails, impacts, and latency-safe crate health. |
 | `src/controllers/ConveyorItemController.lua` | ConveyorItemController | Retains the inactive legacy ConveyorItem SharedClass renderer. |
-| `src/controllers/CrateController.lua` | CrateController | Plays client-only silhouette roulette, pulsing previews, reveal audio, and final reveal feedback. |
-| `src/controllers/FixingController.lua` | FixingController | Controls Fix prompts, manual fixing-tool selection, cursor-targeted tool positioning, the fake arm, and shared input, radius, audio, and VFX. |
+| `src/controllers/CrateController.lua` | CrateController | Plays client-only silhouette roulette, pulsing previews, reveal audio, burst feedback, and scaled rarity pinwheels when supported by Studio assets. |
+| `src/controllers/FixingController.lua` | FixingController | Controls Fix prompts, manual fixing-tool selection, stable cursor-reactive tool positioning, the fake arm, and shared input, radius, audio, and VFX. |
 | `src/controllers/InventoryController.lua` | InventoryController | Controls Satchel visibility, keeps the bat in the first slot while preserving item order, and sends validated inventory ordering to the server. |
 | `src/controllers/MuseumVisitorController.lua` | MuseumVisitorController | Registers the client MuseumVisitor SharedClass renderer. |
 | `src/controllers/TopbarController.lua` | TopbarController | Creates the invite and group TopbarPlus buttons. |
@@ -58,17 +58,17 @@ Quick reference for the project's first-party Luau scripts. Generated Wally depe
 | Path | Name | Responsibility |
 | --- | --- | --- |
 | `src/modules/Game/_PlayerFreezeState.lua` | PlayerFreezeState | Stores and manages the local character's anchored freeze state. |
-| `src/modules/Game/CleaningConfig.lua` | CleaningConfig | Registers reusable Dirt, Paint, and Grease restoration steps and tools, positioning modes, screen-space brushes, VFX, auto-completion, and item-step resolution helpers. |
+| `src/modules/Game/CleaningConfig.lua` | CleaningConfig | Registers reusable Dirt, Paint, and Grease restoration steps and tools, fixed cursor-reactive presentation, screen-space brushes, VFX, auto-completion, and item-step resolution helpers. |
 | `src/modules/Game/CollisionGroups.lua` | CollisionGroups | Defines shared player and NPC collision-group names used by server characters and client-rendered visitors. |
 | `src/modules/Game/BatInfo.lua` | BatInfo | Configures Wooden, Stone, and Gold crate-only bat tiers with progressively improved crate damage, timing, range, predicted reactions, validation, and sounds. |
-| `src/modules/Game/CrateInfo.lua` | CrateInfo | Configures regular and pity-only crate tiers, exponential health and loot luck, population limits, reveal pacing, UI, sounds, and the synchronized reset cycle. |
+| `src/modules/Game/CrateInfo.lua` | CrateInfo | Configures regular and pity-only crate tiers, bat-scaled health and loot luck, performance-conscious population limits, reveal pacing, UI, sounds, and the synchronized reset cycle. |
 | `src/modules/Game/DataTemplate.lua` | DataTemplate | Defines saved defaults for cash, inventory, museum displays, restoration state, and persistent upgrade ownership. |
 | `src/modules/Game/DirtRenderer.lua` | DirtRenderer | Calculates surface-area-scaled dirt counts and adds or removes dense dirt layers without treating other restoration overlays as item surfaces. |
 | `src/modules/Game/FreezePlayer.lua` | FreezePlayer | Freezes the local player, optionally at a target CFrame. |
 | `src/modules/Game/GreaseRenderer.lua` | GreaseRenderer | Places dirt-density translucent yellow-brown circular surface patches and manages their shared HP, fade, removal, and deterministic cleanup. |
-| `src/modules/Game/ItemsInfo.lua` | ItemsInfo | Configures all 44 Studio item assets with IDs, rarity, economy, durability, movement, and ordered restoration-step requirements. |
+| `src/modules/Game/ItemsInfo.lua` | ItemsInfo | Configures all 57 Studio item assets with stable IDs, balanced rarity weights, economy, durability, movement, and ordered restoration-step requirements. |
 | `src/modules/Game/PaintRenderer.lua` | PaintRenderer | Applies randomized brown color damage while preserving and gradually restoring each target part's original color. |
-| `src/modules/Game/RarityInfo.lua` | RarityInfo | Defines the Common through Secret rarity tiers, including a simple white Secret treatment. |
+| `src/modules/Game/RarityInfo.lua` | RarityInfo | Defines the Common through Secret rarity tiers, name gradients, reveal-effect timing, and a simple white Secret treatment. |
 | `src/modules/Game/RestorationVisuals.lua` | RestorationVisuals | Applies each item's configured unfinished Dirt, Paint, and Grease appearance consistently across rewards, carrying, inventory, and legacy sources. |
 | `src/modules/Game/UpgradeConfig.lua` | UpgradeConfig | Defines the compact line-free progression layout for display and guest capacity, Spray-gated tool speed-and-radius tiers, bat tiers, and independent bat cooldown tiers. |
 | `src/modules/Game/UpgradeLogic.lua` | UpgradeLogic | Resolves ownership, prerequisites, visibility, display and visitor limits, tool access, strength and radius, the highest bat tier, and independent bat cooldown. |
@@ -141,7 +141,7 @@ Quick reference for the project's first-party Luau scripts. Generated Wally depe
 | `src/servercontrollers/DataController.lua` | DataController | Handles the self-service `/resetdata` chat command and resets the requesting player's profile through DataService. |
 | `src/servercontrollers/FixingController.lua` | FixingController | Owns freely selectable fixing steps, renders unfinished damage layers together, enforces tool unlocks, applies speed and radius upgrades, and preserves progress. |
 | `src/servercontrollers/MuseumController.lua` | MuseumController | Assigns museum plots and physically creates only the purchased 8–12 displays while handling placement, removal, selling, and visitor-facing exhibits. |
-| `src/servercontrollers/VisitorController.lua` | VisitorController | Schedules grounded visitor routes and payments while reserving exhibits within each player's purchased per-item visitor limit. |
+| `src/servercontrollers/VisitorController.lua` | VisitorController | Schedules grounded visitor routes and payments with an upgrade-scaled active population while reserving exhibits within each player's purchased per-item visitor limit. |
 | `src/servercontrollers/UpgradeController.lua` | UpgradeController | Validates prerequisites and affordability, deducts cash, normalizes default ownership, and persists server-authoritative upgrade purchases. |
 
 ## `src/UI` - Vide interface
@@ -155,5 +155,5 @@ Quick reference for the project's first-party Luau scripts. Generated Wally depe
 | `src/UI/HUD/CleaningHUD.lua` | CleaningHUD | Displays the cursor-centered cleaning brush and smoothly animated current-step progress. |
 | `src/UI/HUD/CrateResetTimer.lua` | CrateResetTimer | Displays the globally synchronized time remaining until the next crate-area reset. |
 | `src/UI/HUD/FixingOverlay.lua` | FixingOverlay | Shows the exit-cleaning control while the player is in Fixing mode. |
-| `src/UI/Menus/UpgradeTree.lua` | UpgradeTree | Opens centered on Start and renders a compact line-free hex layout with top titles, middle icons, bottom prices, drag panning, zoom, reveals, and purchasing. |
+| `src/UI/Menus/UpgradeTree.lua` | UpgradeTree | Opens centered on Start and renders a compact line-free hex layout on one movable and scalable canvas, with masked ghost details, drag panning, zoom, reveals, and purchasing. |
 | `src/UI/UIOrigin.lua` | UIOrigin | Mounts the Vide application once into the local PlayerGui. |

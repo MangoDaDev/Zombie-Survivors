@@ -12,7 +12,10 @@ local CONFIG = {
 	InitialSpawnDelay = 5,
 	BetweenVisitorsMin = 8,
 	BetweenVisitorsMax = 14,
-	MaxActiveVisitors = 6,
+	BaseActiveVisitors = 6,
+	VisitorsPerDisplayBonus = 3,
+	DisplayBonus = 1,
+	MaximumActiveVisitors = 20,
 	MoveSpeed = 8,
 	ActivityCountMin = 4,
 	ActivityCountMax = 7,
@@ -172,6 +175,13 @@ local function GetAvailableDisplays(Player: Player): { any }
 	return AvailableDisplays
 end
 
+local function GetActiveVisitorLimit(Player: Player): number
+	local Ownership = dataService:get(Player, "Upgrades")
+	local VisitorBonus = (UpgradeLogic.GetVisitorsPerDisplay(Ownership) - 2) * CONFIG.VisitorsPerDisplayBonus
+	local DisplayBonus = (UpgradeLogic.GetDisplayLimit(Ownership) - 8) * CONFIG.DisplayBonus
+	return math.clamp(CONFIG.BaseActiveVisitors + VisitorBonus + DisplayBonus, 1, CONFIG.MaximumActiveVisitors)
+end
+
 local function ReserveDisplay(Player: Player, DisplayState): boolean
 	local Reservations = DisplayReservations[Player]
 	if not Reservations then return false end
@@ -299,7 +309,7 @@ function VisitorController.OnPlayerAdded(player: Player)
 					ActiveCount += 1
 				end
 			end
-			if ActiveCount < CONFIG.MaxActiveVisitors then
+			if ActiveCount < GetActiveVisitorLimit(player) then
 				task.spawn(runVisit, player, token)
 			end
 			task.wait(math.random(CONFIG.BetweenVisitorsMin, CONFIG.BetweenVisitorsMax))

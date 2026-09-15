@@ -6,7 +6,9 @@ local Workspace = game:GetService("Workspace")
 local CrateInfo = require(ReplicatedStorage.Modules.Game.CrateInfo)
 local GetRandomFromWeightedTable = require(ReplicatedStorage.Modules.Math.GetRandomFromWeightedTable)
 local ItemsInfo = require(ReplicatedStorage.Modules.Game.ItemsInfo)
+local MultiplyNumberSequence = require(ReplicatedStorage.Modules.Math.MultiplyNumberSequence)
 local Networker = require(ReplicatedStorage.Packages.networker)
+local RarityInfo = require(ReplicatedStorage.Modules.Game.RarityInfo)
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
 
 local CrateController = {}
@@ -110,6 +112,46 @@ local function CreateRevealBurst(Position)
 	end
 end
 
+local function CreateRarityEffect(Model: Model, Rarity: string)
+	local PinwheelFolder = ReplicatedStorage.Assets.VFX:FindFirstChild("RarityPinwheels")
+	local Template = PinwheelFolder and PinwheelFolder:FindFirstChild(Rarity)
+	if not Template or not Template:IsA("Attachment") then return end
+	local BoundingCFrame, BoundingSize = Model:GetBoundingBox()
+	local Camera = Workspace.CurrentCamera
+	local CameraOffset = Camera.CFrame.Position - BoundingCFrame.Position
+	local BehindDirection = if CameraOffset.Magnitude > 0.01 then -CameraOffset.Unit else Camera.CFrame.LookVector
+	local MaximumSize = math.max(BoundingSize.X, BoundingSize.Y, BoundingSize.Z)
+	local Anchor = Instance.new("Part")
+	Anchor.Name = `RarityEffect_{Rarity}`
+	Anchor.Anchored = true
+	Anchor.CanCollide = false
+	Anchor.CanQuery = false
+	Anchor.CanTouch = false
+	Anchor.Size = Vector3.one * 0.05
+	Anchor.Transparency = 1
+	Anchor.Position = BoundingCFrame.Position + BehindDirection * (math.max(BoundingSize.X, BoundingSize.Z) * 0.35 + 0.35)
+	Anchor.Parent = RevealFolder
+	local Effect = Template:Clone()
+	Effect.Parent = Anchor
+	local SizeScale = math.clamp(MaximumSize / 3, 1, 3)
+	local MaximumLifetime = 0
+	for _, Emitter in Effect:GetChildren() do
+		if not Emitter:IsA("ParticleEmitter") then continue end
+		Emitter.Size = MultiplyNumberSequence(Emitter.Size, SizeScale)
+		Emitter.Enabled = true
+		Emitter:Emit(1)
+		MaximumLifetime = math.max(MaximumLifetime, Emitter.Lifetime.Max)
+	end
+	local Duration = RarityInfo.Get(Rarity).RevealEffectDuration or 1
+	task.delay(Duration, function()
+		if not Effect.Parent then return end
+		for _, Emitter in Effect:GetChildren() do
+			if Emitter:IsA("ParticleEmitter") then Emitter.Enabled = false end
+		end
+	end)
+	Debris:AddItem(Anchor, Duration + MaximumLifetime + 0.25)
+end
+
 function CrateController:StartReveal(RewardId, ActualItemId, GroundCFrame, CrateId)
 	local Info = GetCrateInfo(CrateId)
 	local ActualItemInfo = GetItemInfo(ActualItemId)
@@ -131,7 +173,11 @@ function CrateController:StartReveal(RewardId, ActualItemId, GroundCFrame, Crate
 		end
 		if Reveals[RewardId] ~= Reveal or Reveal.Cancelled then return end
 		local Position = if Reveal.Model then Reveal.Model:GetPivot().Position else GroundCFrame.Position
-		if Reveal.Model then Reveal.Model:Destroy(); Reveal.Model = nil end
+		if Reveal.Model then
+			CreateRarityEffect(Reveal.Model, ActualItemInfo.Rarity)
+			Reveal.Model:Destroy()
+			Reveal.Model = nil
+		end
 		Sounds.Play(Info.RevealCompleteSoundName, Workspace.CurrentCamera, 70)
 		CreateRevealBurst(Position)
 		Reveals[RewardId] = nil
