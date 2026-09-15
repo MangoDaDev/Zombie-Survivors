@@ -14,6 +14,13 @@ function UpgradeLogic.GetDefaultOwnership(): { [string]: boolean }
 	return Ownership
 end
 
+function UpgradeLogic.ArePrerequisitesMet(Ownership, Upgrade): boolean
+	for _, PrerequisiteId in Upgrade.Prerequisites do
+		if not UpgradeLogic.IsPurchased(Ownership, PrerequisiteId) then return false end
+	end
+	return true
+end
+
 function UpgradeLogic.NormalizeOwnership(Value): { [string]: boolean }
 	local Ownership = UpgradeLogic.GetDefaultOwnership()
 	if type(Value) == "table" then
@@ -23,19 +30,45 @@ function UpgradeLogic.NormalizeOwnership(Value): { [string]: boolean }
 			end
 		end
 	end
-	return Ownership
-end
 
-function UpgradeLogic.ArePrerequisitesMet(Ownership, Upgrade): boolean
-	for _, PrerequisiteId in Upgrade.Prerequisites do
-		if not UpgradeLogic.IsPurchased(Ownership, PrerequisiteId) then return false end
+	local RemovedInvalidUpgrade = true
+	while RemovedInvalidUpgrade do
+		RemovedInvalidUpgrade = false
+
+		for UpgradeId, IsOwned in Ownership do
+			local Upgrade = UpgradeConfig.Get(UpgradeId)
+			if IsOwned == true and Upgrade and not UpgradeLogic.ArePrerequisitesMet(Ownership, Upgrade) then
+				Ownership[UpgradeId] = nil
+				RemovedInvalidUpgrade = true
+			end
+		end
 	end
-	return true
+
+	return Ownership
 end
 
 function UpgradeLogic.GetState(Ownership, Upgrade): string
 	if UpgradeLogic.IsPurchased(Ownership, Upgrade.Id) then return "Purchased" end
 	return if UpgradeLogic.ArePrerequisitesMet(Ownership, Upgrade) then "Available" else "Locked"
+end
+
+function UpgradeLogic.IsAffordable(Ownership, Upgrade, Cash): boolean
+	return Upgrade.Purchasable ~= false
+		and UpgradeLogic.GetState(Ownership, Upgrade) == "Available"
+		and type(Cash) == "number"
+		and Cash >= Upgrade.Cost
+end
+
+function UpgradeLogic.GetAffordableUpgrades(Ownership, Cash): { any }
+	local AffordableUpgrades = {}
+
+	for _, Upgrade in UpgradeConfig.Upgrades do
+		if UpgradeLogic.IsAffordable(Ownership, Upgrade, Cash) then
+			table.insert(AffordableUpgrades, Upgrade)
+		end
+	end
+
+	return AffordableUpgrades
 end
 
 function UpgradeLogic.GetDisplayLimit(Ownership): number

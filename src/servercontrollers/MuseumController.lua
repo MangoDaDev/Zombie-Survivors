@@ -114,7 +114,9 @@ local function createDisplayedItem(player: Player, displayState: DisplayState, i
 	end
 	itemModel:PivotTo(displayState.itemCFrame.CFrame * CFrame.new(0, boundingBox.Size.Y / 2, 0))
 	itemModel.Parent = displayState.model
-	ItemInfoBillboard(itemInfo, boundingBox)
+	local Fixing = dataService:get(player, "Fixing") or {}
+	local FixingState = Fixing[tostring(itemId)]
+	ItemInfoBillboard(itemInfo, boundingBox, FixingState)
 	return itemModel
 end
 

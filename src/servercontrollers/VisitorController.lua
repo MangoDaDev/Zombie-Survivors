@@ -13,10 +13,6 @@ local CONFIG = {
 	InitialSpawnDelay = 1,
 	BetweenVisitorsMin = 4,
 	BetweenVisitorsMax = 7,
-	BaseActiveVisitors = 6,
-	VisitorsPerDisplayBonus = 3,
-	DisplayBonus = 1,
-	MaximumActiveVisitors = 20,
 	MoveSpeed = 8,
 	ActivityCountMin = 4,
 	ActivityCountMax = 7,
@@ -177,10 +173,9 @@ local function GetAvailableDisplays(Player: Player): { any }
 end
 
 local function GetActiveVisitorLimit(Player: Player): number
-	local Ownership = dataService:get(Player, "Upgrades")
-	local VisitorBonus = (UpgradeLogic.GetVisitorsPerDisplay(Ownership) - 2) * CONFIG.VisitorsPerDisplayBonus
-	local DisplayBonus = (UpgradeLogic.GetDisplayLimit(Ownership) - 8) * CONFIG.DisplayBonus
-	return math.clamp(CONFIG.BaseActiveVisitors + VisitorBonus + DisplayBonus, 1, CONFIG.MaximumActiveVisitors)
+	local OccupiedDisplayCount = #MuseumController.GetOccupiedDisplays(Player)
+	local VisitorsPerDisplay = UpgradeLogic.GetVisitorsPerDisplay(dataService:get(Player, "Upgrades"))
+	return OccupiedDisplayCount * VisitorsPerDisplay
 end
 
 local function ReserveDisplay(Player: Player, DisplayState): boolean

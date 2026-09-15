@@ -10,6 +10,7 @@ local FormatNumber = require(ReplicatedStorage.Modules.Math.FormatNumber)
 local GuidanceController = require(ReplicatedStorage.Controllers.GuidanceController)
 local Images = require(ReplicatedStorage.Modules.UI.Images)
 local Networker = require(ReplicatedStorage.Packages.networker)
+local NotificationManager = require(ReplicatedStorage.Modules.UI.NotificationManager)
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
 local UIStyle = require(ReplicatedStorage.Modules.UI.UIStyle)
 local Vide = require(ReplicatedStorage.Packages.vide)
@@ -55,33 +56,6 @@ local function GetMysteryTransparency(Distance: number?): number
 	return 0
 end
 
-local function CreateConnection(FromUpgrade, ToUpgrade, Ownership, RevealDistances)
-	local FromPosition = TreeCanvasSize / 2 + FromUpgrade.Position
-	local ToPosition = TreeCanvasSize / 2 + ToUpgrade.Position
-	local Offset = ToPosition - FromPosition
-	local Midpoint = (FromPosition + ToPosition) / 2
-	return Create "Frame" {
-		Name = `{FromUpgrade.Id}To{ToUpgrade.Id}`,
-		AnchorPoint = Vector2.new(0.5, 0.5),
-		BackgroundColor3 = function()
-			return if UpgradeLogic.IsPurchased(Ownership(), ToUpgrade.Id)
-				then StateColors.Purchased
-				else StateColors.Available
-		end,
-		BackgroundTransparency = 0.18,
-		BorderSizePixel = 0,
-		Position = UDim2.fromOffset(Midpoint.X, Midpoint.Y),
-		Rotation = math.deg(math.atan2(Offset.Y, Offset.X)),
-		Size = UDim2.fromOffset(Offset.Magnitude, 6),
-		Visible = function()
-			local Distances = RevealDistances()
-			return Distances[FromUpgrade.Id] ~= nil and Distances[ToUpgrade.Id] ~= nil
-		end,
-		ZIndex = 1,
-		Create "UICorner" { CornerRadius = UDim.new(1, 0) },
-	}
-end
-
 local function CreateNode(Properties)
 	local Upgrade = Properties.Upgrade
 	local Hovered = Source(false)
@@ -97,6 +71,9 @@ local function CreateNode(Properties)
 	end)
 	local ShowsDetails = Derive(function()
 		return RevealDistance() ~= nil
+	end)
+	local IsAffordable = Derive(function()
+		return UpgradeLogic.IsAffordable(Properties.Ownership(), Upgrade, Properties.Cash())
 	end)
 	local Transparency = Spring(
 		Derive(function()
@@ -187,6 +164,9 @@ local function CreateNode(Properties)
 				if not IsDetailed() then
 					return Color3.new(0, 0, 0)
 				end
+				if IsAffordable() then
+					return Color3.fromRGB(75, 190, 132)
+				end
 				return StateColors[State()] or Color3.fromRGB(105, 109, 114)
 			end,
 			Rotation = 90,
@@ -222,6 +202,9 @@ local function CreateNode(Properties)
 				return if IsDetailed() then `${FormatNumber(Upgrade.Cost) or "0"}` else "$???"
 			end,
 			TextColor3 = function()
+				if IsAffordable() then
+					return Color3.fromRGB(118, 255, 175)
+				end
 				if State() == "Available" and not CanAfford() then
 					return Color3.fromRGB(255, 75, 75)
 				end
@@ -311,6 +294,9 @@ return function()
 	local RevealDistances = Derive(function()
 		return UpgradeLogic.GetRevealDistances(Ownership(), UpgradeConfig.MaximumMysteryDistance)
 	end)
+	local AffordableCount = Derive(function()
+		return #UpgradeLogic.GetAffordableUpgrades(Ownership(), Cash())
+	end)
 	local IsOpenUpgradesStep = Derive(function()
 		return TutorialStep() == "OpenUpgrades"
 	end)
@@ -338,7 +324,7 @@ return function()
 	local DraggedLastInput = false
 
 	local function UpdateTutorialPulse()
-		if IsOpenUpgradesStep() then
+		if IsOpenUpgradesStep() or AffordableCount() > 0 then
 			TutorialPulseTween:Play()
 		else
 			TutorialPulseTween:Cancel()
@@ -346,7 +332,16 @@ return function()
 		end
 	end
 
+	local function UpdateAffordableNotification()
+		NotificationManager.SetActive(
+			"AffordableUpgrade",
+			AffordableCount() > 0,
+			"An Upgrade Is Available!"
+		)
+	end
+
 	UpdateTutorialPulse()
+	UpdateAffordableNotification()
 
 	local function BeginDrag(Input: InputObject)
 		if
@@ -442,9 +437,13 @@ return function()
 	end)
 	local UpgradeConnection = DataService:getChangedSignal("Upgrades"):Connect(function(Value)
 		Ownership(UpgradeLogic.NormalizeOwnership(Value))
+		UpdateTutorialPulse()
+		UpdateAffordableNotification()
 	end)
 	local CashConnection = DataService:getChangedSignal("Cash"):Connect(function(Value)
 		Cash(if type(Value) == "number" then Value else 0)
+		UpdateTutorialPulse()
+		UpdateAffordableNotification()
 	end)
 	local TutorialConnection = DataService:getChangedSignal("TutorialStep"):Connect(function(Value)
 		TutorialStep(Value)
@@ -460,6 +459,7 @@ return function()
 		TutorialPulseConnection:Disconnect()
 		TutorialPulseTween:Cancel()
 		TutorialPulseValue:Destroy()
+		NotificationManager.SetActive("AffordableUpgrade", false, "")
 		if ViewportConnection then
 			ViewportConnection:Disconnect()
 		end
@@ -474,6 +474,8 @@ return function()
 			local Success, Reason, NewOwnership = Network:fetch("Purchase", Upgrade.Id)
 			if Success and type(NewOwnership) == "table" then
 				Ownership(NewOwnership)
+				UpdateTutorialPulse()
+				UpdateAffordableNotification()
 				LastPurchasedId(Upgrade.Id)
 				Sounds.Play("Buy", LocalPlayer.PlayerGui)
 				task.delay(0.14, function()
@@ -500,18 +502,6 @@ return function()
 	end
 
 	local CanvasChildren = {}
-	local UpgradesById = {}
-	for _, Upgrade in UpgradeConfig.Upgrades do
-		UpgradesById[Upgrade.Id] = Upgrade
-	end
-	for _, Upgrade in UpgradeConfig.Upgrades do
-		for _, ConnectedId in Upgrade.ConnectedUpgrades do
-			local ConnectedUpgrade = UpgradesById[ConnectedId]
-			if ConnectedUpgrade then
-				table.insert(CanvasChildren, CreateConnection(Upgrade, ConnectedUpgrade, Ownership, RevealDistances))
-			end
-		end
-	end
 	for _, Upgrade in UpgradeConfig.Upgrades do
 		table.insert(
 			CanvasChildren,
@@ -590,7 +580,10 @@ return function()
 			Name = "OpenButton",
 			AnchorPoint = Vector2.new(0, 0.5),
 			BackgroundColor3 = function()
-				return Color3.fromRGB(50, 54, 61):Lerp(Color3.fromRGB(42, 112, 132), TutorialPulse() * 0.72)
+				local AttentionColor = if AffordableCount() > 0
+					then Color3.fromRGB(45, 132, 82)
+					else Color3.fromRGB(42, 112, 132)
+				return Color3.fromRGB(50, 54, 61):Lerp(AttentionColor, TutorialPulse() * 0.72)
 			end,
 			BorderSizePixel = 0,
 			Position = UDim2.fromScale(0.018, 0.52),
@@ -602,7 +595,10 @@ return function()
 			Create "UICorner" { CornerRadius = UDim.new(0, 19) },
 			Create "UIStroke" {
 				Color = function()
-					return Color3.fromRGB(103, 125, 140):Lerp(Color3.fromRGB(116, 229, 255), TutorialPulse())
+					local AttentionColor = if AffordableCount() > 0
+						then Color3.fromRGB(118, 255, 175)
+						else Color3.fromRGB(116, 229, 255)
+					return Color3.fromRGB(103, 125, 140):Lerp(AttentionColor, TutorialPulse())
 				end,
 				Thickness = function()
 					return 3 + TutorialPulse() * 2
@@ -664,8 +660,10 @@ return function()
 						end
 						ZoomTarget(UpgradeConfig.DefaultZoom)
 						if IsOpenUpgradesStep() then
-							TutorialPulseTween:Cancel()
-							TutorialPulseValue.Value = 0
+							if AffordableCount() == 0 then
+								TutorialPulseTween:Cancel()
+								TutorialPulseValue.Value = 0
+							end
 						end
 						GuidanceController.OpenedUpgradeTree()
 					end

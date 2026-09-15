@@ -6,6 +6,7 @@ local CleaningHUD = require(script.Parent.HUD.CleaningHUD)
 local CrateResetTimer = require(script.Parent.HUD.CrateResetTimer)
 local FixingOverlay = require(script.Parent.HUD.FixingOverlay)
 local GuidanceHUD = require(script.Parent.HUD.GuidanceHUD)
+local Notifications = require(script.Parent.HUD.Notifications)
 local UpgradeTree = require(script.Parent.Menus.UpgradeTree)
 local create = vide.create
 
@@ -19,6 +20,7 @@ return function()
 		CrateResetTimer(),
 		FixingOverlay(),
 		GuidanceHUD(),
+		Notifications(),
 		UpgradeTree(),
 	}
 end
