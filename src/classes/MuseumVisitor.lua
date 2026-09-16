@@ -1,7 +1,7 @@
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
-local TextChatService = game:GetService("TextChatService")
-local Workspace = game:GetService("Workspace")
+local ReplicatedStorage = game:GetService "ReplicatedStorage"
+local RunService = game:GetService "RunService"
+local TextChatService = game:GetService "TextChatService"
+local Workspace = game:GetService "Workspace"
 
 local FormatNumber = require(ReplicatedStorage.Modules.Math.FormatNumber)
 local SharedClass = require(ReplicatedStorage.Modules.Core.SharedClass)
@@ -30,7 +30,9 @@ local MuseumVisitor = {}
 MuseumVisitor.__index = MuseumVisitor
 
 local function StartRenderLoop()
-	if RenderConnection then return end
+	if RenderConnection then
+		return
+	end
 	RenderConnection = RunService.RenderStepped:Connect(function(DeltaTime)
 		for Visitor in RenderedVisitors do
 			Visitor:Update(DeltaTime)
@@ -39,15 +41,17 @@ local function StartRenderLoop()
 end
 
 local function StopRenderLoopIfEmpty()
-	if next(RenderedVisitors) or not RenderConnection then return end
+	if next(RenderedVisitors) or not RenderConnection then
+		return
+	end
 	RenderConnection:Disconnect()
 	RenderConnection = nil
 end
 
 local function GetFeetOffset(Model: Model): Vector3
-	local RootPart = Model:FindFirstChild("HumanoidRootPart")
-	local Humanoid = Model:FindFirstChildOfClass("Humanoid")
-	if RootPart and RootPart:IsA("BasePart") and Humanoid then
+	local RootPart = Model:FindFirstChild "HumanoidRootPart"
+	local Humanoid = Model:FindFirstChildOfClass "Humanoid"
+	if RootPart and RootPart:IsA "BasePart" and Humanoid then
 		return Vector3.new(0, Humanoid.HipHeight + RootPart.Size.Y / 2, 0)
 	end
 
@@ -61,7 +65,7 @@ local function GetWalkJoints(Model: Model): { [string]: Motor6D }
 	local Joints = {}
 	for _, JointName in { "LeftHip", "RightHip", "LeftShoulder", "RightShoulder" } do
 		local Joint = Model:FindFirstChild(JointName, true)
-		if Joint and Joint:IsA("Motor6D") then
+		if Joint and Joint:IsA "Motor6D" then
 			Joints[JointName] = Joint
 		end
 	end
@@ -73,7 +77,7 @@ local function getRenderFolder(): Folder
 		return renderFolder
 	end
 
-	local folder = Instance.new("Folder")
+	local folder = Instance.new "Folder"
 	folder.Name = "RenderedMuseumVisitors"
 	folder.Parent = Workspace
 	renderFolder = folder
@@ -82,29 +86,30 @@ end
 
 local function prepareModel(model: Model)
 	for _, descendant in model:GetDescendants() do
-		if descendant:IsA("BasePart") then
+		if descendant:IsA "BasePart" then
 			descendant.CollisionGroup = CollisionGroups.NPCCharacters
-			descendant.CanCollide = descendant.Name ~= "HumanoidRootPart" and descendant:FindFirstAncestorOfClass("Accessory") == nil
+			descendant.CanCollide = descendant.Name ~= "HumanoidRootPart"
+				and descendant:FindFirstAncestorOfClass "Accessory" == nil
 			descendant.CanQuery = false
 			descendant.CanTouch = false
 			descendant.Massless = true
 		end
 	end
-	local rootPart = model:FindFirstChild("HumanoidRootPart")
-	if rootPart and rootPart:IsA("BasePart") then
+	local rootPart = model:FindFirstChild "HumanoidRootPart"
+	if rootPart and rootPart:IsA "BasePart" then
 		rootPart.Anchored = true
 	end
 end
 
 local function applyAppearance(model: Model, shirtTemplate, pantsTemplate, hairTemplate)
-	if shirtTemplate and shirtTemplate:IsA("Shirt") then
+	if shirtTemplate and shirtTemplate:IsA "Shirt" then
 		shirtTemplate:Clone().Parent = model
 	end
-	if pantsTemplate and pantsTemplate:IsA("Pants") then
+	if pantsTemplate and pantsTemplate:IsA "Pants" then
 		pantsTemplate:Clone().Parent = model
 	end
-	if hairTemplate and hairTemplate:IsA("Accessory") then
-		local humanoid = model:FindFirstChildOfClass("Humanoid")
+	if hairTemplate and hairTemplate:IsA "Accessory" then
+		local humanoid = model:FindFirstChildOfClass "Humanoid"
 		if humanoid then
 			humanoid:AddAccessory(hairTemplate:Clone())
 		end
@@ -114,7 +119,7 @@ end
 local function getFadeInstances(model: Model)
 	local instances = {}
 	for _, descendant in model:GetDescendants() do
-		if descendant:IsA("BasePart") or descendant:IsA("Decal") then
+		if descendant:IsA "BasePart" or descendant:IsA "Decal" then
 			table.insert(instances, {
 				instance = descendant,
 				transparency = descendant.Transparency,
@@ -132,9 +137,9 @@ function MuseumVisitor.new(data)
 end
 
 function MuseumVisitor:Render()
-	local template = ReplicatedStorage.Assets.Models.NPCS:FindFirstChild("NPC")
-	if template == nil or not template:IsA("Model") then
-		warn("MuseumVisitor could not find the NPC template")
+	local template = ReplicatedStorage.Assets.Models.NPCS:FindFirstChild "NPC"
+	if template == nil or not template:IsA "Model" then
+		warn "MuseumVisitor could not find the NPC template"
 		return
 	end
 
@@ -197,8 +202,7 @@ function MuseumVisitor:Update(DeltaTime: number)
 		local alpha = math.clamp((now - self.fadeStartedAt) / self.fadeDuration, 0, 1)
 		self.fadeAlpha = self.fadeStartAlpha + (self.fadeTargetAlpha - self.fadeStartAlpha) * alpha
 		for _, fadeInfo in self.fadeInstances do
-			fadeInfo.instance.Transparency = fadeInfo.transparency
-				+ (1 - fadeInfo.transparency) * self.fadeAlpha
+			fadeInfo.instance.Transparency = fadeInfo.transparency + (1 - fadeInfo.transparency) * self.fadeAlpha
 		end
 		if alpha >= 1 then
 			self.fadeTargetAlpha = nil
@@ -228,12 +232,12 @@ end
 
 function MuseumVisitor:ShowCash(amount: number)
 	local model = self.model
-	local rootPart = model and model:FindFirstChild("HumanoidRootPart")
-	if rootPart == nil or not rootPart:IsA("BasePart") then
+	local rootPart = model and model:FindFirstChild "HumanoidRootPart"
+	if rootPart == nil or not rootPart:IsA "BasePart" then
 		return
 	end
 
-	local billboard = Instance.new("BillboardGui")
+	local billboard = Instance.new "BillboardGui"
 	billboard.Name = "CashEffect"
 	billboard.Adornee = rootPart
 	billboard.AlwaysOnTop = true
@@ -242,7 +246,7 @@ function MuseumVisitor:ShowCash(amount: number)
 	billboard.StudsOffsetWorldSpace = Vector3.new(0, 3.5, 0)
 	billboard.Parent = rootPart
 
-	local label = Instance.new("TextLabel")
+	local label = Instance.new "TextLabel"
 	label.BackgroundTransparency = 1
 	label.FontFace = COMIC_FONT
 	label.Size = UDim2.fromScale(1, 1)
@@ -251,7 +255,7 @@ function MuseumVisitor:ShowCash(amount: number)
 	label.TextScaled = true
 	label.Parent = billboard
 
-	local stroke = Instance.new("UIStroke")
+	local stroke = Instance.new "UIStroke"
 	stroke.Color = Color3.new(0, 0, 0)
 	stroke.StrokeSizingMode = Enum.StrokeSizingMode.ScaledSize
 	stroke.Thickness = 0.06
@@ -270,13 +274,13 @@ function MuseumVisitor:ShowCash(amount: number)
 		end
 	end)
 
-	Sounds.Play("Coin", rootPart)
+	Sounds.Play("CoinJingle", rootPart)
 end
 
 function MuseumVisitor:Say(message: string)
 	local model = self.model
-	local head = model and model:FindFirstChild("Head")
-	if head and head:IsA("BasePart") and message ~= "" then
+	local head = model and model:FindFirstChild "Head"
+	if head and head:IsA "BasePart" and message ~= "" then
 		TextChatService:DisplayBubble(head, message)
 	end
 end

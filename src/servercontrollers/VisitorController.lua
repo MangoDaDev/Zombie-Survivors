@@ -1,7 +1,7 @@
-local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local ServerStorage = game:GetService("ServerStorage")
-local Workspace = game:GetService("Workspace")
+local Players = game:GetService "Players"
+local ReplicatedStorage = game:GetService "ReplicatedStorage"
+local ServerStorage = game:GetService "ServerStorage"
+local Workspace = game:GetService "Workspace"
 
 local ItemsInfo = require(ReplicatedStorage.Modules.Game.ItemsInfo)
 local MuseumVisitor = require(ServerStorage.Classes.MuseumVisitor)
@@ -10,11 +10,10 @@ local UpgradeLogic = require(ReplicatedStorage.Modules.Game.UpgradeLogic)
 local GuidanceController = require(ServerStorage.Controllers.GuidanceController)
 
 local CONFIG = {
-	InitialSpawnDelay = 1,
-	BetweenVisitorsMin = 4,
-	BetweenVisitorsMax = 7,
+	InitialSpawnDelay = 2,
+	VisitorSpawnInterval = 0.5,
 	MoveSpeed = 8,
-	ActivityCountMin = 4,
+	ActivityCountMin = 2,
 	ActivityCountMax = 7,
 	InspectChance = 0.9,
 	InspectDurationMin = 1,
@@ -22,8 +21,8 @@ local CONFIG = {
 	WanderPauseMin = 1,
 	WanderPauseMax = 2,
 	ViewPartMargin = 0.75,
-	InspectMessageChance = 0.75,
-	WanderMessageChance = 0.25,
+	InspectMessageChance = 0.15,
+	WanderMessageChance = 0.15,
 	FloorMargin = 8,
 	FadeDuration = 0.8,
 }
@@ -41,6 +40,54 @@ local INSPECTION_MESSAGES = {
 	"Impressive work!",
 	"It looks almost brand new.",
 	"I'd love to know where this was found.",
+	"The craftsmanship is remarkable.",
+	"This has been restored wonderfully.",
+	"What an unusual find!",
+	"I can't believe how good this looks.",
+	"The restoration really brought it back to life.",
+	"This must be worth a fair bit.",
+	"I wonder how old this is.",
+	"They did an excellent job with this one.",
+	"Look at all those little details!",
+	"This is definitely one of my favorites.",
+	"I'd love something like this at home.",
+	"What a beautiful piece of history.",
+	"You'd never guess this was damaged before.",
+	"The condition is incredible now.",
+	"I wonder who originally owned this.",
+	"This looks professionally restored.",
+	"Such an interesting design.",
+	"I didn't expect to see one of these here.",
+	"This is in amazing shape.",
+	"What a transformation!",
+	"They really cleaned this up nicely.",
+	"I wonder how they managed to restore this.",
+	"The colors look fantastic.",
+	"This piece really stands out.",
+	"I could look at this for ages.",
+	"There's something special about this one.",
+	"The attention to detail is impressive.",
+	"That restoration must have been difficult.",
+	"This looks like it belongs in a proper museum.",
+	"I'd love to see what it looked like before.",
+	"The original design is still so clear.",
+	"It's amazing what a good restoration can do.",
+	"This must have an interesting history.",
+	"What a rare-looking piece.",
+	"The surface looks incredibly clean.",
+	"This was definitely worth restoring.",
+	"Someone clearly put a lot of effort into this.",
+	"I wonder how much this is worth.",
+	"This has been preserved beautifully.",
+	"You don't see craftsmanship like this often.",
+	"This looks better every time I look at it.",
+	"I wonder how long this was lost for.",
+	"The restoration really shows off the original details.",
+	"This one has so much character.",
+	"I can see why they decided to display this.",
+	"This is such a satisfying restoration.",
+	"The before-and-after must have been incredible.",
+	"I hope they find more pieces like this.",
 }
 
 local WANDER_MESSAGES = {
@@ -52,6 +99,58 @@ local WANDER_MESSAGES = {
 	"I'm glad I stopped by today.",
 	"I could spend hours looking around.",
 	"The collection keeps getting better.",
+	"This museum is bigger than I expected.",
+	"I wonder what's upstairs.",
+	"There are so many interesting things here.",
+	"I should tell my friends about this place.",
+	"I wonder what the rarest item here is.",
+	"This is a nice way to spend the day.",
+	"They've really put together a great collection.",
+	"I wonder how they find all these items.",
+	"I hope they add even more displays.",
+	"This place feels different every time I visit.",
+	"There's always something new to look at.",
+	"I wonder which piece is the oldest.",
+	"I could definitely come back here again.",
+	"The displays are arranged really nicely.",
+	"This collection must have taken ages to build.",
+	"I wonder how much everything here is worth.",
+	"It's surprisingly peaceful in here.",
+	"I wasn't expecting such a large collection.",
+	"There are some really unusual pieces here.",
+	"I wonder where they store everything.",
+	"This museum has come a long way.",
+	"I wonder what their next big discovery will be.",
+	"I like how every display feels different.",
+	"There must be some rare treasures hidden around here.",
+	"It's nice seeing old things given a second life.",
+	"I wonder who restores all of this.",
+	"There's something interesting around every corner.",
+	"I should take another look around.",
+	"This place is full of surprises.",
+	"I wonder how many items they've restored.",
+	"Some of these pieces must be incredibly rare.",
+	"The collection has a lot of variety.",
+	"I'd like to see how the restoration process works.",
+	"I wonder which item took the longest to restore.",
+	"This place must get new items all the time.",
+	"I've already spotted a few favorites.",
+	"There's still so much I haven't seen.",
+	"It's amazing how much history is in one place.",
+	"I wonder if anything here was recently discovered.",
+	"The museum is really starting to fill up.",
+	"I hope there's another floor to explore.",
+	"I wonder what the most valuable exhibit is.",
+	"The collection feels really well cared for.",
+	"I could easily lose track of time in here.",
+	"I wonder how many more displays they can fit.",
+	"This would be a great place to visit again.",
+	"Every section has something worth seeing.",
+	"I wonder what condition these were in originally.",
+	"The restorations make everything look so impressive.",
+	"I wasn't expecting to enjoy this place this much.",
+	"I wonder what they'll put on display next.",
+	"There's always another interesting piece nearby.",
 }
 
 local VisitorController = {
@@ -86,7 +185,7 @@ local function getLargestFloor(museum: Model): BasePart?
 	local largestFloor: BasePart?
 	local largestArea = 0
 	for _, child in museum:GetDescendants() do
-		if child:IsA("BasePart") and child.Name == "Base" then
+		if child:IsA "BasePart" and child.Name == "Base" then
 			local area = child.Size.X * child.Size.Z
 			if area > largestArea then
 				largestArea = area
@@ -100,11 +199,7 @@ end
 local function getWanderCFrame(floor: BasePart, spawnHeight: number): CFrame
 	local halfWidth = math.max(floor.Size.X / 2 - CONFIG.FloorMargin, 1)
 	local halfDepth = math.max(floor.Size.Z / 2 - CONFIG.FloorMargin, 1)
-	local localPosition = Vector3.new(
-		(math.random() * 2 - 1) * halfWidth,
-		0,
-		(math.random() * 2 - 1) * halfDepth
-	)
+	local localPosition = Vector3.new((math.random() * 2 - 1) * halfWidth, 0, (math.random() * 2 - 1) * halfDepth)
 	local worldPosition = floor.CFrame:PointToWorldSpace(localPosition)
 	worldPosition = Vector3.new(worldPosition.X, spawnHeight, worldPosition.Z)
 	local direction = floor.CFrame.LookVector
@@ -114,11 +209,7 @@ end
 local function getInspectionCFrame(viewPart: BasePart, itemCFrame: BasePart): CFrame
 	local halfWidth = math.max(viewPart.Size.X / 2 - CONFIG.ViewPartMargin, 0)
 	local halfDepth = math.max(viewPart.Size.Z / 2 - CONFIG.ViewPartMargin, 0)
-	local localPosition = Vector3.new(
-		(math.random() * 2 - 1) * halfWidth,
-		0,
-		(math.random() * 2 - 1) * halfDepth
-	)
+	local localPosition = Vector3.new((math.random() * 2 - 1) * halfWidth, 0, (math.random() * 2 - 1) * halfDepth)
 	local standPosition = viewPart.CFrame:PointToWorldSpace(localPosition)
 	local itemPosition = itemCFrame.Position
 	local lookPosition = Vector3.new(itemPosition.X, standPosition.Y, itemPosition.Z)
@@ -162,7 +253,9 @@ end
 local function GetAvailableDisplays(Player: Player): { any }
 	local AvailableDisplays = {}
 	local Reservations = DisplayReservations[Player]
-	if not Reservations then return AvailableDisplays end
+	if not Reservations then
+		return AvailableDisplays
+	end
 	local VisitorsPerDisplay = UpgradeLogic.GetVisitorsPerDisplay(dataService:get(Player, "Upgrades"))
 	for _, DisplayState in MuseumController.GetOccupiedDisplays(Player) do
 		if (Reservations[DisplayState] or 0) < VisitorsPerDisplay then
@@ -175,46 +268,54 @@ end
 local function GetActiveVisitorLimit(Player: Player): number
 	local OccupiedDisplayCount = #MuseumController.GetOccupiedDisplays(Player)
 	local VisitorsPerDisplay = UpgradeLogic.GetVisitorsPerDisplay(dataService:get(Player, "Upgrades"))
-	return OccupiedDisplayCount * VisitorsPerDisplay
+	return (OccupiedDisplayCount ^ 0.8) * VisitorsPerDisplay
 end
 
 local function ReserveDisplay(Player: Player, DisplayState): boolean
 	local Reservations = DisplayReservations[Player]
-	if not Reservations then return false end
+	if not Reservations then
+		return false
+	end
 	local VisitorsPerDisplay = UpgradeLogic.GetVisitorsPerDisplay(dataService:get(Player, "Upgrades"))
 	local CurrentCount = Reservations[DisplayState] or 0
-	if CurrentCount >= VisitorsPerDisplay then return false end
+	if CurrentCount >= VisitorsPerDisplay then
+		return false
+	end
 	Reservations[DisplayState] = CurrentCount + 1
 	return true
 end
 
 local function ReleaseDisplay(Player: Player, DisplayState)
 	local Reservations = DisplayReservations[Player]
-	if not Reservations then return end
+	if not Reservations then
+		return
+	end
 	local CurrentCount = Reservations[DisplayState] or 0
 	Reservations[DisplayState] = if CurrentCount > 1 then CurrentCount - 1 else nil
 end
 
 local function runVisit(player: Player, token)
-	if #MuseumController.GetOccupiedDisplays(player) == 0 then return end
+	if #MuseumController.GetOccupiedDisplays(player) == 0 then
+		return
+	end
 
 	local museum = MuseumController.GetMuseum(player)
 	local spawnPart = museum and museum:FindFirstChild("SpawnCFrame", true)
 	local floor = museum and getLargestFloor(museum)
-	if spawnPart == nil or not spawnPart:IsA("BasePart") or floor == nil then
+	if spawnPart == nil or not spawnPart:IsA "BasePart" or floor == nil then
 		return
 	end
 
 	local npcAssets = ReplicatedStorage.Assets.Models.NPCS
 	local spawnCFrame = GetGroundedCFrame(museum, spawnPart.CFrame)
-	local visitor = MuseumVisitor.new({
+	local visitor = MuseumVisitor.new {
 		OwnerUserId = player.UserId,
 		SpawnCFrame = spawnCFrame,
 		CurrentCFrame = spawnCFrame,
 		ShirtTemplate = getRandomChildOfClass(npcAssets.Shirts, "Shirt"),
 		PantsTemplate = getRandomChildOfClass(npcAssets.Pants, "Pants"),
 		HairTemplate = getRandomChildOfClass(npcAssets.Hair, "Accessory"),
-	})
+	}
 	local ActiveForPlayer = activeVisitors[player]
 	if ActiveForPlayer == nil or visitTokens[player] ~= token then
 		visitor:Destroy()
@@ -247,13 +348,13 @@ local function runVisit(player: Player, token)
 		local AvailableDisplays = GetAvailableDisplays(player)
 		if #AvailableDisplays > 0 and math.random() <= CONFIG.InspectChance then
 			local displayState = AvailableDisplays[math.random(1, #AvailableDisplays)]
-			if not ReserveDisplay(player, displayState) then continue end
+			if not ReserveDisplay(player, displayState) then
+				continue
+			end
 			local itemId = displayState.itemId
 			local itemInfo = itemId and getItemInfo(itemId)
-			local InspectionCFrame = GetGroundedCFrame(
-				museum,
-				getInspectionCFrame(displayState.viewPart, displayState.itemCFrame)
-			)
+			local InspectionCFrame =
+				GetGroundedCFrame(museum, getInspectionCFrame(displayState.viewPart, displayState.itemCFrame))
 			if itemInfo and moveTo(InspectionCFrame) then
 				maybeSay(INSPECTION_MESSAGES, CONFIG.InspectMessageChance)
 				task.wait(math.random(CONFIG.InspectDurationMin, CONFIG.InspectDurationMax))
@@ -311,7 +412,7 @@ function VisitorController.OnPlayerAdded(player: Player)
 			if ActiveCount < GetActiveVisitorLimit(player) and #MuseumController.GetOccupiedDisplays(player) > 0 then
 				task.spawn(runVisit, player, token)
 			end
-			task.wait(math.random(CONFIG.BetweenVisitorsMin, CONFIG.BetweenVisitorsMax))
+			task.wait(CONFIG.VisitorSpawnInterval)
 		end
 	end)
 end

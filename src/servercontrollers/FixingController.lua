@@ -41,6 +41,24 @@ local function GetToolInfo(ToolId)
 	return CleaningConfig.GetTool(ToolId)
 end
 
+local function PlaceItemOnTable(Model: Model, Box: BasePart, TableSurface: BasePart)
+	local BoxOffset = Model:GetPivot():ToObjectSpace(Box.CFrame)
+	local BoxRotation = TableSurface.CFrame.Rotation * CFrame.Angles(math.rad(CleaningConfig.ItemTiltDegrees), 0, 0)
+	local SurfaceNormal = TableSurface.CFrame.UpVector
+	local HalfSize = Box.Size / 2
+	local SupportHeight = math.abs(BoxRotation.RightVector:Dot(SurfaceNormal)) * HalfSize.X
+		+ math.abs(BoxRotation.UpVector:Dot(SurfaceNormal)) * HalfSize.Y
+		+ math.abs(BoxRotation.LookVector:Dot(SurfaceNormal)) * HalfSize.Z
+	local SurfacePosition = TableSurface.CFrame:PointToWorldSpace(Vector3.new(0, TableSurface.Size.Y / 2, 0))
+	local BoxCFrame = CFrame.fromMatrix(
+		SurfacePosition + SurfaceNormal * (SupportHeight + CleaningConfig.ItemSurfaceOffset),
+		BoxRotation.RightVector,
+		BoxRotation.UpVector,
+		-BoxRotation.LookVector
+	)
+	Model:PivotTo(BoxCFrame * BoxOffset:Inverse())
+end
+
 local function IsToolUnlocked(Player, ToolId): boolean
 	return UpgradeLogic.IsToolUnlocked(DataService:get(Player, "Upgrades"), ToolId)
 end
@@ -366,9 +384,7 @@ local function StartFixing(Player)
 	end
 	local CameraPart = TableModel and TableModel:FindFirstChild("CamPart")
 	if not CameraPart or not CameraPart:IsA("BasePart") then Model:Destroy(); return end
-	local ItemDistance = CleaningConfig.MinimumItemCameraDistance + math.max(Box.Size.X, Box.Size.Y, Box.Size.Z) * CleaningConfig.ItemCameraDistancePerStud
-	local ItemPosition = CameraPart.CFrame:PointToWorldSpace(Vector3.new(0, CleaningConfig.ItemVerticalOffset, -ItemDistance))
-	Model:PivotTo(CFrame.new(ItemPosition) * PromptPart.CFrame.Rotation * CFrame.Angles(math.rad(CleaningConfig.ItemTiltDegrees), 0, 0))
+	PlaceItemOnTable(Model, Box, PromptPart)
 	Model.Parent = Museum
 	ItemInfoBillboard(Info, Box, State)
 	local RootWasAnchored = RootPart.Anchored

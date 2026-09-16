@@ -353,6 +353,44 @@ local function CreateViewmodelTool(SourceTool: Tool, ToolInfo)
 	ViewmodelSourceTool = SourceTool
 end
 
+local function GetProjectedHalfExtent(Box: BasePart, Direction: Vector3): number
+	local HalfSize = Box.Size / 2
+	return math.abs(Box.CFrame.RightVector:Dot(Direction)) * HalfSize.X
+		+ math.abs(Box.CFrame.UpVector:Dot(Direction)) * HalfSize.Y
+		+ math.abs(Box.CFrame.LookVector:Dot(Direction)) * HalfSize.Z
+end
+
+local function GetFixingCameraCFrame(Camera: Camera, CameraPart: BasePart, TableSurface: BasePart, Box: BasePart): CFrame
+	local TargetPosition = Box.Position
+	local SurfaceNormal = TableSurface.CFrame.UpVector
+	local FrontDirection = CameraPart.Position - TargetPosition
+	FrontDirection -= SurfaceNormal * FrontDirection:Dot(SurfaceNormal)
+	if FrontDirection.Magnitude < 0.01 then
+		FrontDirection = -TableSurface.CFrame.LookVector
+	else
+		FrontDirection = FrontDirection.Unit
+	end
+
+	local Elevation = math.rad(CleaningConfig.ItemCameraElevationDegrees)
+	local ViewDirection = (FrontDirection * math.cos(Elevation) + SurfaceNormal * math.sin(Elevation)).Unit
+	local ViewCFrame = CFrame.lookAt(TargetPosition + ViewDirection, TargetPosition, SurfaceNormal)
+	local VerticalFieldOfView = math.rad(Camera.FieldOfView)
+	local AspectRatio = Camera.ViewportSize.X / math.max(Camera.ViewportSize.Y, 1)
+	local HorizontalFieldOfView = 2 * math.atan(math.tan(VerticalFieldOfView / 2) * AspectRatio)
+	local HalfWidth = GetProjectedHalfExtent(Box, ViewCFrame.RightVector)
+	local HalfHeight = GetProjectedHalfExtent(Box, ViewCFrame.UpVector)
+	local HalfDepth = GetProjectedHalfExtent(Box, ViewDirection)
+	local FitDistance = math.max(
+		HalfWidth / math.max(math.tan(HorizontalFieldOfView / 2), 0.01),
+		HalfHeight / math.max(math.tan(VerticalFieldOfView / 2), 0.01)
+	)
+	local Distance = math.max(
+		CleaningConfig.ItemCameraMinimumDistance,
+		HalfDepth + FitDistance * CleaningConfig.ItemCameraPadding
+	)
+	return CFrame.lookAt(TargetPosition + ViewDirection * Distance, TargetPosition, SurfaceNormal)
+end
+
 local function EnterFixingView()
 	Restore()
 	if RuntimeState.Get(LocalPlayer, "IsFixing", false) ~= true then return end
@@ -361,7 +399,14 @@ local function EnterFixingView()
 	local Museum = Museums and Museums:FindFirstChild(`Museum_{LocalPlayer.UserId}`)
 	local TableModel = Museum and Museum:FindFirstChild("Table")
 	local CameraPart = TableModel and TableModel:FindFirstChild("CamPart")
-	if not Character or not CameraPart or not CameraPart:IsA("BasePart") then return end
+	local TableSurface = TableModel and TableModel:FindFirstChild("PromptPart")
+	local FixingItem = GetFixingItemModel()
+	local Box = FixingItem and FixingItem:FindFirstChild("BoundingBox")
+	if not Character
+		or not CameraPart or not CameraPart:IsA("BasePart")
+		or not TableSurface or not TableSurface:IsA("BasePart")
+		or not Box or not Box:IsA("BasePart")
+	then return end
 	HideCharacter(Character)
 	CreateViewmodelContainer(Character)
 	DisablePlayerControls()
@@ -370,14 +415,13 @@ local function EnterFixingView()
 	OriginalCameraType = Camera.CameraType
 	Camera.FieldOfView = CleaningConfig.CameraFieldOfView
 	Camera.CameraType = Enum.CameraType.Scriptable
-	Camera.CFrame = CameraPart.CFrame
+	Camera.CFrame = GetFixingCameraCFrame(Camera, CameraPart, TableSurface, Box)
 	RunService:BindToRenderStep(CAMERA_BINDING_NAME, Enum.RenderPriority.Last.Value, function(DeltaTime)
-		if not CameraPart.Parent then
+		if not CameraPart.Parent or not Box.Parent then
 			Restore()
 			Network:fire("Exit")
 			return
 		end
-		Camera.CFrame = CameraPart.CFrame
 		if UpdateVisualTool then UpdateVisualTool(DeltaTime) end
 	end)
 	CameraBound = true
@@ -401,7 +445,11 @@ local function GetAimPosition(): (Vector3?, BasePart?, Vector3?)
 	local Parameters = RaycastParams.new()
 	Parameters.FilterType = Enum.RaycastFilterType.Include
 	Parameters.FilterDescendantsInstances = { FixingItem }
-	local Result = Workspace:Raycast(Ray.Origin, Ray.Direction * 30, Parameters)
+	local Box = FixingItem:FindFirstChild("BoundingBox")
+	local RayLength = if Box and Box:IsA("BasePart")
+		then (Camera.CFrame.Position - Box.Position).Magnitude + Box.Size.Magnitude
+		else 30
+	local Result = Workspace:Raycast(Ray.Origin, Ray.Direction * RayLength, Parameters)
 	if not Result then return nil, nil, nil end
 	return Result.Position, if Result.Instance:IsA("BasePart") then Result.Instance else nil, Result.Normal
 end
