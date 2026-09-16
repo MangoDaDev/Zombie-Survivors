@@ -13,6 +13,7 @@ local ToolResolver = require(ReplicatedStorage.Modules.Game.ToolResolver)
 local UpgradeLogic = require(ReplicatedStorage.Modules.Game.UpgradeLogic)
 
 local MuseumAssets = ReplicatedStorage.Assets.Models.Museum
+local BaseTemplate = MuseumAssets.Building.Base
 local LevelTemplate = MuseumAssets.Building.Level
 local RoofTemplate = MuseumAssets.Building.Roof
 local TableTemplate = MuseumAssets.Table
@@ -23,12 +24,12 @@ local SFX_MAX_DISTANCE = 80
 type DisplayState = {
 	index: number, model: Model, itemCFrame: BasePart, viewPart: BasePart,
 	prompt: ProximityPrompt, takePrompt: ProximityPrompt, sellPrompt: ProximityPrompt,
-	Unlocked: boolean, itemId: number?, itemModel: Model?, Connections: { RBXScriptConnection },
+	levelNumber: number, Unlocked: boolean, itemId: number?, itemModel: Model?, Connections: { RBXScriptConnection },
 }
 
 type MuseumAssignment = {
 	museum: Model, position: BasePart, levels: { [number]: Model },
-	displays: { [number]: DisplayState }, roof: Model?, UpgradeConnection: RBXScriptConnection?,
+	displays: { [number]: DisplayState }, base: Model?, roof: Model?, UpgradeConnection: RBXScriptConnection?,
 }
 
 local MuseumController = {}
@@ -199,6 +200,16 @@ local function CreateLevel(Assignment: MuseumAssignment, LevelNumber: number): M
 	return Level
 end
 
+local function CreateBase(Assignment: MuseumAssignment)
+	if Assignment.base then return end
+	-- The museum base is shared by the whole building and must not be cloned with each level.
+	local Base = BaseTemplate:Clone()
+	Base.Name = "Base"
+	MoveModelToMarker(Base, "CFramePart", Assignment.position.CFrame)
+	Base.Parent = Assignment.museum
+	Assignment.base = Base
+end
+
 local function PositionRoof(Assignment: MuseumAssignment, LevelCount: number)
 	local Level = Assignment.levels[LevelCount]
 	local RoofMount = Level and Level:FindFirstChild("RoofMount")
@@ -227,7 +238,7 @@ local function CreatePrompt(Name: string, ActionText: string, KeyCode: Enum.KeyC
 	return Prompt
 end
 
-local function CreateDisplay(Player: Player, Assignment: MuseumAssignment, SlotId: number, Level: Model, Marker: BasePart, SavedDisplays)
+local function CreateDisplay(Player: Player, Assignment: MuseumAssignment, SlotId: number, LevelNumber: number, Level: Model, Marker: BasePart, SavedDisplays)
 	if Assignment.displays[SlotId] then return end
 	local Display = DisplayTemplate:Clone()
 	Display.Name = `Display_{SlotId}`
@@ -244,7 +255,7 @@ local function CreateDisplay(Player: Player, Assignment: MuseumAssignment, SlotI
 	local SellPrompt = CreatePrompt("SellItemPrompt", "Sell Item", Enum.KeyCode.F, Enum.KeyCode.ButtonY, Vector2.new(85, -45), Base)
 	TakePrompt.Enabled = false; SellPrompt.Enabled = false
 	local DisplayState: DisplayState = { index = SlotId, model = Display, itemCFrame = ItemCFrame, viewPart = ViewPart, prompt = Prompt,
-		takePrompt = TakePrompt, sellPrompt = SellPrompt, Unlocked = true, itemId = nil, itemModel = nil, Connections = {} }
+		takePrompt = TakePrompt, sellPrompt = SellPrompt, levelNumber = LevelNumber, Unlocked = true, itemId = nil, itemModel = nil, Connections = {} }
 	Assignment.displays[SlotId] = DisplayState
 	UpdateDisplayPrompts(DisplayState)
 	table.insert(DisplayState.Connections, Prompt.Triggered:Connect(function(TriggeringPlayer) if TriggeringPlayer == Player then PlaceEquippedItem(Player, Assignment, DisplayState) end end))
@@ -260,6 +271,7 @@ local function RefreshMuseum(Player: Player)
 	local DisplayLimit = math.min(UpgradeLogic.GetDisplayLimit(DataService:get(Player, "Upgrades")), MuseumConfig.GetMaximumDisplayCount())
 	local LevelCount = MuseumConfig.GetLevelCount(DisplayLimit)
 	local SavedDisplays = CopyDisplays(DataService:get(Player, "Displays"))
+	CreateBase(Assignment)
 	for LevelNumber = 1, LevelCount do
 		local Level = CreateLevel(Assignment, LevelNumber)
 		local Markers = GetDisplayMarkers(Level)
@@ -267,7 +279,7 @@ local function RefreshMuseum(Player: Player)
 		for LocalIndex = 1, MuseumConfig.GetDisplayCount(LevelNumber, DisplayLimit) do
 			local Marker = Markers[LocalIndex]
 			if not Marker then warn(`Museum level {LevelNumber} is missing display marker {LocalIndex}`); break end
-			CreateDisplay(Player, Assignment, LevelInfo.StartSlot + LocalIndex - 1, Level, Marker, SavedDisplays)
+			CreateDisplay(Player, Assignment, LevelInfo.StartSlot + LocalIndex - 1, LevelNumber, Level, Marker, SavedDisplays)
 		end
 	end
 	CreateTable(Assignment)
@@ -277,6 +289,10 @@ end
 function MuseumController.SetDataService(Service) DataService = Service end
 function MuseumController.SetInventoryRefreshHandler(Handler) InventoryRefreshHandler = Handler end
 function MuseumController.GetMuseum(Player: Player): Model? local Assignment = Assignments[Player]; return if Assignment then Assignment.museum else nil end
+function MuseumController.GetLevel(Player: Player, LevelNumber: number): Model?
+	local Assignment = Assignments[Player]
+	return if Assignment then Assignment.levels[LevelNumber] else nil
+end
 function MuseumController.GetMuseumArea(Player: Player): BasePart?
 	local Assignment = Assignments[Player]
 	local Area = Assignment and Assignment.levels[1] and Assignment.levels[1]:FindFirstChild("MuseumArea")
@@ -289,10 +305,10 @@ function MuseumController.TeleportPlayerToMuseum(Player: Player): boolean
 	if not Character or not SpawnCFrame or not SpawnCFrame:IsA("BasePart") then return false end
 	return TeleportPlayer(Character, SpawnCFrame)
 end
-function MuseumController.GetOccupiedDisplays(Player: Player): { DisplayState }
+function MuseumController.GetOccupiedDisplays(Player: Player, LevelNumber: number?): { DisplayState }
 	local Result = {}
 	local Assignment = Assignments[Player]
-	if Assignment then for _, DisplayState in Assignment.displays do if DisplayState.Unlocked and DisplayState.itemId and DisplayState.itemModel then table.insert(Result, DisplayState) end end end
+	if Assignment then for _, DisplayState in Assignment.displays do if (LevelNumber == nil or DisplayState.levelNumber == LevelNumber) and DisplayState.Unlocked and DisplayState.itemId and DisplayState.itemModel then table.insert(Result, DisplayState) end end end
 	return Result
 end
 function MuseumController.Init()
@@ -305,7 +321,7 @@ function MuseumController.OnPlayerAdded(Player: Player)
 	local Position = GetAvailablePosition()
 	if not Position then warn(`MuseumController could not assign a museum to {Player.Name}: no positions are available`); return end
 	local Museum = Instance.new("Model"); Museum.Name = `Museum_{Player.UserId}`; Museum.Parent = PlayerMuseums
-	local Assignment: MuseumAssignment = { museum = Museum, position = Position, levels = {}, displays = {}, roof = nil, UpgradeConnection = nil }
+	local Assignment: MuseumAssignment = { museum = Museum, position = Position, levels = {}, displays = {}, base = nil, roof = nil, UpgradeConnection = nil }
 	OccupiedPositions[Position] = Player; Assignments[Player] = Assignment
 	RefreshMuseum(Player)
 	Assignment.UpgradeConnection = DataService:getChangedSignal(Player, "Upgrades"):Connect(function() RefreshMuseum(Player) end)

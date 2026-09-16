@@ -6,6 +6,7 @@ local Workspace = game:GetService "Workspace"
 local ItemsInfo = require(ReplicatedStorage.Modules.Game.ItemsInfo)
 local MuseumVisitor = require(ServerStorage.Classes.MuseumVisitor)
 local MuseumController = require(ServerStorage.Controllers.MuseumController)
+local MuseumConfig = require(ReplicatedStorage.Modules.Game.MuseumConfig)
 local UpgradeLogic = require(ReplicatedStorage.Modules.Game.UpgradeLogic)
 local GuidanceController = require(ServerStorage.Controllers.GuidanceController)
 
@@ -168,7 +169,7 @@ local SKIN_COLORS = {
 
 local dataService
 local visitTokens: { [Player]: {} } = {}
-local activeVisitors: { [Player]: { [any]: boolean } } = {}
+local activeVisitors: { [Player]: { [any]: number } } = {}
 local DisplayReservations: { [Player]: { [any]: number } } = {}
 
 local function getItemInfo(itemId: number)
@@ -256,17 +257,17 @@ local function isVisitActive(player: Player, token, visitor): boolean
 	return player.Parent == Players
 		and visitTokens[player] == token
 		and ActiveForPlayer ~= nil
-		and ActiveForPlayer[visitor] == true
+		and ActiveForPlayer[visitor] ~= nil
 end
 
-local function GetAvailableDisplays(Player: Player): { any }
+local function GetAvailableDisplays(Player: Player, LevelNumber: number): { any }
 	local AvailableDisplays = {}
 	local Reservations = DisplayReservations[Player]
 	if not Reservations then
 		return AvailableDisplays
 	end
 	local VisitorsPerDisplay = UpgradeLogic.GetVisitorsPerDisplay(dataService:get(Player, "Upgrades"))
-	for _, DisplayState in MuseumController.GetOccupiedDisplays(Player) do
+	for _, DisplayState in MuseumController.GetOccupiedDisplays(Player, LevelNumber) do
 		if (Reservations[DisplayState] or 0) < VisitorsPerDisplay then
 			table.insert(AvailableDisplays, DisplayState)
 		end
@@ -274,10 +275,11 @@ local function GetAvailableDisplays(Player: Player): { any }
 	return AvailableDisplays
 end
 
-local function GetActiveVisitorLimit(Player: Player): number
-	local OccupiedDisplayCount = #MuseumController.GetOccupiedDisplays(Player)
+local function GetActiveVisitorLimit(Player: Player, LevelNumber: number): number
+	local OccupiedDisplayCount = #MuseumController.GetOccupiedDisplays(Player, LevelNumber)
 	local VisitorsPerDisplay = UpgradeLogic.GetVisitorsPerDisplay(dataService:get(Player, "Upgrades"))
-	return (OccupiedDisplayCount ^ 0.8) * VisitorsPerDisplay
+	-- Each level's visitor population is based only on the items displayed on that level.
+	return OccupiedDisplayCount * VisitorsPerDisplay
 end
 
 local function ReserveDisplay(Player: Player, DisplayState): boolean
@@ -303,20 +305,21 @@ local function ReleaseDisplay(Player: Player, DisplayState)
 	Reservations[DisplayState] = if CurrentCount > 1 then CurrentCount - 1 else nil
 end
 
-local function runVisit(player: Player, token)
-	if #MuseumController.GetOccupiedDisplays(player) == 0 then
+local function runVisit(player: Player, token, levelNumber: number)
+	if #MuseumController.GetOccupiedDisplays(player, levelNumber) == 0 then
 		return
 	end
 
-	local museum = MuseumController.GetMuseum(player)
-	local spawnPart = museum and museum:FindFirstChild("SpawnCFrame", true)
-	local floor = museum and getLargestFloor(museum)
+	local level = MuseumController.GetLevel(player, levelNumber)
+	if not level then return end
+	local spawnPart = level:FindFirstChild("SpawnCFrame")
+	local floor = getLargestFloor(level)
 	if spawnPart == nil or not spawnPart:IsA "BasePart" or floor == nil then
 		return
 	end
 
 	local npcAssets = ReplicatedStorage.Assets.Models.NPCS
-	local spawnCFrame = GetGroundedCFrame(museum, spawnPart.CFrame)
+	local spawnCFrame = GetGroundedCFrame(level, spawnPart.CFrame)
 	local visitor = MuseumVisitor.new {
 		OwnerUserId = player.UserId,
 		SpawnCFrame = spawnCFrame,
@@ -331,7 +334,7 @@ local function runVisit(player: Player, token)
 		visitor:Destroy()
 		return
 	end
-	ActiveForPlayer[visitor] = true
+	ActiveForPlayer[visitor] = levelNumber
 
 	local currentCFrame = spawnCFrame
 	local lastMessage: string?
@@ -355,7 +358,7 @@ local function runVisit(player: Player, token)
 			return
 		end
 
-		local AvailableDisplays = GetAvailableDisplays(player)
+		local AvailableDisplays = GetAvailableDisplays(player, levelNumber)
 		if #AvailableDisplays > 0 and math.random() <= CONFIG.InspectChance then
 			local displayState = AvailableDisplays[math.random(1, #AvailableDisplays)]
 			if not ReserveDisplay(player, displayState) then
@@ -364,7 +367,7 @@ local function runVisit(player: Player, token)
 			local itemId = displayState.itemId
 			local itemInfo = itemId and getItemInfo(itemId)
 			local InspectionCFrame =
-				GetGroundedCFrame(museum, getInspectionCFrame(displayState.viewPart, displayState.itemCFrame))
+				GetGroundedCFrame(level, getInspectionCFrame(displayState.viewPart, displayState.itemCFrame))
 			if itemInfo and moveTo(InspectionCFrame) then
 				maybeSay(INSPECTION_MESSAGES, CONFIG.InspectMessageChance)
 				task.wait(math.random(CONFIG.InspectDurationMin, CONFIG.InspectDurationMax))
@@ -378,7 +381,7 @@ local function runVisit(player: Player, token)
 			end
 			ReleaseDisplay(player, displayState)
 		else
-			local WanderCFrame = GetGroundedCFrame(museum, getWanderCFrame(floor, spawnCFrame.Position.Y))
+			local WanderCFrame = GetGroundedCFrame(level, getWanderCFrame(floor, spawnCFrame.Position.Y))
 			if not moveTo(WanderCFrame) then
 				return
 			end
@@ -413,14 +416,16 @@ function VisitorController.OnPlayerAdded(player: Player)
 		task.wait(CONFIG.InitialSpawnDelay)
 		while player.Parent == Players and visitTokens[player] == token do
 			local ActiveForPlayer = activeVisitors[player]
-			local ActiveCount = 0
-			if ActiveForPlayer then
-				for _ in ActiveForPlayer do
-					ActiveCount += 1
+			for LevelNumber = 1, #MuseumConfig.Levels do
+				local ActiveCount = 0
+				if ActiveForPlayer then
+					for _, VisitorLevelNumber in ActiveForPlayer do
+						if VisitorLevelNumber == LevelNumber then ActiveCount += 1 end
+					end
 				end
-			end
-			if ActiveCount < GetActiveVisitorLimit(player) and #MuseumController.GetOccupiedDisplays(player) > 0 then
-				task.spawn(runVisit, player, token)
+				if ActiveCount < GetActiveVisitorLimit(player, LevelNumber) then
+					task.spawn(runVisit, player, token, LevelNumber)
+				end
 			end
 			task.wait(CONFIG.VisitorSpawnInterval)
 		end
