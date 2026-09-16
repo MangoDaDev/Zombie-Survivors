@@ -61,6 +61,11 @@ local LastProgressReport = 0
 local CompletionRequested = false
 local LastDirtFeedback = 0
 local CameraEntryId = 0
+local BaseCameraCFrame: CFrame?
+local OriginalCameraCFrame: CFrame?
+local CameraImpulse = 0
+local CameraPush = 0
+local LastCleanPosition: Vector3?
 
 local CAMERA_BINDING_NAME = "CleaningCameraAndArm"
 local CAMERA_SETUP_TIMEOUT = 10
@@ -243,8 +248,9 @@ local function StartToolEffects(Tool: Tool, ToolInfo)
 	end
 end
 
-local function Restore()
+local function Restore(Instant: boolean?)
 	CameraEntryId += 1
+	local RestoreId = CameraEntryId
 	UsingTool = false
 	ActiveToolId = nil
 	RequestedToolId = nil
@@ -256,13 +262,35 @@ local function Restore()
 	ViewmodelPartOffsets = {}
 	SmoothedVisualToolCFrame = nil
 	FakeArm = nil
-	for Part, Transparency in HiddenParts do if Part.Parent then Part.LocalTransparencyModifier = Transparency end end
-	HiddenParts = {}
 	if CameraBound then RunService:UnbindFromRenderStep(CAMERA_BINDING_NAME); CameraBound = false end
 	local Camera = Workspace.CurrentCamera
-	if OriginalCameraType then Camera.CameraType = OriginalCameraType; OriginalCameraType = nil end
-	if OriginalFieldOfView then Camera.FieldOfView = OriginalFieldOfView; OriginalFieldOfView = nil end
 	EnablePlayerControls()
+	local CameraType = OriginalCameraType
+	local FieldOfView = OriginalFieldOfView
+	local TargetCFrame = OriginalCameraCFrame
+	BaseCameraCFrame = nil
+	CameraImpulse = 0
+	CameraPush = 0
+	local function FinishRestore()
+		if RestoreId ~= CameraEntryId then return end
+		for Part, Transparency in HiddenParts do if Part.Parent then Part.LocalTransparencyModifier = Transparency end end
+		HiddenParts = {}
+		if CameraType then Camera.CameraType = CameraType end
+		if FieldOfView then Camera.FieldOfView = FieldOfView end
+		OriginalCameraType = nil
+		OriginalFieldOfView = nil
+		OriginalCameraCFrame = nil
+	end
+	if not Instant and CameraType and TargetCFrame and Camera.CameraType == Enum.CameraType.Scriptable then
+		local Tween = TweenService:Create(Camera, TweenInfo.new(CleaningConfig.CameraExitDuration, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			CFrame = TargetCFrame,
+			FieldOfView = FieldOfView or Camera.FieldOfView,
+		})
+		Tween.Completed:Once(FinishRestore)
+		Tween:Play()
+	else
+		FinishRestore()
+	end
 	RuntimeState.Set(LocalPlayer, "CleaningRadiusVisible", false)
 	RuntimeState.Set(LocalPlayer, "CleaningBrushRadius", nil)
 	LocalTargetStates = {}
@@ -272,6 +300,7 @@ local function Restore()
 	LocalStepRemaining = 0
 	LastReportedRemaining = 0
 	CompletionRequested = false
+	LastCleanPosition = nil
 end
 
 local function GetScreenWorldPosition(Camera, ScreenPosition, Depth): Vector3
@@ -388,8 +417,9 @@ local function GetFixingCameraCFrame(Camera: Camera, CameraPart: BasePart, Table
 end
 
 local function EnterFixingView()
-	Restore()
-	if RuntimeState.Get(LocalPlayer, "IsFixing", false) ~= true then return end
+	local IsFixing = RuntimeState.Get(LocalPlayer, "IsFixing", false) == true
+	Restore(IsFixing)
+	if not IsFixing then return end
 	local EntryId = CameraEntryId
 	task.spawn(function()
 		local Character, Camera, CameraPart, TableSurface, Box
@@ -425,19 +455,37 @@ local function EnterFixingView()
 			return
 		end
 
-		HideCharacter(Character)
-		CreateViewmodelContainer(Character)
 		DisablePlayerControls()
 		OriginalFieldOfView = Camera.FieldOfView
 		OriginalCameraType = Camera.CameraType
-		Camera.FieldOfView = CleaningConfig.CameraFieldOfView
+		OriginalCameraCFrame = Camera.CFrame
 		Camera.CameraType = Enum.CameraType.Scriptable
-		Camera.CFrame = GetFixingCameraCFrame(Camera, CameraPart, TableSurface, Box)
+		BaseCameraCFrame = GetFixingCameraCFrame(Camera, CameraPart, TableSurface, Box)
+		local EntryComplete = false
+		local EntryTween = TweenService:Create(Camera, TweenInfo.new(CleaningConfig.CameraEntryDuration, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+			CFrame = BaseCameraCFrame,
+			FieldOfView = CleaningConfig.CameraFieldOfView,
+		})
+		EntryTween.Completed:Once(function()
+			if EntryId == CameraEntryId then EntryComplete = true end
+		end)
+		EntryTween:Play()
+		task.delay(CleaningConfig.CameraEntryDuration * 0.3, function()
+			if EntryId ~= CameraEntryId or not Character.Parent then return end
+			HideCharacter(Character)
+			CreateViewmodelContainer(Character)
+		end)
 		RunService:BindToRenderStep(CAMERA_BINDING_NAME, Enum.RenderPriority.Last.Value, function(DeltaTime)
 			if not CameraPart.Parent or not TableSurface.Parent or not Box.Parent then
 				Restore()
 				Network:fire("Exit")
 				return
+			end
+			if EntryComplete and BaseCameraCFrame and EntryId == CameraEntryId then
+				CameraImpulse *= math.exp(-18 * DeltaTime)
+				local DesiredPush = if RuntimeState.Get(LocalPlayer, "CleaningRestorationComplete", false) == true then 0.22 else CameraPush
+				CameraPush += (DesiredPush - CameraPush) * (1 - math.exp(-7 * DeltaTime))
+				Camera.CFrame = BaseCameraCFrame * CFrame.new(0, 0, -(CameraPush + CameraImpulse))
 			end
 			if UpdateVisualTool then UpdateVisualTool(DeltaTime) end
 		end)
@@ -486,6 +534,54 @@ local function ResetLocalStep()
 	LastReportedRemaining = 0
 	LastProgressReport = 0
 	CompletionRequested = false
+	LastCleanPosition = nil
+end
+
+local function FinishRemainingTargets(ToolId: string)
+	local Step = CleaningConfig.GetStep(ToolId)
+	if not Step then return end
+	RuntimeState.Set(LocalPlayer, "CleaningStepName", "Finishing...")
+	local RemainingStates = {}
+	for _, State in LocalTargetStates do
+		if not State.Completed and State.Part.Parent then table.insert(RemainingStates, State) end
+	end
+	if LastCleanPosition then
+		table.sort(RemainingStates, function(A, B)
+			return (A.Part.Position - LastCleanPosition).Magnitude < (B.Part.Position - LastCleanPosition).Magnitude
+		end)
+	end
+	local Duration = CleaningConfig.AssistedCleanupDuration
+	for Index, State in RemainingStates do
+		local Target = State.Part
+		local Delay = (#RemainingStates > 1 and (Index - 1) / (#RemainingStates - 1) or 0) * Duration * 0.35
+		task.delay(Delay, function()
+			if not CompletionRequested or not Target.Parent then return end
+			if Step.Type == "Paint" and State.OriginalAppearance then
+				TweenService:Create(Target, TweenInfo.new(Duration * 0.65, Enum.EasingStyle.Quad), {
+					Color = State.OriginalAppearance.Color,
+					Transparency = State.OriginalAppearance.Transparency,
+				}):Play()
+			else
+				TweenService:Create(Target, TweenInfo.new(Duration * 0.65, Enum.EasingStyle.Quad), { Transparency = 1 }):Play()
+			end
+		end)
+	end
+	task.delay(Duration, function()
+		if not CompletionRequested or LocalStepId ~= ToolId then return end
+		for _, State in RemainingStates do
+			if not State.Part.Parent then continue end
+			State.Completed = true
+			if Step.Type == "Paint" and State.OriginalAppearance then
+				PaintRenderer.ApplyAppearance(State.Part, State.OriginalAppearance)
+			else
+				State.Part:Destroy()
+			end
+		end
+		LocalStepRemaining = 0
+		RuntimeState.Set(LocalPlayer, "CleaningProgress", 1)
+		ReportLocalProgress(true)
+		Network:fire("CompleteStep", ToolId)
+	end)
 end
 
 local function PrepareLocalStep(ToolId: string): boolean
@@ -643,6 +739,8 @@ local function ApplyToolLocally(ToolInfo, DeltaTime: number, MousePosition: Vect
 			State.Completed = true
 			LocalStepRemaining = math.max(0, LocalStepRemaining - 1)
 			ProgressChanged = true
+			LastCleanPosition = Target.Position
+			CameraImpulse = math.max(CameraImpulse, CleaningConfig.CameraTargetImpulseDistance)
 			if Step.Type == "Dirt" or Step.Type == "Grease" then
 				Target:Destroy()
 			elseif State.OriginalAppearance then
@@ -654,10 +752,14 @@ local function ApplyToolLocally(ToolInfo, DeltaTime: number, MousePosition: Vect
 	if ProgressChanged then ReportLocalProgress(false) end
 	local Progress = GetLocalProgress()
 	RuntimeState.Set(LocalPlayer, "CleaningProgress", Progress)
+	CameraPush = CleaningConfig.CameraFinalPushDistance * math.clamp((Progress - 0.8) / 0.1, 0, 1)
 	if Progress >= CleaningConfig.AutoCompletionThreshold then
 		CompletionRequested = true
+		UsingTool = false
+		ActiveToolId = nil
+		StopToolEffects()
 		ReportLocalProgress(true)
-		Network:fire("CompleteStep", ToolInfo.Id)
+		FinishRemainingTargets(ToolInfo.Id)
 	end
 end
 
@@ -817,6 +919,12 @@ function FixingController.Init()
 		end
 		ApplyToolLocally(ToolInfo, DeltaTime, MousePosition, AimPart)
 	end)
+	RuntimeState.GetChangedSignal(LocalPlayer, "CleaningRestorationComplete"):Connect(function(IsComplete)
+		if IsComplete == true then
+			StopToolEffects()
+			CameraImpulse = 0.08
+		end
+	end)
 	UserInputService.InputBegan:Connect(function(Input, Processed)
 		if Processed then return end
 		if Input.UserInputType == Enum.UserInputType.MouseButton1 and RuntimeState.Get(LocalPlayer, "IsFixing", false) == true and not UsingTool then
@@ -828,6 +936,7 @@ function FixingController.Init()
 				ActiveToolId = ToolInfo.Id
 				if Tool ~= ViewmodelSourceTool then CreateViewmodelTool(Tool, ToolInfo) end
 				if ViewmodelTool then StartToolEffects(ViewmodelTool, ToolInfo) end
+				CameraImpulse = math.max(CameraImpulse, CleaningConfig.CameraToolImpulseDistance)
 				Network:fire("StartUsingTool", ToolInfo.Id)
 			end
 		elseif Input.KeyCode == Enum.KeyCode.Q and RuntimeState.Get(LocalPlayer, "IsFixing", false) == true then
@@ -849,7 +958,7 @@ end
 
 function FixingController.OnCharacterAdded(Character)
 	if RuntimeState.Get(LocalPlayer, "IsFixing", false) == true then
-		Restore()
+		Restore(true)
 		Network:fire("Exit")
 	end
 	WatchCharacter(Character)

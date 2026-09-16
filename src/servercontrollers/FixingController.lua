@@ -17,6 +17,7 @@ local MuseumController = require(ServerStorage.Controllers.MuseumController)
 local Networker = require(ReplicatedStorage.Packages.networker)
 local PaintRenderer = require(ReplicatedStorage.Modules.Game.PaintRenderer)
 local PlayerStateController = require(ServerStorage.Controllers.PlayerStateController)
+local RarityInfo = require(ReplicatedStorage.Modules.Game.RarityInfo)
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
 local ToolResolver = require(ReplicatedStorage.Modules.Game.ToolResolver)
 local UpgradeLogic = require(ReplicatedStorage.Modules.Game.UpgradeLogic)
@@ -278,6 +279,7 @@ local function ClearSession(Player)
 	PlayerStateController.Set(Player, "CleaningItemId", nil)
 	PlayerStateController.Set(Player, "CleaningStepTotal", nil)
 	PlayerStateController.Set(Player, "CleaningStepRemaining", nil)
+	PlayerStateController.Set(Player, "CleaningRestorationComplete", nil)
 	CarryController.SetFixingMode(Player, false)
 	if Session.Prompt and Session.Prompt.Parent then Session.Prompt.Enabled = true end
 end
@@ -488,6 +490,39 @@ local function PlayNameRevealFeedback(Session)
 
 	local Billboard = ItemInfoBillboard(Session.ItemInfo, PrimaryPart, Session.State)
 	local NameLabel = Billboard:FindFirstChild("ItemName")
+	local RarityLabel
+	if NameLabel and NameLabel:IsA("TextLabel") then
+		RarityLabel = NameLabel:Clone()
+		RarityLabel.Name = "Rarity"
+		RarityLabel.Position = UDim2.fromScale(0, 0.28)
+		RarityLabel.Size = UDim2.fromScale(1, 0.12)
+		RarityLabel.Text = Session.ItemInfo.Rarity
+		RarityLabel.Parent = Billboard
+	end
+	local RevealOrder = { NameLabel, RarityLabel }
+	local GuestIncomeRow
+	local ValueRow
+	for _, Child in Billboard:GetChildren() do
+		if Child:IsA("Frame") then
+			Child.Visible = false
+			if Child.Position.Y.Scale < 0.5 then
+				GuestIncomeRow = Child
+				Child.Position = UDim2.fromScale(0, 0.4)
+			else
+				ValueRow = Child
+				Child.Position = UDim2.fromScale(0, 0.75)
+			end
+		end
+	end
+	table.insert(RevealOrder, ValueRow)
+	table.insert(RevealOrder, GuestIncomeRow)
+	for Index, GuiObject in RevealOrder do
+		if not GuiObject then continue end
+		GuiObject.Visible = false
+		task.delay((Index - 1) * 0.2, function()
+			if GuiObject.Parent then GuiObject.Visible = true end
+		end)
+	end
 	if NameLabel and NameLabel:IsA("TextLabel") then
 		local Scale = Instance.new("UIScale")
 		Scale.Scale = 0.2
@@ -506,10 +541,9 @@ local function PlayNameRevealFeedback(Session)
 		TweenService:Create(Scale, TweenInfo.new(0.55, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
 	end
 
-	local RarityOrder = { Common = 1, Uncommon = 2, Rare = 3, Epic = 4, Legendary = 5, Mythic = 6, Secret = 7 }
 	local RarityTemplates = { Secret = "Omniscient" }
-	local RarityLevel = RarityOrder[Session.ItemInfo.Rarity] or 1
-	local RevealSoundName = if RarityLevel >= 6 then "Reward5" elseif RarityLevel >= 4 then "Reward4" elseif RarityLevel >= 3 then "Reward3" else "Reward2"
+	local RarityConfig = RarityInfo.Get(Session.ItemInfo.Rarity)
+	local RevealSoundName = if RarityConfig.Intensity >= 1.65 then "Reward5" elseif RarityConfig.Intensity >= 1.2 then "Reward4" elseif RarityConfig.Intensity >= 1.05 then "Reward3" else "Reward2"
 	Sounds.Play(RevealSoundName, Session.RootPart, CONFIG.FeedbackSoundMaxDistance)
 
 	local PinwheelFolder = ReplicatedStorage.Assets.VFX:FindFirstChild("RarityPinwheels")
@@ -523,7 +557,7 @@ local function PlayNameRevealFeedback(Session)
 		for _, Emitter in Effect:GetDescendants() do
 			if Emitter:IsA("ParticleEmitter") then
 				Emitter.Enabled = false
-				Emitter:Emit(if RarityLevel >= 5 then 2 else 1)
+				Emitter:Emit(if RarityConfig.Intensity >= 1.4 then 2 else 1)
 				MaximumLifetime = math.max(MaximumLifetime, Emitter.Lifetime.Max)
 			end
 		end
@@ -532,7 +566,7 @@ local function PlayNameRevealFeedback(Session)
 
 	local Highlight = Instance.new("Highlight")
 	Highlight.Name = "NameRevealHighlight"
-	Highlight.FillColor = if RarityLevel >= 5 then Color3.fromRGB(255, 219, 77) else Color3.fromRGB(130, 220, 255)
+	Highlight.FillColor = RarityConfig.Color
 	Highlight.FillTransparency = 0.05
 	Highlight.OutlineColor = Color3.new(1, 1, 1)
 	Highlight.OutlineTransparency = 0
@@ -559,9 +593,6 @@ CompleteCurrentStep = function(Player, Session)
 	PlayerStateController.Set(Player, "CleaningProgress", 1)
 	PlayerStateController.Set(Player, "CleaningStepComplete", true)
 	Sounds.Play(Step.CompletionSoundName, Session.RootPart, CONFIG.FeedbackSoundMaxDistance)
-	if Step.Type == "Dirt" then
-		PlayNameRevealFeedback(Session)
-	end
 	if GetFirstIncompleteStep(Session.State, Session.Steps) then
 		Session.TransitionId += 1
 		local TransitionId = Session.TransitionId
@@ -582,9 +613,11 @@ CompleteCurrentStep = function(Player, Session)
 		return
 	end
 	CompleteRestorationState(Player, Session.ItemId, Session.ItemInfo, Session.State)
+	PlayerStateController.Set(Player, "CleaningRestorationComplete", true)
 	GuidanceController.Advance(Player, "CleanThis")
 	GuidanceController.Show(Player, "Ready To Display")
 	PlayFullCompletionFeedback(Session)
+	PlayNameRevealFeedback(Session)
 	task.delay(CleaningConfig.FullCompletionDelay, function() if Sessions[Player] == Session then ClearSession(Player) end end)
 end
 

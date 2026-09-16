@@ -1,4 +1,5 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
 
 local dataService = require(ReplicatedStorage.Packages.dataservice).client
 local FormatNumber = require(ReplicatedStorage.Modules.Math.FormatNumber)
@@ -12,29 +13,52 @@ local source = vide.source
 local spring = vide.spring
 
 return function()
-	local cash = source(dataService:get("Cash"))
-	local cashScaleTarget = source(1)
-	local cashScale = spring(cashScaleTarget, 0.18, 0.75)
-	local previousCash = cash()
-	local resetThread: thread?
-	local cashChangedConnection = dataService:getChangedSignal("Cash"):Connect(function(value)
-		cash(value)
-		if type(value) == "number" and type(previousCash) == "number" and value > previousCash then
-			cashScaleTarget(1.18)
-			if resetThread then
-				task.cancel(resetThread)
+	local Cash = source(dataService:get("Cash"))
+	local CashScaleTarget = source(1)
+	local CashScale = spring(CashScaleTarget, 0.18, 0.75)
+	local CashGain = source(0)
+	local CashGainProgress = source(1)
+	local PreviousCash = Cash()
+	local ResetThread: thread?
+	local CashGainValue = Instance.new("NumberValue")
+	local CashGainTween: Tween?
+	local CashGainConnection = CashGainValue.Changed:Connect(CashGainProgress)
+
+	local function ShowCashGain(Amount: number)
+		if CashGainProgress() >= 0.99 then CashGain(0) end
+		CashGain(CashGain() + Amount)
+		CashGainValue.Value = 0
+		if CashGainTween then CashGainTween:Cancel() end
+		CashGainTween = TweenService:Create(
+			CashGainValue,
+			TweenInfo.new(1.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+			{ Value = 1 }
+		)
+		CashGainTween:Play()
+	end
+
+	local CashChangedConnection = dataService:getChangedSignal("Cash"):Connect(function(Value)
+		Cash(Value)
+		if type(Value) == "number" and type(PreviousCash) == "number" and Value > PreviousCash then
+			ShowCashGain(Value - PreviousCash)
+			CashScaleTarget(1.18)
+			if ResetThread then
+				task.cancel(ResetThread)
 			end
-			resetThread = task.delay(0.1, function()
-				resetThread = nil
-				cashScaleTarget(1)
+			ResetThread = task.delay(0.1, function()
+				ResetThread = nil
+				CashScaleTarget(1)
 			end)
 		end
-		previousCash = value
+		PreviousCash = Value
 	end)
 	cleanup(function()
-		cashChangedConnection:Disconnect()
-		if resetThread then
-			task.cancel(resetThread)
+		CashChangedConnection:Disconnect()
+		CashGainConnection:Disconnect()
+		if CashGainTween then CashGainTween:Cancel() end
+		CashGainValue:Destroy()
+		if ResetThread then
+			task.cancel(ResetThread)
 		end
 	end)
 
@@ -45,7 +69,7 @@ return function()
 		Position = UDim2.fromScale(0.98, 0.96),
 		Size = UDim2.fromScale(0.25, 0.08),
 		create "UIScale" {
-			Scale = cashScale,
+			Scale = CashScale,
 		},
 		create "UIListLayout" {
 			FillDirection = Enum.FillDirection.Horizontal,
@@ -71,7 +95,7 @@ return function()
 			LayoutOrder = 2,
 			Size = UDim2.fromScale(0, 1),
 			Text = function()
-				return FormatNumber(cash()) or "0"
+				return FormatNumber(Cash()) or "0"
 			end,
 			TextColor3 = Color3.fromRGB(72, 232, 91),
 			TextScaled = true,
@@ -86,6 +110,41 @@ return function()
 			create "UITextSizeConstraint" {
 				MaxTextSize = 48,
 				MinTextSize = 12,
+			},
+			create "TextLabel" {
+				Name = "CashGain",
+				AnchorPoint = Vector2.new(0.5, 1),
+				BackgroundTransparency = 1,
+				FontFace = UIStyle.Font,
+				Position = function()
+					return UDim2.fromScale(0.5, -0.08 - CashGainProgress() * 0.55)
+				end,
+				Size = UDim2.fromScale(0.8, 0.58),
+				Text = function()
+					return `+${FormatNumber(CashGain()) or "0"}`
+				end,
+				TextColor3 = UIStyle.Colors.Green,
+				TextScaled = true,
+				TextTransparency = function()
+					return math.clamp((CashGainProgress() - 0.5) / 0.5, 0, 1)
+				end,
+				Visible = function()
+					return CashGain() > 0 and CashGainProgress() < 1
+				end,
+				ZIndex = 10,
+				create "UIStroke" {
+					ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual,
+					Color = UIStyle.Colors.Ink,
+					StrokeSizingMode = Enum.StrokeSizingMode.ScaledSize,
+					Thickness = 0.06,
+					Transparency = function()
+						return math.clamp((CashGainProgress() - 0.5) / 0.5, 0, 1)
+					end,
+				},
+				create "UITextSizeConstraint" {
+					MaxTextSize = 30,
+					MinTextSize = 10,
+				},
 			},
 		},
 	}

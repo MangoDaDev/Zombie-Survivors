@@ -135,6 +135,7 @@ local function CreateNode(Properties)
 		Name = Upgrade.Id,
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		BackgroundTransparency = 1,
+		ClipsDescendants = false,
 		GroupTransparency = Transparency,
 		Position = UDim2.fromOffset(TreeCanvasSize.X / 2 + Upgrade.Position.X, TreeCanvasSize.Y / 2 + Upgrade.Position.Y),
 		Size = UDim2.fromOffset(UpgradeConfig.NodeSize, UpgradeConfig.NodeSize),
@@ -551,6 +552,7 @@ return function()
 		Name = "TreeCanvas",
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		BackgroundTransparency = 1,
+		ClipsDescendants = false,
 		Position = function()
 			local Position = ViewportSize() / 2 - CameraPosition() * Zoom()
 			return UDim2.fromOffset(Position.X, Position.Y)

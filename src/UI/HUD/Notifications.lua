@@ -71,8 +71,10 @@ return function()
 		ZIndex = 80,
 		Create "UICorner" { CornerRadius = UDim.new(0, 14) },
 		Create "UIStroke" {
-			Color = Color3.fromRGB(255, 183, 188),
-			Thickness = 3,
+			ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+			Color = UIStyle.Colors.RedDark,
+			Thickness = UIStyle.OutlineThickness,
+			Transparency = 0.08,
 		},
 		Create "TextLabel" {
 			BackgroundTransparency = 1,

@@ -29,7 +29,8 @@ Quick reference for the project's first-party Luau scripts. Generated Wally depe
 | `src/controllers/BatController.lua` | BatController | Detects responsive crate and player bat targets, applies saved cooldown multipliers, predicts crate damage, and renders validated local hit debris, final-hit shake/audio, swing, impact, and crate-reaction feedback. |
 | `src/controllers/ConveyorItemController.lua` | ConveyorItemController | Retains the inactive legacy ConveyorItem SharedClass renderer. |
 | `src/controllers/CrateController.lua` | CrateController | Plays client-only silhouette roulette, pulsing previews, rarity-scaled pinwheels, bursts, local vignette/flash/sparkles/audio, and compact crate-purchase guidance. |
-| `src/controllers/FixingController.lua` | FixingController | Owns reliable rotation-safe BoundingBox-fitted fixing cameras, responsive client-authoritative cleaning damage, visuals, progress, Fix prompts, avatar hiding, and the tool/fake-arm viewmodel. |
+| `src/controllers/AmbientAudioController.lua` | AmbientAudioController | Maintains persistent low-volume music and environmental channels, crossfades between outdoor and museum zones, and smoothly ducks music for high-rarity reveals and restoration completion states. |
+| `src/controllers/FixingController.lua` | FixingController | Owns smoothly blended, stable BoundingBox-fitted fixing cameras, assisted final cleanup, responsive client-authoritative cleaning damage, presentation feedback, Fix prompts, avatar hiding, and the tool/fake-arm viewmodel. |
 | `src/controllers/GuidanceController.lua` | GuidanceController | Resolves authoritative tutorial or contextual objectives, manages their local highlight, directional beam, and objective text, and immediately clears completed interface guidance. |
 | `src/controllers/InventoryController.lua` | InventoryController | Controls Satchel visibility, requests carried-item drops, keeps the bat in the first slot, and sends validated inventory ordering to the server. |
 | `src/controllers/MuseumVisitorController.lua` | MuseumVisitorController | Registers the client MuseumVisitor SharedClass renderer. |
@@ -60,6 +61,7 @@ Quick reference for the project's first-party Luau scripts. Generated Wally depe
 | --- | --- | --- |
 | `src/modules/Game/_PlayerFreezeState.lua` | PlayerFreezeState | Stores and manages the local character's anchored freeze state. |
 | `src/modules/Game/CleaningConfig.lua` | CleaningConfig | Registers restoration tools and derives item actions from currency-independent restoration tiers, alongside viewmodel positioning, brushes, VFX, and completion behavior. |
+| `src/modules/Game/AmbientAudioConfig.lua` | AmbientAudioConfig | Centralizes ambient channel assets, zone volumes, crossfade timing, and presentation ducking values. |
 | `src/modules/Game/CollisionGroups.lua` | CollisionGroups | Defines shared player and NPC collision-group names used by server characters and client-rendered visitors. |
 | `src/modules/Game/EconomyConfig.lua` | EconomyConfig | Centralizes progression-stage price bands, restoration tiers and rewards, starting cash, and rarity-scaled museum income while deriving final item values from item difficulty. |
 | `src/modules/Game/BatInfo.lua` | BatInfo | Configures the Wooden through Obsidian crate-only bat progression with progressively improved damage, timing, range, validation, and sounds. |
@@ -117,6 +119,7 @@ Quick reference for the project's first-party Luau scripts. Generated Wally depe
 | `src/modules/UI/Images.lua` | Images | Catalogs named image asset IDs, including dedicated icon entries for every bat tier, for project interfaces and upgrade nodes. |
 | `src/modules/UI/FixingInterface.lua` | FixingInterface | Bridges Fixing HUD actions to the client Fixing controller. |
 | `src/modules/UI/ItemInfoBillboard.lua` | ItemInfoBillboard | Creates a size-aware item billboard that hides dirty item identities as `???`, reveals rarity styling after cleaning, and shows required restoration steps. |
+| `src/controllers/ItemInfoBillboardController.lua` | ItemInfoBillboardController | Applies lightweight distance disclosure and local overlap prioritization to shared item information billboards. |
 | `src/modules/UI/ItemDespawnCountdown.lua` | ItemDespawnCountdown | Creates and updates the shared near-expiry billboard used by all unclaimed world items. |
 | `src/modules/UI/NotificationManager.lua` | NotificationManager | Provides reusable transient notifications and keyed inactive-to-active transition suppression. |
 | `src/modules/UI/PlayVFX.lua` | PlayVFX | Clones, starts, and cleans up reusable visual and sound effects. |
@@ -148,7 +151,7 @@ Quick reference for the project's first-party Luau scripts. Generated Wally depe
 | `src/servercontrollers/CrateController.lua` | CrateController | Spawns tiered crate fields and pity crates, owns health, loot rolls, synchronized reveals, interaction-safe world-item despawn countdowns, purchases, and area resets. |
 | `src/servercontrollers/DataController.lua` | DataController | Registers argument-aware chat commands, enforces Owner-rank administration permissions, and performs DataService-backed cash and reset operations. |
 | `src/controllers/DataController.lua` | DataController | Receives server chat-command feedback and displays it through the shared notification system. |
-| `src/servercontrollers/FixingController.lua` | FixingController | Owns fixing sessions, BoundingBox-centered tabletop placement and fixing rotation, saved progress, validated unfinished damage placement, equipped-tool validation, and rarity-scaled completion. |
+| `src/servercontrollers/FixingController.lua` | FixingController | Owns fixing sessions, BoundingBox-centered tabletop placement and fixing rotation, saved progress, validated unfinished damage placement, equipped-tool validation, and sequenced rarity-scaled completion reveals. |
 | `src/servercontrollers/GuidanceController.lua` | GuidanceController | Persists and advances tutorial objectives, assigns and reset-safely replaces each new player's nearest common crate, and sends contextual guidance. |
 | `src/servercontrollers/MuseumController.lua` | MuseumController | Builds only purchased museum levels and globally numbered displays, spawns the separate fixing table and movable roof, and handles placement, removal, selling, tutorial milestones, and visitor-facing exhibits. |
 | `src/servercontrollers/VisitorController.lua` | VisitorController | Targets active visitors from occupied exhibit count times the player's guests-per-display upgrade, schedules grounded visitor routes and payments, advances the first-income objective, and reserves exhibit viewing capacity. |

@@ -13,11 +13,13 @@ local modules_to_init = {
 	ReplicatedStorage.Controllers.CrateController,
 	ReplicatedStorage.Controllers.BatController,
 	ReplicatedStorage.Controllers.MuseumVisitorController,
+	ReplicatedStorage.Controllers.ItemInfoBillboardController,
 	ReplicatedStorage.Controllers.TopbarController,
 	ReplicatedStorage.UI.UIOrigin,
 	ReplicatedStorage.Controllers.GuidanceController,
 	ReplicatedStorage.Controllers.InventoryController,
 	ReplicatedStorage.Controllers.FixingController,
+	ReplicatedStorage.Controllers.AmbientAudioController,
 }
 
 local initialized_modules = {}

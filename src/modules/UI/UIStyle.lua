@@ -10,6 +10,7 @@ local UIStyle = {
 		Muted = Color3.fromRGB(163, 163, 163),
 		Green = Color3.fromRGB(71, 190, 104),
 		Red = Color3.fromRGB(218, 75, 75),
+		RedDark = Color3.fromRGB(115, 50, 50),
 		Blue = Color3.fromRGB(70, 158, 209),
 		BlueDark = Color3.fromRGB(35, 76, 126),
 		Gold = Color3.fromRGB(241, 180, 67),

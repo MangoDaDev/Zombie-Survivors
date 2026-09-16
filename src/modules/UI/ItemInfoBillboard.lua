@@ -1,4 +1,5 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local CollectionService = game:GetService("CollectionService")
 
 local FormatNumber = require(ReplicatedStorage.Modules.Math.FormatNumber)
 local Images = require(ReplicatedStorage.Modules.UI.Images)
@@ -10,7 +11,8 @@ local BILLBOARD_SIZE = UDim2.fromScale(7.5, 4)
 local BILLBOARD_HEIGHT_OFFSET = 2
 local BILLBOARD_HEIGHT_SCALE = 0.18
 local COMIC_FONT = UIStyle.Font
-local MAX_DISTANCE = 300
+local MAX_DISTANCE = 90
+local ITEM_INFO_TAG = "ItemInfoBillboard"
 
 local function addStroke(label: TextLabel)
 	local stroke = Instance.new("UIStroke")
@@ -68,7 +70,7 @@ return function(itemInfo, adornee: BasePart, fixingState): BillboardGui
 	local billboard = Instance.new("BillboardGui")
 	billboard.Name = "ItemInfo"
 	billboard.Adornee = adornee
-	billboard.AlwaysOnTop = true
+	billboard.AlwaysOnTop = false
 	billboard.MaxDistance = MAX_DISTANCE
 	billboard.Size = BILLBOARD_SIZE
 	local ItemModel = adornee:FindFirstAncestorOfClass("Model")
@@ -95,8 +97,26 @@ return function(itemInfo, adornee: BasePart, fixingState): BillboardGui
 		else ColorSequence.new(Color3.fromRGB(168, 168, 168), Color3.fromRGB(225, 225, 225))
 	rarityGradient.Parent = nameLabel
 
-	createStatRow(Images.Binoculars, itemInfo.GuestPay, UDim2.fromScale(0, 0.3), "$", 0.34, 0.14).Parent = billboard
-	createStatRow(Images.Cash, itemInfo.Price, UDim2.fromScale(0, 0.63), nil, 0.22, 0.09).Parent = billboard
+	local RarityLabel = Instance.new("TextLabel")
+	RarityLabel.Name = "Rarity"
+	RarityLabel.BackgroundTransparency = 1
+	RarityLabel.FontFace = COMIC_FONT
+	RarityLabel.Position = UDim2.fromScale(0.2, 0.25)
+	RarityLabel.Size = UDim2.fromScale(0.6, 0.14)
+	RarityLabel.Text = if IsCleaningComplete then itemInfo.Rarity else "Unknown"
+	RarityLabel.TextColor3 = Color3.new(1, 1, 1)
+	RarityLabel.TextScaled = true
+	RarityLabel.Parent = billboard
+	addStroke(RarityLabel)
+	local RarityTextGradient = rarityGradient:Clone()
+	RarityTextGradient.Parent = RarityLabel
+
+	local GuestPayRow = createStatRow(Images.Binoculars, itemInfo.GuestPay, UDim2.fromScale(0, 0.38), "$", 0.28, 0.14)
+	GuestPayRow.Name = "GuestPay"
+	GuestPayRow.Parent = billboard
+	local PriceRow = createStatRow(Images.Cash, itemInfo.Price, UDim2.fromScale(0, 0.65), nil, 0.2, 0.09)
+	PriceRow.Name = "Price"
+	PriceRow.Parent = billboard
 	local RequiredSteps = CleaningConfig.GetStepsForItem(itemInfo)
 	if fixingState and fixingState.Completed ~= true and #RequiredSteps > 0 and Images.FixIcons then
 		local fixRow = Instance.new("Frame")
@@ -124,6 +144,8 @@ return function(itemInfo, adornee: BasePart, fixingState): BillboardGui
 			end
 		end
 	end
+
+	CollectionService:AddTag(billboard, ITEM_INFO_TAG)
 
 	return billboard
 end
