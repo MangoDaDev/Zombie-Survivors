@@ -3,7 +3,6 @@ local ReplicatedStorage = game:GetService "ReplicatedStorage"
 local TweenService = game:GetService "TweenService"
 local UserInputService = game:GetService "UserInputService"
 
-local BatInfo = require(ReplicatedStorage.Modules.Game.BatInfo)
 local UpgradeConfig = require(ReplicatedStorage.Modules.Game.UpgradeConfig)
 local UpgradeLogic = require(ReplicatedStorage.Modules.Game.UpgradeLogic)
 local DataService = require(ReplicatedStorage.Packages.dataservice).client
@@ -37,15 +36,8 @@ local StateColors = {
 -- The upgrade tree is intentionally designed to communicate progression through
 -- node placement, grouping, and spacing instead.
 local TreeCanvasSize = UpgradeConfig.CameraBounds * 2 + Vector2.one * UpgradeConfig.NodeSize * 2
-local BatInfoById = {}
-for _, Info in BatInfo do BatInfoById[Info.Id] = Info end
-
 local function ResolveUpgradeIcon(Upgrade): string
-	local EffectInfo = Upgrade.Effect
-	if EffectInfo and EffectInfo.Type == "BatTier" then
-		local Info = BatInfoById[EffectInfo.BatId]
-		if Info then return Images[Info.Icon] or Images.Upgrade end
-	end
+	-- Upgrade nodes use their configured icon key, including every bat tier.
 	return Images[Upgrade.Icon] or Images.Upgrade
 end
 

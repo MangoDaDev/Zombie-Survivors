@@ -1,8 +1,12 @@
 local NODE_SIZE = 96
-local HEX_SPACING = NODE_SIZE + 10
-local HEX_VERTICAL_SPACING = HEX_SPACING * math.sqrt(3) / 2
-local HEX_DOWN_RIGHT = Vector2.new(HEX_SPACING / 2, HEX_VERTICAL_SPACING)
+local BRANCH_HORIZONTAL_SPACING = NODE_SIZE + 10
+local BRANCH_VERTICAL_SPACING = BRANCH_HORIZONTAL_SPACING * math.sqrt(3) / 2
+local HEX_UP_RIGHT = Vector2.new(BRANCH_HORIZONTAL_SPACING / 2, -BRANCH_VERTICAL_SPACING)
+local HEX_DOWN_RIGHT = Vector2.new(BRANCH_HORIZONTAL_SPACING / 2, BRANCH_VERTICAL_SPACING)
+local HEX_DOWN_LEFT = Vector2.new(-BRANCH_HORIZONTAL_SPACING / 2, BRANCH_VERTICAL_SPACING)
 local HEX_UP_LEFT = -HEX_DOWN_RIGHT
+local HEX_LEFT = Vector2.new(-BRANCH_HORIZONTAL_SPACING, 0)
+local HEX_RIGHT = -HEX_LEFT
 
 -- IMPORTANT:
 -- Do not reintroduce visual connector/link lines between upgrade nodes.
@@ -10,19 +14,25 @@ local HEX_UP_LEFT = -HEX_DOWN_RIGHT
 -- grouping, and spacing rules instead.
 
 local function GetToolPosition(Index: number): Vector2
-	return Vector2.new(HEX_SPACING * Index, 0)
+	return HEX_DOWN_RIGHT * Index
 end
 
-local function GetLevelPosition(BasePosition: Vector2, Level: number): Vector2
-	return BasePosition + HEX_DOWN_RIGHT * Level
+local function GetToolSpeedPosition(BasePosition: Vector2, Level: number): Vector2
+	-- Every speed level continues bottom-left so separate tool branches never cross.
+	return BasePosition + HEX_DOWN_LEFT * Level
+end
+
+local function GetSpraySpeedPosition(Level: number): Vector2
+	-- Bottle Spray Speed starts to the right of Restoration Museum and continues right.
+	return HEX_RIGHT * Level
 end
 
 local function GetBatPosition(TierAfterWooden: number): Vector2
-	return Vector2.new(-HEX_SPACING * TierAfterWooden, 0)
+	return HEX_DOWN_LEFT * TierAfterWooden
 end
 
 local function GetDisplayPosition(LevelAfterBase: number): Vector2
-	return HEX_UP_LEFT + Vector2.new(HEX_SPACING * (LevelAfterBase - 1), 0)
+	return HEX_UP_RIGHT * LevelAfterBase
 end
 
 local function GetVisitorPosition(LevelAfterBase: number): Vector2
@@ -30,7 +40,7 @@ local function GetVisitorPosition(LevelAfterBase: number): Vector2
 end
 
 local function GetBatCooldownPosition(Level: number): Vector2
-	return GetLevelPosition(GetBatPosition(1), Level)
+	return HEX_LEFT * Level
 end
 
 local UpgradeConfig = {
@@ -41,7 +51,7 @@ local UpgradeConfig = {
 	ZoomStep = 1.14,
 	CameraRecoveryDistance = 384,
 	MaximumMysteryDistance = 2,
-	CameraBounds = Vector2.new(2_100, 720),
+	CameraBounds = Vector2.new(2_100, 1_650),
 	DefaultDisplayLimit = 8,
 	DefaultVisitorsPerDisplay = 2,
 	DefaultBatId = "WoodenBat",
@@ -267,7 +277,7 @@ local UpgradeConfig = {
 			Icon = "SoftBrush",
 			Position = GetToolPosition(3),
 			Prerequisites = { "UnlockSprayPaint" },
-			ConnectedUpgrades = { "UnlockHairdryer" },
+			ConnectedUpgrades = { "UnlockHairdryer", "SoftBrushSpeed1" },
 			Branch = "RestorationTools",
 			ShortValue = "BRUSH",
 			Effect = { Type = "ToolUnlock", ToolId = "SoftBrush" },
@@ -280,7 +290,7 @@ local UpgradeConfig = {
 			Icon = "Hairdryer",
 			Position = GetToolPosition(4),
 			Prerequisites = { "UnlockSoftBrush" },
-			ConnectedUpgrades = { "UnlockHammer" },
+			ConnectedUpgrades = { "UnlockHammer", "HairdryerSpeed1" },
 			Branch = "RestorationTools",
 			ShortValue = "AIR",
 			Effect = { Type = "ToolUnlock", ToolId = "Hairdryer" },
@@ -293,7 +303,7 @@ local UpgradeConfig = {
 			Icon = "Hammer",
 			Position = GetToolPosition(5),
 			Prerequisites = { "UnlockHairdryer" },
-			ConnectedUpgrades = { "UnlockMagnet" },
+			ConnectedUpgrades = { "UnlockMagnet", "HammerSpeed1" },
 			Branch = "RestorationTools",
 			ShortValue = "HAMMER",
 			Effect = { Type = "ToolUnlock", ToolId = "Hammer" },
@@ -306,7 +316,7 @@ local UpgradeConfig = {
 			Icon = "Magnet",
 			Position = GetToolPosition(6),
 			Prerequisites = { "UnlockHammer" },
-			ConnectedUpgrades = { "UnlockPolisher" },
+			ConnectedUpgrades = { "UnlockPolisher", "MagnetSpeed1" },
 			Branch = "RestorationTools",
 			ShortValue = "MAGNET",
 			Effect = { Type = "ToolUnlock", ToolId = "Magnet" },
@@ -319,7 +329,7 @@ local UpgradeConfig = {
 			Icon = "Polisher",
 			Position = GetToolPosition(7),
 			Prerequisites = { "UnlockMagnet" },
-			ConnectedUpgrades = {},
+			ConnectedUpgrades = { "PolisherSpeed1" },
 			Branch = "RestorationTools",
 			ShortValue = "POLISH",
 			Effect = { Type = "ToolUnlock", ToolId = "Polisher" },
@@ -330,7 +340,7 @@ local UpgradeConfig = {
 			Description = "Improves the spray bottle's cleaning speed and radius.",
 			Cost = 500,
 			Icon = "Auto",
-			Position = GetLevelPosition(Vector2.zero, 1),
+			Position = GetSpraySpeedPosition(1),
 			Prerequisites = { "Start" },
 			ConnectedUpgrades = { "SpraySpeed2" },
 			Branch = "Restoration",
@@ -343,7 +353,7 @@ local UpgradeConfig = {
 			Description = "Further improves the spray bottle's cleaning speed and radius.",
 			Cost = 25_000,
 			Icon = "Auto",
-			Position = GetLevelPosition(Vector2.zero, 2),
+			Position = GetSpraySpeedPosition(2),
 			Prerequisites = { "SpraySpeed1" },
 			ConnectedUpgrades = { "SpraySpeed3" },
 			Branch = "Restoration",
@@ -356,7 +366,7 @@ local UpgradeConfig = {
 			Description = "Maximizes the spray bottle's cleaning speed and radius.",
 			Cost = 1_000_000,
 			Icon = "Auto",
-			Position = GetLevelPosition(Vector2.zero, 3),
+			Position = GetSpraySpeedPosition(3),
 			Prerequisites = { "SpraySpeed2" },
 			ConnectedUpgrades = {},
 			Branch = "Restoration",
@@ -382,7 +392,7 @@ local UpgradeConfig = {
 			Description = "Improves spray paint restoration speed and radius.",
 			Cost = 35_000,
 			Icon = "Auto",
-			Position = GetLevelPosition(GetToolPosition(2), 1),
+			Position = GetToolSpeedPosition(GetToolPosition(2), 1),
 			Prerequisites = { "UnlockSprayPaint" },
 			ConnectedUpgrades = { "SprayPaintSpeed2" },
 			Branch = "Restoration",
@@ -395,7 +405,7 @@ local UpgradeConfig = {
 			Description = "Further improves spray paint restoration speed and radius.",
 			Cost = 400_000,
 			Icon = "Auto",
-			Position = GetLevelPosition(GetToolPosition(2), 2),
+			Position = GetToolSpeedPosition(GetToolPosition(2), 2),
 			Prerequisites = { "SprayPaintSpeed1" },
 			ConnectedUpgrades = { "SprayPaintSpeed3" },
 			Branch = "Restoration",
@@ -408,7 +418,7 @@ local UpgradeConfig = {
 			Description = "Maximizes spray paint restoration speed and radius.",
 			Cost = 5_000_000,
 			Icon = "Auto",
-			Position = GetLevelPosition(GetToolPosition(2), 3),
+			Position = GetToolSpeedPosition(GetToolPosition(2), 3),
 			Prerequisites = { "SprayPaintSpeed2" },
 			ConnectedUpgrades = {},
 			Branch = "Restoration",
@@ -434,7 +444,7 @@ local UpgradeConfig = {
 			Description = "Improves the sponge's cleaning speed and radius.",
 			Cost = 3_000,
 			Icon = "Auto",
-			Position = GetLevelPosition(GetToolPosition(1), 1),
+			Position = GetToolSpeedPosition(GetToolPosition(1), 1),
 			Prerequisites = { "UnlockSponge" },
 			ConnectedUpgrades = { "SpongeSpeed2" },
 			Branch = "Restoration",
@@ -447,7 +457,7 @@ local UpgradeConfig = {
 			Description = "Further improves the sponge's cleaning speed and radius.",
 			Cost = 60_000,
 			Icon = "Auto",
-			Position = GetLevelPosition(GetToolPosition(1), 2),
+			Position = GetToolSpeedPosition(GetToolPosition(1), 2),
 			Prerequisites = { "SpongeSpeed1" },
 			ConnectedUpgrades = { "SpongeSpeed3" },
 			Branch = "Restoration",
@@ -460,12 +470,207 @@ local UpgradeConfig = {
 			Description = "Maximizes the sponge's cleaning speed and radius.",
 			Cost = 1_250_000,
 			Icon = "Auto",
-			Position = GetLevelPosition(GetToolPosition(1), 3),
+			Position = GetToolSpeedPosition(GetToolPosition(1), 3),
 			Prerequisites = { "SpongeSpeed2" },
 			ConnectedUpgrades = {},
 			Branch = "Restoration",
 			ShortValue = "Speed III",
 			Effect = { Type = "ToolStrength", ToolId = "Sponge", Multiplier = 1.9, RadiusMultiplier = 1.4 },
+		},
+		{
+			Id = "SoftBrushSpeed1",
+			Name = "Soft Brush Speed I",
+			Description = "Improves the soft brush's cleaning speed and radius.",
+			Cost = 5_000,
+			Icon = "Auto",
+			Position = GetToolSpeedPosition(GetToolPosition(3), 1),
+			Prerequisites = { "UnlockSoftBrush" },
+			ConnectedUpgrades = { "SoftBrushSpeed2" },
+			Branch = "Restoration",
+			ShortValue = "Speed I",
+			Effect = { Type = "ToolStrength", ToolId = "SoftBrush", Multiplier = 1.2, RadiusMultiplier = 1.1 },
+		},
+		{
+			Id = "SoftBrushSpeed2",
+			Name = "Soft Brush Speed II",
+			Description = "Further improves the soft brush's cleaning speed and radius.",
+			Cost = 100_000,
+			Icon = "Auto",
+			Position = GetToolSpeedPosition(GetToolPosition(3), 2),
+			Prerequisites = { "SoftBrushSpeed1" },
+			ConnectedUpgrades = { "SoftBrushSpeed3" },
+			Branch = "Restoration",
+			ShortValue = "Speed II",
+			Effect = { Type = "ToolStrength", ToolId = "SoftBrush", Multiplier = 1.5, RadiusMultiplier = 1.25 },
+		},
+		{
+			Id = "SoftBrushSpeed3",
+			Name = "Soft Brush Speed III",
+			Description = "Maximizes the soft brush's cleaning speed and radius.",
+			Cost = 2_000_000,
+			Icon = "Auto",
+			Position = GetToolSpeedPosition(GetToolPosition(3), 3),
+			Prerequisites = { "SoftBrushSpeed2" },
+			ConnectedUpgrades = {},
+			Branch = "Restoration",
+			ShortValue = "Speed III",
+			Effect = { Type = "ToolStrength", ToolId = "SoftBrush", Multiplier = 1.9, RadiusMultiplier = 1.4 },
+		},
+		{
+			Id = "HairdryerSpeed1",
+			Name = "Hairdryer Speed I",
+			Description = "Improves the hairdryer's cleaning speed and radius.",
+			Cost = 50_000,
+			Icon = "Auto",
+			Position = GetToolSpeedPosition(GetToolPosition(4), 1),
+			Prerequisites = { "UnlockHairdryer" },
+			ConnectedUpgrades = { "HairdryerSpeed2" },
+			Branch = "Restoration",
+			ShortValue = "Speed I",
+			Effect = { Type = "ToolStrength", ToolId = "Hairdryer", Multiplier = 1.2, RadiusMultiplier = 1.1 },
+		},
+		{
+			Id = "HairdryerSpeed2",
+			Name = "Hairdryer Speed II",
+			Description = "Further improves the hairdryer's cleaning speed and radius.",
+			Cost = 750_000,
+			Icon = "Auto",
+			Position = GetToolSpeedPosition(GetToolPosition(4), 2),
+			Prerequisites = { "HairdryerSpeed1" },
+			ConnectedUpgrades = { "HairdryerSpeed3" },
+			Branch = "Restoration",
+			ShortValue = "Speed II",
+			Effect = { Type = "ToolStrength", ToolId = "Hairdryer", Multiplier = 1.5, RadiusMultiplier = 1.25 },
+		},
+		{
+			Id = "HairdryerSpeed3",
+			Name = "Hairdryer Speed III",
+			Description = "Maximizes the hairdryer's cleaning speed and radius.",
+			Cost = 10_000_000,
+			Icon = "Auto",
+			Position = GetToolSpeedPosition(GetToolPosition(4), 3),
+			Prerequisites = { "HairdryerSpeed2" },
+			ConnectedUpgrades = {},
+			Branch = "Restoration",
+			ShortValue = "Speed III",
+			Effect = { Type = "ToolStrength", ToolId = "Hairdryer", Multiplier = 1.9, RadiusMultiplier = 1.4 },
+		},
+		{
+			Id = "HammerSpeed1",
+			Name = "Hammer Speed I",
+			Description = "Improves the hammer's repair speed and radius.",
+			Cost = 350_000,
+			Icon = "Auto",
+			Position = GetToolSpeedPosition(GetToolPosition(5), 1),
+			Prerequisites = { "UnlockHammer" },
+			ConnectedUpgrades = { "HammerSpeed2" },
+			Branch = "Restoration",
+			ShortValue = "Speed I",
+			Effect = { Type = "ToolStrength", ToolId = "Hammer", Multiplier = 1.2, RadiusMultiplier = 1.1 },
+		},
+		{
+			Id = "HammerSpeed2",
+			Name = "Hammer Speed II",
+			Description = "Further improves the hammer's repair speed and radius.",
+			Cost = 5_000_000,
+			Icon = "Auto",
+			Position = GetToolSpeedPosition(GetToolPosition(5), 2),
+			Prerequisites = { "HammerSpeed1" },
+			ConnectedUpgrades = { "HammerSpeed3" },
+			Branch = "Restoration",
+			ShortValue = "Speed II",
+			Effect = { Type = "ToolStrength", ToolId = "Hammer", Multiplier = 1.5, RadiusMultiplier = 1.25 },
+		},
+		{
+			Id = "HammerSpeed3",
+			Name = "Hammer Speed III",
+			Description = "Maximizes the hammer's repair speed and radius.",
+			Cost = 60_000_000,
+			Icon = "Auto",
+			Position = GetToolSpeedPosition(GetToolPosition(5), 3),
+			Prerequisites = { "HammerSpeed2" },
+			ConnectedUpgrades = {},
+			Branch = "Restoration",
+			ShortValue = "Speed III",
+			Effect = { Type = "ToolStrength", ToolId = "Hammer", Multiplier = 1.9, RadiusMultiplier = 1.4 },
+		},
+		{
+			Id = "MagnetSpeed1",
+			Name = "Magnet Speed I",
+			Description = "Improves the magnet's extraction speed and radius.",
+			Cost = 2_500_000,
+			Icon = "Auto",
+			Position = GetToolSpeedPosition(GetToolPosition(6), 1),
+			Prerequisites = { "UnlockMagnet" },
+			ConnectedUpgrades = { "MagnetSpeed2" },
+			Branch = "Restoration",
+			ShortValue = "Speed I",
+			Effect = { Type = "ToolStrength", ToolId = "Magnet", Multiplier = 1.2, RadiusMultiplier = 1.1 },
+		},
+		{
+			Id = "MagnetSpeed2",
+			Name = "Magnet Speed II",
+			Description = "Further improves the magnet's extraction speed and radius.",
+			Cost = 30_000_000,
+			Icon = "Auto",
+			Position = GetToolSpeedPosition(GetToolPosition(6), 2),
+			Prerequisites = { "MagnetSpeed1" },
+			ConnectedUpgrades = { "MagnetSpeed3" },
+			Branch = "Restoration",
+			ShortValue = "Speed II",
+			Effect = { Type = "ToolStrength", ToolId = "Magnet", Multiplier = 1.5, RadiusMultiplier = 1.25 },
+		},
+		{
+			Id = "MagnetSpeed3",
+			Name = "Magnet Speed III",
+			Description = "Maximizes the magnet's extraction speed and radius.",
+			Cost = 300_000_000,
+			Icon = "Auto",
+			Position = GetToolSpeedPosition(GetToolPosition(6), 3),
+			Prerequisites = { "MagnetSpeed2" },
+			ConnectedUpgrades = {},
+			Branch = "Restoration",
+			ShortValue = "Speed III",
+			Effect = { Type = "ToolStrength", ToolId = "Magnet", Multiplier = 1.9, RadiusMultiplier = 1.4 },
+		},
+		{
+			Id = "PolisherSpeed1",
+			Name = "Polisher Speed I",
+			Description = "Improves the polisher's restoration speed and radius.",
+			Cost = 15_000_000,
+			Icon = "Auto",
+			Position = GetToolSpeedPosition(GetToolPosition(7), 1),
+			Prerequisites = { "UnlockPolisher" },
+			ConnectedUpgrades = { "PolisherSpeed2" },
+			Branch = "Restoration",
+			ShortValue = "Speed I",
+			Effect = { Type = "ToolStrength", ToolId = "Polisher", Multiplier = 1.2, RadiusMultiplier = 1.1 },
+		},
+		{
+			Id = "PolisherSpeed2",
+			Name = "Polisher Speed II",
+			Description = "Further improves the polisher's restoration speed and radius.",
+			Cost = 150_000_000,
+			Icon = "Auto",
+			Position = GetToolSpeedPosition(GetToolPosition(7), 2),
+			Prerequisites = { "PolisherSpeed1" },
+			ConnectedUpgrades = { "PolisherSpeed3" },
+			Branch = "Restoration",
+			ShortValue = "Speed II",
+			Effect = { Type = "ToolStrength", ToolId = "Polisher", Multiplier = 1.5, RadiusMultiplier = 1.25 },
+		},
+		{
+			Id = "PolisherSpeed3",
+			Name = "Polisher Speed III",
+			Description = "Maximizes the polisher's restoration speed and radius.",
+			Cost = 1_000_000_000,
+			Icon = "Auto",
+			Position = GetToolSpeedPosition(GetToolPosition(7), 3),
+			Prerequisites = { "PolisherSpeed2" },
+			ConnectedUpgrades = {},
+			Branch = "Restoration",
+			ShortValue = "Speed III",
+			Effect = { Type = "ToolStrength", ToolId = "Polisher", Multiplier = 1.9, RadiusMultiplier = 1.4 },
 		},
 		{
 			Id = "StoneBat",

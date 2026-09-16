@@ -29,7 +29,7 @@ Quick reference for the project's first-party Luau scripts. Generated Wally depe
 | `src/controllers/BatController.lua` | BatController | Detects responsive crate and player bat targets, applies saved cooldown multipliers, predicts crate damage, and renders validated local hit debris, final-hit shake/audio, swing, impact, and crate-reaction feedback. |
 | `src/controllers/ConveyorItemController.lua` | ConveyorItemController | Retains the inactive legacy ConveyorItem SharedClass renderer. |
 | `src/controllers/CrateController.lua` | CrateController | Plays client-only silhouette roulette, pulsing previews, rarity-scaled pinwheels, bursts, local vignette/flash/sparkles/audio, and compact crate-purchase guidance. |
-| `src/controllers/AmbientAudioController.lua` | AmbientAudioController | Maintains persistent low-volume music and environmental channels, crossfades between outdoor and museum zones, and smoothly ducks music for high-rarity reveals and restoration completion states. |
+| `src/controllers/AmbientAudioController.lua` | AmbientAudioController | Shuffles and plays every track in the Music asset folder without repeats, and smoothly ducks music for high-rarity reveals and restoration completion states. |
 | `src/controllers/FixingController.lua` | FixingController | Owns smoothly blended, stable BoundingBox-fitted fixing cameras, assisted final cleanup, responsive client-authoritative cleaning damage, presentation feedback, Fix prompts, avatar hiding, and the tool/fake-arm viewmodel. |
 | `src/controllers/GuidanceController.lua` | GuidanceController | Resolves authoritative tutorial or contextual objectives, manages their local highlight, directional beam, and objective text, and immediately clears completed interface guidance. |
 | `src/controllers/InventoryController.lua` | InventoryController | Controls Satchel visibility, requests carried-item drops, keeps the bat in the first slot, and sends validated inventory ordering to the server. |
@@ -61,16 +61,16 @@ Quick reference for the project's first-party Luau scripts. Generated Wally depe
 | --- | --- | --- |
 | `src/modules/Game/_PlayerFreezeState.lua` | PlayerFreezeState | Stores and manages the local character's anchored freeze state. |
 | `src/modules/Game/CleaningConfig.lua` | CleaningConfig | Registers Spray, Sponge, Spray Paint, Soft Brush, Polisher, Hairdryer, Hammer, and Magnet restoration tools and derives item actions from restoration tiers, alongside viewmodel positioning, VFX, and completion behavior. |
-| `src/modules/Game/AmbientAudioConfig.lua` | AmbientAudioConfig | Centralizes ambient channel assets, zone volumes, crossfade timing, and presentation ducking values. |
+| `src/modules/Game/AmbientAudioConfig.lua` | AmbientAudioConfig | Centralizes playlist volume and presentation ducking values. |
 | `src/modules/Game/CollisionGroups.lua` | CollisionGroups | Defines shared player and NPC collision-group names used by server characters and client-rendered visitors. |
-| `src/modules/Game/EconomyConfig.lua` | EconomyConfig | Centralizes progression-stage price bands, restoration tiers and rewards, starting cash, and rarity-scaled museum income while deriving final item values from item difficulty. |
+| `src/modules/Game/EconomyConfig.lua` | EconomyConfig | Centralizes progression-stage price bands, restoration tiers and rewards, starting cash, the minimum item price, and rarity-scaled museum income while deriving final item values from item difficulty. |
 | `src/modules/Game/BatInfo.lua` | BatInfo | Configures the eleven-tier Wooden-through-Meteorite crate-only bat progression with progressively improved damage, timing, range, validation, and sounds. |
 | `src/modules/Game/CrateInfo.lua` | CrateInfo | Configures regular and pity-only crate tiers, affordable new-player drops, normalized per-tier rarity distributions, weighted item rolls, population limits, the synchronized 0.6-second reveal pacing, and the reset cycle. |
 | `src/modules/Game/DataTemplate.lua` | DataTemplate | Defines saved defaults for cash, guaranteed opening drops, inventory, museum displays, restoration state, tutorial progress, and upgrade ownership. |
 | `src/modules/Game/DirtRenderer.lua` | DirtRenderer | Calculates capped surface-area-scaled dirt counts and attaches randomized dirt cubes only to raycast-validated exposed surfaces. |
 | `src/modules/Game/FreezePlayer.lua` | FreezePlayer | Freezes the local player, optionally at a target CFrame. |
 | `src/modules/Game/GreaseRenderer.lua` | GreaseRenderer | Places spaced, size-scaled grease patches on raycast-validated exterior surfaces and manages their HP, fade, removal, and cleanup. |
-| `src/modules/Game/ItemInteractionConfig.lua` | ItemInteractionConfig | Centralizes world-item lifetime, carrying slowdown, contested-price escalation, PvP knockback/stun/protection, fixing rotation, and restoration placement limits. |
+| `src/modules/Game/ItemInteractionConfig.lua` | ItemInteractionConfig | Centralizes world-item lifetime, billboard display settings, carrying slowdown, contested-price escalation, PvP knockback/stun/protection, fixing rotation, and restoration placement limits. |
 | `src/modules/Game/MuseumConfig.lua` | MuseumConfig | Centralizes global museum slot ranges and derives each slot's level, local index, required level count, and per-level display count. |
 | `src/modules/Game/ItemsInfo.lua` | ItemsInfo | Configures all 100 Studio item assets with stable IDs, within-rarity difficulty and drop weights, durability, movement values, and economy-derived final prices, income, and restoration tiers. |
 | `src/modules/Game/PaintRenderer.lua` | PaintRenderer | Applies faded paint damage while safely preserving and restoring each part's own original color, material, material variant, reflectance, and transparency. |
@@ -119,9 +119,9 @@ Quick reference for the project's first-party Luau scripts. Generated Wally depe
 | --- | --- | --- |
 | `src/modules/UI/Images.lua` | Images | Catalogs named image asset IDs, including dedicated icon entries for every bat tier, for project interfaces and upgrade nodes. |
 | `src/modules/UI/FixingInterface.lua` | FixingInterface | Bridges Fixing HUD actions to the client Fixing controller. |
-| `src/modules/UI/ItemInfoBillboard.lua` | ItemInfoBillboard | Creates a size-aware item billboard that hides dirty item identities as `???`, reveals rarity styling after cleaning, and shows required restoration steps. |
+| `src/modules/UI/ItemInfoBillboard.lua` | ItemInfoBillboard | Creates the single size-aware world-item billboard containing identity, rarity, value, restoration steps, and optional despawn information. |
 | `src/controllers/ItemInfoBillboardController.lua` | ItemInfoBillboardController | Applies lightweight distance disclosure and local overlap prioritization to shared item information billboards. |
-| `src/modules/UI/ItemDespawnCountdown.lua` | ItemDespawnCountdown | Creates and updates the shared near-expiry billboard used by all unclaimed world items. |
+| `src/modules/UI/ItemDespawnCountdown.lua` | ItemDespawnCountdown | Creates and updates the real-time despawn label inside each unclaimed world item's unified information billboard. |
 | `src/modules/UI/NotificationManager.lua` | NotificationManager | Provides reusable transient notifications and keyed inactive-to-active transition suppression. |
 | `src/modules/UI/PlayVFX.lua` | PlayVFX | Clones, starts, and cleans up reusable visual and sound effects. |
 | `src/modules/UI/Sounds.lua` | Sounds | Resolves any approved Studio-owned sound by name and handles cloned positional playback and cleanup. |
@@ -150,7 +150,7 @@ Quick reference for the project's first-party Luau scripts. Generated Wally depe
 | `src/servercontrollers/CollisionController.lua` | CollisionController | Registers collision groups and assigns character parts so players do not collide with players or NPCs while retaining environment collisions. |
 | `src/servercontrollers/ConveyorController.lua` | ConveyorController | Retains the inactive legacy conveyor spawning and purchase implementation. |
 | `src/servercontrollers/CrateController.lua` | CrateController | Spawns tiered crate fields and pity crates, owns health, loot rolls, synchronized reveals, interaction-safe world-item despawn countdowns, purchases, and area resets. |
-| `src/servercontrollers/DataController.lua` | DataController | Registers argument-aware chat commands, enforces Owner-rank administration permissions, and performs DataService-backed cash and reset operations. |
+| `src/servercontrollers/DataController.lua` | DataController | Registers argument-aware chat commands, enforces Owner-rank administration permissions, performs DataService-backed cash and reset operations, and restores the minimum purchase cash for players with no earning source. |
 | `src/controllers/DataController.lua` | DataController | Receives server chat-command feedback and displays it through the shared notification system. |
 | `src/servercontrollers/FixingController.lua` | FixingController | Owns fixing sessions, BoundingBox-centered tabletop placement and fixing rotation, saved progress, validated unfinished damage placement, equipped-tool validation, and sequenced rarity-scaled completion reveals. |
 | `src/servercontrollers/GuidanceController.lua` | GuidanceController | Persists and advances tutorial objectives, assigns and reset-safely replaces each new player's nearest common crate, and sends contextual guidance. |

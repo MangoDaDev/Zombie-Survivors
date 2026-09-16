@@ -1,5 +1,5 @@
 local EconomyConfig = {
-	StartingCash = 300,
+	StartingCash = 500,
 	MinimumRestorationReward = 60,
 	RestorationRewardRate = 0.6,
 	Rarities = {
@@ -68,6 +68,14 @@ end
 
 function EconomyConfig.GetRarity(Rarity: string)
 	return EconomyConfig.Rarities[Rarity] or EconomyConfig.Rarities.Common
+end
+
+function EconomyConfig.GetMinimumItemPrice(): number
+	local MinimumPrice = math.huge
+	for _, RarityInfo in EconomyConfig.Rarities do
+		MinimumPrice = math.min(MinimumPrice, RarityInfo.PriceRange[1])
+	end
+	return MinimumPrice
 end
 
 function EconomyConfig.GetItemPrice(Rarity: string, DifficultyValue: number): number

@@ -4,14 +4,14 @@ local CollectionService = game:GetService("CollectionService")
 local FormatNumber = require(ReplicatedStorage.Modules.Math.FormatNumber)
 local Images = require(ReplicatedStorage.Modules.UI.Images)
 local CleaningConfig = require(ReplicatedStorage.Modules.Game.CleaningConfig)
+local ItemInteractionConfig = require(ReplicatedStorage.Modules.Game.ItemInteractionConfig)
 local RarityInfo = require(ReplicatedStorage.Modules.Game.RarityInfo)
 local UIStyle = require(ReplicatedStorage.Modules.UI.UIStyle)
 
-local BILLBOARD_SIZE = UDim2.fromScale(7.5, 4)
+local BILLBOARD_SIZE = UDim2.fromScale(7.5, 4.6)
 local BILLBOARD_HEIGHT_OFFSET = 2
 local BILLBOARD_HEIGHT_SCALE = 0.18
 local COMIC_FONT = UIStyle.Font
-local MAX_DISTANCE = 110
 local ITEM_INFO_TAG = "ItemInfoBillboard"
 
 local function addStroke(label: TextLabel)
@@ -71,7 +71,7 @@ return function(itemInfo, adornee: BasePart, fixingState): BillboardGui
 	billboard.Name = "ItemInfo"
 	billboard.Adornee = adornee
 	billboard.AlwaysOnTop = true
-	billboard.MaxDistance = MAX_DISTANCE
+	billboard.MaxDistance = ItemInteractionConfig.ItemBillboardMaxDistance
 	billboard.Size = BILLBOARD_SIZE
 	local ItemModel = adornee:FindFirstAncestorOfClass("Model")
 	local ItemHeight = if ItemModel then ItemModel:GetExtentsSize().Y else adornee.Size.Y
@@ -82,7 +82,8 @@ return function(itemInfo, adornee: BasePart, fixingState): BillboardGui
 	nameLabel.Name = "ItemName"
 	nameLabel.BackgroundTransparency = 1
 	nameLabel.FontFace = COMIC_FONT
-	nameLabel.Size = UDim2.fromScale(1, 0.3)
+	nameLabel.Position = UDim2.fromScale(0, 0.16)
+	nameLabel.Size = UDim2.fromScale(1, 0.26)
 	local IsCleaningComplete = CleaningConfig.IsCleaningComplete(fixingState)
 	nameLabel.Text = if IsCleaningComplete then itemInfo.Name else "???"
 	nameLabel.TextColor3 = Color3.new(1, 1, 1)
@@ -101,8 +102,8 @@ return function(itemInfo, adornee: BasePart, fixingState): BillboardGui
 	RarityLabel.Name = "Rarity"
 	RarityLabel.BackgroundTransparency = 1
 	RarityLabel.FontFace = COMIC_FONT
-	RarityLabel.Position = UDim2.fromScale(0.2, 0.25)
-	RarityLabel.Size = UDim2.fromScale(0.6, 0.14)
+	RarityLabel.Position = UDim2.fromScale(0.2, 0.38)
+	RarityLabel.Size = UDim2.fromScale(0.6, 0.12)
 	RarityLabel.Text = if IsCleaningComplete then itemInfo.Rarity else "Unknown"
 	RarityLabel.TextColor3 = Color3.new(1, 1, 1)
 	RarityLabel.TextScaled = true
@@ -111,10 +112,10 @@ return function(itemInfo, adornee: BasePart, fixingState): BillboardGui
 	local RarityTextGradient = rarityGradient:Clone()
 	RarityTextGradient.Parent = RarityLabel
 
-	local GuestPayRow = createStatRow(Images.Binoculars, itemInfo.GuestPay, UDim2.fromScale(0, 0.38), "$", 0.28, 0.14)
+	local GuestPayRow = createStatRow(Images.Binoculars, itemInfo.GuestPay, UDim2.fromScale(0, 0.5), "$", 0.24, 0.14)
 	GuestPayRow.Name = "GuestPay"
 	GuestPayRow.Parent = billboard
-	local PriceRow = createStatRow(Images.Cash, itemInfo.Price, UDim2.fromScale(0, 0.65), nil, 0.2, 0.09)
+	local PriceRow = createStatRow(Images.Cash, itemInfo.Price, UDim2.fromScale(0, 0.73), nil, 0.18, 0.09)
 	PriceRow.Name = "Price"
 	PriceRow.Parent = billboard
 	local RequiredSteps = CleaningConfig.GetStepsForItem(itemInfo)
@@ -122,8 +123,8 @@ return function(itemInfo, adornee: BasePart, fixingState): BillboardGui
 		local fixRow = Instance.new("Frame")
 		fixRow.Name = "FixIcons"
 		fixRow.BackgroundTransparency = 1
-		fixRow.Position = UDim2.fromScale(0, 0.85)
-		fixRow.Size = UDim2.fromScale(1, 0.15)
+		fixRow.Position = UDim2.fromScale(0, 0.88)
+		fixRow.Size = UDim2.fromScale(1, 0.12)
 		fixRow.Parent = billboard
 		local layout = Instance.new("UIListLayout")
 		layout.FillDirection = Enum.FillDirection.Horizontal

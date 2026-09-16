@@ -1,11 +1,14 @@
 local CollectionService = game:GetService("CollectionService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+
+local ItemInteractionConfig = require(ReplicatedStorage.Modules.Game.ItemInteractionConfig)
 
 local ItemInfoBillboardController = {}
 
 local ITEM_INFO_TAG = "ItemInfoBillboard"
 local CLOSE_DISTANCE = 35
-local MEDIUM_DISTANCE = 90
+local MEDIUM_DISTANCE = ItemInteractionConfig.ItemBillboardMaxDistance
 local MAX_VISIBLE_BILLBOARDS = 4
 local OVERLAP_DISTANCE = 130
 local UPDATE_INTERVAL = 0.2

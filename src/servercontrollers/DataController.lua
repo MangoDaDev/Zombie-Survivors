@@ -3,6 +3,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TextChatService = game:GetService("TextChatService")
 
 local Networker = require(ReplicatedStorage.Packages.networker)
+local EconomyConfig = require(ReplicatedStorage.Modules.Game.EconomyConfig)
 local Ranks = require(ReplicatedStorage.Modules.Platform.Ranks)
 
 local DataController = {}
@@ -185,6 +186,20 @@ function DataController.SetDataService(Service) DataService = Service end
 function DataController.Init()
 	Network = Networker.server.new("DataController", DataController, {})
 	for Name, Command in Commands do RegisterCommand(Name, Command) end
+end
+
+function DataController.OnPlayerAdded(Player: Player)
+	local Inventory = DataService:get(Player, "Inventory")
+	local Displays = DataService:get(Player, "Displays")
+	local Cash = DataService:get(Player, "Cash")
+	local HasInventory = type(Inventory) == "table" and next(Inventory) ~= nil
+	local HasDisplay = type(Displays) == "table" and next(Displays) ~= nil
+	local MinimumItemPrice = EconomyConfig.GetMinimumItemPrice()
+
+	-- Keep returning players able to restart the earning loop without granting repeatable cash.
+	if not HasInventory and not HasDisplay and (type(Cash) ~= "number" or Cash < MinimumItemPrice) then
+		DataService:set(Player, "Cash", MinimumItemPrice)
+	end
 end
 
 function DataController.OnPlayerRemoving(Player) ResettingPlayers[Player] = nil end

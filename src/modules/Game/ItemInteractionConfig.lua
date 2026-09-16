@@ -1,7 +1,7 @@
 local ItemInteractionConfig = {
 	WorldItemDespawnDuration = 60,
-	WorldItemCountdownDuration = 10,
-	WorldItemTimerUpdateInterval = 0.2,
+	ItemBillboardMaxDistance = 90,
+	WorldItemTimerUpdateInterval = 0.1,
 	CarryWalkSpeedPenalty = 3,
 	DropForwardDistance = 4,
 	DroppedItemPurchaseDistance = 10,

@@ -1,9 +1,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
 local SoundService = game:GetService("SoundService")
 local TweenService = game:GetService("TweenService")
-local Workspace = game:GetService("Workspace")
 
 local AmbientAudioConfig = require(ReplicatedStorage.Modules.Game.AmbientAudioConfig)
 local RarityInfo = require(ReplicatedStorage.Modules.Game.RarityInfo)
@@ -11,72 +9,65 @@ local RuntimeState = require(ReplicatedStorage.Modules.Game.RuntimeState)
 
 local AmbientAudioController = {}
 local LocalPlayer = Players.LocalPlayer
-local Channels = {}
-local ChannelTweens = {}
-local CurrentZoneName = "Outdoor"
-local UpdateElapsed = 0
+local RandomGenerator = Random.new()
+local Music: Sound?
+local MusicTween: Tween?
+local Playlist = {}
+local PlaylistIndex = 0
+local LastTemplate: Sound?
 local DuckId = 0
-local MuseumArea: BasePart?
+local VolumeMultiplier = 1
 
 local HIGH_RARITIES = { "Legendary", "Mythic", "Secret" }
 
-local function GetTemplate(Config): Sound?
-	local Folder = ReplicatedStorage.Assets:FindFirstChild(Config.FolderName)
-	local Template = Folder and Folder:FindFirstChild(Config.SoundName)
-	return if Template and Template:IsA("Sound") then Template else nil
-end
-
-local function CreateChannel(Name: string, Config): Sound?
-	local Template = GetTemplate(Config)
-	if not Template then
-		warn(`AmbientAudioController could not find {Config.FolderName}.{Config.SoundName}`)
-		return nil
+local function ShufflePlaylist()
+	table.clear(Playlist)
+	local MusicFolder = ReplicatedStorage.Assets:FindFirstChild(AmbientAudioConfig.Music.FolderName)
+	if not MusicFolder then
+		warn(`AmbientAudioController could not find {AmbientAudioConfig.Music.FolderName}`)
+		return
 	end
 
-	local Channel = Template:Clone()
-	Channel.Name = Name
-	Channel.Looped = true
-	Channel.Volume = 0
-	Channel.Parent = SoundService
-	if Channel.SoundId ~= "" then Channel:Play() end
-	Channels[Name] = Channel
-	return Channel
+	-- Play every music track without zone-based selection or repeats within a cycle.
+	for _, Child in MusicFolder:GetChildren() do
+		if Child:IsA("Sound") then table.insert(Playlist, Child) end
+	end
+	for Index = #Playlist, 2, -1 do
+		local SwapIndex = RandomGenerator:NextInteger(1, Index)
+		Playlist[Index], Playlist[SwapIndex] = Playlist[SwapIndex], Playlist[Index]
+	end
+	if #Playlist > 1 and Playlist[1] == LastTemplate then
+		Playlist[1], Playlist[2] = Playlist[2], Playlist[1]
+	end
+	PlaylistIndex = 0
 end
 
-local function TweenVolume(Name: string, Volume: number, Duration: number)
-	local Channel = Channels[Name]
-	if not Channel then return end
-	local ExistingTween = ChannelTweens[Name]
-	if ExistingTween then ExistingTween:Cancel() end
-	local Tween = TweenService:Create(Channel, TweenInfo.new(Duration, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut), {
+local function TweenMusicVolume(Volume: number, Duration: number)
+	if not Music then return end
+	if MusicTween then MusicTween:Cancel() end
+	MusicTween = TweenService:Create(Music, TweenInfo.new(Duration, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut), {
 		Volume = Volume,
 	})
-	ChannelTweens[Name] = Tween
-	Tween:Play()
+	MusicTween:Play()
 end
 
-local function IsPointInside(Part: BasePart, Point: Vector3): boolean
-	local LocalPoint = Part.CFrame:PointToObjectSpace(Point)
-	local HalfSize = Part.Size * 0.5
-	return math.abs(LocalPoint.X) <= HalfSize.X
-		and math.abs(LocalPoint.Y) <= HalfSize.Y
-		and math.abs(LocalPoint.Z) <= HalfSize.Z
-end
+local function PlayNextTrack()
+	if PlaylistIndex >= #Playlist then ShufflePlaylist() end
+	if #Playlist == 0 then return end
 
-local function GetZoneName(): string
-	local Character = LocalPlayer.Character
-	local RootPart = Character and Character:FindFirstChild("HumanoidRootPart")
-	if not RootPart or not RootPart:IsA("BasePart") then return CurrentZoneName end
-	if MuseumArea and MuseumArea.Parent and IsPointInside(MuseumArea, RootPart.Position) then return "Museum" end
-	return "Outdoor"
-end
+	PlaylistIndex += 1
+	local Template = Playlist[PlaylistIndex]
+	LastTemplate = Template
+	if MusicTween then MusicTween:Cancel(); MusicTween = nil end
+	if Music then Music:Destroy() end
 
-local function SetZone(ZoneName: string)
-	if CurrentZoneName == ZoneName then return end
-	CurrentZoneName = ZoneName
-	for Name, Config in AmbientAudioConfig.Zones do
-		TweenVolume(Name, if Name == ZoneName then Config.Volume else 0, AmbientAudioConfig.CrossfadeDuration)
-	end
+	Music = Template:Clone()
+	Music.Name = "Music"
+	Music.Looped = false
+	Music.Volume = AmbientAudioConfig.Music.Volume * VolumeMultiplier
+	Music.Parent = SoundService
+	Music.Ended:Once(PlayNextTrack)
+	if Music.SoundId ~= "" then Music:Play() else PlayNextTrack() end
 end
 
 local function IsHighRarityColor(Color: Color3): boolean
@@ -88,25 +79,16 @@ local function IsHighRarityColor(Color: Color3): boolean
 	return false
 end
 
-local function ResolveMuseumArea()
-	task.spawn(function()
-		local Museums = Workspace:WaitForChild("PlayerMuseums")
-		local Museum = Museums:WaitForChild(`Museum_{LocalPlayer.UserId}`)
-		local Level = Museum:WaitForChild("Level_1")
-		local Area = Level:WaitForChild("MuseumArea")
-		if Area and Area:IsA("BasePart") then MuseumArea = Area end
-	end)
-end
-
 function AmbientAudioController.Duck(Duration: number?)
 	DuckId += 1
 	local ActiveDuckId = DuckId
 	local Config = AmbientAudioConfig.Ducking
-	local MusicConfig = AmbientAudioConfig.Music
-	TweenVolume("Music", MusicConfig.Volume * Config.VolumeMultiplier, Config.FadeOutDuration)
+	VolumeMultiplier = Config.VolumeMultiplier
+	TweenMusicVolume(AmbientAudioConfig.Music.Volume * VolumeMultiplier, Config.FadeOutDuration)
 	task.delay(Duration or Config.HoldDuration, function()
 		if ActiveDuckId ~= DuckId then return end
-		TweenVolume("Music", MusicConfig.Volume, Config.FadeInDuration)
+		VolumeMultiplier = 1
+		TweenMusicVolume(AmbientAudioConfig.Music.Volume, Config.FadeInDuration)
 	end)
 end
 
@@ -129,20 +111,9 @@ local function ObservePresentationEvents()
 end
 
 function AmbientAudioController.Init()
-	CreateChannel("Music", AmbientAudioConfig.Music)
-	for Name, Config in AmbientAudioConfig.Zones do CreateChannel(Name, Config) end
-	local Outdoor = Channels.Outdoor
-	if Outdoor then Outdoor.Volume = AmbientAudioConfig.Zones.Outdoor.Volume end
-	local Music = Channels.Music
-	if Music then Music.Volume = AmbientAudioConfig.Music.Volume end
-	ResolveMuseumArea()
+	ShufflePlaylist()
+	PlayNextTrack()
 	ObservePresentationEvents()
-	RunService.Heartbeat:Connect(function(DeltaTime)
-		UpdateElapsed += DeltaTime
-		if UpdateElapsed < AmbientAudioConfig.ZoneCheckInterval then return end
-		UpdateElapsed = 0
-		SetZone(GetZoneName())
-	end)
 end
 
 return AmbientAudioController

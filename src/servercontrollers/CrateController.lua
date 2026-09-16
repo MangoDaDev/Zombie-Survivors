@@ -267,7 +267,6 @@ local function CreateReward(State, Player: Player)
 		Purchased = false,
 		RevealTransparencies = RevealTransparencies,
 	}
-	Reward.Countdown, Reward.CountdownLabel = ItemDespawnCountdown.Create(Model, Box)
 	Rewards[RewardId] = Reward
 	Reward.Connection = Prompt.Triggered:Connect(function(Player)
 		if Rewards[RewardId] ~= Reward or Reward.Interacting then return end
@@ -298,7 +297,8 @@ local function CreateReward(State, Player: Player)
 			Reward.RevealTransparencies = nil
 			local FixingState = { Total = Reward.DirtCount, Remaining = Reward.DirtCount, Completed = false }
 			RestorationVisuals.Apply(Model, ItemInfo, FixingState)
-			ItemInfoBillboard(ItemInfo, Box, FixingState)
+			local Billboard = ItemInfoBillboard(ItemInfo, Box, FixingState)
+			Reward.CountdownLabel = ItemDespawnCountdown.Create(Billboard)
 			Prompt.Enabled = true
 		end)
 	end)
@@ -313,12 +313,7 @@ local function UpdateRewardDespawnTimers()
 		if Remaining <= 0 then
 			table.insert(ExpiredRewardIds, RewardId)
 		else
-			ItemDespawnCountdown.Update(
-				Reward.Countdown,
-				Reward.CountdownLabel,
-				Remaining,
-				ItemInteractionConfig.WorldItemCountdownDuration
-			)
+			ItemDespawnCountdown.Update(Reward.CountdownLabel, Remaining)
 		end
 	end
 	for _, RewardId in ExpiredRewardIds do RemoveReward(RewardId, "Expired") end
