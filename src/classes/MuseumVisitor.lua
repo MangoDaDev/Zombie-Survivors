@@ -275,6 +275,7 @@ function MuseumVisitor:ShowCash(amount: number)
 	end)
 
 	Sounds.Play("CoinJingle", rootPart)
+	Sounds.Play("TingLow", rootPart)
 end
 
 function MuseumVisitor:Say(message: string)
