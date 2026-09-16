@@ -1,7 +1,8 @@
 local TutorialConfig = require(script.Parent.TutorialConfig)
+local EconomyConfig = require(script.Parent.EconomyConfig)
 
 return {
-	Cash = 300,
+	Cash = EconomyConfig.StartingCash,
 	GuaranteedDropCount = 0,
 	Inventory = {},
 	Displays = {},

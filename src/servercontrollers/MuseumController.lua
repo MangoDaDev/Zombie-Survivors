@@ -6,118 +6,85 @@ local Workspace = game:GetService("Workspace")
 local GuidanceController = require(ServerStorage.Controllers.GuidanceController)
 local ItemsInfo = require(ReplicatedStorage.Modules.Game.ItemsInfo)
 local ItemInfoBillboard = require(ReplicatedStorage.Modules.UI.ItemInfoBillboard)
+local MuseumConfig = require(ReplicatedStorage.Modules.Game.MuseumConfig)
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
 local TeleportPlayer = require(ReplicatedStorage.Modules.Game.TeleportPlayer)
 local ToolResolver = require(ReplicatedStorage.Modules.Game.ToolResolver)
 local UpgradeLogic = require(ReplicatedStorage.Modules.Game.UpgradeLogic)
 
-local museumAssets = ReplicatedStorage.Assets.Models.Museum
-local museumTemplate = museumAssets.Museum
-local museumCFrames = museumAssets.MuseumCFrames
-local displayTemplate = museumAssets.Display
+local MuseumAssets = ReplicatedStorage.Assets.Models.Museum
+local LevelTemplate = MuseumAssets.Building.Level
+local RoofTemplate = MuseumAssets.Building.Roof
+local TableTemplate = MuseumAssets.Table
+local MuseumCFrames = MuseumAssets.MuseumCFrames
+local DisplayTemplate = MuseumAssets.Display
 local SFX_MAX_DISTANCE = 80
 
 type DisplayState = {
-	index: number,
-	model: Model,
-	itemCFrame: BasePart,
-	viewPart: BasePart,
-	prompt: ProximityPrompt,
-	takePrompt: ProximityPrompt,
-	sellPrompt: ProximityPrompt,
-	Unlocked: boolean,
-	itemId: number?,
-	itemModel: Model?,
-	Connections: { RBXScriptConnection },
+	index: number, model: Model, itemCFrame: BasePart, viewPart: BasePart,
+	prompt: ProximityPrompt, takePrompt: ProximityPrompt, sellPrompt: ProximityPrompt,
+	Unlocked: boolean, itemId: number?, itemModel: Model?, Connections: { RBXScriptConnection },
 }
 
 type MuseumAssignment = {
-	museum: Model,
-	position: BasePart,
-	displays: { DisplayState },
-	UpgradeConnection: RBXScriptConnection?,
+	museum: Model, position: BasePart, levels: { [number]: Model },
+	displays: { [number]: DisplayState }, roof: Model?, UpgradeConnection: RBXScriptConnection?,
 }
 
 local MuseumController = {}
+local Assignments: { [Player]: MuseumAssignment } = {}
+local OccupiedPositions: { [BasePart]: Player } = {}
+local Positions: { BasePart } = {}
+local PlayerMuseums: Folder
+local DataService
+local InventoryRefreshHandler
+local CopyDisplays
 
-local assignments: { [Player]: MuseumAssignment } = {}
-local occupiedPositions: { [BasePart]: Player } = {}
-local positions: { BasePart } = {}
-local playerMuseums: Folder
-local dataService
-local inventoryRefreshHandler
-local copyDisplays
-
-local function getItemInfo(itemId: number)
-	for _, itemInfo in ItemsInfo do
-		if itemInfo.Id == itemId then
-			return itemInfo
-		end
-	end
+local function GetItemInfo(ItemId: number)
+	for _, ItemInfo in ItemsInfo do if ItemInfo.Id == ItemId then return ItemInfo end end
 	return nil
 end
 
-local function getAvailablePosition(): BasePart?
-	for _, position in positions do
-		if occupiedPositions[position] == nil then
-			return position
-		end
-	end
+local function GetAvailablePosition(): BasePart?
+	for _, Position in Positions do if OccupiedPositions[Position] == nil then return Position end end
 	return nil
 end
 
-local function moveModelToCFrame(model: Model, cFrame: CFrame)
-	local cFramePart = model:FindFirstChild("CFramePart")
-	assert(cFramePart and cFramePart:IsA("BasePart"), `{model.Name} has no CFramePart`)
-	local pivotOffset = cFramePart.CFrame:ToObjectSpace(model:GetPivot())
-	model:PivotTo(cFrame * pivotOffset)
+local function MoveModelToMarker(Model: Model, MarkerName: string, TargetCFrame: CFrame)
+	local Marker = Model:FindFirstChild(MarkerName, true)
+	assert(Marker and Marker:IsA("BasePart"), `{Model.Name} has no {MarkerName}`)
+	Model:PivotTo(TargetCFrame * Marker.CFrame:ToObjectSpace(Model:GetPivot()))
 end
 
-local function teleportCharacterToMuseum(player: Player, character: Model)
-	local assignment = assignments[player]
-	if assignment == nil then
-		return
-	end
-
-	local rootPart = character:FindFirstChild("HumanoidRootPart") or character:WaitForChild("HumanoidRootPart", 5)
-	if rootPart == nil or assignments[player] ~= assignment or player.Parent ~= Players then
-		return
-	end
-
-	local spawnCFrame = assignment.museum:FindFirstChild("SpawnCFrame") :: BasePart
-	TeleportPlayer(character, spawnCFrame)
+local function TeleportCharacterToMuseum(Player: Player, Character: Model)
+	local Assignment = Assignments[Player]
+	if not Assignment then return end
+	local RootPart = Character:FindFirstChild("HumanoidRootPart") or Character:WaitForChild("HumanoidRootPart", 5)
+	if not RootPart or Assignments[Player] ~= Assignment or Player.Parent ~= Players then return end
+	local Level = Assignment.levels[1]
+	local SpawnCFrame = Level and Level:FindFirstChild("SpawnCFrame")
+	if SpawnCFrame and SpawnCFrame:IsA("BasePart") then TeleportPlayer(Character, SpawnCFrame) end
 end
 
-local function createDisplayedItem(player: Player, displayState: DisplayState, itemId: number): Model?
-	local itemInfo = getItemInfo(itemId)
-	local template = itemInfo and ReplicatedStorage.Assets.Models.Items:FindFirstChild(itemInfo.AssetName)
-	if template == nil or not template:IsA("Model") then
-		return nil
-	end
-
-	local itemModel = template:Clone()
-	local boundingBox = itemModel:FindFirstChild("BoundingBox")
-	if boundingBox == nil or not boundingBox:IsA("BasePart") then
-		itemModel:Destroy()
-		return nil
-	end
-
-	itemModel.Name = `Displayed_{itemInfo.Name}`
-	itemModel.PrimaryPart = boundingBox
-	for _, descendant in itemModel:GetDescendants() do
-		if descendant:IsA("BasePart") then
-			descendant.Anchored = true
-			descendant.CanCollide = false
-			descendant.CanQuery = false
-			descendant.CanTouch = false
+local function CreateDisplayedItem(Player: Player, DisplayState: DisplayState, ItemId: number): Model?
+	local ItemInfo = GetItemInfo(ItemId)
+	local Template = ItemInfo and ReplicatedStorage.Assets.Models.Items:FindFirstChild(ItemInfo.AssetName)
+	if not Template or not Template:IsA("Model") then return nil end
+	local ItemModel = Template:Clone()
+	local BoundingBox = ItemModel:FindFirstChild("BoundingBox")
+	if not BoundingBox or not BoundingBox:IsA("BasePart") then ItemModel:Destroy(); return nil end
+	ItemModel.Name = `Displayed_{ItemInfo.Name}`
+	ItemModel.PrimaryPart = BoundingBox
+	for _, Descendant in ItemModel:GetDescendants() do
+		if Descendant:IsA("BasePart") then
+			Descendant.Anchored = true; Descendant.CanCollide = false; Descendant.CanQuery = false; Descendant.CanTouch = false
 		end
 	end
-	itemModel:PivotTo(displayState.itemCFrame.CFrame * CFrame.new(0, boundingBox.Size.Y / 2, 0))
-	itemModel.Parent = displayState.model
-	local Fixing = dataService:get(player, "Fixing") or {}
-	local FixingState = Fixing[tostring(itemId)]
-	ItemInfoBillboard(itemInfo, boundingBox, FixingState)
-	return itemModel
+	ItemModel:PivotTo(DisplayState.itemCFrame.CFrame * CFrame.new(0, BoundingBox.Size.Y / 2, 0))
+	ItemModel.Parent = DisplayState.model
+	local Fixing = DataService:get(Player, "Fixing") or {}
+	ItemInfoBillboard(ItemInfo, BoundingBox, Fixing[tostring(ItemId)])
+	return ItemModel
 end
 
 local function UpdateDisplayPrompts(DisplayState: DisplayState)
@@ -128,340 +95,229 @@ local function UpdateDisplayPrompts(DisplayState: DisplayState)
 	DisplayState.sellPrompt.Enabled = DisplayState.itemId ~= nil
 end
 
-local function setDisplayItem(player: Player, displayState: DisplayState, itemId: number): boolean
-	if not displayState.Unlocked or displayState.itemId ~= nil or getItemInfo(itemId) == nil then
-		return false
-	end
-
-	local itemModel = createDisplayedItem(player, displayState, itemId)
-	if itemModel == nil then
-		return false
-	end
-
-	displayState.itemId = itemId
-	displayState.itemModel = itemModel
-	UpdateDisplayPrompts(displayState)
+local function SetDisplayItem(Player: Player, DisplayState: DisplayState, ItemId: number): boolean
+	if not DisplayState.Unlocked or DisplayState.itemId ~= nil or not GetItemInfo(ItemId) then return false end
+	local ItemModel = CreateDisplayedItem(Player, DisplayState, ItemId)
+	if not ItemModel then return false end
+	DisplayState.itemId = ItemId; DisplayState.itemModel = ItemModel; UpdateDisplayPrompts(DisplayState)
 	return true
 end
 
-local function clearDisplay(player: Player, displayState: DisplayState): number?
-	local itemId = displayState.itemId
-	if itemId == nil then return nil end
-	displayState.itemId = nil
-	if displayState.itemModel then displayState.itemModel:Destroy(); displayState.itemModel = nil end
-	UpdateDisplayPrompts(displayState)
-	local displays = copyDisplays(dataService:get(player, "Displays"))
-	displays[tostring(displayState.index)] = nil
-	dataService:set(player, "Displays", displays)
-	return itemId
-end
-
-local function takeDisplayedItem(player: Player, displayState: DisplayState)
-	local itemId = clearDisplay(player, displayState)
-	if itemId == nil then return end
-	dataService:arrayInsert(player, "Inventory", itemId)
-	if inventoryRefreshHandler then inventoryRefreshHandler(player) end
-end
-
-local function sellDisplayedItem(player: Player, displayState: DisplayState)
-	local itemId = displayState.itemId
-	local itemInfo = itemId and getItemInfo(itemId)
-	if not itemInfo or clearDisplay(player, displayState) == nil then return end
-	dataService:update(player, "Cash", function(cash) return (if type(cash) == "number" then cash else 0) + itemInfo.Price end)
-	GuidanceController.Advance(player, "EarnMoney")
-	Sounds.Play("Kaching", displayState.itemCFrame, SFX_MAX_DISTANCE)
-end
-
-copyDisplays = function(displays): { [string]: number }
-	local result = {}
-	if type(displays) == "table" then
-		for key, itemId in displays do
-			if type(key) == "string" and type(itemId) == "number" then
-				result[key] = itemId
-			end
+CopyDisplays = function(Displays): { [string]: number }
+	local Result = {}
+	if type(Displays) == "table" then
+		for Key, ItemId in Displays do
+			local SlotId = tonumber(Key)
+			if SlotId and SlotId % 1 == 0 and type(ItemId) == "number" then Result[tostring(SlotId)] = ItemId end
 		end
 	end
-	return result
+	return Result
 end
 
-local function placeEquippedItem(player: Player, assignment: MuseumAssignment, displayState: DisplayState)
-	if assignments[player] ~= assignment or not displayState.Unlocked or displayState.itemId ~= nil then
-		return
-	end
+local function ClearDisplay(Player: Player, DisplayState: DisplayState): number?
+	local ItemId = DisplayState.itemId
+	if not ItemId then return nil end
+	DisplayState.itemId = nil
+	if DisplayState.itemModel then DisplayState.itemModel:Destroy(); DisplayState.itemModel = nil end
+	UpdateDisplayPrompts(DisplayState)
+	local Displays = CopyDisplays(DataService:get(Player, "Displays"))
+	Displays[tostring(DisplayState.index)] = nil
+	DataService:set(Player, "Displays", Displays)
+	return ItemId
+end
 
-	local Character = player.Character
+local function TakeDisplayedItem(Player: Player, DisplayState: DisplayState)
+	local ItemId = ClearDisplay(Player, DisplayState)
+	if not ItemId then return end
+	DataService:arrayInsert(Player, "Inventory", ItemId)
+	if InventoryRefreshHandler then InventoryRefreshHandler(Player) end
+end
+
+local function SellDisplayedItem(Player: Player, DisplayState: DisplayState)
+	local ItemId = DisplayState.itemId
+	local ItemInfo = ItemId and GetItemInfo(ItemId)
+	if not ItemInfo or not ClearDisplay(Player, DisplayState) then return end
+	DataService:update(Player, "Cash", function(Cash) return (if type(Cash) == "number" then Cash else 0) + ItemInfo.Price end)
+	GuidanceController.Advance(Player, "EarnMoney")
+	Sounds.Play("Kaching", DisplayState.itemCFrame, SFX_MAX_DISTANCE)
+end
+
+local function PlaceEquippedItem(Player: Player, Assignment: MuseumAssignment, DisplayState: DisplayState)
+	if Assignments[Player] ~= Assignment or not DisplayState.Unlocked or DisplayState.itemId ~= nil then return end
+	local Character = Player.Character
 	local Tool
 	local ItemId
-	local CharacterChildren = if Character then Character:GetChildren() else {}
-	for _, Child in CharacterChildren do
+	for _, Child in if Character then Character:GetChildren() else {} do
 		local ItemInfo = ToolResolver.GetItemInfo(Child)
-		if ItemInfo and Child:HasTag("satchelSlot") then
-			Tool = Child
-			ItemId = ItemInfo.Id
-			break
-		end
+		if ItemInfo and Child:HasTag("satchelSlot") then Tool = Child; ItemId = ItemInfo.Id; break end
 	end
-	if Tool == nil or type(ItemId) ~= "number" or getItemInfo(ItemId) == nil then
-		GuidanceController.Show(player, "Equip Restored Item")
-		return
+	if not Tool or type(ItemId) ~= "number" or not GetItemInfo(ItemId) then GuidanceController.Show(Player, "Equip Restored Item"); return end
+	local Inventory = DataService:get(Player, "Inventory")
+	if type(Inventory) ~= "table" then return end
+	local InventoryPosition = table.find(Inventory, ItemId)
+	local Fixing = DataService:get(Player, "Fixing") or {}
+	local FixingState = Fixing[tostring(ItemId)]
+	if not FixingState or FixingState.Completed ~= true then
+		GuidanceController.Show(Player, "Finish Restoration", Assignment.museum:FindFirstChild("PromptPart", true)); return
 	end
-
-	local inventory = dataService:get(player, "Inventory")
-	if type(inventory) ~= "table" then
-		return
-	end
-	local inventoryPosition = table.find(inventory, ItemId)
-	local fixing = dataService:get(player, "Fixing") or {}
-	local fixingState = fixing[tostring(ItemId)]
-	if fixingState == nil or fixingState.Completed ~= true then
-		GuidanceController.Show(player, "Finish Restoration", assignment.museum:FindFirstChild("PromptPart", true))
-		return
-	end
-	if inventoryPosition == nil or not setDisplayItem(player, displayState, ItemId) then
-		return
-	end
-
-	local displays = copyDisplays(dataService:get(player, "Displays"))
-	displays[tostring(displayState.index)] = ItemId
-	dataService:set(player, "Displays", displays)
-	dataService:arrayRemove(player, "Inventory", inventoryPosition)
-	Tool:Destroy()
-
-	GuidanceController.Advance(player, "DisplayItem")
-	Sounds.Play("Equip", displayState.itemCFrame, SFX_MAX_DISTANCE)
+	if not InventoryPosition or not SetDisplayItem(Player, DisplayState, ItemId) then return end
+	local Displays = CopyDisplays(DataService:get(Player, "Displays"))
+	Displays[tostring(DisplayState.index)] = ItemId
+	DataService:set(Player, "Displays", Displays)
+	DataService:arrayRemove(Player, "Inventory", InventoryPosition)
+	Tool:Destroy(); GuidanceController.Advance(Player, "DisplayItem"); Sounds.Play("Equip", DisplayState.itemCFrame, SFX_MAX_DISTANCE)
 end
 
-local function getDisplayMarkers(museum: Model): { BasePart }
-	local markerFolder = museum:FindFirstChild("DisplayCFrames")
-	local markers = {}
-	if markerFolder then
-		for _, child in markerFolder:GetChildren() do
-			if child:IsA("BasePart") then
-				table.insert(markers, child)
-			end
-		end
-	end
-
-	local museumOrigin = museum:GetPivot()
-	table.sort(markers, function(a, b)
-		local aPosition = museumOrigin:PointToObjectSpace(a.Position)
-		local bPosition = museumOrigin:PointToObjectSpace(b.Position)
-		if math.abs(aPosition.Z - bPosition.Z) > 0.01 then
-			return aPosition.Z < bPosition.Z
-		end
-		return aPosition.X < bPosition.X
+local function GetDisplayMarkers(Level: Model): { BasePart }
+	local MarkerFolder = Level:FindFirstChild("DisplayCFrames")
+	local Markers = {}
+	if MarkerFolder then for _, Child in MarkerFolder:GetChildren() do if Child:IsA("BasePart") then table.insert(Markers, Child) end end end
+	local LevelOrigin = Level:GetPivot()
+	table.sort(Markers, function(A, B)
+		local APosition = LevelOrigin:PointToObjectSpace(A.Position)
+		local BPosition = LevelOrigin:PointToObjectSpace(B.Position)
+		if math.abs(APosition.Z - BPosition.Z) > 0.01 then return APosition.Z < BPosition.Z end
+		return APosition.X < BPosition.X
 	end)
-	return markers
+	return Markers
 end
 
-local function CreateDisplays(player: Player, assignment: MuseumAssignment)
-	local savedDisplays = copyDisplays(dataService:get(player, "Displays"))
-	local DisplayLimit = UpgradeLogic.GetDisplayLimit(dataService:get(player, "Upgrades"))
-	local DisplaysChanged = false
-	for index, marker in getDisplayMarkers(assignment.museum) do
-		if index > DisplayLimit then break end
-		if assignment.displays[index] then continue end
-		local display = displayTemplate:Clone()
-		display.Name = `Display_{index}`
-		moveModelToCFrame(display, marker.CFrame)
-		display.Parent = assignment.museum
-
-		local itemCFrame = display:FindFirstChild("ItemCFrame")
-		local viewPart = display:FindFirstChild("ViewPart")
-		local base = display:FindFirstChild("Base")
-		assert(itemCFrame and itemCFrame:IsA("BasePart"), "Display has no ItemCFrame")
-		assert(viewPart and viewPart:IsA("BasePart"), "Display has no ViewPart")
-		assert(base and base:IsA("BasePart"), "Display has no Base")
-
-		local prompt = Instance.new("ProximityPrompt")
-		prompt.Name = "PlaceItemPrompt"
-		prompt.ActionText = "Place Item"
-		prompt.ObjectText = "Display"
-		prompt.HoldDuration = 0
-		prompt.MaxActivationDistance = 10
-		prompt.RequiresLineOfSight = false
-		prompt.Exclusivity = Enum.ProximityPromptExclusivity.AlwaysShow
-		prompt.UIOffset = Vector2.new(0, 55)
-		prompt.Parent = base
-
-		local takePrompt = Instance.new("ProximityPrompt")
-		takePrompt.Name = "TakeItemPrompt"
-		takePrompt.ActionText = "Take Off Sale"
-		takePrompt.ObjectText = "Display"
-		takePrompt.HoldDuration = 0
-		takePrompt.KeyboardKeyCode = Enum.KeyCode.E
-		takePrompt.GamepadKeyCode = Enum.KeyCode.ButtonX
-		takePrompt.MaxActivationDistance = 10
-		takePrompt.RequiresLineOfSight = false
-		takePrompt.Exclusivity = Enum.ProximityPromptExclusivity.AlwaysShow
-		takePrompt.UIOffset = Vector2.new(-85, -45)
-		takePrompt.Enabled = false
-		takePrompt.Parent = base
-
-		local sellPrompt = Instance.new("ProximityPrompt")
-		sellPrompt.Name = "SellItemPrompt"
-		sellPrompt.ActionText = "Sell Item"
-		sellPrompt.ObjectText = "Display"
-		sellPrompt.HoldDuration = 0
-		sellPrompt.KeyboardKeyCode = Enum.KeyCode.F
-		sellPrompt.GamepadKeyCode = Enum.KeyCode.ButtonY
-		sellPrompt.MaxActivationDistance = 10
-		sellPrompt.RequiresLineOfSight = false
-		sellPrompt.Exclusivity = Enum.ProximityPromptExclusivity.AlwaysShow
-		sellPrompt.UIOffset = Vector2.new(85, -45)
-		sellPrompt.Enabled = false
-		sellPrompt.Parent = base
-
-		local displayState: DisplayState = {
-			index = index,
-			model = display,
-			itemCFrame = itemCFrame,
-			viewPart = viewPart,
-			prompt = prompt,
-			takePrompt = takePrompt,
-			sellPrompt = sellPrompt,
-			Unlocked = true,
-			itemId = nil,
-			itemModel = nil,
-			Connections = {},
-		}
-		table.insert(assignment.displays, displayState)
-		UpdateDisplayPrompts(displayState)
-		table.insert(displayState.Connections, prompt.Triggered:Connect(function(triggeringPlayer)
-			if triggeringPlayer == player then
-				placeEquippedItem(player, assignment, displayState)
-			end
-		end))
-		table.insert(displayState.Connections, takePrompt.Triggered:Connect(function(triggeringPlayer)
-			if triggeringPlayer == player then takeDisplayedItem(player, displayState) end
-		end))
-		table.insert(displayState.Connections, sellPrompt.Triggered:Connect(function(triggeringPlayer)
-			if triggeringPlayer == player then sellDisplayedItem(player, displayState) end
-		end))
-
-		local savedItemId = savedDisplays[tostring(index)]
-		if type(savedItemId) == "number" then
-			setDisplayItem(player, displayState, savedItemId)
-		end
+local function CreateLevel(Assignment: MuseumAssignment, LevelNumber: number): Model
+	if Assignment.levels[LevelNumber] then return Assignment.levels[LevelNumber] end
+	local TargetCFrame = Assignment.position.CFrame
+	if LevelNumber > 1 then
+		local PreviousLevel = CreateLevel(Assignment, LevelNumber - 1)
+		local NextLevelMount = PreviousLevel:FindFirstChild("NextLevelMount")
+		assert(NextLevelMount and NextLevelMount:IsA("BasePart"), "Museum level has no NextLevelMount")
+		TargetCFrame = NextLevelMount.CFrame
 	end
-	for DisplayKey, SavedItemId in savedDisplays do
-		local DisplayIndex = tonumber(DisplayKey)
-		if type(SavedItemId) == "number" and DisplayIndex and DisplayIndex > DisplayLimit then
-			dataService:arrayInsert(player, "Inventory", SavedItemId)
-			savedDisplays[DisplayKey] = nil
-			DisplaysChanged = true
-		end
-	end
-	if DisplaysChanged then
-		dataService:set(player, "Displays", savedDisplays)
-		if inventoryRefreshHandler then inventoryRefreshHandler(player) end
-	end
+	local Level = LevelTemplate:Clone()
+	Level.Name = `Level_{LevelNumber}`
+	MoveModelToMarker(Level, "CFramePart", TargetCFrame)
+	Level.Parent = Assignment.museum
+	Assignment.levels[LevelNumber] = Level
+	return Level
 end
 
-local function RefreshDisplays(Player: Player)
-	local Assignment = assignments[Player]
+local function PositionRoof(Assignment: MuseumAssignment, LevelCount: number)
+	local Level = Assignment.levels[LevelCount]
+	local RoofMount = Level and Level:FindFirstChild("RoofMount")
+	if not RoofMount or not RoofMount:IsA("BasePart") then return end
+	local Roof = Assignment.roof
+	if not Roof then Roof = RoofTemplate:Clone(); Roof.Name = "Roof"; Roof.Parent = Assignment.museum; Assignment.roof = Roof end
+	MoveModelToMarker(Roof, "RoofMount", RoofMount.CFrame)
+end
+
+local function CreateTable(Assignment: MuseumAssignment)
+	if Assignment.museum:FindFirstChild("Table") then return end
+	local Level = Assignment.levels[1]
+	local TableCFrame = Level and Level:FindFirstChild("TableCFrame")
+	if not TableCFrame or not TableCFrame:IsA("BasePart") then return end
+	local TableModel = TableTemplate:Clone()
+	TableModel.Name = "Table"
+	MoveModelToMarker(TableModel, "TableCFrame", TableCFrame.CFrame)
+	TableModel.Parent = Assignment.museum
+end
+
+local function CreatePrompt(Name: string, ActionText: string, KeyCode: Enum.KeyCode, GamepadKeyCode: Enum.KeyCode, Offset: Vector2, Base: BasePart): ProximityPrompt
+	local Prompt = Instance.new("ProximityPrompt")
+	Prompt.Name = Name; Prompt.ActionText = ActionText; Prompt.ObjectText = "Display"; Prompt.HoldDuration = 0
+	Prompt.KeyboardKeyCode = KeyCode; Prompt.GamepadKeyCode = GamepadKeyCode; Prompt.MaxActivationDistance = 10
+	Prompt.RequiresLineOfSight = false; Prompt.Exclusivity = Enum.ProximityPromptExclusivity.AlwaysShow; Prompt.UIOffset = Offset; Prompt.Parent = Base
+	return Prompt
+end
+
+local function CreateDisplay(Player: Player, Assignment: MuseumAssignment, SlotId: number, Level: Model, Marker: BasePart, SavedDisplays)
+	if Assignment.displays[SlotId] then return end
+	local Display = DisplayTemplate:Clone()
+	Display.Name = `Display_{SlotId}`
+	MoveModelToMarker(Display, "CFramePart", Marker.CFrame)
+	Display.Parent = Level
+	local ItemCFrame = Display:FindFirstChild("ItemCFrame")
+	local ViewPart = Display:FindFirstChild("ViewPart")
+	local Base = Display:FindFirstChild("Base")
+	assert(ItemCFrame and ItemCFrame:IsA("BasePart"), "Display has no ItemCFrame")
+	assert(ViewPart and ViewPart:IsA("BasePart"), "Display has no ViewPart")
+	assert(Base and Base:IsA("BasePart"), "Display has no Base")
+	local Prompt = CreatePrompt("PlaceItemPrompt", "Place Item", Enum.KeyCode.E, Enum.KeyCode.ButtonX, Vector2.new(0, 55), Base)
+	local TakePrompt = CreatePrompt("TakeItemPrompt", "Take Off Sale", Enum.KeyCode.E, Enum.KeyCode.ButtonX, Vector2.new(-85, -45), Base)
+	local SellPrompt = CreatePrompt("SellItemPrompt", "Sell Item", Enum.KeyCode.F, Enum.KeyCode.ButtonY, Vector2.new(85, -45), Base)
+	TakePrompt.Enabled = false; SellPrompt.Enabled = false
+	local DisplayState: DisplayState = { index = SlotId, model = Display, itemCFrame = ItemCFrame, viewPart = ViewPart, prompt = Prompt,
+		takePrompt = TakePrompt, sellPrompt = SellPrompt, Unlocked = true, itemId = nil, itemModel = nil, Connections = {} }
+	Assignment.displays[SlotId] = DisplayState
+	UpdateDisplayPrompts(DisplayState)
+	table.insert(DisplayState.Connections, Prompt.Triggered:Connect(function(TriggeringPlayer) if TriggeringPlayer == Player then PlaceEquippedItem(Player, Assignment, DisplayState) end end))
+	table.insert(DisplayState.Connections, TakePrompt.Triggered:Connect(function(TriggeringPlayer) if TriggeringPlayer == Player then TakeDisplayedItem(Player, DisplayState) end end))
+	table.insert(DisplayState.Connections, SellPrompt.Triggered:Connect(function(TriggeringPlayer) if TriggeringPlayer == Player then SellDisplayedItem(Player, DisplayState) end end))
+	local SavedItemId = SavedDisplays[tostring(SlotId)]
+	if type(SavedItemId) == "number" then SetDisplayItem(Player, DisplayState, SavedItemId) end
+end
+
+local function RefreshMuseum(Player: Player)
+	local Assignment = Assignments[Player]
 	if not Assignment then return end
-	CreateDisplays(Player, Assignment)
+	local DisplayLimit = math.min(UpgradeLogic.GetDisplayLimit(DataService:get(Player, "Upgrades")), MuseumConfig.GetMaximumDisplayCount())
+	local LevelCount = MuseumConfig.GetLevelCount(DisplayLimit)
+	local SavedDisplays = CopyDisplays(DataService:get(Player, "Displays"))
+	for LevelNumber = 1, LevelCount do
+		local Level = CreateLevel(Assignment, LevelNumber)
+		local Markers = GetDisplayMarkers(Level)
+		local LevelInfo = MuseumConfig.Levels[LevelNumber]
+		for LocalIndex = 1, MuseumConfig.GetDisplayCount(LevelNumber, DisplayLimit) do
+			local Marker = Markers[LocalIndex]
+			if not Marker then warn(`Museum level {LevelNumber} is missing display marker {LocalIndex}`); break end
+			CreateDisplay(Player, Assignment, LevelInfo.StartSlot + LocalIndex - 1, Level, Marker, SavedDisplays)
+		end
+	end
+	CreateTable(Assignment)
+	PositionRoof(Assignment, LevelCount)
 end
 
-function MuseumController.SetDataService(service)
-	dataService = service
+function MuseumController.SetDataService(Service) DataService = Service end
+function MuseumController.SetInventoryRefreshHandler(Handler) InventoryRefreshHandler = Handler end
+function MuseumController.GetMuseum(Player: Player): Model? local Assignment = Assignments[Player]; return if Assignment then Assignment.museum else nil end
+function MuseumController.GetMuseumArea(Player: Player): BasePart?
+	local Assignment = Assignments[Player]
+	local Area = Assignment and Assignment.levels[1] and Assignment.levels[1]:FindFirstChild("MuseumArea")
+	return if Area and Area:IsA("BasePart") then Area else nil
 end
-
-function MuseumController.SetInventoryRefreshHandler(handler)
-	inventoryRefreshHandler = handler
-end
-
-function MuseumController.GetMuseum(player: Player): Model?
-	local assignment = assignments[player]
-	return if assignment then assignment.museum else nil
-end
-
 function MuseumController.TeleportPlayerToMuseum(Player: Player): boolean
-	local Assignment = assignments[Player]
+	local Assignment = Assignments[Player]
 	local Character = Player.Character
-	if not Assignment or not Character then return false end
-	local SpawnCFrame = Assignment.museum:FindFirstChild("SpawnCFrame")
-	if not SpawnCFrame or not SpawnCFrame:IsA("BasePart") then return false end
+	local SpawnCFrame = Assignment and Assignment.levels[1] and Assignment.levels[1]:FindFirstChild("SpawnCFrame")
+	if not Character or not SpawnCFrame or not SpawnCFrame:IsA("BasePart") then return false end
 	return TeleportPlayer(Character, SpawnCFrame)
 end
-
-function MuseumController.GetOccupiedDisplays(player: Player): { DisplayState }
-	local assignment = assignments[player]
-	local occupiedDisplays = {}
-	if assignment then
-		for _, displayState in assignment.displays do
-			if displayState.Unlocked and displayState.itemId ~= nil and displayState.itemModel ~= nil then
-				table.insert(occupiedDisplays, displayState)
-			end
-		end
-	end
-	return occupiedDisplays
+function MuseumController.GetOccupiedDisplays(Player: Player): { DisplayState }
+	local Result = {}
+	local Assignment = Assignments[Player]
+	if Assignment then for _, DisplayState in Assignment.displays do if DisplayState.Unlocked and DisplayState.itemId and DisplayState.itemModel then table.insert(Result, DisplayState) end end end
+	return Result
 end
-
 function MuseumController.Init()
-	playerMuseums = Instance.new("Folder")
-	playerMuseums.Name = "PlayerMuseums"
-	playerMuseums.Parent = Workspace
-
-	for _, position in museumCFrames:GetChildren() do
-		if position:IsA("BasePart") then
-			table.insert(positions, position)
-		end
-	end
-
-	table.sort(positions, function(a, b)
-		return (tonumber(a.Name) or math.huge) < (tonumber(b.Name) or math.huge)
-	end)
+	PlayerMuseums = Instance.new("Folder"); PlayerMuseums.Name = "PlayerMuseums"; PlayerMuseums.Parent = Workspace
+	for _, Position in MuseumCFrames:GetChildren() do if Position:IsA("BasePart") then table.insert(Positions, Position) end end
+	table.sort(Positions, function(A, B) return (tonumber(A.Name) or math.huge) < (tonumber(B.Name) or math.huge) end)
 end
-
-function MuseumController.OnPlayerAdded(player: Player)
-	if assignments[player] then
-		return
-	end
-
-	local position = getAvailablePosition()
-	if position == nil then
-		warn(`MuseumController could not assign a museum to {player.Name}: no positions are available`)
-		return
-	end
-
-	local museum = museumTemplate:Clone()
-	museum.Name = `Museum_{player.UserId}`
-	moveModelToCFrame(museum, position.CFrame)
-	museum.Parent = playerMuseums
-
-	local assignment: MuseumAssignment = {
-		museum = museum,
-		position = position,
-		displays = {},
-		UpgradeConnection = nil,
-	}
-	occupiedPositions[position] = player
-	assignments[player] = assignment
-	CreateDisplays(player, assignment)
-	assignment.UpgradeConnection = dataService:getChangedSignal(player, "Upgrades"):Connect(function()
-		RefreshDisplays(player)
-	end)
+function MuseumController.OnPlayerAdded(Player: Player)
+	if Assignments[Player] then return end
+	local Position = GetAvailablePosition()
+	if not Position then warn(`MuseumController could not assign a museum to {Player.Name}: no positions are available`); return end
+	local Museum = Instance.new("Model"); Museum.Name = `Museum_{Player.UserId}`; Museum.Parent = PlayerMuseums
+	local Assignment: MuseumAssignment = { museum = Museum, position = Position, levels = {}, displays = {}, roof = nil, UpgradeConnection = nil }
+	OccupiedPositions[Position] = Player; Assignments[Player] = Assignment
+	RefreshMuseum(Player)
+	Assignment.UpgradeConnection = DataService:getChangedSignal(Player, "Upgrades"):Connect(function() RefreshMuseum(Player) end)
 end
-
-function MuseumController.OnCharacterAdded(player: Player, character: Model)
-	task.spawn(teleportCharacterToMuseum, player, character)
-end
-
-function MuseumController.OnPlayerRemoving(player: Player)
-	local assignment = assignments[player]
-	if assignment == nil then
-		return
-	end
-
-	assignments[player] = nil
-	occupiedPositions[assignment.position] = nil
-	if assignment.UpgradeConnection then assignment.UpgradeConnection:Disconnect() end
-	for _, displayState in assignment.displays do
-		for _, Connection in displayState.Connections do Connection:Disconnect() end
-	end
-	assignment.museum:Destroy()
+function MuseumController.OnCharacterAdded(Player: Player, Character: Model) task.spawn(TeleportCharacterToMuseum, Player, Character) end
+function MuseumController.OnPlayerRemoving(Player: Player)
+	local Assignment = Assignments[Player]
+	if not Assignment then return end
+	Assignments[Player] = nil; OccupiedPositions[Assignment.position] = nil
+	if Assignment.UpgradeConnection then Assignment.UpgradeConnection:Disconnect() end
+	for _, DisplayState in Assignment.displays do for _, Connection in DisplayState.Connections do Connection:Disconnect() end end
+	Assignment.museum:Destroy()
 end
 
 return MuseumController

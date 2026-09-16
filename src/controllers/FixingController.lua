@@ -11,6 +11,7 @@ local DataService = require(ReplicatedStorage.Packages.dataservice).client
 local FixingInterface = require(ReplicatedStorage.Modules.UI.FixingInterface)
 local ItemsInfo = require(ReplicatedStorage.Modules.Game.ItemsInfo)
 local Networker = require(ReplicatedStorage.Packages.networker)
+local PaintRenderer = require(ReplicatedStorage.Modules.Game.PaintRenderer)
 local RuntimeState = require(ReplicatedStorage.Modules.Game.RuntimeState)
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
 local ToolResolver = require(ReplicatedStorage.Modules.Game.ToolResolver)
@@ -411,23 +412,6 @@ local function GetItemInfo(ItemId: number)
 	end
 end
 
-local function GetPaintParts(Container: Instance): { BasePart }
-	local Parts = {}
-	for _, Descendant in Container:GetDescendants() do
-		if Descendant:IsA("BasePart")
-			and Descendant.Name ~= "BoundingBox"
-			and Descendant.Name ~= "Dirt"
-			and Descendant.Name ~= "Grease"
-			and Descendant:FindFirstAncestor("Dirt") == nil
-			and Descendant:FindFirstAncestor("Grease") == nil
-			and Descendant.Transparency < 1
-		then
-			table.insert(Parts, Descendant)
-		end
-	end
-	return Parts
-end
-
 local function ResetLocalStep()
 	LocalTargetStates = {}
 	LocalStepId = nil
@@ -466,7 +450,7 @@ local function PrepareLocalStep(ToolId: string): boolean
 	if not Step or not Model or not ItemInfo then return false end
 
 	local Targets = {}
-	local OriginalColors = {}
+	local OriginalAppearances = {}
 	if Step.Type == "Dirt" then
 		local Dirt = Model:FindFirstChild("Dirt")
 		if Dirt then
@@ -482,13 +466,11 @@ local function PrepareLocalStep(ToolId: string): boolean
 			end
 		end
 	else
-		Targets = GetPaintParts(Model)
+		Targets = PaintRenderer.GetPaintParts(Model)
 		local Template = ReplicatedStorage.Assets.Models.Items:FindFirstChild(ItemInfo.AssetName)
-		if Template then
-			local TemplateParts = GetPaintParts(Template)
-			for Index, Target in Targets do
-				local TemplatePart = TemplateParts[Index]
-				if TemplatePart then OriginalColors[Target] = TemplatePart.Color end
+		if Template and Template:IsA("Model") then
+			for _, Target in Targets do
+				OriginalAppearances[Target] = PaintRenderer.GetOriginalAppearance(Model, Target, Template)
 			end
 		end
 	end
@@ -500,7 +482,7 @@ local function PrepareLocalStep(ToolId: string): boolean
 			CurrentHealth = MaximumHealth,
 			MaximumHealth = MaximumHealth,
 			DamagedColor = Target.Color,
-			OriginalColor = OriginalColors[Target],
+			OriginalAppearance = OriginalAppearances[Target],
 			BaseTransparency = Target.Transparency,
 			Completed = false,
 		})
@@ -586,16 +568,20 @@ local function ApplyToolLocally(ToolInfo, DeltaTime: number, MousePosition: Vect
 		elseif Step.Type == "Grease" then
 			local BaseTransparency = State.BaseTransparency
 			Target.Transparency = BaseTransparency + (1 - BaseTransparency) * (1 - State.CurrentHealth / math.max(State.MaximumHealth, 0.001))
-		elseif State.OriginalColor then
+		elseif State.OriginalAppearance then
 			local RestoredAmount = 1 - State.CurrentHealth / math.max(State.MaximumHealth, 0.001)
-			Target.Color = State.DamagedColor:Lerp(State.OriginalColor, RestoredAmount)
+			Target.Color = State.DamagedColor:Lerp(State.OriginalAppearance.Color, RestoredAmount)
 		end
 
 		if PreviousHealth > 0 and State.CurrentHealth <= 0 then
 			State.Completed = true
 			LocalStepRemaining = math.max(0, LocalStepRemaining - 1)
 			ProgressChanged = true
-			if Step.Type == "Dirt" or Step.Type == "Grease" then Target:Destroy() end
+			if Step.Type == "Dirt" or Step.Type == "Grease" then
+				Target:Destroy()
+			elseif State.OriginalAppearance then
+				PaintRenderer.ApplyAppearance(Target, State.OriginalAppearance)
+			end
 		end
 	end
 
@@ -746,6 +732,12 @@ function FixingController.Init()
 			ToolBeam.Width1 = GetToolRadius(ToolInfo) * 2 * WorldUnitsPerPixel * ToolInfo.VFXWidthScale
 			if ToolInfo.ColorFromTarget and AimPart then
 				local TargetColor = AimPart.Color
+				for _, State in LocalTargetStates do
+					if State.Part == AimPart and State.OriginalAppearance then
+						TargetColor = State.OriginalAppearance.Color
+						break
+					end
+				end
 				if CurrentToolColor then
 					local ColorBlend = 1 - math.exp(-(ToolInfo.ColorResponsiveness or 14) * DeltaTime)
 					CurrentToolColor = CurrentToolColor:Lerp(TargetColor, ColorBlend)

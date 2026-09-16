@@ -5,9 +5,9 @@ local Workspace = game:GetService("Workspace")
 
 local CrateInfo = require(ReplicatedStorage.Modules.Game.CrateInfo)
 local CrateRuntime = require(ReplicatedStorage.Modules.Game.CrateRuntime)
-local GetRandomFromWeightedTable = require(ReplicatedStorage.Modules.Math.GetRandomFromWeightedTable)
 local GuidanceController = require(ReplicatedStorage.Controllers.GuidanceController)
 local ItemsInfo = require(ReplicatedStorage.Modules.Game.ItemsInfo)
+local FormatNumber = require(ReplicatedStorage.Modules.Math.FormatNumber)
 local MultiplyNumberSequence = require(ReplicatedStorage.Modules.Math.MultiplyNumberSequence)
 local Networker = require(ReplicatedStorage.Packages.networker)
 local RarityInfo = require(ReplicatedStorage.Modules.Game.RarityInfo)
@@ -39,7 +39,7 @@ local PurchaseFeedbackMessages = {
 		return "Finish Cleaning"
 	end,
 	NotEnoughCash = function(_, Detail)
-		return `Need ${math.max(0, math.ceil(Detail or 0))} More`
+		return `Need {FormatNumber(math.max(0, math.ceil(Detail or 0))) or "0"} More`
 	end,
 	NotReady = function()
 		return "Reveal In Progress"
@@ -204,7 +204,7 @@ function CrateController.StartReveal(_, RewardId, ActualItemId, GroundCFrame, Cr
 			if Reveal.Model then Reveal.Model:Destroy() end
 			local PreviewInfo = if Index == Info.PreviewSwitchCount
 				then ActualItemInfo
-				else GetRandomFromWeightedTable.GetRandomFromWeightedTable(ItemsInfo, "ChanceWeight", nil, Info.PreviewLootLuck)
+				else CrateInfo.GetRandomItem(ItemsInfo, Info, RandomGenerator)
 			Reveal.Model = PreviewInfo and CreatePreview(PreviewInfo, GroundCFrame, RevealFolder) or nil
 			local Alpha = if Info.PreviewSwitchCount > 1 then (Index - 1) / (Info.PreviewSwitchCount - 1) else 1
 			local Delay = Info.PreviewStartDelay + (Info.PreviewEndDelay - Info.PreviewStartDelay) * Alpha * Alpha

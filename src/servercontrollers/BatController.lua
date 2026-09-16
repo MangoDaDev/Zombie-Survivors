@@ -2,11 +2,14 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local ServerStorage = game:GetService("ServerStorage")
+local Workspace = game:GetService("Workspace")
 
 local BatInfo = require(ReplicatedStorage.Modules.Game.BatInfo)
 local CrateController = require(ServerStorage.Controllers.CrateController)
+local CarryController = require(ServerStorage.Controllers.CarryController)
 local GuidanceController = require(ServerStorage.Controllers.GuidanceController)
 local Images = require(ReplicatedStorage.Modules.UI.Images)
+local ItemInteractionConfig = require(ReplicatedStorage.Modules.Game.ItemInteractionConfig)
 local Networker = require(ReplicatedStorage.Packages.networker)
 local PlayerStateController = require(ServerStorage.Controllers.PlayerStateController)
 local ToolResolver = require(ReplicatedStorage.Modules.Game.ToolResolver)
@@ -20,6 +23,9 @@ local UpgradeConnections: { [Player]: RBXScriptConnection } = {}
 local LastSwings: { [Player]: number } = {}
 local PositionHistory: { [Player]: { { Time: number, CFrame: CFrame } } } = {}
 local LastPositionSamples: { [Player]: number } = {}
+local LastPlayerHits: { [Player]: { [Player]: number } } = {}
+local ProtectedUntil: { [Player]: number } = {}
+local StunStates: { [Player]: any } = {}
 local MaximumValidationHistoryWindow = 0
 local MinimumValidationSampleInterval = math.huge
 
@@ -115,8 +121,81 @@ local function RecordPositions(Now)
 	end
 end
 
+local function ClearStun(Player: Player, RestoreCharacter: boolean, UpdatePlayerState: boolean?)
+	local State = StunStates[Player]
+	if UpdatePlayerState ~= false then PlayerStateController.Set(Player, "IsPvpStunned", false) end
+	if not State then return end
+	StunStates[Player] = nil
+	if not RestoreCharacter or Player.Character ~= State.Character then return end
+	if State.Humanoid.Parent and State.Humanoid.Health > 0 then
+		State.Humanoid.PlatformStand = State.PlatformStand
+		State.Humanoid.AutoRotate = State.AutoRotate
+		State.Humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
+	end
+	if State.RootPart.Parent then State.RootPart:SetNetworkOwnershipAuto() end
+end
+
+local function HasClearHitPath(AttackerCharacter: Model, TargetCharacter: Model, Origin: Vector3, Target: Vector3): boolean
+	local Parameters = RaycastParams.new()
+	Parameters.FilterType = Enum.RaycastFilterType.Exclude
+	Parameters.FilterDescendantsInstances = { AttackerCharacter, TargetCharacter }
+	Parameters.IgnoreWater = true
+	return Workspace:Raycast(Origin, Target - Origin, Parameters) == nil
+end
+
+local function HitPlayer(Attacker: Player, TargetPlayer: Player, AttackerRoot: BasePart, Info, Now: number)
+	if Attacker == TargetPlayer or Now < (ProtectedUntil[TargetPlayer] or 0) then return end
+	local AttackerCharacter = Attacker.Character
+	local TargetCharacter = TargetPlayer.Character
+	local TargetRoot = TargetCharacter and TargetCharacter:FindFirstChild("HumanoidRootPart")
+	local TargetHumanoid = TargetCharacter and TargetCharacter:FindFirstChildOfClass("Humanoid")
+	if not AttackerCharacter or not TargetCharacter or not TargetRoot or not TargetRoot:IsA("BasePart") or not TargetHumanoid or TargetHumanoid.Health <= 0 then return end
+	if TargetRoot.Anchored or PlayerStateController.Get(TargetPlayer, "IsFixing", false) == true then return end
+	if (TargetRoot.Position - AttackerRoot.Position).Magnitude > ItemInteractionConfig.PvpMaximumHitDistance then return end
+	if not IsTargetInRange(Attacker, AttackerRoot, TargetRoot.Position, Info, Now) then return end
+	if not HasClearHitPath(AttackerCharacter, TargetCharacter, AttackerRoot.Position, TargetRoot.Position) then return end
+
+	local Hits = LastPlayerHits[Attacker] or {}
+	LastPlayerHits[Attacker] = Hits
+	if Now - (Hits[TargetPlayer] or 0) < ItemInteractionConfig.PvpHitCooldown then return end
+	Hits[TargetPlayer] = Now
+	ProtectedUntil[TargetPlayer] = Now + ItemInteractionConfig.PvpProtectionDuration
+	CarryController.DropCarriedItem(TargetPlayer)
+
+	ClearStun(TargetPlayer, true)
+	local State = {
+		AutoRotate = TargetHumanoid.AutoRotate,
+		Character = TargetCharacter,
+		Humanoid = TargetHumanoid,
+		PlatformStand = TargetHumanoid.PlatformStand,
+		RootPart = TargetRoot,
+	}
+	StunStates[TargetPlayer] = State
+	PlayerStateController.Set(TargetPlayer, "IsPvpStunned", true)
+	-- PvP is displacement-only: the server applies a temporary physics stun and never damages health.
+	TargetHumanoid.AutoRotate = false
+	TargetHumanoid.PlatformStand = true
+	TargetHumanoid:ChangeState(Enum.HumanoidStateType.Physics)
+	TargetRoot:SetNetworkOwner(nil)
+	local Direction = TargetRoot.Position - AttackerRoot.Position
+	local FlatDirection = Vector3.new(Direction.X, 0, Direction.Z)
+	if FlatDirection.Magnitude <= 0.01 then FlatDirection = AttackerRoot.CFrame.LookVector end
+	local Knockback = FlatDirection.Unit * ItemInteractionConfig.BatKnockbackSpeed
+		+ Vector3.new(0, ItemInteractionConfig.BatKnockbackUpwardSpeed, 0)
+	if Knockback.Magnitude > ItemInteractionConfig.MaximumKnockbackSpeed then
+		Knockback = Knockback.Unit * ItemInteractionConfig.MaximumKnockbackSpeed
+	end
+	TargetRoot.AssemblyLinearVelocity = Knockback
+	task.delay(ItemInteractionConfig.RagdollDuration, function()
+		if StunStates[TargetPlayer] == State then ClearStun(TargetPlayer, true) end
+	end)
+end
+
 function BatController.Swing(_, Player, Targets)
-	if type(Targets) ~= "table" or #Targets > 16 or PlayerStateController.Get(Player, "IsFixing", false) == true then return end
+	if type(Targets) ~= "table" or #Targets > 16
+		or PlayerStateController.Get(Player, "IsFixing", false) == true
+		or PlayerStateController.Get(Player, "IsPvpStunned", false) == true
+	then return end
 	local Character = Player.Character
 	local RootPart = Character and Character:FindFirstChild("HumanoidRootPart")
 	local Tool = Character and Character:FindFirstChildOfClass("Tool")
@@ -154,6 +233,10 @@ function BatController.Swing(_, Player, Targets)
 			end
 			continue
 		end
+		if Target:IsA("Model") then
+			local TargetPlayer = Players:GetPlayerFromCharacter(Target)
+			if TargetPlayer then HitPlayer(Player, TargetPlayer, RootPart, Info, Now) end
+		end
 	end
 end
 
@@ -179,6 +262,8 @@ function BatController.OnPlayerAdded(Player)
 end
 
 function BatController.OnCharacterAdded(Player)
+	ClearStun(Player, false)
+	ProtectedUntil[Player] = nil
 	task.defer(EnsureBat, Player)
 end
 
@@ -190,6 +275,10 @@ function BatController.OnPlayerRemoving(Player)
 	LastSwings[Player] = nil
 	PositionHistory[Player] = nil
 	LastPositionSamples[Player] = nil
+	LastPlayerHits[Player] = nil
+	ProtectedUntil[Player] = nil
+	ClearStun(Player, false, false)
+	for _, Hits in LastPlayerHits do Hits[Player] = nil end
 end
 
 return BatController

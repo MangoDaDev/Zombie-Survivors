@@ -26,6 +26,8 @@ local Images = {
 	DiamondBat = "rbxassetid://113517459215926",
 	ObsidianBat = "rbxassetid://140370237259106",
 	ObjectiveArrow = "rbxassetid://123892753905134",
+	Vignette = "rbxassetid://129145674033527",
+	Sparkle = "rbxassetid://5639840603",
 
 	FixIcons = {
 		Dirt = "rbxassetid://111727278981257",

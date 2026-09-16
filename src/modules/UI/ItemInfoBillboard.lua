@@ -1,5 +1,6 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local FormatNumber = require(ReplicatedStorage.Modules.Math.FormatNumber)
 local Images = require(ReplicatedStorage.Modules.UI.Images)
 local CleaningConfig = require(ReplicatedStorage.Modules.Game.CleaningConfig)
 local RarityInfo = require(ReplicatedStorage.Modules.Game.RarityInfo)
@@ -48,7 +49,7 @@ local function createStatRow(image: string, value: number, position: UDim2, Valu
 	valueLabel.FontFace = COMIC_FONT
 	valueLabel.LayoutOrder = 2
 	valueLabel.Size = UDim2.fromScale(0, 1)
-	valueLabel.Text = `{ValuePrefix or ""}{value}`
+	valueLabel.Text = `{ValuePrefix or ""}{FormatNumber(value) or "0"}`
 	valueLabel.TextColor3 = Color3.fromRGB(72, 232, 91)
 	valueLabel.TextScaled = true
 	valueLabel.TextXAlignment = Enum.TextXAlignment.Left

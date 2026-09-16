@@ -85,7 +85,7 @@ end
 local function getLargestFloor(museum: Model): BasePart?
 	local largestFloor: BasePart?
 	local largestArea = 0
-	for _, child in museum:GetChildren() do
+	for _, child in museum:GetDescendants() do
 		if child:IsA("BasePart") and child.Name == "Base" then
 			local area = child.Size.X * child.Size.Z
 			if area > largestArea then
@@ -199,7 +199,7 @@ local function runVisit(player: Player, token)
 	if #MuseumController.GetOccupiedDisplays(player) == 0 then return end
 
 	local museum = MuseumController.GetMuseum(player)
-	local spawnPart = museum and museum:FindFirstChild("SpawnCFrame")
+	local spawnPart = museum and museum:FindFirstChild("SpawnCFrame", true)
 	local floor = museum and getLargestFloor(museum)
 	if spawnPart == nil or not spawnPart:IsA("BasePart") or floor == nil then
 		return

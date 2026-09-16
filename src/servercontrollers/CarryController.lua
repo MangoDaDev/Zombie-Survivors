@@ -1,3 +1,4 @@
+local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerStorage = game:GetService("ServerStorage")
@@ -6,6 +7,7 @@ local ItemsInfo = require(ReplicatedStorage.Modules.Game.ItemsInfo)
 local CleaningConfig = require(ReplicatedStorage.Modules.Game.CleaningConfig)
 local DirtRenderer = require(ReplicatedStorage.Modules.Game.DirtRenderer)
 local ItemInfoBillboard = require(ReplicatedStorage.Modules.UI.ItemInfoBillboard)
+local ItemInteractionConfig = require(ReplicatedStorage.Modules.Game.ItemInteractionConfig)
 local RestorationVisuals = require(ReplicatedStorage.Modules.Game.RestorationVisuals)
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
 local UpgradeLogic = require(ReplicatedStorage.Modules.Game.UpgradeLogic)
@@ -18,16 +20,78 @@ local ToolResolver = require(ReplicatedStorage.Modules.Game.ToolResolver)
 local DEFAULT_CARRY_OFFSET = CFrame.new(0, 0, -3) * CFrame.Angles(0, math.rad(90), 0)
 local SFX_MAX_DISTANCE = 80
 
+export type OwnershipState = {
+	BasePrice: number,
+	CurrentPrice: number,
+	OwnerUserId: number,
+	OwnershipId: string,
+	TransferCount: number,
+}
+
 type CarryState = {
+	DeathConnection: RBXScriptConnection?,
+	DirtCount: number,
+	Ownership: OwnershipState,
 	itemId: number,
 	model: Model?,
+	ModelConnection: RBXScriptConnection?,
+}
+
+type MovementState = {
+	AppliedWalkSpeed: number,
+	BaseWalkSpeed: number,
+	Connection: RBXScriptConnection,
+	Humanoid: Humanoid,
+	Updating: boolean,
 }
 
 local CarryController = {}
 
 local carryStates: { [Player]: CarryState } = {}
 local museumAreaConnections: { [Player]: RBXScriptConnection } = {}
+local characterRemovingConnections: { [Player]: RBXScriptConnection } = {}
+local MovementStates: { [Player]: MovementState } = {}
 local dataService
+local StopCarrying
+local DropHandler
+
+local function ClearCarryMovement(Player: Player)
+	local State = MovementStates[Player]
+	if not State then return end
+	MovementStates[Player] = nil
+	State.Connection:Disconnect()
+	local Humanoid = State.Humanoid
+	if Humanoid.Parent and math.abs(Humanoid.WalkSpeed - State.AppliedWalkSpeed) < 0.001 then
+		State.Updating = true
+		Humanoid.WalkSpeed = State.BaseWalkSpeed
+		State.Updating = false
+	end
+end
+
+local function ApplyCarryMovement(Player: Player)
+	ClearCarryMovement(Player)
+	local Humanoid = Player.Character and Player.Character:FindFirstChildOfClass("Humanoid")
+	if not Humanoid then return end
+	local State = {
+		AppliedWalkSpeed = math.max(0, Humanoid.WalkSpeed - ItemInteractionConfig.CarryWalkSpeedPenalty),
+		BaseWalkSpeed = Humanoid.WalkSpeed,
+		Humanoid = Humanoid,
+		Updating = false,
+	}
+	State.Connection = Humanoid:GetPropertyChangedSignal("WalkSpeed"):Connect(function()
+		if State.Updating or MovementStates[Player] ~= State then return end
+		if math.abs(Humanoid.WalkSpeed - State.AppliedWalkSpeed) < 0.001 then return end
+		State.BaseWalkSpeed = Humanoid.WalkSpeed
+		State.AppliedWalkSpeed = math.max(0, State.BaseWalkSpeed - ItemInteractionConfig.CarryWalkSpeedPenalty)
+		State.Updating = true
+		Humanoid.WalkSpeed = State.AppliedWalkSpeed
+		State.Updating = false
+	end)
+	MovementStates[Player] = State
+	State.Updating = true
+	Humanoid.WalkSpeed = State.AppliedWalkSpeed
+	State.Updating = false
+end
 
 local function PlaySound(Player: Player, SoundName: string)
 	local Character = Player.Character
@@ -82,8 +146,10 @@ local function attachCarriedModel(player: Player, state: CarryState): boolean
 	end
 
 	if state.model then
+		if state.ModelConnection then state.ModelConnection:Disconnect(); state.ModelConnection = nil end
 		state.model:Destroy()
 	end
+	if state.DeathConnection then state.DeathConnection:Disconnect(); state.DeathConnection = nil end
 
 	local model = template:Clone()
 	local boundingBox = model:FindFirstChild("BoundingBox")
@@ -109,9 +175,40 @@ local function attachCarriedModel(player: Player, state: CarryState): boolean
 	local fixing = dataService:get(player, "Fixing") or {}
 	local fixingState = fixing[tostring(state.itemId)]
 	RestorationVisuals.Apply(model, itemInfo, fixingState)
-	ItemInfoBillboard(itemInfo, boundingBox, fixingState)
+	local DisplayInfo = table.clone(itemInfo)
+	DisplayInfo.Price = state.Ownership.CurrentPrice
+	ItemInfoBillboard(DisplayInfo, boundingBox, fixingState)
 	state.model = model
+	local Humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	if Humanoid then
+		state.DeathConnection = Humanoid.Died:Connect(function()
+			task.defer(CarryController.DropCarriedItem, player)
+		end)
+	end
+	state.ModelConnection = model.Destroying:Connect(function()
+		task.defer(function()
+			if carryStates[player] == state and state.model == model then
+				if not CarryController.DropCarriedItem(player) then StopCarrying(player) end
+			end
+		end)
+	end)
 	return true
+end
+
+StopCarrying = function(Player: Player, UpdatePlayerState: boolean?): number?
+	local State = carryStates[Player]
+	if not State then
+		ClearCarryMovement(Player)
+		if UpdatePlayerState ~= false then PlayerStateController.Set(Player, "IsCarryingItem", false) end
+		return nil
+	end
+	carryStates[Player] = nil
+	if State.DeathConnection then State.DeathConnection:Disconnect(); State.DeathConnection = nil end
+	if State.ModelConnection then State.ModelConnection:Disconnect(); State.ModelConnection = nil end
+	if State.model then State.model:Destroy(); State.model = nil end
+	ClearCarryMovement(Player)
+	if UpdatePlayerState ~= false then PlayerStateController.Set(Player, "IsCarryingItem", false) end
+	return State.itemId
 end
 
 local function createTool(player: Player, itemId: number): Tool?
@@ -213,12 +310,8 @@ local function deliverItem(player: Player)
 	end
 	dataService:arrayInsert(player, "Inventory", state.itemId)
 
-	carryStates[player] = nil
-	if state.model then
-		state.model:Destroy()
-	end
+	StopCarrying(player)
 	tool.Parent = backpack
-	PlayerStateController.Set(player, "IsCarryingItem", false)
 	GuidanceController.Advance(player, "BringItemHome")
 	task.delay(0.1, function()
 		local character = player.Character
@@ -232,16 +325,44 @@ function CarryController.CanCarry(player: Player): boolean
 		and carryStates[player] == nil
 		and player.Character ~= nil
 		and PlayerStateController.Get(player, "IsFixing", false) ~= true
+		and PlayerStateController.Get(player, "IsPvpStunned", false) ~= true
 end
 
 function CarryController.MoveCarriedItemToInventory(player: Player): number?
 	local state = carryStates[player]
 	if state == nil then return nil end
 	dataService:arrayInsert(player, "Inventory", state.itemId)
-	if state.model then state.model:Destroy() end
-	carryStates[player] = nil
-	PlayerStateController.Set(player, "IsCarryingItem", false)
-	return state.itemId
+	return StopCarrying(player)
+end
+
+function CarryController.SetDropHandler(Handler)
+	DropHandler = Handler
+end
+
+function CarryController.DropCarriedItem(Player: Player, UpdatePlayerState: boolean?): boolean
+	local State = carryStates[Player]
+	local Character = Player.Character
+	local RootPart = Character and Character:FindFirstChild("HumanoidRootPart")
+	if not State or not DropHandler or not RootPart or not RootPart:IsA("BasePart") then return false end
+
+	local FlatLook = Vector3.new(RootPart.CFrame.LookVector.X, 0, RootPart.CFrame.LookVector.Z)
+	if FlatLook.Magnitude <= 0.01 then FlatLook = Vector3.zAxis end
+	local DropPosition = RootPart.Position + FlatLook.Unit * ItemInteractionConfig.DropForwardDistance
+	local DropCFrame = CFrame.lookAt(DropPosition, DropPosition + FlatLook.Unit)
+	local DropData = {
+		DirtCount = State.DirtCount,
+		ItemId = State.itemId,
+		Ownership = table.clone(State.Ownership),
+	}
+	if DropHandler(Player, DropData, DropCFrame) ~= true then return false end
+
+	StopCarrying(Player, UpdatePlayerState)
+	return true
+end
+
+function CarryController.RequestDrop(_, Player: Player)
+	if Player.Parent ~= Players or PlayerStateController.Get(Player, "IsFixing", false) == true then return false end
+	return CarryController.DropCarriedItem(Player)
 end
 
 function CarryController.GetEquippedItemId(player: Player): number?
@@ -318,8 +439,9 @@ function CarryController.EquipCleaningTool(Player: Player, ToolId: string)
 	end
 end
 
-function CarryController.StartCarrying(player: Player, itemId: number, DirtCount: number?): boolean
-	if not CarryController.CanCarry(player) or getItemInfo(itemId) == nil then
+function CarryController.StartCarrying(player: Player, itemId: number, DirtCount: number?, Ownership: OwnershipState?): boolean
+	local ItemInfo = getItemInfo(itemId)
+	if not CarryController.CanCarry(player) or not ItemInfo then
 		return false
 	end
 
@@ -333,6 +455,24 @@ function CarryController.StartCarrying(player: Player, itemId: number, DirtCount
 	dataService:set(player, "Fixing", fixing)
 
 	local state: CarryState = {
+		DirtCount = ResolvedDirtCount,
+		Ownership = {
+			BasePrice = ItemInfo.Price,
+			CurrentPrice = if Ownership and type(Ownership.CurrentPrice) == "number"
+				then math.clamp(
+					math.round(Ownership.CurrentPrice),
+					ItemInfo.Price,
+					ItemInfo.Price * ItemInteractionConfig.MaximumPurchasePriceMultiplier
+				)
+				else ItemInfo.Price,
+			OwnerUserId = player.UserId,
+			OwnershipId = if Ownership and type(Ownership.OwnershipId) == "string" and Ownership.OwnershipId ~= ""
+				then Ownership.OwnershipId
+				else HttpService:GenerateGUID(false),
+			TransferCount = if Ownership and type(Ownership.TransferCount) == "number"
+				then math.max(0, math.floor(Ownership.TransferCount))
+				else 0,
+		},
 		itemId = itemId,
 		model = nil,
 	}
@@ -347,6 +487,7 @@ function CarryController.StartCarrying(player: Player, itemId: number, DirtCount
 		humanoid:UnequipTools()
 	end
 	PlayerStateController.Set(player, "IsCarryingItem", true)
+	ApplyCarryMovement(player)
 	GuidanceController.Advance(player, "PickUpItem")
 	PlaySound(player, "Buy")
 	return true
@@ -354,8 +495,10 @@ end
 
 function CarryController.OnPlayerAdded(player: Player)
 	PlayerStateController.Set(player, "IsCarryingItem", false)
-	local museum = MuseumController.GetMuseum(player)
-	local museumArea = museum and museum:FindFirstChild("MuseumArea")
+	characterRemovingConnections[player] = player.CharacterRemoving:Connect(function()
+		if not CarryController.DropCarriedItem(player) then StopCarrying(player) end
+	end)
+	local museumArea = MuseumController.GetMuseumArea(player)
 	if museumArea == nil or not museumArea:IsA("BasePart") then
 		return
 	end
@@ -377,7 +520,7 @@ function CarryController.OnCharacterAdded(player: Player, character: Model)
 		end
 		local rootPart = character:FindFirstChild("HumanoidRootPart") or character:WaitForChild("HumanoidRootPart", 5)
 		if rootPart and carryStates[player] == state then
-			attachCarriedModel(player, state)
+			if attachCarriedModel(player, state) then ApplyCarryMovement(player) else StopCarrying(player) end
 		end
 	end)
 end
@@ -433,6 +576,7 @@ end
 function CarryController.Init()
 	MuseumController.SetInventoryRefreshHandler(CarryController.RefreshInventory)
 	Networker.server.new("InventoryController", CarryController, {
+		CarryController.RequestDrop,
 		CarryController.SaveInventoryOrder,
 	})
 end
@@ -443,12 +587,13 @@ function CarryController.OnPlayerRemoving(player: Player)
 		connection:Disconnect()
 		museumAreaConnections[player] = nil
 	end
-
-	local state = carryStates[player]
-	if state and state.model then
-		state.model:Destroy()
+	local CharacterConnection = characterRemovingConnections[player]
+	if CharacterConnection then
+		CharacterConnection:Disconnect()
+		characterRemovingConnections[player] = nil
 	end
-	carryStates[player] = nil
+
+	if not CarryController.DropCarriedItem(player, false) then StopCarrying(player, false) end
 end
 
 return CarryController

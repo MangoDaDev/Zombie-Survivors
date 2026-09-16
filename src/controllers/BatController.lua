@@ -172,6 +172,10 @@ local function GetTargetModel(Part): Model?
 		if Current:IsA("Model") and CollectionService:HasTag(Current, "Crate") then
 			return Current
 		end
+		if Current:IsA("Model") then
+			local TargetPlayer = Players:GetPlayerFromCharacter(Current)
+			if TargetPlayer and TargetPlayer ~= LocalPlayer then return Current end
+		end
 		Current = Current.Parent
 	end
 	return nil
@@ -215,7 +219,8 @@ local function DetectTargets(Tool, Info)
 	local Seen = {}
 	for _, Part in Workspace:GetPartBoundsInBox(HitboxCFrame, HitboxSize, Parameters) do
 		local Model = GetTargetModel(Part)
-		if Model and not Seen[Model] and CanTargetCrate(Model) then
+		local IsCrate = Model and CollectionService:HasTag(Model, "Crate")
+		if Model and not Seen[Model] and (not IsCrate or CanTargetCrate(Model)) then
 			Seen[Model] = true
 			table.insert(Targets, Model)
 			ShowPredictedImpact(Model, Handle, Info)

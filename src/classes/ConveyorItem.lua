@@ -3,6 +3,7 @@ local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
 local ItemsInfo = require(ReplicatedStorage.Modules.Game.ItemsInfo)
+local FormatNumber = require(ReplicatedStorage.Modules.Math.FormatNumber)
 local RestorationVisuals = require(ReplicatedStorage.Modules.Game.RestorationVisuals)
 local ItemInfoBillboard = require(ReplicatedStorage.Modules.UI.ItemInfoBillboard)
 local SharedClass = require(ReplicatedStorage.Modules.Core.SharedClass)
@@ -104,7 +105,7 @@ function ConveyorItem:Render()
 	ItemInfoBillboard(itemInfo, primaryPart, { Total = self.DirtCount or 1, Remaining = self.DirtCount or 1, Completed = false })
 
 	local prompt = Instance.new("ProximityPrompt")
-	prompt.ActionText = `Buy ${itemInfo.Price}`
+	prompt.ActionText = `Buy ${FormatNumber(itemInfo.Price) or "0"}`
 	prompt.ObjectText = "???"
 	prompt.HoldDuration = 0
 	prompt.MaxActivationDistance = PROMPT_DISTANCE

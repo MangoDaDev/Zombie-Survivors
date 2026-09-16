@@ -3,6 +3,7 @@ local RunService = game:GetService("RunService")
 local TextChatService = game:GetService("TextChatService")
 local Workspace = game:GetService("Workspace")
 
+local FormatNumber = require(ReplicatedStorage.Modules.Math.FormatNumber)
 local SharedClass = require(ReplicatedStorage.Modules.Core.SharedClass)
 local CollisionGroups = require(ReplicatedStorage.Modules.Game.CollisionGroups)
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
@@ -245,7 +246,7 @@ function MuseumVisitor:ShowCash(amount: number)
 	label.BackgroundTransparency = 1
 	label.FontFace = COMIC_FONT
 	label.Size = UDim2.fromScale(1, 1)
-	label.Text = `+{amount}`
+	label.Text = `+{FormatNumber(amount) or "0"}`
 	label.TextColor3 = Color3.fromRGB(72, 232, 91)
 	label.TextScaled = true
 	label.Parent = billboard

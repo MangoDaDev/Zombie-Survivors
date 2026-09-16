@@ -74,7 +74,7 @@ end
 local function GetDisplay(Occupied: boolean): Model?
 	local Museum = GetMuseum()
 	if not Museum then return nil end
-	for _, Child in Museum:GetChildren() do
+	for _, Child in Museum:GetDescendants() do
 		if not Child:IsA("Model") or not string.match(Child.Name, "^Display_%d+$") then continue end
 		local Prompt = Child:FindFirstChild("PlaceItemPrompt", true)
 		if Prompt and Prompt:IsA("ProximityPrompt") and Prompt.Enabled == (not Occupied) then return Child end

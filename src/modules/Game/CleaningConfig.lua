@@ -1,5 +1,3 @@
-local UpgradeConfig = require(script.Parent.UpgradeConfig)
-
 local CleaningConfig = {
 	AutoCompletionThreshold = 0.9,
 	BrushRadiusPixels = 54,
@@ -26,8 +24,6 @@ local CleaningConfig = {
 	SpongeScrubFrequency = 9,
 	StepTransitionDelay = 0.45,
 	FullCompletionDelay = 1,
-	RestorationRewardRate = 0.75,
-	MinimumRestorationReward = 30,
 	DirtDamageSoundName = "Hooked",
 	Tools = {
 		{
@@ -74,6 +70,7 @@ local CleaningConfig = {
 	Steps = {
 		{
 			Id = "Spray",
+			MinimumRestorationTier = 1,
 			Type = "Dirt",
 			IconName = "Dirt",
 			DisplayName = "Spraying",
@@ -82,6 +79,7 @@ local CleaningConfig = {
 		},
 		{
 			Id = "SprayPaint",
+			MinimumRestorationTier = 4,
 			Type = "Paint",
 			IconName = "Paint",
 			DisplayName = "Restoring Paint",
@@ -94,6 +92,7 @@ local CleaningConfig = {
 		},
 		{
 			Id = "Sponge",
+			MinimumRestorationTier = 2,
 			Type = "Grease",
 			IconName = "Grease",
 			DisplayName = "Scrubbing",
@@ -124,22 +123,11 @@ function CleaningConfig.GetStep(StepId: string)
 	end
 end
 
-function CleaningConfig.GetToolUnlockCost(ToolId: string): number
-	if ToolId == "Spray" then return 0 end
-	for _, Upgrade in UpgradeConfig.Upgrades do
-		local Effect = Upgrade.Effect
-		if Effect and Effect.Type == "ToolUnlock" and Effect.ToolId == ToolId then
-			return Upgrade.Cost
-		end
-	end
-	return math.huge
-end
-
 function CleaningConfig.GetStepsForItem(ItemInfo): { any }
 	local Steps = {}
-	local ItemPrice = if type(ItemInfo.Price) == "number" then ItemInfo.Price else 0
+	local RestorationTier = if type(ItemInfo.RestorationTier) == "number" then ItemInfo.RestorationTier else 1
 	for _, StepInfo in CleaningConfig.Steps do
-		if ItemPrice >= CleaningConfig.GetToolUnlockCost(StepInfo.ToolId) then
+		if RestorationTier >= StepInfo.MinimumRestorationTier then
 			table.insert(Steps, StepInfo)
 		end
 	end

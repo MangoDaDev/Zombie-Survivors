@@ -10,9 +10,11 @@ local Workspace = game:GetService("Workspace")
 local CarryController = require(ServerStorage.Controllers.CarryController)
 local CrateInfo = require(ReplicatedStorage.Modules.Game.CrateInfo)
 local DirtRenderer = require(ReplicatedStorage.Modules.Game.DirtRenderer)
+local FormatNumber = require(ReplicatedStorage.Modules.Math.FormatNumber)
 local FormatTime = require(ReplicatedStorage.Modules.Math.FormatTime)
-local GetRandomFromWeightedTable = require(ReplicatedStorage.Modules.Math.GetRandomFromWeightedTable)
 local ItemInfoBillboard = require(ReplicatedStorage.Modules.UI.ItemInfoBillboard)
+local ItemDespawnCountdown = require(ReplicatedStorage.Modules.UI.ItemDespawnCountdown)
+local ItemInteractionConfig = require(ReplicatedStorage.Modules.Game.ItemInteractionConfig)
 local ItemsInfo = require(ReplicatedStorage.Modules.Game.ItemsInfo)
 local GuidanceController = require(ServerStorage.Controllers.GuidanceController)
 local MuseumController = require(ServerStorage.Controllers.MuseumController)
@@ -56,7 +58,7 @@ local function GetRewardItemInfo(Player: Player, Info)
 			return GuaranteedItemInfo
 		end
 	end
-	return GetRandomFromWeightedTable.GetRandomFromWeightedTable(ItemsInfo, "ChanceWeight", nil, Info.ActualLootLuck)
+	return CrateInfo.GetRandomItem(ItemsInfo, Info, RandomGenerator)
 end
 
 local function GetRevealDuration(Info): number
@@ -261,7 +263,7 @@ local function CreateReward(State, Player: Player)
 	Model.Parent = RewardFolder
 	local Prompt = Instance.new("ProximityPrompt")
 	Prompt.Name = "PurchasePrompt"
-	Prompt.ActionText = `Buy ${ItemInfo.Price}`
+	Prompt.ActionText = `Buy ${FormatNumber(ItemInfo.Price) or "0"}`
 	Prompt.ObjectText = "???"
 	Prompt.HoldDuration = 0
 	Prompt.MaxActivationDistance = Info.PurchaseDistance - 3
@@ -278,11 +280,25 @@ local function CreateReward(State, Player: Player)
 		Model = Model,
 		Prompt = Prompt,
 		AvailableAt = Workspace:GetServerTimeNow() + RevealDuration + Info.RevealFadeTime,
+		ExpiresAt = Workspace:GetServerTimeNow() + RevealDuration + Info.RevealFadeTime + ItemInteractionConfig.WorldItemDespawnDuration,
 		Purchased = false,
 		RevealTransparencies = RevealTransparencies,
 	}
+	Reward.Countdown, Reward.CountdownLabel = ItemDespawnCountdown.Create(Model, Box)
 	Rewards[RewardId] = Reward
-	Reward.Connection = Prompt.Triggered:Connect(function(Player) PurchaseReward(RewardId, Player) end)
+	Reward.Connection = Prompt.Triggered:Connect(function(Player)
+		if Rewards[RewardId] ~= Reward or Reward.Interacting then return end
+		Reward.Interacting = true
+		Reward.InteractionStartedAt = Workspace:GetServerTimeNow()
+		Prompt.Enabled = false
+		PurchaseReward(RewardId, Player)
+		if Rewards[RewardId] == Reward then
+			Reward.ExpiresAt += Workspace:GetServerTimeNow() - Reward.InteractionStartedAt
+			Reward.Interacting = false
+			Reward.InteractionStartedAt = nil
+			Prompt.Enabled = Workspace:GetServerTimeNow() >= Reward.AvailableAt
+		end
+	end)
 	Network:fireAll("StartReveal", RewardId, ItemInfo.Id, GroundCFrame, Info.Id)
 	task.delay(RevealDuration, function()
 		if Rewards[RewardId] ~= Reward then return end
@@ -303,7 +319,26 @@ local function CreateReward(State, Player: Player)
 			Prompt.Enabled = true
 		end)
 	end)
-	task.delay(Info.RevealLifetime, function() if Rewards[RewardId] == Reward then RemoveReward(RewardId, "Expired") end end)
+end
+
+local function UpdateRewardDespawnTimers()
+	local Now = Workspace:GetServerTimeNow()
+	local ExpiredRewardIds = {}
+	for RewardId, Reward in Rewards do
+		if Reward.Purchased or Reward.Interacting or Now < Reward.AvailableAt then continue end
+		local Remaining = Reward.ExpiresAt - Now
+		if Remaining <= 0 then
+			table.insert(ExpiredRewardIds, RewardId)
+		else
+			ItemDespawnCountdown.Update(
+				Reward.Countdown,
+				Reward.CountdownLabel,
+				Remaining,
+				ItemInteractionConfig.WorldItemCountdownDuration
+			)
+		end
+	end
+	for _, RewardId in ExpiredRewardIds do RemoveReward(RewardId, "Expired") end
 end
 
 local function BreakCrate(State, Player: Player)
@@ -606,6 +641,12 @@ function CrateController.Init()
 		CrateController.GetRuntimeState,
 	})
 	CreatePityDisplay()
+	task.spawn(function()
+		while RewardFolder.Parent do
+			UpdateRewardDespawnTimers()
+			task.wait(ItemInteractionConfig.WorldItemTimerUpdateInterval)
+		end
+	end)
 	task.spawn(function()
 		while true do UpdatePityDisplay(); task.wait(1) end
 	end)

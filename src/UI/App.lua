@@ -2,6 +2,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local vide = require(ReplicatedStorage.Packages.vide)
 local BottomRight = require(script.Parent.HUD.BottomRight)
+local CarryOverlay = require(script.Parent.HUD.CarryOverlay)
 local CleaningHUD = require(script.Parent.HUD.CleaningHUD)
 local CrateResetTimer = require(script.Parent.HUD.CrateResetTimer)
 local FixingOverlay = require(script.Parent.HUD.FixingOverlay)
@@ -16,6 +17,7 @@ return function()
 		IgnoreGuiInset = true,
 		ResetOnSpawn = false,
 		BottomRight(),
+		CarryOverlay(),
 		CleaningHUD(),
 		CrateResetTimer(),
 		FixingOverlay(),

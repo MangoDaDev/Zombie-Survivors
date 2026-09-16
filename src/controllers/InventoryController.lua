@@ -8,11 +8,16 @@ local RuntimeState = require(ReplicatedStorage.Modules.Game.RuntimeState)
 local ToolResolver = require(ReplicatedStorage.Modules.Game.ToolResolver)
 
 local InventoryController = {}
+local Network
+
+function InventoryController.DropCarriedItem()
+	if Network then Network:fire("RequestDrop") end
+end
 
 function InventoryController.Init()
 	task.spawn(function()
 		local satchel = require(ReplicatedStorage.Packages.satchel)
-		local networker = Networker.client.new("InventoryController", InventoryController)
+		Network = Networker.client.new("InventoryController", InventoryController)
 		local lastInventoryOrder: string?
 
 		local function EnsureBatFirst()
@@ -82,7 +87,7 @@ function InventoryController.Init()
 			end
 
 			lastInventoryOrder = inventoryOrder
-			networker:fire("SaveInventoryOrder", itemIds)
+			Network:fire("SaveInventoryOrder", itemIds)
 		end
 
 		local function saveInventoryOrderDeferred()

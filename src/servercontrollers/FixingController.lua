@@ -7,8 +7,10 @@ local TweenService = game:GetService("TweenService")
 local CarryController = require(ServerStorage.Controllers.CarryController)
 local GuidanceController = require(ServerStorage.Controllers.GuidanceController)
 local CleaningConfig = require(ReplicatedStorage.Modules.Game.CleaningConfig)
+local EconomyConfig = require(ReplicatedStorage.Modules.Game.EconomyConfig)
 local DirtRenderer = require(ReplicatedStorage.Modules.Game.DirtRenderer)
 local GreaseRenderer = require(ReplicatedStorage.Modules.Game.GreaseRenderer)
+local ItemInteractionConfig = require(ReplicatedStorage.Modules.Game.ItemInteractionConfig)
 local ItemInfoBillboard = require(ReplicatedStorage.Modules.UI.ItemInfoBillboard)
 local ItemsInfo = require(ReplicatedStorage.Modules.Game.ItemsInfo)
 local MuseumController = require(ServerStorage.Controllers.MuseumController)
@@ -20,7 +22,7 @@ local ToolResolver = require(ReplicatedStorage.Modules.Game.ToolResolver)
 local UpgradeLogic = require(ReplicatedStorage.Modules.Game.UpgradeLogic)
 
 local CONFIG = {
-	RotationSpeed = math.rad(12),
+	RotationSpeed = math.rad(ItemInteractionConfig.FixingRotationSpeedDegrees),
 	RotationResponsiveness = 5,
 	FeedbackSoundMaxDistance = 50,
 }
@@ -64,7 +66,7 @@ local function CompleteRestorationState(Player, ItemId, ItemInfo, State)
 	end
 	State.CompletionRewardClaimed = true
 	SaveState(Player, ItemId, State)
-	local Reward = math.max(CleaningConfig.MinimumRestorationReward, math.round(ItemInfo.Price * CleaningConfig.RestorationRewardRate))
+	local Reward = EconomyConfig.GetRestorationReward(ItemInfo.Price)
 	DataService:update(Player, "Cash", function(Cash)
 		return (if type(Cash) == "number" then Cash else 0) + Reward
 	end)
@@ -179,12 +181,20 @@ local function PrepareAllTargets(Session)
 				Step.PatchColor,
 				Step.PatchTransparency
 			)
+			local RenderedCount = if Session.Grease then #Session.Grease:GetChildren() else 0
+			local CompletedCount = math.max(0, StepState.Total - StepState.Remaining)
+			StepState.Total = CompletedCount + RenderedCount
+			StepState.Remaining = RenderedCount
 		end
 	end
 	for _, Step in Session.Steps do
 		local StepState = Session.State.Steps[Step.Id]
 		if Step.Type == "Dirt" and StepState.Completed ~= true then
 			Session.Dirt = DirtRenderer.Add(Session.Model, StepState.Remaining, Session.ItemInfo.DirtHP)
+			local RenderedCount = if Session.Dirt then #Session.Dirt:GetChildren() else 0
+			local CompletedCount = math.max(0, StepState.Total - StepState.Remaining)
+			StepState.Total = CompletedCount + RenderedCount
+			StepState.Remaining = RenderedCount
 		end
 	end
 end
@@ -414,8 +424,8 @@ local function StartFixing(Player)
 	Session.HumanoidDiedConnection = Humanoid.Died:Connect(function() task.defer(ClearSession, Player) end)
 	Sessions[Player] = Session
 	if Session.Prompt then Session.Prompt.Enabled = false end
-	SaveState(Player, ItemId, State)
 	PrepareAllTargets(Session)
+	SaveState(Player, ItemId, State)
 	PrepareCurrentStep(Player, Session)
 	GuidanceController.Advance(Player, "StartCleaning")
 	if GetStepProgress(Session) >= CleaningConfig.AutoCompletionThreshold then task.defer(CompleteCurrentStep, Player, Session) end
