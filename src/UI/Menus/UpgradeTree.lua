@@ -3,6 +3,7 @@ local ReplicatedStorage = game:GetService "ReplicatedStorage"
 local TweenService = game:GetService "TweenService"
 local UserInputService = game:GetService "UserInputService"
 
+local BatInfo = require(ReplicatedStorage.Modules.Game.BatInfo)
 local UpgradeConfig = require(ReplicatedStorage.Modules.Game.UpgradeConfig)
 local UpgradeLogic = require(ReplicatedStorage.Modules.Game.UpgradeLogic)
 local DataService = require(ReplicatedStorage.Packages.dataservice).client
@@ -30,7 +31,23 @@ local StateColors = {
 	Available = UIStyle.Colors.Blue,
 	Purchased = UIStyle.Colors.Paper,
 }
+
+-- IMPORTANT:
+-- Do not reintroduce visual connector/link lines between upgrade nodes.
+-- The upgrade tree is intentionally designed to communicate progression through
+-- node placement, grouping, and spacing instead.
 local TreeCanvasSize = UpgradeConfig.CameraBounds * 2 + Vector2.one * UpgradeConfig.NodeSize * 2
+local BatInfoById = {}
+for _, Info in BatInfo do BatInfoById[Info.Id] = Info end
+
+local function ResolveUpgradeIcon(Upgrade): string
+	local EffectInfo = Upgrade.Effect
+	if EffectInfo and EffectInfo.Type == "BatTier" then
+		local Info = BatInfoById[EffectInfo.BatId]
+		if Info then return Images[Info.Icon] or Images.Upgrade end
+	end
+	return Images[Upgrade.Icon] or Images.Upgrade
+end
 
 local function ClampCamera(Position: Vector2): Vector2
 	local Bounds = UpgradeConfig.CameraBounds
@@ -100,7 +117,7 @@ local function CreateNode(Properties)
 		0.15,
 		0.86
 	)
-	local Icon = Images[Upgrade.Icon] or Images.Upgrade
+	local Icon = ResolveUpgradeIcon(Upgrade)
 	local NodeNotification
 
 	Effect(function()

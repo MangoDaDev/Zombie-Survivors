@@ -79,7 +79,7 @@ Quick reference for the project's first-party Luau scripts. Generated Wally depe
 | `src/modules/Game/RestorationTargetRenderer.lua` | RestorationTargetRenderer | Creates and tracks scaled light-dust, loose-debris, bent-component, embedded-metal, and dull-finish targets for the specialized restoration tools. |
 | `src/modules/Game/SurfacePlacement.lua` | SurfacePlacement | Selects area-weighted item surfaces and uses bounded outward raycasts to return validated exterior positions and normals. |
 | `src/modules/Game/TutorialConfig.lua` | TutorialConfig | Defines the short ordered objectives used by the persistent guided tutorial. |
-| `src/modules/Game/UpgradeConfig.lua` | UpgradeConfig | Defines the edge-adjacent hex layout, economy-scaled upgrade cost curves, restoration-tool unlocks, capacity, tool stats, eleven bat tiers, and bat cooldowns. |
+| `src/modules/Game/UpgradeConfig.lua` | UpgradeConfig | Defines the deterministic graph-based upgrade layout, linear restoration-tool progression, reusable lower-right level branches, capacity, tool stats, eleven bat tiers, and bat cooldowns. |
 | `src/modules/Game/UpgradeLogic.lua` | UpgradeLogic | Resolves ownership, prerequisites, affordability, visibility, capacity, automatic base Spray access, tool unlock sources and stats, bat tiers, and bat cooldown. |
 | `src/modules/Game/TeleportLocalPlayer.lua` | TeleportLocalPlayer | Moves the local character to a CFrame or BasePart. |
 | `src/modules/Game/TeleportPlayer.lua` | TeleportPlayer | Moves a Player's character or a supplied character model to a target. |
@@ -175,5 +175,5 @@ Quick reference for the project's first-party Luau scripts. Generated Wally depe
 | `src/UI/HUD/Notifications.lua` | Notifications | Renders reusable transient notification messages with compact attention animation. |
 | `src/UI/Effects/HoverExpand.lua` | HoverExpand | Provides the reusable hover scaling used by attention notification badges. |
 | `src/UI/Effects/Notification.lua` | Notification | Provides counted attention badges with periodic pulse, shake, color, hover, and lifecycle cleanup. |
-| `src/UI/Menus/UpgradeTree.lua` | UpgradeTree | Provides a responsive STUD-style upgrade panel and opener with a live purchasable-upgrade count, textured paper canvas, consistent state-colored nodes and controls, masked ghost details, drag panning, zoom, reveals, and purchasing. |
+| `src/UI/Menus/UpgradeTree.lua` | UpgradeTree | Provides a responsive STUD-style upgrade panel and opener whose intentionally connector-free layout communicates progression through deterministic placement and grouping, with a live purchasable-upgrade count, BatInfo-driven bat icons, drag panning, zoom, reveals, and purchasing. |
 | `src/UI/UIOrigin.lua` | UIOrigin | Mounts the Vide application once into the local PlayerGui. |

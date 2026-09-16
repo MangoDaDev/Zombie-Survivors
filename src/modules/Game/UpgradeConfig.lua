@@ -1,8 +1,36 @@
 local NODE_SIZE = 96
-local HEX_ROW_HEIGHT = math.round(NODE_SIZE * math.sqrt(3) / 2)
+local MAIN_SPACING = 180
+local LEVEL_BRANCH_OFFSET = Vector2.new(60, 150)
+local LEVEL_SPACING = 150
+local DISPLAY_ROW_ORIGIN = Vector2.new(90, -260)
 
-local function GetHexPosition(Column: number, Row: number): Vector2
-	return Vector2.new(NODE_SIZE * (Column + Row / 2), HEX_ROW_HEIGHT * Row)
+-- IMPORTANT:
+-- Do not reintroduce visual connector/link lines between upgrade nodes.
+-- Keep parent/child relationships readable through these deterministic placement,
+-- grouping, and spacing rules instead.
+
+local function GetToolPosition(Index: number): Vector2
+	return Vector2.new(MAIN_SPACING * Index, 0)
+end
+
+local function GetLevelPosition(BasePosition: Vector2, Level: number): Vector2
+	return BasePosition + LEVEL_BRANCH_OFFSET + Vector2.new(0, LEVEL_SPACING * (Level - 1))
+end
+
+local function GetBatPosition(TierAfterWooden: number): Vector2
+	return Vector2.new(-MAIN_SPACING * TierAfterWooden, 0)
+end
+
+local function GetDisplayPosition(LevelAfterBase: number): Vector2
+	return DISPLAY_ROW_ORIGIN + Vector2.new(MAIN_SPACING * (LevelAfterBase - 1), 0)
+end
+
+local function GetVisitorPosition(LevelAfterBase: number): Vector2
+	return Vector2.new(-260 - MAIN_SPACING * (LevelAfterBase - 1), -180 - LEVEL_SPACING * (LevelAfterBase - 1))
+end
+
+local function GetBatCooldownPosition(Level: number): Vector2
+	return GetLevelPosition(GetBatPosition(1), Level)
 end
 
 local UpgradeConfig = {
@@ -13,7 +41,7 @@ local UpgradeConfig = {
 	ZoomStep = 1.14,
 	CameraRecoveryDistance = 384,
 	MaximumMysteryDistance = 2,
-	CameraBounds = Vector2.new(1_560, 540),
+	CameraBounds = Vector2.new(2_100, 720),
 	DefaultDisplayLimit = 8,
 	DefaultVisitorsPerDisplay = 2,
 	DefaultBatId = "WoodenBat",
@@ -29,9 +57,9 @@ local UpgradeConfig = {
 			Description = "The beginning of your museum progression.",
 			Cost = 0,
 			Icon = "Upgrade",
-			Position = GetHexPosition(0, 0),
+			Position = Vector2.zero,
 			Prerequisites = {},
-			ConnectedUpgrades = { "Display9", "Visitors3", "SpraySpeed1", "UnlockSponge", "UnlockSoftBrush", "StoneBat", "BatCooldown1" },
+			ConnectedUpgrades = { "Display9", "Visitors3", "SpraySpeed1", "UnlockSponge", "StoneBat", "BatCooldown1" },
 			Branch = "Core",
 			ShortValue = "START",
 			Purchasable = false,
@@ -42,7 +70,7 @@ local UpgradeConfig = {
 			Description = "Unlocks a ninth usable museum display.",
 			Cost = 1_000,
 			Icon = "Area",
-			Position = GetHexPosition(1, 0),
+			Position = GetDisplayPosition(1),
 			Prerequisites = { "Start" },
 			ConnectedUpgrades = { "Display10" },
 			Branch = "MuseumCapacity",
@@ -55,7 +83,7 @@ local UpgradeConfig = {
 			Description = "Unlocks a tenth usable museum display.",
 			Cost = 35_000,
 			Icon = "Area",
-			Position = GetHexPosition(2, 0),
+			Position = GetDisplayPosition(2),
 			Prerequisites = { "Display9" },
 			ConnectedUpgrades = { "Display11" },
 			Branch = "MuseumCapacity",
@@ -68,7 +96,7 @@ local UpgradeConfig = {
 			Description = "Unlocks an eleventh usable museum display.",
 			Cost = 650_000,
 			Icon = "Area",
-			Position = GetHexPosition(3, 0),
+			Position = GetDisplayPosition(3),
 			Prerequisites = { "Display10" },
 			ConnectedUpgrades = { "Display12" },
 			Branch = "MuseumCapacity",
@@ -81,7 +109,7 @@ local UpgradeConfig = {
 			Description = "Unlocks a twelfth usable museum display.",
 			Cost = 8_000_000,
 			Icon = "Area",
-			Position = GetHexPosition(4, 0),
+			Position = GetDisplayPosition(4),
 			Prerequisites = { "Display11" },
 			ConnectedUpgrades = { "Display13" },
 			Branch = "MuseumCapacity",
@@ -90,42 +118,42 @@ local UpgradeConfig = {
 		},
 		{
 			Id = "Display13", Name = "13 Displays", Description = "Unlocks Museum Level 2 and its first display.", Cost = 15_000_000,
-			Icon = "Area", Position = GetHexPosition(5, 0), Prerequisites = { "Display12" }, ConnectedUpgrades = { "Display14" },
+			Icon = "Area", Position = GetDisplayPosition(5), Prerequisites = { "Display12" }, ConnectedUpgrades = { "Display14" },
 			Branch = "MuseumCapacity", ShortValue = "13 Displays", Effect = { Type = "DisplayLimit", Value = 13 },
 		},
 		{
 			Id = "Display14", Name = "14 Displays", Description = "Unlocks a fourteenth usable museum display.", Cost = 25_000_000,
-			Icon = "Area", Position = GetHexPosition(6, 0), Prerequisites = { "Display13" }, ConnectedUpgrades = { "Display15" },
+			Icon = "Area", Position = GetDisplayPosition(6), Prerequisites = { "Display13" }, ConnectedUpgrades = { "Display15" },
 			Branch = "MuseumCapacity", ShortValue = "14 Displays", Effect = { Type = "DisplayLimit", Value = 14 },
 		},
 		{
 			Id = "Display15", Name = "15 Displays", Description = "Unlocks a fifteenth usable museum display.", Cost = 40_000_000,
-			Icon = "Area", Position = GetHexPosition(7, 0), Prerequisites = { "Display14" }, ConnectedUpgrades = { "Display16" },
+			Icon = "Area", Position = GetDisplayPosition(7), Prerequisites = { "Display14" }, ConnectedUpgrades = { "Display16" },
 			Branch = "MuseumCapacity", ShortValue = "15 Displays", Effect = { Type = "DisplayLimit", Value = 15 },
 		},
 		{
 			Id = "Display16", Name = "16 Displays", Description = "Unlocks a sixteenth usable museum display.", Cost = 60_000_000,
-			Icon = "Area", Position = GetHexPosition(8, 0), Prerequisites = { "Display15" }, ConnectedUpgrades = { "Display17" },
+			Icon = "Area", Position = GetDisplayPosition(8), Prerequisites = { "Display15" }, ConnectedUpgrades = { "Display17" },
 			Branch = "MuseumCapacity", ShortValue = "16 Displays", Effect = { Type = "DisplayLimit", Value = 16 },
 		},
 		{
 			Id = "Display17", Name = "17 Displays", Description = "Unlocks a seventeenth usable museum display.", Cost = 85_000_000,
-			Icon = "Area", Position = GetHexPosition(9, 0), Prerequisites = { "Display16" }, ConnectedUpgrades = { "Display18" },
+			Icon = "Area", Position = GetDisplayPosition(9), Prerequisites = { "Display16" }, ConnectedUpgrades = { "Display18" },
 			Branch = "MuseumCapacity", ShortValue = "17 Displays", Effect = { Type = "DisplayLimit", Value = 17 },
 		},
 		{
 			Id = "Display18", Name = "18 Displays", Description = "Unlocks an eighteenth usable museum display.", Cost = 115_000_000,
-			Icon = "Area", Position = GetHexPosition(10, 0), Prerequisites = { "Display17" }, ConnectedUpgrades = { "Display19" },
+			Icon = "Area", Position = GetDisplayPosition(10), Prerequisites = { "Display17" }, ConnectedUpgrades = { "Display19" },
 			Branch = "MuseumCapacity", ShortValue = "18 Displays", Effect = { Type = "DisplayLimit", Value = 18 },
 		},
 		{
 			Id = "Display19", Name = "19 Displays", Description = "Unlocks a nineteenth usable museum display.", Cost = 150_000_000,
-			Icon = "Area", Position = GetHexPosition(11, 0), Prerequisites = { "Display18" }, ConnectedUpgrades = { "Display20" },
+			Icon = "Area", Position = GetDisplayPosition(11), Prerequisites = { "Display18" }, ConnectedUpgrades = { "Display20" },
 			Branch = "MuseumCapacity", ShortValue = "19 Displays", Effect = { Type = "DisplayLimit", Value = 19 },
 		},
 		{
 			Id = "Display20", Name = "20 Displays", Description = "Unlocks the maximum of twenty museum displays.", Cost = 200_000_000,
-			Icon = "Area", Position = GetHexPosition(12, 0), Prerequisites = { "Display19" }, ConnectedUpgrades = {},
+			Icon = "Area", Position = GetDisplayPosition(12), Prerequisites = { "Display19" }, ConnectedUpgrades = {},
 			Branch = "MuseumCapacity", ShortValue = "20 Displays", Effect = { Type = "DisplayLimit", Value = 20 },
 		},
 		{
@@ -134,7 +162,7 @@ local UpgradeConfig = {
 			Description = "Allows three visitors to inspect one exhibit at once.",
 			Cost = 2_000,
 			Icon = "Binoculars",
-			Position = GetHexPosition(1, -1),
+			Position = GetVisitorPosition(1),
 			Prerequisites = { "Start" },
 			ConnectedUpgrades = { "Visitors4" },
 			Branch = "MuseumCapacity",
@@ -147,7 +175,7 @@ local UpgradeConfig = {
 			Description = "Allows four visitors to inspect one exhibit at once.",
 			Cost = 80_000,
 			Icon = "Binoculars",
-			Position = GetHexPosition(2, -2),
+			Position = GetVisitorPosition(2),
 			Prerequisites = { "Visitors3" },
 			ConnectedUpgrades = { "Visitors5" },
 			Branch = "MuseumCapacity",
@@ -160,7 +188,7 @@ local UpgradeConfig = {
 			Description = "Allows the maximum of five visitors at one exhibit.",
 			Cost = 2_000_000,
 			Icon = "Binoculars",
-			Position = GetHexPosition(3, -3),
+			Position = GetVisitorPosition(3),
 			Prerequisites = { "Visitors4" },
 			ConnectedUpgrades = {},
 			Branch = "MuseumCapacity",
@@ -169,31 +197,31 @@ local UpgradeConfig = {
 		},
 		{
 			Id = "UnlockSoftBrush", Name = "Unlock Soft Brush", Description = "Unlocks gentle brushing for light surface dust.",
-			Cost = 900, Icon = "SoftBrush", Position = GetHexPosition(1, 1), Prerequisites = { "Start" },
+			Cost = 900, Icon = "SoftBrush", Position = GetToolPosition(3), Prerequisites = { "UnlockSprayPaint" },
 			ConnectedUpgrades = { "UnlockHairdryer" }, Branch = "RestorationTools", ShortValue = "BRUSH",
 			Effect = { Type = "ToolUnlock", ToolId = "SoftBrush" },
 		},
 		{
 			Id = "UnlockHairdryer", Name = "Unlock Hairdryer", Description = "Unlocks directional airflow for loose debris.",
-			Cost = 12_000, Icon = "Hairdryer", Position = GetHexPosition(2, 1), Prerequisites = { "UnlockSoftBrush" },
+			Cost = 12_000, Icon = "Hairdryer", Position = GetToolPosition(4), Prerequisites = { "UnlockSoftBrush" },
 			ConnectedUpgrades = { "UnlockHammer" }, Branch = "RestorationTools", ShortValue = "AIR",
 			Effect = { Type = "ToolUnlock", ToolId = "Hairdryer" },
 		},
 		{
 			Id = "UnlockHammer", Name = "Unlock Hammer", Description = "Unlocks progressive repairs for bent components.",
-			Cost = 85_000, Icon = "Hammer", Position = GetHexPosition(3, 1), Prerequisites = { "UnlockHairdryer" },
+			Cost = 85_000, Icon = "Hammer", Position = GetToolPosition(5), Prerequisites = { "UnlockHairdryer" },
 			ConnectedUpgrades = { "UnlockMagnet" }, Branch = "RestorationTools", ShortValue = "HAMMER",
 			Effect = { Type = "ToolUnlock", ToolId = "Hammer" },
 		},
 		{
 			Id = "UnlockMagnet", Name = "Unlock Magnet", Description = "Unlocks extraction of embedded metal fragments.",
-			Cost = 650_000, Icon = "Magnet", Position = GetHexPosition(4, 1), Prerequisites = { "UnlockHammer" },
+			Cost = 650_000, Icon = "Magnet", Position = GetToolPosition(6), Prerequisites = { "UnlockHammer" },
 			ConnectedUpgrades = { "UnlockPolisher" }, Branch = "RestorationTools", ShortValue = "MAGNET",
 			Effect = { Type = "ToolUnlock", ToolId = "Magnet" },
 		},
 		{
 			Id = "UnlockPolisher", Name = "Unlock Polisher", Description = "Unlocks the final saturated colour and finish.",
-			Cost = 4_000_000, Icon = "Polisher", Position = GetHexPosition(5, 1), Prerequisites = { "UnlockMagnet" },
+			Cost = 4_000_000, Icon = "Polisher", Position = GetToolPosition(7), Prerequisites = { "UnlockMagnet" },
 			ConnectedUpgrades = {}, Branch = "RestorationTools", ShortValue = "POLISH",
 			Effect = { Type = "ToolUnlock", ToolId = "Polisher" },
 		},
@@ -203,7 +231,7 @@ local UpgradeConfig = {
 			Description = "Improves the spray bottle's cleaning speed and radius.",
 			Cost = 500,
 			Icon = "Auto",
-			Position = GetHexPosition(0, 1),
+			Position = GetLevelPosition(Vector2.zero, 1),
 			Prerequisites = { "Start" },
 			ConnectedUpgrades = { "SpraySpeed2" },
 			Branch = "Restoration",
@@ -216,7 +244,7 @@ local UpgradeConfig = {
 			Description = "Further improves the spray bottle's cleaning speed and radius.",
 			Cost = 25_000,
 			Icon = "Auto",
-			Position = GetHexPosition(0, 2),
+			Position = GetLevelPosition(Vector2.zero, 2),
 			Prerequisites = { "SpraySpeed1" },
 			ConnectedUpgrades = { "SpraySpeed3" },
 			Branch = "Restoration",
@@ -229,7 +257,7 @@ local UpgradeConfig = {
 			Description = "Maximizes the spray bottle's cleaning speed and radius.",
 			Cost = 1_000_000,
 			Icon = "Auto",
-			Position = GetHexPosition(0, 3),
+			Position = GetLevelPosition(Vector2.zero, 3),
 			Prerequisites = { "SpraySpeed2" },
 			ConnectedUpgrades = {},
 			Branch = "Restoration",
@@ -242,9 +270,9 @@ local UpgradeConfig = {
 			Description = "Unlocks spray paint for restoring damaged finishes.",
 			Cost = 8_000,
 			Icon = "SprayPaint",
-			Position = GetHexPosition(-1, 2),
+			Position = GetToolPosition(2),
 			Prerequisites = { "UnlockSponge" },
-			ConnectedUpgrades = { "SprayPaintSpeed1" },
+			ConnectedUpgrades = { "UnlockSoftBrush", "SprayPaintSpeed1" },
 			Branch = "Restoration",
 			ShortValue = "PAINT",
 			Effect = { Type = "ToolUnlock", ToolId = "SprayPaint" },
@@ -255,7 +283,7 @@ local UpgradeConfig = {
 			Description = "Improves spray paint restoration speed and radius.",
 			Cost = 35_000,
 			Icon = "Auto",
-			Position = GetHexPosition(-1, 3),
+			Position = GetLevelPosition(GetToolPosition(2), 1),
 			Prerequisites = { "UnlockSprayPaint" },
 			ConnectedUpgrades = { "SprayPaintSpeed2" },
 			Branch = "Restoration",
@@ -268,7 +296,7 @@ local UpgradeConfig = {
 			Description = "Further improves spray paint restoration speed and radius.",
 			Cost = 400_000,
 			Icon = "Auto",
-			Position = GetHexPosition(-1, 4),
+			Position = GetLevelPosition(GetToolPosition(2), 2),
 			Prerequisites = { "SprayPaintSpeed1" },
 			ConnectedUpgrades = { "SprayPaintSpeed3" },
 			Branch = "Restoration",
@@ -281,7 +309,7 @@ local UpgradeConfig = {
 			Description = "Maximizes spray paint restoration speed and radius.",
 			Cost = 5_000_000,
 			Icon = "Auto",
-			Position = GetHexPosition(-1, 5),
+			Position = GetLevelPosition(GetToolPosition(2), 3),
 			Prerequisites = { "SprayPaintSpeed2" },
 			ConnectedUpgrades = {},
 			Branch = "Restoration",
@@ -294,7 +322,7 @@ local UpgradeConfig = {
 			Description = "Unlocks the sponge for scrubbing grease.",
 			Cost = 250,
 			Icon = "Sponge",
-			Position = GetHexPosition(-1, 1),
+			Position = GetToolPosition(1),
 			Prerequisites = { "Start" },
 			ConnectedUpgrades = { "UnlockSprayPaint", "SpongeSpeed1" },
 			Branch = "Restoration",
@@ -307,7 +335,7 @@ local UpgradeConfig = {
 			Description = "Improves the sponge's cleaning speed and radius.",
 			Cost = 3_000,
 			Icon = "Auto",
-			Position = GetHexPosition(-2, 1),
+			Position = GetLevelPosition(GetToolPosition(1), 1),
 			Prerequisites = { "UnlockSponge" },
 			ConnectedUpgrades = { "SpongeSpeed2" },
 			Branch = "Restoration",
@@ -320,7 +348,7 @@ local UpgradeConfig = {
 			Description = "Further improves the sponge's cleaning speed and radius.",
 			Cost = 60_000,
 			Icon = "Auto",
-			Position = GetHexPosition(-3, 1),
+			Position = GetLevelPosition(GetToolPosition(1), 2),
 			Prerequisites = { "SpongeSpeed1" },
 			ConnectedUpgrades = { "SpongeSpeed3" },
 			Branch = "Restoration",
@@ -333,7 +361,7 @@ local UpgradeConfig = {
 			Description = "Maximizes the sponge's cleaning speed and radius.",
 			Cost = 1_250_000,
 			Icon = "Auto",
-			Position = GetHexPosition(-4, 1),
+			Position = GetLevelPosition(GetToolPosition(1), 3),
 			Prerequisites = { "SpongeSpeed2" },
 			ConnectedUpgrades = {},
 			Branch = "Restoration",
@@ -346,7 +374,7 @@ local UpgradeConfig = {
 			Description = "A heavier bat with greatly improved crate damage and range.",
 			Cost = 1_200,
 			Icon = "StoneBat",
-			Position = GetHexPosition(-1, 0),
+			Position = GetBatPosition(1),
 			Prerequisites = { "Start" },
 			ConnectedUpgrades = { "BronzeBat" },
 			Branch = "Combat",
@@ -359,7 +387,7 @@ local UpgradeConfig = {
 			Description = "A sturdy metal bat that breaks tougher crates more efficiently.",
 			Cost = 12_000,
 			Icon = "BronzeBat",
-			Position = GetHexPosition(-2, 0),
+			Position = GetBatPosition(2),
 			Prerequisites = { "StoneBat" },
 			ConnectedUpgrades = { "IronBat" },
 			Branch = "Combat",
@@ -372,7 +400,7 @@ local UpgradeConfig = {
 			Description = "A dependable forged bat with stronger crate-breaking power.",
 			Cost = 45_000,
 			Icon = "IronBat",
-			Position = GetHexPosition(-3, 0),
+			Position = GetBatPosition(3),
 			Prerequisites = { "BronzeBat" },
 			ConnectedUpgrades = { "GoldBat" },
 			Branch = "Combat",
@@ -385,7 +413,7 @@ local UpgradeConfig = {
 			Description = "A valuable bat with exceptional crate damage, speed, and range.",
 			Cost = 180_000,
 			Icon = "GoldBat",
-			Position = GetHexPosition(-4, 0),
+			Position = GetBatPosition(4),
 			Prerequisites = { "IronBat" },
 			ConnectedUpgrades = { "EmeraldBat" },
 			Branch = "Combat",
@@ -398,7 +426,7 @@ local UpgradeConfig = {
 			Description = "A powerful gemstone bat built to crush high-tier crates.",
 			Cost = 800_000,
 			Icon = "EmeraldBat",
-			Position = GetHexPosition(-5, 0),
+			Position = GetBatPosition(5),
 			Prerequisites = { "GoldBat" },
 			ConnectedUpgrades = { "TitaniumBat" },
 			Branch = "Combat",
@@ -411,7 +439,7 @@ local UpgradeConfig = {
 			Description = "A light, advanced metal bat with excellent speed and impact.",
 			Cost = 2_250_000,
 			Icon = "TitaniumBat",
-			Position = GetHexPosition(-6, 0),
+			Position = GetBatPosition(6),
 			Prerequisites = { "EmeraldBat" },
 			ConnectedUpgrades = { "DiamondBat" },
 			Branch = "Combat",
@@ -424,7 +452,7 @@ local UpgradeConfig = {
 			Description = "An elite bat with immense power against the strongest crates.",
 			Cost = 5_000_000,
 			Icon = "DiamondBat",
-			Position = GetHexPosition(-7, 0),
+			Position = GetBatPosition(7),
 			Prerequisites = { "TitaniumBat" },
 			ConnectedUpgrades = { "ReinforcedSteelBat" },
 			Branch = "Combat",
@@ -437,7 +465,7 @@ local UpgradeConfig = {
 			Description = "A heavily reinforced bat engineered for extreme crate damage.",
 			Cost = 12_000_000,
 			Icon = "ReinforcedSteelBat",
-			Position = GetHexPosition(-8, 0),
+			Position = GetBatPosition(8),
 			Prerequisites = { "DiamondBat" },
 			ConnectedUpgrades = { "ObsidianBat" },
 			Branch = "Combat",
@@ -450,7 +478,7 @@ local UpgradeConfig = {
 			Description = "A volcanic glass bat with devastating late-game power.",
 			Cost = 25_000_000,
 			Icon = "ObsidianBat",
-			Position = GetHexPosition(-9, 0),
+			Position = GetBatPosition(9),
 			Prerequisites = { "ReinforcedSteelBat" },
 			ConnectedUpgrades = { "MeteoriteBat" },
 			Branch = "Combat",
@@ -463,7 +491,7 @@ local UpgradeConfig = {
 			Description = "The ultimate bat, forged from extraterrestrial metal.",
 			Cost = 60_000_000,
 			Icon = "MeteoriteBat",
-			Position = GetHexPosition(-10, 0),
+			Position = GetBatPosition(10),
 			Prerequisites = { "ObsidianBat" },
 			ConnectedUpgrades = {},
 			Branch = "Combat",
@@ -476,7 +504,7 @@ local UpgradeConfig = {
 			Description = "Improves the attack speed of every bat tier.",
 			Cost = 2_500,
 			Icon = "Auto",
-			Position = GetHexPosition(0, -1),
+			Position = GetBatCooldownPosition(1),
 			Prerequisites = { "Start" },
 			ConnectedUpgrades = { "BatCooldown2" },
 			Branch = "CombatSpeed",
@@ -489,7 +517,7 @@ local UpgradeConfig = {
 			Description = "Further improves the attack speed of every bat tier.",
 			Cost = 120_000,
 			Icon = "Auto",
-			Position = GetHexPosition(0, -2),
+			Position = GetBatCooldownPosition(2),
 			Prerequisites = { "BatCooldown1" },
 			ConnectedUpgrades = { "BatCooldown3" },
 			Branch = "CombatSpeed",
@@ -502,7 +530,7 @@ local UpgradeConfig = {
 			Description = "Maximizes the attack speed of every bat tier.",
 			Cost = 3_000_000,
 			Icon = "Auto",
-			Position = GetHexPosition(0, -3),
+			Position = GetBatCooldownPosition(3),
 			Prerequisites = { "BatCooldown2" },
 			ConnectedUpgrades = {},
 			Branch = "CombatSpeed",

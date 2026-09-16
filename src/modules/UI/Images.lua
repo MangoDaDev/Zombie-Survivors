@@ -20,11 +20,11 @@ local Images = {
 	Spray = "rbxassetid://135880301537221",
 	SprayPaint = "rbxassetid://89126720010251",
 	Sponge = "rbxassetid://123208274489359",
-	SoftBrush = "rbxassetid://129209820289889",
-	Polisher = "rbxassetid://129209820289889",
-	Hairdryer = "rbxassetid://129209820289889",
-	Hammer = "rbxassetid://129209820289889",
-	Magnet = "rbxassetid://129209820289889",
+	SoftBrush = "rbxassetid://0", -- TODO: Replace with the uploaded Soft Brush icon.
+	Polisher = "rbxassetid://0", -- TODO: Replace with the uploaded Polisher icon.
+	Hairdryer = "rbxassetid://0", -- TODO: Replace with the uploaded Hairdryer icon.
+	Hammer = "rbxassetid://0", -- TODO: Replace with the uploaded Hammer icon.
+	Magnet = "rbxassetid://0", -- TODO: Replace with the uploaded Magnet icon.
 	WoodenBat = "rbxassetid://71860797320768",
 	StoneBat = "rbxassetid://138894146261760",
 	BronzeBat = "rbxassetid://124720062419393",
@@ -44,11 +44,11 @@ local Images = {
 		Dirt = "rbxassetid://111727278981257",
 		Paint = "rbxassetid://118966242175055",
 		Grease = "rbxassetid://97022398341091",
-		LightDust = "rbxassetid://129209820289889",
-		LooseDebris = "rbxassetid://129209820289889",
-		Bent = "rbxassetid://129209820289889",
-		Metal = "rbxassetid://129209820289889",
-		Polish = "rbxassetid://129209820289889",
+		LightDust = "rbxassetid://120760438361834",
+		LooseDebris = "rbxassetid://131209811325776",
+		Bent = "rbxassetid://132116868428994",
+		Metal = "rbxassetid://91240324179971",
+		Polish = "rbxassetid://119830985868329",
 	},
 }
 

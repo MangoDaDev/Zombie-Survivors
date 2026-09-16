@@ -30,4 +30,5 @@
 - Do not hide ordinary code errors with `pcall`, overengineer one-off behavior, or hardcode the same data in multiple places.
 - Do not repair the intentionally missing local Rojo/Rokit target or run automated playtests without an explicit request.
 - When a recurring mistake is discovered and fixed, add one short preventive rule here without expanding this file into documentation.
+- When I tell you explicitly to Not do something, leave a not in the code for future agents to not do it too.
 - DO NOT use screen capture or similar tools. They do not work.
