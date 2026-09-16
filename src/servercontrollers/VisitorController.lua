@@ -157,6 +157,15 @@ local VisitorController = {
 	Config = CONFIG,
 }
 
+local SKIN_COLORS = {
+	Color3.fromRGB(255, 224, 189),
+	Color3.fromRGB(241, 194, 125),
+	Color3.fromRGB(224, 172, 105),
+	Color3.fromRGB(198, 134, 66),
+	Color3.fromRGB(141, 85, 36),
+	Color3.fromRGB(92, 51, 23),
+}
+
 local dataService
 local visitTokens: { [Player]: {} } = {}
 local activeVisitors: { [Player]: { [any]: boolean } } = {}
@@ -315,6 +324,7 @@ local function runVisit(player: Player, token)
 		ShirtTemplate = getRandomChildOfClass(npcAssets.Shirts, "Shirt"),
 		PantsTemplate = getRandomChildOfClass(npcAssets.Pants, "Pants"),
 		HairTemplate = getRandomChildOfClass(npcAssets.Hair, "Accessory"),
+		SkinColor = SKIN_COLORS[math.random(1, #SKIN_COLORS)],
 	}
 	local ActiveForPlayer = activeVisitors[player]
 	if ActiveForPlayer == nil or visitTokens[player] ~= token then

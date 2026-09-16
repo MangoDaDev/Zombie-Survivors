@@ -624,10 +624,7 @@ return function()
 		Create "Frame" {
 			Name = "OpenButton",
 			AnchorPoint = Vector2.new(0, 0.5),
-			BackgroundColor3 = function()
-				local AttentionColor = if AffordableCount() > 0 then UIStyle.Colors.Green else UIStyle.Colors.Blue
-				return UIStyle.Colors.InkSoft:Lerp(AttentionColor, TutorialPulse() * 0.72)
-			end,
+			BackgroundColor3 = UIStyle.Colors.Blue,
 			BorderSizePixel = 0,
 			Position = UDim2.fromScale(0.018, 0.52),
 			Size = function()
@@ -641,10 +638,7 @@ return function()
 			end),
 			Create "UICorner" { CornerRadius = UIStyle.CornerRadius },
 			Create "UIStroke" {
-				Color = function()
-					local AttentionColor = if AffordableCount() > 0 then UIStyle.Colors.Green else UIStyle.Colors.Blue
-					return UIStyle.Colors.Ink:Lerp(AttentionColor, TutorialPulse())
-				end,
+				Color = UIStyle.Colors.Ink,
 				Thickness = function()
 					return 3 + TutorialPulse() * 2
 				end,

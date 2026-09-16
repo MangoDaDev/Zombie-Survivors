@@ -4,6 +4,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Button = require(script.Parent.Parent.Classes.Button)
 local InventoryController = require(ReplicatedStorage.Controllers.InventoryController)
 local RuntimeState = require(ReplicatedStorage.Modules.Game.RuntimeState)
+local UIStyle = require(ReplicatedStorage.Modules.UI.UIStyle)
 local Vide = require(ReplicatedStorage.Packages.vide)
 
 local Cleanup = Vide.cleanup
@@ -23,20 +24,20 @@ return function()
 
 	return Create "Frame" {
 		Name = "CarryOverlay",
-		AnchorPoint = Vector2.new(1, 0),
+		AnchorPoint = Vector2.new(0.5, 1),
 		BackgroundTransparency = 1,
-		Position = UDim2.fromScale(0.98, 0.04),
+		Position = UDim2.fromScale(0.5, 0.96),
 		Size = UDim2.fromScale(0.4, 0.075),
 		Visible = IsCarrying,
 		Create "UIListLayout" {
 			FillDirection = Enum.FillDirection.Horizontal,
-			HorizontalAlignment = Enum.HorizontalAlignment.Right,
+			HorizontalAlignment = Enum.HorizontalAlignment.Center,
 			SortOrder = Enum.SortOrder.LayoutOrder,
 			VerticalAlignment = Enum.VerticalAlignment.Center,
 		},
 		Button({
 			Text = "Drop",
-			BackgroundColor3 = Color3.fromRGB(190, 72, 54),
+			BackgroundColor3 = UIStyle.Colors.Red,
 			OnActivated = InventoryController.DropCarriedItem,
 		}),
 	}

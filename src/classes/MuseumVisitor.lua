@@ -101,7 +101,35 @@ local function prepareModel(model: Model)
 	end
 end
 
-local function applyAppearance(model: Model, shirtTemplate, pantsTemplate, hairTemplate)
+local function attachAccessory(model: Model, accessoryTemplate: Accessory)
+	local accessory = accessoryTemplate:Clone()
+	local handle = accessory:FindFirstChild("Handle")
+	local accessoryAttachment = handle and handle:FindFirstChildOfClass("Attachment")
+	local characterAttachment = accessoryAttachment and model:FindFirstChild(accessoryAttachment.Name, true)
+	if handle == nil or not handle:IsA("BasePart") or accessoryAttachment == nil or characterAttachment == nil then
+		accessory:Destroy()
+		return
+	end
+
+	local characterPart = characterAttachment.Parent
+	if characterPart == nil or not characterPart:IsA("BasePart") then
+		accessory:Destroy()
+		return
+	end
+
+	accessory.Parent = model
+	handle.CFrame = characterPart.CFrame * characterAttachment.CFrame * accessoryAttachment.CFrame:Inverse()
+
+	local weld = Instance.new("Weld")
+	weld.Name = "AccessoryWeld"
+	weld.Part0 = handle
+	weld.Part1 = characterPart
+	weld.C0 = accessoryAttachment.CFrame
+	weld.C1 = characterAttachment.CFrame
+	weld.Parent = handle
+end
+
+local function applyAppearance(model: Model, shirtTemplate, pantsTemplate, hairTemplate, skinColor)
 	if shirtTemplate and shirtTemplate:IsA "Shirt" then
 		shirtTemplate:Clone().Parent = model
 	end
@@ -109,9 +137,17 @@ local function applyAppearance(model: Model, shirtTemplate, pantsTemplate, hairT
 		pantsTemplate:Clone().Parent = model
 	end
 	if hairTemplate and hairTemplate:IsA "Accessory" then
-		local humanoid = model:FindFirstChildOfClass "Humanoid"
-		if humanoid then
-			humanoid:AddAccessory(hairTemplate:Clone())
+		attachAccessory(model, hairTemplate)
+	end
+	if typeof(skinColor) == "Color3" then
+		local bodyColors = model:FindFirstChildOfClass "BodyColors"
+		if bodyColors then
+			bodyColors.HeadColor3 = skinColor
+			bodyColors.LeftArmColor3 = skinColor
+			bodyColors.LeftLegColor3 = skinColor
+			bodyColors.RightArmColor3 = skinColor
+			bodyColors.RightLegColor3 = skinColor
+			bodyColors.TorsoColor3 = skinColor
 		end
 	end
 end
@@ -145,7 +181,7 @@ function MuseumVisitor:Render()
 
 	local model = template:Clone()
 	model.Name = `MuseumVisitor_{self.UniqueId}`
-	applyAppearance(model, self.ShirtTemplate, self.PantsTemplate, self.HairTemplate)
+	applyAppearance(model, self.ShirtTemplate, self.PantsTemplate, self.HairTemplate, self.SkinColor)
 	prepareModel(model)
 	model.Parent = getRenderFolder()
 	self.feetOffset = GetFeetOffset(model)

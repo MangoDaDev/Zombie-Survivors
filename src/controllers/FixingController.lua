@@ -60,8 +60,10 @@ local LastReportedRemaining = 0
 local LastProgressReport = 0
 local CompletionRequested = false
 local LastDirtFeedback = 0
+local CameraEntryId = 0
 
 local CAMERA_BINDING_NAME = "CleaningCameraAndArm"
+local CAMERA_SETUP_TIMEOUT = 10
 local DISABLE_CONTROLS_ACTION_NAME = "DisableFixingControls"
 local DISABLE_CONTROLS_PRIORITY = Enum.ContextActionPriority.High.Value
 local TOOL_SOUND_MAX_DISTANCE = 50
@@ -242,6 +244,7 @@ local function StartToolEffects(Tool: Tool, ToolInfo)
 end
 
 local function Restore()
+	CameraEntryId += 1
 	UsingTool = false
 	ActiveToolId = nil
 	RequestedToolId = nil
@@ -353,13 +356,6 @@ local function CreateViewmodelTool(SourceTool: Tool, ToolInfo)
 	ViewmodelSourceTool = SourceTool
 end
 
-local function GetProjectedHalfExtent(Box: BasePart, Direction: Vector3): number
-	local HalfSize = Box.Size / 2
-	return math.abs(Box.CFrame.RightVector:Dot(Direction)) * HalfSize.X
-		+ math.abs(Box.CFrame.UpVector:Dot(Direction)) * HalfSize.Y
-		+ math.abs(Box.CFrame.LookVector:Dot(Direction)) * HalfSize.Z
-end
-
 local function GetFixingCameraCFrame(Camera: Camera, CameraPart: BasePart, TableSurface: BasePart, Box: BasePart): CFrame
 	local TargetPosition = Box.Position
 	local SurfaceNormal = TableSurface.CFrame.UpVector
@@ -373,20 +369,20 @@ local function GetFixingCameraCFrame(Camera: Camera, CameraPart: BasePart, Table
 
 	local Elevation = math.rad(CleaningConfig.ItemCameraElevationDegrees)
 	local ViewDirection = (FrontDirection * math.cos(Elevation) + SurfaceNormal * math.sin(Elevation)).Unit
-	local ViewCFrame = CFrame.lookAt(TargetPosition + ViewDirection, TargetPosition, SurfaceNormal)
 	local VerticalFieldOfView = math.rad(Camera.FieldOfView)
 	local AspectRatio = Camera.ViewportSize.X / math.max(Camera.ViewportSize.Y, 1)
 	local HorizontalFieldOfView = 2 * math.atan(math.tan(VerticalFieldOfView / 2) * AspectRatio)
-	local HalfWidth = GetProjectedHalfExtent(Box, ViewCFrame.RightVector)
-	local HalfHeight = GetProjectedHalfExtent(Box, ViewCFrame.UpVector)
-	local HalfDepth = GetProjectedHalfExtent(Box, ViewDirection)
+	local HalfHeight = Box.Size.Y / 2
+	local FootprintRadius = Vector2.new(Box.Size.X, Box.Size.Z).Magnitude / 2
+	local VerticalExtent = HalfHeight * math.cos(Elevation) + FootprintRadius * math.sin(Elevation)
+	local DepthExtent = HalfHeight * math.sin(Elevation) + FootprintRadius * math.cos(Elevation)
 	local FitDistance = math.max(
-		HalfWidth / math.max(math.tan(HorizontalFieldOfView / 2), 0.01),
-		HalfHeight / math.max(math.tan(VerticalFieldOfView / 2), 0.01)
+		FootprintRadius / math.max(math.tan(HorizontalFieldOfView / 2), 0.01),
+		VerticalExtent / math.max(math.tan(VerticalFieldOfView / 2), 0.01)
 	)
 	local Distance = math.max(
 		CleaningConfig.ItemCameraMinimumDistance,
-		HalfDepth + FitDistance * CleaningConfig.ItemCameraPadding
+		DepthExtent + FitDistance * CleaningConfig.ItemCameraPadding
 	)
 	return CFrame.lookAt(TargetPosition + ViewDirection * Distance, TargetPosition, SurfaceNormal)
 end
@@ -394,39 +390,60 @@ end
 local function EnterFixingView()
 	Restore()
 	if RuntimeState.Get(LocalPlayer, "IsFixing", false) ~= true then return end
-	local Character = LocalPlayer.Character
-	local Museums = Workspace:FindFirstChild("PlayerMuseums")
-	local Museum = Museums and Museums:FindFirstChild(`Museum_{LocalPlayer.UserId}`)
-	local TableModel = Museum and Museum:FindFirstChild("Table")
-	local CameraPart = TableModel and TableModel:FindFirstChild("CamPart")
-	local TableSurface = TableModel and TableModel:FindFirstChild("PromptPart")
-	local FixingItem = GetFixingItemModel()
-	local Box = FixingItem and FixingItem:FindFirstChild("BoundingBox")
-	if not Character
-		or not CameraPart or not CameraPart:IsA("BasePart")
-		or not TableSurface or not TableSurface:IsA("BasePart")
-		or not Box or not Box:IsA("BasePart")
-	then return end
-	HideCharacter(Character)
-	CreateViewmodelContainer(Character)
-	DisablePlayerControls()
-	local Camera = Workspace.CurrentCamera
-	OriginalFieldOfView = Camera.FieldOfView
-	OriginalCameraType = Camera.CameraType
-	Camera.FieldOfView = CleaningConfig.CameraFieldOfView
-	Camera.CameraType = Enum.CameraType.Scriptable
-	Camera.CFrame = GetFixingCameraCFrame(Camera, CameraPart, TableSurface, Box)
-	RunService:BindToRenderStep(CAMERA_BINDING_NAME, Enum.RenderPriority.Last.Value, function(DeltaTime)
-		if not CameraPart.Parent or not Box.Parent then
-			Restore()
+	local EntryId = CameraEntryId
+	task.spawn(function()
+		local Character, Camera, CameraPart, TableSurface, Box
+		local Deadline = os.clock() + CAMERA_SETUP_TIMEOUT
+		repeat
+			Character = LocalPlayer.Character
+			Camera = Workspace.CurrentCamera
+			local Museums = Workspace:FindFirstChild("PlayerMuseums")
+			local Museum = Museums and Museums:FindFirstChild(`Museum_{LocalPlayer.UserId}`)
+			local TableModel = Museum and Museum:FindFirstChild("Table")
+			CameraPart = TableModel and TableModel:FindFirstChild("CamPart")
+			TableSurface = TableModel and TableModel:FindFirstChild("PromptPart")
+			local FixingItem = Museum and Museum:FindFirstChild(`FixingItem_{LocalPlayer.UserId}`)
+			Box = FixingItem and FixingItem:FindFirstChild("BoundingBox")
+			if Character and Camera
+				and CameraPart and CameraPart:IsA("BasePart")
+				and TableSurface and TableSurface:IsA("BasePart")
+				and Box and Box:IsA("BasePart")
+			then break end
+			RunService.Heartbeat:Wait()
+		until os.clock() >= Deadline
+			or EntryId ~= CameraEntryId
+			or RuntimeState.Get(LocalPlayer, "IsFixing", false) ~= true
+
+		if EntryId ~= CameraEntryId or RuntimeState.Get(LocalPlayer, "IsFixing", false) ~= true then return end
+		if not Character or not Camera
+			or not CameraPart or not CameraPart:IsA("BasePart")
+			or not TableSurface or not TableSurface:IsA("BasePart")
+			or not Box or not Box:IsA("BasePart")
+		then
+			warn("Fixing camera setup timed out while waiting for the restoration item")
 			Network:fire("Exit")
 			return
 		end
+
+		HideCharacter(Character)
+		CreateViewmodelContainer(Character)
+		DisablePlayerControls()
+		OriginalFieldOfView = Camera.FieldOfView
+		OriginalCameraType = Camera.CameraType
+		Camera.FieldOfView = CleaningConfig.CameraFieldOfView
+		Camera.CameraType = Enum.CameraType.Scriptable
 		Camera.CFrame = GetFixingCameraCFrame(Camera, CameraPart, TableSurface, Box)
-		if UpdateVisualTool then UpdateVisualTool(DeltaTime) end
+		RunService:BindToRenderStep(CAMERA_BINDING_NAME, Enum.RenderPriority.Last.Value, function(DeltaTime)
+			if not CameraPart.Parent or not TableSurface.Parent or not Box.Parent then
+				Restore()
+				Network:fire("Exit")
+				return
+			end
+			if UpdateVisualTool then UpdateVisualTool(DeltaTime) end
+		end)
+		CameraBound = true
+		task.defer(UpdateToolInterface)
 	end)
-	CameraBound = true
-	task.defer(UpdateToolInterface)
 end
 
 GetFixingItemModel = function(): Model?

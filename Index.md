@@ -7,7 +7,7 @@ Quick reference for the project's first-party Luau scripts. Generated Wally depe
 | Path | Name | Responsibility |
 | --- | --- | --- |
 | `src/classes/ConveyorItem.lua` | ConveyorItem | Renders replicated conveyor items, moves them along their path, and forwards purchase prompts through SharedClass. |
-| `src/classes/MuseumVisitor.lua` | MuseumVisitor | Renders grounded visitors through one shared frame loop with environment-only collision, responsive facing, procedural walking, fading, appearance, dialogue, and cash feedback. |
+| `src/classes/MuseumVisitor.lua` | MuseumVisitor | Renders grounded visitors through one shared frame loop with environment-only collision, responsive facing, procedural walking, fading, randomized clothing, welded hair, skin tones, dialogue, and cash feedback. |
 
 ## `src/client` - Client bootstrap
 
@@ -29,7 +29,7 @@ Quick reference for the project's first-party Luau scripts. Generated Wally depe
 | `src/controllers/BatController.lua` | BatController | Detects responsive crate and player bat targets, applies saved cooldown multipliers, predicts crate damage, and renders validated local hit debris, final-hit shake/audio, swing, impact, and crate-reaction feedback. |
 | `src/controllers/ConveyorItemController.lua` | ConveyorItemController | Retains the inactive legacy ConveyorItem SharedClass renderer. |
 | `src/controllers/CrateController.lua` | CrateController | Plays client-only silhouette roulette, pulsing previews, rarity-scaled pinwheels, bursts, local vignette/flash/sparkles/audio, and compact crate-purchase guidance. |
-| `src/controllers/FixingController.lua` | FixingController | Owns BoundingBox-fitted fixing cameras, responsive client-authoritative cleaning damage, visuals, progress, Fix prompts, avatar hiding, and the tool/fake-arm viewmodel. |
+| `src/controllers/FixingController.lua` | FixingController | Owns reliable rotation-safe BoundingBox-fitted fixing cameras, responsive client-authoritative cleaning damage, visuals, progress, Fix prompts, avatar hiding, and the tool/fake-arm viewmodel. |
 | `src/controllers/GuidanceController.lua` | GuidanceController | Resolves authoritative tutorial or contextual objectives, manages their local highlight, directional beam, and objective text, and immediately clears completed interface guidance. |
 | `src/controllers/InventoryController.lua` | InventoryController | Controls Satchel visibility, requests carried-item drops, keeps the bat in the first slot, and sends validated inventory ordering to the server. |
 | `src/controllers/MuseumVisitorController.lua` | MuseumVisitorController | Registers the client MuseumVisitor SharedClass renderer. |
@@ -146,7 +146,8 @@ Quick reference for the project's first-party Luau scripts. Generated Wally depe
 | `src/servercontrollers/CollisionController.lua` | CollisionController | Registers collision groups and assigns character parts so players do not collide with players or NPCs while retaining environment collisions. |
 | `src/servercontrollers/ConveyorController.lua` | ConveyorController | Retains the inactive legacy conveyor spawning and purchase implementation. |
 | `src/servercontrollers/CrateController.lua` | CrateController | Spawns tiered crate fields and pity crates, owns health, loot rolls, synchronized reveals, interaction-safe world-item despawn countdowns, purchases, and area resets. |
-| `src/servercontrollers/DataController.lua` | DataController | Handles the self-service `/resetdata` chat command and resets the requesting player's profile through DataService. |
+| `src/servercontrollers/DataController.lua` | DataController | Registers argument-aware chat commands, enforces Owner-rank administration permissions, and performs DataService-backed cash and reset operations. |
+| `src/controllers/DataController.lua` | DataController | Receives server chat-command feedback and displays it through the shared notification system. |
 | `src/servercontrollers/FixingController.lua` | FixingController | Owns fixing sessions, BoundingBox-centered tabletop placement and fixing rotation, saved progress, validated unfinished damage placement, equipped-tool validation, and rarity-scaled completion. |
 | `src/servercontrollers/GuidanceController.lua` | GuidanceController | Persists and advances tutorial objectives, assigns and reset-safely replaces each new player's nearest common crate, and sends contextual guidance. |
 | `src/servercontrollers/MuseumController.lua` | MuseumController | Builds only purchased museum levels and globally numbered displays, spawns the separate fixing table and movable roof, and handles placement, removal, selling, tutorial milestones, and visitor-facing exhibits. |
@@ -162,10 +163,10 @@ Quick reference for the project's first-party Luau scripts. Generated Wally depe
 | `src/UI/App.story.lua` | App Story | Exposes the App component for UI story previews. |
 | `src/UI/Classes/Button.lua` | Button | Provides a reusable reactive STUD-style Vide button with layered depth, texture, disabled state, and hover/press feedback. |
 | `src/UI/HUD/BottomRight.lua` | BottomRight | Displays saved cash and animates the HUD when cash increases. |
-| `src/UI/HUD/CarryOverlay.lua` | CarryOverlay | Shows the Drop button only while the local player is carrying a world item. |
+| `src/UI/HUD/CarryOverlay.lua` | CarryOverlay | Shows the shared red destructive-action Drop button only while the local player is carrying a world item. |
 | `src/UI/HUD/CleaningHUD.lua` | CleaningHUD | Displays the cursor-centered cleaning brush and smoothly animated current-step progress. |
 | `src/UI/HUD/CrateResetTimer.lua` | CrateResetTimer | Displays the globally synchronized time remaining until the next crate-area reset. |
-| `src/UI/HUD/FixingOverlay.lua` | FixingOverlay | Shows the exit-cleaning control while the player is in Fixing mode. |
+| `src/UI/HUD/FixingOverlay.lua` | FixingOverlay | Shows the shared red destructive-action exit control while the player is in Fixing mode. |
 | `src/UI/HUD/GuidanceHUD.lua` | GuidanceHUD | Shows a gently floating compact instruction and animated directional marker positioned from its current world or interface target without covering target billboards. |
 | `src/UI/HUD/Notifications.lua` | Notifications | Renders reusable transient notification messages with compact attention animation. |
 | `src/UI/Effects/HoverExpand.lua` | HoverExpand | Provides the reusable hover scaling used by attention notification badges. |

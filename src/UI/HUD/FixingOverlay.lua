@@ -4,6 +4,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Button = require(script.Parent.Parent.Classes.Button)
 local FixingInterface = require(ReplicatedStorage.Modules.UI.FixingInterface)
 local RuntimeState = require(ReplicatedStorage.Modules.Game.RuntimeState)
+local UIStyle = require(ReplicatedStorage.Modules.UI.UIStyle)
 local Vide = require(ReplicatedStorage.Packages.vide)
 
 local Cleanup = Vide.cleanup
@@ -25,7 +26,7 @@ return function()
 		Name = "FixingOverlay",
 		AnchorPoint = Vector2.new(1, 0),
 		BackgroundTransparency = 1,
-		Position = UDim2.fromScale(0.98, 0.04),
+		Position = UDim2.fromScale(0.98, 0.065),
 		Size = UDim2.fromScale(0.4, 0.075),
 		Visible = IsFixing,
 		Create "UIListLayout" {
@@ -36,7 +37,7 @@ return function()
 		},
 		Button({
 			Text = "Exit Cleaning (Q)",
-			BackgroundColor3 = Color3.fromRGB(180, 58, 58),
+			BackgroundColor3 = UIStyle.Colors.Red,
 			OnActivated = function()
 				FixingInterface.ExitRequested:Fire()
 			end,
