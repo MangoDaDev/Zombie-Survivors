@@ -17,7 +17,7 @@ type WorldItemState = {
 	AncestryConnection: RBXScriptConnection?,
 	DestroyingConnection: RBXScriptConnection?,
 	DirtCount: number,
-	CountdownLabel: TextLabel,
+	CountdownRow: Frame,
 	ExpiresAt: number,
 	InteractionStartedAt: number?,
 	ItemId: number,
@@ -161,9 +161,9 @@ local function CreateDroppedItem(Player: Player, DropData, DropCFrame: CFrame): 
 	Prompt.RequiresLineOfSight = false
 	Prompt.Parent = BoundingBox
 
-	local CountdownLabel = ItemDespawnCountdown.Create(Billboard)
+	local CountdownRow = ItemDespawnCountdown.Create(Billboard)
 	local State: WorldItemState = {
-		CountdownLabel = CountdownLabel,
+		CountdownRow = CountdownRow,
 		DirtCount = DirtCount,
 		ExpiresAt = Workspace:GetServerTimeNow() + ItemInteractionConfig.WorldItemDespawnDuration,
 		ItemId = ItemInfo.Id,
@@ -177,7 +177,7 @@ local function CreateDroppedItem(Player: Player, DropData, DropCFrame: CFrame): 
 	State.PromptConnection = Prompt.Triggered:Connect(function(TriggeringPlayer)
 		if WorldItems[Model] ~= State or State.Locked then return end
 		State.InteractionStartedAt = Workspace:GetServerTimeNow()
-		State.CountdownLabel.Visible = false
+		State.CountdownRow.Visible = false
 		PurchaseWorldItem(State, TriggeringPlayer)
 		if WorldItems[Model] == State and State.InteractionStartedAt then
 			State.ExpiresAt += Workspace:GetServerTimeNow() - State.InteractionStartedAt
@@ -211,7 +211,7 @@ local function UpdateDespawnTimers()
 		if Remaining <= 0 then
 			table.insert(ExpiredStates, State)
 		else
-			ItemDespawnCountdown.Update(State.CountdownLabel, Remaining)
+			ItemDespawnCountdown.Update(State.CountdownRow, Remaining)
 		end
 	end
 	for _, State in ExpiredStates do RemoveWorldItem(State) end

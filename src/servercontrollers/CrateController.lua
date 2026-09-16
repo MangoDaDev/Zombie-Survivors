@@ -298,7 +298,7 @@ local function CreateReward(State, Player: Player)
 			local FixingState = { Total = Reward.DirtCount, Remaining = Reward.DirtCount, Completed = false }
 			RestorationVisuals.Apply(Model, ItemInfo, FixingState)
 			local Billboard = ItemInfoBillboard(ItemInfo, Box, FixingState)
-			Reward.CountdownLabel = ItemDespawnCountdown.Create(Billboard)
+			Reward.CountdownRow = ItemDespawnCountdown.Create(Billboard)
 			Prompt.Enabled = true
 		end)
 	end)
@@ -313,7 +313,7 @@ local function UpdateRewardDespawnTimers()
 		if Remaining <= 0 then
 			table.insert(ExpiredRewardIds, RewardId)
 		else
-			ItemDespawnCountdown.Update(Reward.CountdownLabel, Remaining)
+			ItemDespawnCountdown.Update(Reward.CountdownRow, Remaining)
 		end
 	end
 	for _, RewardId in ExpiredRewardIds do RemoveReward(RewardId, "Expired") end

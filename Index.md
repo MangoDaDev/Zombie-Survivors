@@ -32,7 +32,7 @@ Quick reference for the project's first-party Luau scripts. Generated Wally depe
 | `src/controllers/AmbientAudioController.lua` | AmbientAudioController | Shuffles and plays every track in the Music asset folder without repeats, and smoothly ducks music for high-rarity reveals and restoration completion states. |
 | `src/controllers/FixingController.lua` | FixingController | Owns smoothly blended, stable BoundingBox-fitted fixing cameras, assisted final cleanup, responsive client-authoritative cleaning damage, presentation feedback, Fix prompts, avatar hiding, and the tool/fake-arm viewmodel. |
 | `src/controllers/GuidanceController.lua` | GuidanceController | Resolves authoritative tutorial or contextual objectives, manages their local highlight, directional beam, and objective text, and immediately clears completed interface guidance. |
-| `src/controllers/InventoryController.lua` | InventoryController | Controls Satchel visibility, requests carried-item drops, keeps the bat in the first slot, and sends validated inventory ordering to the server. |
+| `src/controllers/InventoryController.lua` | InventoryController | Controls Satchel visibility, displays native Tool texture icons, requests carried-item drops, keeps the bat in the first slot, and sends validated inventory ordering to the server. |
 | `src/controllers/MuseumVisitorController.lua` | MuseumVisitorController | Registers the client MuseumVisitor SharedClass renderer. |
 | `src/controllers/TopbarController.lua` | TopbarController | Creates the invite and group TopbarPlus buttons. |
 

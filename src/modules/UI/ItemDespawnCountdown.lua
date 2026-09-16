@@ -1,40 +1,63 @@
+local Images = require(script.Parent.Images)
 local UIStyle = require(script.Parent.UIStyle)
 
 local ItemDespawnCountdown = {}
 
-function ItemDespawnCountdown.Create(Billboard: BillboardGui): TextLabel
-	local Label = Instance.new("TextLabel")
-	Label.Name = "DespawnTimer"
-	Label.BackgroundColor3 = Color3.fromRGB(41, 19, 18)
-	Label.BackgroundTransparency = 0.12
-	Label.BorderSizePixel = 0
-	Label.FontFace = UIStyle.Font
-	Label.Position = UDim2.fromScale(0.27, 0)
-	Label.Size = UDim2.fromScale(0.46, 0.15)
-	Label.Text = ""
-	Label.TextColor3 = Color3.fromRGB(255, 224, 203)
-	Label.TextScaled = true
-	Label.TextStrokeColor3 = Color3.new(0, 0, 0)
-	Label.TextStrokeTransparency = 0.35
-	Label.Visible = false
-	Label.Parent = Billboard
+function ItemDespawnCountdown.Create(Billboard: BillboardGui): Frame
+	local Row = Instance.new("Frame")
+	Row.Name = "DespawnTimer"
+	Row.BackgroundTransparency = 1
+	Row.Position = UDim2.fromScale(0, 0)
+	Row.Size = UDim2.fromScale(1, 0.15)
+	Row.Visible = false
+	Row.Parent = Billboard
 
-	local Corner = Instance.new("UICorner")
-	Corner.CornerRadius = UDim.new(0, 10)
-	Corner.Parent = Label
-	local Padding = Instance.new("UIPadding")
-	Padding.PaddingBottom = UDim.new(0, 6)
-	Padding.PaddingLeft = UDim.new(0, 9)
-	Padding.PaddingRight = UDim.new(0, 9)
-	Padding.PaddingTop = UDim.new(0, 6)
-	Padding.Parent = Label
-	return Label
+	local Layout = Instance.new("UIListLayout")
+	Layout.FillDirection = Enum.FillDirection.Horizontal
+	Layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	Layout.Padding = UDim.new(0.02, 0)
+	Layout.SortOrder = Enum.SortOrder.LayoutOrder
+	Layout.VerticalAlignment = Enum.VerticalAlignment.Center
+	Layout.Parent = Row
+
+	local Icon = Instance.new("ImageLabel")
+	Icon.Name = "Icon"
+	Icon.BackgroundTransparency = 1
+	Icon.Image = Images.Clock
+	Icon.LayoutOrder = 1
+	Icon.ScaleType = Enum.ScaleType.Fit
+	Icon.Size = UDim2.fromScale(0.09, 0.8)
+	Icon.Parent = Row
+
+	local Label = Instance.new("TextLabel")
+	Label.Name = "Value"
+	Label.AutomaticSize = Enum.AutomaticSize.X
+	Label.BackgroundTransparency = 1
+	Label.FontFace = UIStyle.Font
+	Label.LayoutOrder = 2
+	Label.Size = UDim2.fromScale(0, 1)
+	Label.Text = ""
+	Label.TextColor3 = Color3.fromRGB(72, 232, 91)
+	Label.TextScaled = true
+	Label.TextXAlignment = Enum.TextXAlignment.Left
+	Label.Parent = Row
+
+	local Stroke = Instance.new("UIStroke")
+	Stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual
+	Stroke.Color = Color3.new(0, 0, 0)
+	Stroke.StrokeSizingMode = Enum.StrokeSizingMode.ScaledSize
+	Stroke.Thickness = 0.05
+	Stroke.Parent = Label
+	return Row
 end
 
-function ItemDespawnCountdown.Update(Label: TextLabel?, Remaining: number)
-	if not Label or not Label.Parent then return end
-	Label.Visible = Remaining > 0
-	Label.Text = `{string.format("%.1f", math.max(0, Remaining))}s`
+function ItemDespawnCountdown.Update(Row: Frame?, Remaining: number)
+	if not Row or not Row.Parent then return end
+	Row.Visible = Remaining > 0
+	local Label = Row:FindFirstChild("Value")
+	if Label and Label:IsA("TextLabel") then
+		Label.Text = `{string.format("%.1f", math.max(0, Remaining))}s`
+	end
 end
 
 return ItemDespawnCountdown

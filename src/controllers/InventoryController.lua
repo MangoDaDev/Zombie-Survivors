@@ -20,6 +20,29 @@ function InventoryController.Init()
 		Network = Networker.client.new("InventoryController", InventoryController)
 		local lastInventoryOrder: string?
 
+		local function UpdateSlotIcon(Slot)
+			local Tool = Slot and Slot.Tool
+			local SlotFrame = Slot and Slot.Frame
+			if not Tool or not Tool:IsA("Tool") or not SlotFrame then return end
+
+			local Icon = SlotFrame:FindFirstChild("Icon")
+			local ToolName = SlotFrame:FindFirstChild("ToolName")
+			if not Icon or not Icon:IsA("ImageLabel") or not ToolName or not ToolName:IsA("TextLabel") then return end
+
+			-- Satchel reads a custom attribute, but project tools use Roblox's native TextureId property.
+			Icon.Image = Tool.TextureId
+			ToolName.Visible = Tool.TextureId == ""
+		end
+
+		local function UpdateToolIcons()
+			for _, Container in { localPlayer.Character, localPlayer:FindFirstChildOfClass("Backpack") } do
+				if not Container then continue end
+				for _, Tool in Container:GetChildren() do
+					if Tool:IsA("Tool") then UpdateSlotIcon(satchel:GetSlotForTool(Tool)) end
+				end
+			end
+		end
+
 		local function EnsureBatFirst()
 			local BatSlot
 			local SlotsByIndex = {}
@@ -96,9 +119,11 @@ function InventoryController.Init()
 
 		RuntimeState.GetChangedSignal(localPlayer, "IsCarryingItem"):Connect(updateBackpack)
 		RuntimeState.GetChangedSignal(localPlayer, "IsFixing"):Connect(updateBackpack)
-		satchel.BackpackItemAdded.Event:Connect(function()
+		satchel.BackpackItemAdded.Event:Connect(function(Slot)
+			UpdateSlotIcon(Slot)
 			task.defer(function()
 				EnsureBatFirst()
+				UpdateToolIcons()
 				saveInventoryOrder()
 			end)
 		end)
@@ -112,11 +137,13 @@ function InventoryController.Init()
 			if input.UserInputType == Enum.UserInputType.MouseButton1
 				or input.UserInputType == Enum.UserInputType.Touch
 			then
+				task.defer(UpdateToolIcons)
 				saveInventoryOrderDeferred()
 			end
 		end)
 		updateBackpack()
 		EnsureBatFirst()
+		UpdateToolIcons()
 		saveInventoryOrderDeferred()
 	end)
 end

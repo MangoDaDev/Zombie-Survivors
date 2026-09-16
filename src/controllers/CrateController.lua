@@ -134,6 +134,7 @@ local function PlayTick(Info, Model, Index)
 end
 
 local function CreateRevealBurst(Position, Config)
+	local BurstDuration = 0.45 + Config.RevealEffectDuration * 0.18
 	for Index = 1, Config.ParticleCount do
 		local Particle = Instance.new("Part")
 		Particle.Name = "RevealParticle"
@@ -149,10 +150,10 @@ local function CreateRevealBurst(Position, Config)
 		local Direction = Vector3.new(RandomGenerator:NextNumber(-1, 1), RandomGenerator:NextNumber(0.2, 1), RandomGenerator:NextNumber(-1, 1)).Unit
 		TweenService:Create(
 			Particle,
-			TweenInfo.new(0.55, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+			TweenInfo.new(BurstDuration, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
 			{ Position = Position + Direction * RandomGenerator:NextNumber(2, 4) * Config.Intensity, Transparency = 1, Size = Vector3.zero }
 		):Play()
-		Debris:AddItem(Particle, 0.6)
+		Debris:AddItem(Particle, BurstDuration + 0.1)
 	end
 end
 
@@ -166,6 +167,8 @@ local function PlayScreenReveal(Position, Config)
 	local Origin = if IsVisible
 		then Vector2.new(ViewportPosition.X, ViewportPosition.Y)
 		else Camera.ViewportSize / 2
+	local SparkleDuration = 0.35 + Config.RevealEffectDuration * 0.22
+	local ScreenIntensity = Config.Intensity ^ 1.15
 
 	local Vignette = Instance.new("ImageLabel")
 	Vignette.Name = "RarityVignette"
@@ -203,16 +206,16 @@ local function PlayScreenReveal(Position, Config)
 		Sparkle.ImageTransparency = RandomGenerator:NextNumber(0, 0.15)
 		Sparkle.Position = UDim2.fromOffset(Origin.X, Origin.Y)
 		Sparkle.Rotation = RandomGenerator:NextNumber(-180, 180)
-		local Size = RandomGenerator:NextNumber(12, 25) * math.min(Config.Intensity, 1.6)
+		local Size = RandomGenerator:NextNumber(12, 25) * ScreenIntensity
 		Sparkle.Size = UDim2.fromOffset(Size, Size)
 		Sparkle.ZIndex = 3
 		Sparkle.Parent = RevealGui
 		local Angle = RandomGenerator:NextNumber(0, math.pi * 2)
-		local Distance = RandomGenerator:NextNumber(55, 145) * math.min(Config.Intensity, 1.5)
+		local Distance = RandomGenerator:NextNumber(55, 145) * ScreenIntensity
 		local Target = Origin + Vector2.new(math.cos(Angle), math.sin(Angle)) * Distance
 		TweenService:Create(
 			Sparkle,
-			TweenInfo.new(RandomGenerator:NextNumber(0.38, 0.62), Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+			TweenInfo.new(SparkleDuration * RandomGenerator:NextNumber(0.8, 1.2), Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
 			{
 				ImageTransparency = 1,
 				Position = UDim2.fromOffset(Target.X, Target.Y),
@@ -220,14 +223,15 @@ local function PlayScreenReveal(Position, Config)
 				Size = UDim2.fromOffset(Size * 0.35, Size * 0.35),
 			}
 		):Play()
-		Debris:AddItem(Sparkle, 0.7)
+		Debris:AddItem(Sparkle, SparkleDuration * 1.25)
 	end
 
-	task.delay(math.min(Config.RevealEffectDuration, 0.75), function()
+	task.delay(Config.RevealEffectDuration * 0.8, function()
 		if EffectId ~= ScreenEffectId or not Vignette.Parent then return end
-		TweenService:Create(Vignette, TweenInfo.new(0.25, Enum.EasingStyle.Quad), { ImageTransparency = 1 }):Play()
-		Debris:AddItem(Vignette, 0.3)
-		Debris:AddItem(Flash, 0.3)
+		local FadeDuration = math.max(0.3, Config.RevealEffectDuration * 0.2)
+		TweenService:Create(Vignette, TweenInfo.new(FadeDuration, Enum.EasingStyle.Quad), { ImageTransparency = 1 }):Play()
+		Debris:AddItem(Vignette, FadeDuration + 0.05)
+		Debris:AddItem(Flash, FadeDuration + 0.05)
 	end)
 end
 
