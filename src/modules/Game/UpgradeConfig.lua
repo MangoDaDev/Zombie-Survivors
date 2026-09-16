@@ -1,8 +1,8 @@
 local NODE_SIZE = 96
-local MAIN_SPACING = 180
-local LEVEL_BRANCH_OFFSET = Vector2.new(60, 150)
-local LEVEL_SPACING = 150
-local DISPLAY_ROW_ORIGIN = Vector2.new(90, -260)
+local HEX_SPACING = NODE_SIZE + 10
+local HEX_VERTICAL_SPACING = HEX_SPACING * math.sqrt(3) / 2
+local HEX_DOWN_RIGHT = Vector2.new(HEX_SPACING / 2, HEX_VERTICAL_SPACING)
+local HEX_UP_LEFT = -HEX_DOWN_RIGHT
 
 -- IMPORTANT:
 -- Do not reintroduce visual connector/link lines between upgrade nodes.
@@ -10,23 +10,23 @@ local DISPLAY_ROW_ORIGIN = Vector2.new(90, -260)
 -- grouping, and spacing rules instead.
 
 local function GetToolPosition(Index: number): Vector2
-	return Vector2.new(MAIN_SPACING * Index, 0)
+	return Vector2.new(HEX_SPACING * Index, 0)
 end
 
 local function GetLevelPosition(BasePosition: Vector2, Level: number): Vector2
-	return BasePosition + LEVEL_BRANCH_OFFSET + Vector2.new(0, LEVEL_SPACING * (Level - 1))
+	return BasePosition + HEX_DOWN_RIGHT * Level
 end
 
 local function GetBatPosition(TierAfterWooden: number): Vector2
-	return Vector2.new(-MAIN_SPACING * TierAfterWooden, 0)
+	return Vector2.new(-HEX_SPACING * TierAfterWooden, 0)
 end
 
 local function GetDisplayPosition(LevelAfterBase: number): Vector2
-	return DISPLAY_ROW_ORIGIN + Vector2.new(MAIN_SPACING * (LevelAfterBase - 1), 0)
+	return HEX_UP_LEFT + Vector2.new(HEX_SPACING * (LevelAfterBase - 1), 0)
 end
 
 local function GetVisitorPosition(LevelAfterBase: number): Vector2
-	return Vector2.new(-260 - MAIN_SPACING * (LevelAfterBase - 1), -180 - LEVEL_SPACING * (LevelAfterBase - 1))
+	return HEX_UP_LEFT * LevelAfterBase
 end
 
 local function GetBatCooldownPosition(Level: number): Vector2
@@ -117,44 +117,108 @@ local UpgradeConfig = {
 			Effect = { Type = "DisplayLimit", Value = 12 },
 		},
 		{
-			Id = "Display13", Name = "13 Displays", Description = "Unlocks Museum Level 2 and its first display.", Cost = 15_000_000,
-			Icon = "Area", Position = GetDisplayPosition(5), Prerequisites = { "Display12" }, ConnectedUpgrades = { "Display14" },
-			Branch = "MuseumCapacity", ShortValue = "13 Displays", Effect = { Type = "DisplayLimit", Value = 13 },
+			Id = "Display13",
+			Name = "13 Displays",
+			Description = "Unlocks Museum Level 2 and its first display.",
+			Cost = 15_000_000,
+			Icon = "Area",
+			Position = GetDisplayPosition(5),
+			Prerequisites = { "Display12" },
+			ConnectedUpgrades = { "Display14" },
+			Branch = "MuseumCapacity",
+			ShortValue = "13 Displays",
+			Effect = { Type = "DisplayLimit", Value = 13 },
 		},
 		{
-			Id = "Display14", Name = "14 Displays", Description = "Unlocks a fourteenth usable museum display.", Cost = 25_000_000,
-			Icon = "Area", Position = GetDisplayPosition(6), Prerequisites = { "Display13" }, ConnectedUpgrades = { "Display15" },
-			Branch = "MuseumCapacity", ShortValue = "14 Displays", Effect = { Type = "DisplayLimit", Value = 14 },
+			Id = "Display14",
+			Name = "14 Displays",
+			Description = "Unlocks a fourteenth usable museum display.",
+			Cost = 25_000_000,
+			Icon = "Area",
+			Position = GetDisplayPosition(6),
+			Prerequisites = { "Display13" },
+			ConnectedUpgrades = { "Display15" },
+			Branch = "MuseumCapacity",
+			ShortValue = "14 Displays",
+			Effect = { Type = "DisplayLimit", Value = 14 },
 		},
 		{
-			Id = "Display15", Name = "15 Displays", Description = "Unlocks a fifteenth usable museum display.", Cost = 40_000_000,
-			Icon = "Area", Position = GetDisplayPosition(7), Prerequisites = { "Display14" }, ConnectedUpgrades = { "Display16" },
-			Branch = "MuseumCapacity", ShortValue = "15 Displays", Effect = { Type = "DisplayLimit", Value = 15 },
+			Id = "Display15",
+			Name = "15 Displays",
+			Description = "Unlocks a fifteenth usable museum display.",
+			Cost = 40_000_000,
+			Icon = "Area",
+			Position = GetDisplayPosition(7),
+			Prerequisites = { "Display14" },
+			ConnectedUpgrades = { "Display16" },
+			Branch = "MuseumCapacity",
+			ShortValue = "15 Displays",
+			Effect = { Type = "DisplayLimit", Value = 15 },
 		},
 		{
-			Id = "Display16", Name = "16 Displays", Description = "Unlocks a sixteenth usable museum display.", Cost = 60_000_000,
-			Icon = "Area", Position = GetDisplayPosition(8), Prerequisites = { "Display15" }, ConnectedUpgrades = { "Display17" },
-			Branch = "MuseumCapacity", ShortValue = "16 Displays", Effect = { Type = "DisplayLimit", Value = 16 },
+			Id = "Display16",
+			Name = "16 Displays",
+			Description = "Unlocks a sixteenth usable museum display.",
+			Cost = 60_000_000,
+			Icon = "Area",
+			Position = GetDisplayPosition(8),
+			Prerequisites = { "Display15" },
+			ConnectedUpgrades = { "Display17" },
+			Branch = "MuseumCapacity",
+			ShortValue = "16 Displays",
+			Effect = { Type = "DisplayLimit", Value = 16 },
 		},
 		{
-			Id = "Display17", Name = "17 Displays", Description = "Unlocks a seventeenth usable museum display.", Cost = 85_000_000,
-			Icon = "Area", Position = GetDisplayPosition(9), Prerequisites = { "Display16" }, ConnectedUpgrades = { "Display18" },
-			Branch = "MuseumCapacity", ShortValue = "17 Displays", Effect = { Type = "DisplayLimit", Value = 17 },
+			Id = "Display17",
+			Name = "17 Displays",
+			Description = "Unlocks a seventeenth usable museum display.",
+			Cost = 85_000_000,
+			Icon = "Area",
+			Position = GetDisplayPosition(9),
+			Prerequisites = { "Display16" },
+			ConnectedUpgrades = { "Display18" },
+			Branch = "MuseumCapacity",
+			ShortValue = "17 Displays",
+			Effect = { Type = "DisplayLimit", Value = 17 },
 		},
 		{
-			Id = "Display18", Name = "18 Displays", Description = "Unlocks an eighteenth usable museum display.", Cost = 115_000_000,
-			Icon = "Area", Position = GetDisplayPosition(10), Prerequisites = { "Display17" }, ConnectedUpgrades = { "Display19" },
-			Branch = "MuseumCapacity", ShortValue = "18 Displays", Effect = { Type = "DisplayLimit", Value = 18 },
+			Id = "Display18",
+			Name = "18 Displays",
+			Description = "Unlocks an eighteenth usable museum display.",
+			Cost = 115_000_000,
+			Icon = "Area",
+			Position = GetDisplayPosition(10),
+			Prerequisites = { "Display17" },
+			ConnectedUpgrades = { "Display19" },
+			Branch = "MuseumCapacity",
+			ShortValue = "18 Displays",
+			Effect = { Type = "DisplayLimit", Value = 18 },
 		},
 		{
-			Id = "Display19", Name = "19 Displays", Description = "Unlocks a nineteenth usable museum display.", Cost = 150_000_000,
-			Icon = "Area", Position = GetDisplayPosition(11), Prerequisites = { "Display18" }, ConnectedUpgrades = { "Display20" },
-			Branch = "MuseumCapacity", ShortValue = "19 Displays", Effect = { Type = "DisplayLimit", Value = 19 },
+			Id = "Display19",
+			Name = "19 Displays",
+			Description = "Unlocks a nineteenth usable museum display.",
+			Cost = 150_000_000,
+			Icon = "Area",
+			Position = GetDisplayPosition(11),
+			Prerequisites = { "Display18" },
+			ConnectedUpgrades = { "Display20" },
+			Branch = "MuseumCapacity",
+			ShortValue = "19 Displays",
+			Effect = { Type = "DisplayLimit", Value = 19 },
 		},
 		{
-			Id = "Display20", Name = "20 Displays", Description = "Unlocks the maximum of twenty museum displays.", Cost = 200_000_000,
-			Icon = "Area", Position = GetDisplayPosition(12), Prerequisites = { "Display19" }, ConnectedUpgrades = {},
-			Branch = "MuseumCapacity", ShortValue = "20 Displays", Effect = { Type = "DisplayLimit", Value = 20 },
+			Id = "Display20",
+			Name = "20 Displays",
+			Description = "Unlocks the maximum of twenty museum displays.",
+			Cost = 200_000_000,
+			Icon = "Area",
+			Position = GetDisplayPosition(12),
+			Prerequisites = { "Display19" },
+			ConnectedUpgrades = {},
+			Branch = "MuseumCapacity",
+			ShortValue = "20 Displays",
+			Effect = { Type = "DisplayLimit", Value = 20 },
 		},
 		{
 			Id = "Visitors3",
@@ -196,33 +260,68 @@ local UpgradeConfig = {
 			Effect = { Type = "VisitorsPerDisplay", Value = 5 },
 		},
 		{
-			Id = "UnlockSoftBrush", Name = "Unlock Soft Brush", Description = "Unlocks gentle brushing for light surface dust.",
-			Cost = 900, Icon = "SoftBrush", Position = GetToolPosition(3), Prerequisites = { "UnlockSprayPaint" },
-			ConnectedUpgrades = { "UnlockHairdryer" }, Branch = "RestorationTools", ShortValue = "BRUSH",
+			Id = "UnlockSoftBrush",
+			Name = "Unlock Soft Brush",
+			Description = "Unlocks gentle brushing for light surface dust.",
+			Cost = 900,
+			Icon = "SoftBrush",
+			Position = GetToolPosition(3),
+			Prerequisites = { "UnlockSprayPaint" },
+			ConnectedUpgrades = { "UnlockHairdryer" },
+			Branch = "RestorationTools",
+			ShortValue = "BRUSH",
 			Effect = { Type = "ToolUnlock", ToolId = "SoftBrush" },
 		},
 		{
-			Id = "UnlockHairdryer", Name = "Unlock Hairdryer", Description = "Unlocks directional airflow for loose debris.",
-			Cost = 12_000, Icon = "Hairdryer", Position = GetToolPosition(4), Prerequisites = { "UnlockSoftBrush" },
-			ConnectedUpgrades = { "UnlockHammer" }, Branch = "RestorationTools", ShortValue = "AIR",
+			Id = "UnlockHairdryer",
+			Name = "Unlock Hairdryer",
+			Description = "Unlocks directional airflow for loose debris.",
+			Cost = 12_000,
+			Icon = "Hairdryer",
+			Position = GetToolPosition(4),
+			Prerequisites = { "UnlockSoftBrush" },
+			ConnectedUpgrades = { "UnlockHammer" },
+			Branch = "RestorationTools",
+			ShortValue = "AIR",
 			Effect = { Type = "ToolUnlock", ToolId = "Hairdryer" },
 		},
 		{
-			Id = "UnlockHammer", Name = "Unlock Hammer", Description = "Unlocks progressive repairs for bent components.",
-			Cost = 85_000, Icon = "Hammer", Position = GetToolPosition(5), Prerequisites = { "UnlockHairdryer" },
-			ConnectedUpgrades = { "UnlockMagnet" }, Branch = "RestorationTools", ShortValue = "HAMMER",
+			Id = "UnlockHammer",
+			Name = "Unlock Hammer",
+			Description = "Unlocks progressive repairs for bent components.",
+			Cost = 85_000,
+			Icon = "Hammer",
+			Position = GetToolPosition(5),
+			Prerequisites = { "UnlockHairdryer" },
+			ConnectedUpgrades = { "UnlockMagnet" },
+			Branch = "RestorationTools",
+			ShortValue = "HAMMER",
 			Effect = { Type = "ToolUnlock", ToolId = "Hammer" },
 		},
 		{
-			Id = "UnlockMagnet", Name = "Unlock Magnet", Description = "Unlocks extraction of embedded metal fragments.",
-			Cost = 650_000, Icon = "Magnet", Position = GetToolPosition(6), Prerequisites = { "UnlockHammer" },
-			ConnectedUpgrades = { "UnlockPolisher" }, Branch = "RestorationTools", ShortValue = "MAGNET",
+			Id = "UnlockMagnet",
+			Name = "Unlock Magnet",
+			Description = "Unlocks extraction of embedded metal fragments.",
+			Cost = 650_000,
+			Icon = "Magnet",
+			Position = GetToolPosition(6),
+			Prerequisites = { "UnlockHammer" },
+			ConnectedUpgrades = { "UnlockPolisher" },
+			Branch = "RestorationTools",
+			ShortValue = "MAGNET",
 			Effect = { Type = "ToolUnlock", ToolId = "Magnet" },
 		},
 		{
-			Id = "UnlockPolisher", Name = "Unlock Polisher", Description = "Unlocks the final saturated colour and finish.",
-			Cost = 4_000_000, Icon = "Polisher", Position = GetToolPosition(7), Prerequisites = { "UnlockMagnet" },
-			ConnectedUpgrades = {}, Branch = "RestorationTools", ShortValue = "POLISH",
+			Id = "UnlockPolisher",
+			Name = "Unlock Polisher",
+			Description = "Unlocks the final saturated colour and finish.",
+			Cost = 4_000_000,
+			Icon = "Polisher",
+			Position = GetToolPosition(7),
+			Prerequisites = { "UnlockMagnet" },
+			ConnectedUpgrades = {},
+			Branch = "RestorationTools",
+			ShortValue = "POLISH",
 			Effect = { Type = "ToolUnlock", ToolId = "Polisher" },
 		},
 		{
@@ -542,7 +641,9 @@ local UpgradeConfig = {
 
 function UpgradeConfig.Get(UpgradeId: string)
 	for _, Upgrade in UpgradeConfig.Upgrades do
-		if Upgrade.Id == UpgradeId then return Upgrade end
+		if Upgrade.Id == UpgradeId then
+			return Upgrade
+		end
 	end
 end
 
