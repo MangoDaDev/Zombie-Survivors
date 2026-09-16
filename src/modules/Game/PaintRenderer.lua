@@ -1,5 +1,23 @@
 local PaintRenderer = {}
 local PaintStates = setmetatable({}, { __mode = "k" })
+local ExcludedRestorationFolders = {
+	BentComponents = true,
+	Dirt = true,
+	Grease = true,
+	LightDust = true,
+	LooseDebris = true,
+	Metal = true,
+	MetalComponents = true,
+}
+
+local function IsRestorationTarget(Part: BasePart): boolean
+	local Current = Part.Parent
+	while Current do
+		if ExcludedRestorationFolders[Current.Name] then return true end
+		Current = Current.Parent
+	end
+	return false
+end
 
 local function CaptureAppearance(Part: BasePart)
 	return {
@@ -27,10 +45,7 @@ function PaintRenderer.GetPaintParts(Model: Model): { BasePart }
 	for _, Descendant in Model:GetDescendants() do
 		if Descendant:IsA("BasePart")
 			and Descendant.Name ~= "BoundingBox"
-			and Descendant.Name ~= "Dirt"
-			and Descendant.Name ~= "Grease"
-			and Descendant:FindFirstAncestor("Dirt") == nil
-			and Descendant:FindFirstAncestor("Grease") == nil
+			and not IsRestorationTarget(Descendant)
 			and Descendant.Transparency < 1
 		then
 			table.insert(Parts, Descendant)

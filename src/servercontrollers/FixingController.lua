@@ -16,6 +16,7 @@ local ItemsInfo = require(ReplicatedStorage.Modules.Game.ItemsInfo)
 local MuseumController = require(ServerStorage.Controllers.MuseumController)
 local Networker = require(ReplicatedStorage.Packages.networker)
 local PaintRenderer = require(ReplicatedStorage.Modules.Game.PaintRenderer)
+local RestorationTargetRenderer = require(ReplicatedStorage.Modules.Game.RestorationTargetRenderer)
 local PlayerStateController = require(ServerStorage.Controllers.PlayerStateController)
 local RarityInfo = require(ReplicatedStorage.Modules.Game.RarityInfo)
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
@@ -126,7 +127,8 @@ local function GetTargets(Session): { BasePart }
 		for _, Target in Session.Grease:GetChildren() do if Target:IsA("BasePart") then table.insert(Targets, Target) end end
 		return Targets
 	end
-	return if Step and Step.Type == "Paint" then Session.PaintTargets or {} else {}
+	if Step and Step.Type == "Paint" then return Session.PaintTargets or {} end
+	return if Step then Session.RestorationTargets[Step.Id] or {} else {}
 end
 
 local function GetTargetHP(Target, Step): number
@@ -134,6 +136,8 @@ local function GetTargetHP(Target, Step): number
 		return PaintRenderer.GetHealth(Target)
 	elseif Step.Type == "Grease" then
 		return GreaseRenderer.GetHealth(Target)
+	elseif Step.Type ~= "Dirt" then
+		return RestorationTargetRenderer.GetHealth(Target)
 	end
 
 	return DirtRenderer.GetHealth(Target)
@@ -146,6 +150,8 @@ local function GetTargetMaxHP(Target, Step): number
 		_, MaximumHealth = PaintRenderer.GetHealth(Target)
 	elseif Step.Type == "Grease" then
 		_, MaximumHealth = GreaseRenderer.GetHealth(Target)
+	elseif Step.Type ~= "Dirt" then
+		_, MaximumHealth = RestorationTargetRenderer.GetHealth(Target)
 	else
 		_, MaximumHealth = DirtRenderer.GetHealth(Target)
 	end
@@ -180,10 +186,12 @@ local function ClearTargets(Session)
 	if Session.Dirt then Session.Dirt:Destroy(); Session.Dirt = nil end
 	if Session.Grease then Session.Grease:Destroy(); Session.Grease = nil end
 	if Session.PaintTargets then PaintRenderer.Clear(Session.PaintTargets); Session.PaintTargets = nil end
+	Session.RestorationTargets = {}
 end
 
 local function PrepareAllTargets(Session)
 	ClearTargets(Session)
+	Session.RestorationTargets = {}
 	for _, Step in Session.Steps do
 		local StepState = Session.State.Steps[Step.Id]
 		if Step.Type == "Paint" and StepState.Completed ~= true then
@@ -223,6 +231,16 @@ local function PrepareAllTargets(Session)
 			StepState.Remaining = RenderedCount
 		end
 	end
+	for _, Step in Session.Steps do
+		if Step.Type == "Dirt" or Step.Type == "Grease" or Step.Type == "Paint" then continue end
+		local StepState = Session.State.Steps[Step.Id]
+		if StepState.Completed == true then continue end
+		local Targets = RestorationTargetRenderer.Add(Session.Model, Step.Type, StepState.Remaining, Step.TargetHP, Step)
+		Session.RestorationTargets[Step.Id] = Targets
+		local CompletedCount = math.max(0, StepState.Total - StepState.Remaining)
+		StepState.Total = CompletedCount + #Targets
+		StepState.Remaining = #Targets
+	end
 end
 
 local function ClearCurrentTargets(Session)
@@ -237,6 +255,11 @@ local function ClearCurrentTargets(Session)
 	elseif Step.Type == "Paint" and Session.PaintTargets then
 		PaintRenderer.Clear(Session.PaintTargets)
 		Session.PaintTargets = nil
+	elseif Session.RestorationTargets and Session.RestorationTargets[Step.Id] then
+		for _, Target in Session.RestorationTargets[Step.Id] do
+			if Target.Parent and (Step.Type == "LightDust" or Step.Type == "LooseDebris" or Step.Type == "Metal") then Target:Destroy() end
+		end
+		Session.RestorationTargets[Step.Id] = nil
 	end
 end
 
@@ -296,7 +319,8 @@ local function NormalizeState(State, Model, Steps)
 		local Total = if Step.Type == "Dirt"
 			then DirtTotal
 			elseif Step.Type == "Grease" then GreaseRenderer.GetSuggestedCount(Model)
-			else PaintRenderer.GetSuggestedCount(Model)
+			elseif Step.Type == "Paint" then PaintRenderer.GetSuggestedCount(Model)
+			else RestorationTargetRenderer.GetSuggestedCount(Model, Step.Type)
 		if type(Existing) ~= "table" then
 			Existing = {
 				Total = Total,

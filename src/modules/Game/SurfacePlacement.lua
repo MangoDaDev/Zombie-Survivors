@@ -4,6 +4,16 @@ local Workspace = game:GetService("Workspace")
 local ItemInteractionConfig = require(script.Parent.ItemInteractionConfig)
 
 local SurfacePlacement = {}
+local ExcludedRestorationFolders = {
+	Bent = true,
+	BentComponents = true,
+	Dirt = true,
+	Grease = true,
+	LightDust = true,
+	LooseDebris = true,
+	Metal = true,
+	MetalComponents = true,
+}
 
 export type SurfacePart = {
 	Area: number,
@@ -18,12 +28,13 @@ export type Placement = {
 }
 
 local function IsUsablePart(Part: Instance): boolean
+	local Current = Part.Parent
+	while Current do
+		if ExcludedRestorationFolders[Current.Name] then return false end
+		Current = Current.Parent
+	end
 	return Part:IsA("BasePart")
 		and Part.Name ~= "BoundingBox"
-		and Part.Name ~= "Dirt"
-		and Part.Name ~= "Grease"
-		and Part:FindFirstAncestor("Dirt") == nil
-		and Part:FindFirstAncestor("Grease") == nil
 		and Part.Transparency < 1
 end
 

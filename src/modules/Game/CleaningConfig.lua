@@ -179,10 +179,17 @@ end
 function CleaningConfig.GetStepsForItem(ItemInfo): { any }
 	local Steps = {}
 	local RestorationTier = if type(ItemInfo.RestorationTier) == "number" then ItemInfo.RestorationTier else 1
+	local ConfiguredSteps = if type(ItemInfo.RestorationSteps) == "table" then ItemInfo.RestorationSteps else nil
+	local Settings = if type(ItemInfo.RestorationSettings) == "table" then ItemInfo.RestorationSettings else {}
 	for _, StepInfo in CleaningConfig.Steps do
-		if RestorationTier >= StepInfo.MinimumRestorationTier then
-			table.insert(Steps, StepInfo)
+		local IsRequired = if ConfiguredSteps then table.find(ConfiguredSteps, StepInfo.Id) ~= nil else RestorationTier >= StepInfo.MinimumRestorationTier
+		if not IsRequired then continue end
+		local ResolvedStep = table.clone(StepInfo)
+		local StepSettings = Settings[StepInfo.Id]
+		if type(StepSettings) == "table" then
+			for Key, Value in StepSettings do ResolvedStep[Key] = Value end
 		end
+		table.insert(Steps, ResolvedStep)
 	end
 	return Steps
 end

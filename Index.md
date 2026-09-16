@@ -60,11 +60,11 @@ Quick reference for the project's first-party Luau scripts. Generated Wally depe
 | Path | Name | Responsibility |
 | --- | --- | --- |
 | `src/modules/Game/_PlayerFreezeState.lua` | PlayerFreezeState | Stores and manages the local character's anchored freeze state. |
-| `src/modules/Game/CleaningConfig.lua` | CleaningConfig | Registers restoration tools and derives item actions from currency-independent restoration tiers, alongside viewmodel positioning, brushes, VFX, and completion behavior. |
+| `src/modules/Game/CleaningConfig.lua` | CleaningConfig | Registers Spray, Sponge, Spray Paint, Soft Brush, Polisher, Hairdryer, Hammer, and Magnet restoration tools and derives item actions from restoration tiers, alongside viewmodel positioning, VFX, and completion behavior. |
 | `src/modules/Game/AmbientAudioConfig.lua` | AmbientAudioConfig | Centralizes ambient channel assets, zone volumes, crossfade timing, and presentation ducking values. |
 | `src/modules/Game/CollisionGroups.lua` | CollisionGroups | Defines shared player and NPC collision-group names used by server characters and client-rendered visitors. |
 | `src/modules/Game/EconomyConfig.lua` | EconomyConfig | Centralizes progression-stage price bands, restoration tiers and rewards, starting cash, and rarity-scaled museum income while deriving final item values from item difficulty. |
-| `src/modules/Game/BatInfo.lua` | BatInfo | Configures the Wooden through Obsidian crate-only bat progression with progressively improved damage, timing, range, validation, and sounds. |
+| `src/modules/Game/BatInfo.lua` | BatInfo | Configures the eleven-tier Wooden-through-Meteorite crate-only bat progression with progressively improved damage, timing, range, validation, and sounds. |
 | `src/modules/Game/CrateInfo.lua` | CrateInfo | Configures regular and pity-only crate tiers, affordable new-player drops, normalized per-tier rarity distributions, weighted item rolls, population limits, the synchronized 0.6-second reveal pacing, and the reset cycle. |
 | `src/modules/Game/DataTemplate.lua` | DataTemplate | Defines saved defaults for cash, guaranteed opening drops, inventory, museum displays, restoration state, tutorial progress, and upgrade ownership. |
 | `src/modules/Game/DirtRenderer.lua` | DirtRenderer | Calculates capped surface-area-scaled dirt counts and attaches randomized dirt cubes only to raycast-validated exposed surfaces. |
@@ -75,10 +75,11 @@ Quick reference for the project's first-party Luau scripts. Generated Wally depe
 | `src/modules/Game/ItemsInfo.lua` | ItemsInfo | Configures all 100 Studio item assets with stable IDs, within-rarity difficulty and drop weights, durability, movement values, and economy-derived final prices, income, and restoration tiers. |
 | `src/modules/Game/PaintRenderer.lua` | PaintRenderer | Applies faded paint damage while safely preserving and restoring each part's own original color, material, material variant, reflectance, and transparency. |
 | `src/modules/Game/RarityInfo.lua` | RarityInfo | Centralizes Common through Secret colors, name gradients, reveal timing, intensity, pinwheel, vignette, flash, sparkle, particle, and reveal-audio tuning. |
-| `src/modules/Game/RestorationVisuals.lua` | RestorationVisuals | Applies each item's automatically derived unfinished Dirt, Paint, and Grease appearance consistently across rewards, carrying, inventory, and legacy sources. |
+| `src/modules/Game/RestorationVisuals.lua` | RestorationVisuals | Applies every unfinished restoration layer consistently across rewards, carrying, inventory, and legacy item sources. |
+| `src/modules/Game/RestorationTargetRenderer.lua` | RestorationTargetRenderer | Creates and tracks scaled light-dust, loose-debris, bent-component, embedded-metal, and dull-finish targets for the specialized restoration tools. |
 | `src/modules/Game/SurfacePlacement.lua` | SurfacePlacement | Selects area-weighted item surfaces and uses bounded outward raycasts to return validated exterior positions and normals. |
 | `src/modules/Game/TutorialConfig.lua` | TutorialConfig | Defines the short ordered objectives used by the persistent guided tutorial. |
-| `src/modules/Game/UpgradeConfig.lua` | UpgradeConfig | Defines the edge-adjacent six-branch hex layout, economy-scaled upgrade cost curves, Sponge-to-Spray-Paint tool progression, capacity, Spray stats, bat tiers, and bat cooldowns. |
+| `src/modules/Game/UpgradeConfig.lua` | UpgradeConfig | Defines the edge-adjacent hex layout, economy-scaled upgrade cost curves, restoration-tool unlocks, capacity, tool stats, eleven bat tiers, and bat cooldowns. |
 | `src/modules/Game/UpgradeLogic.lua` | UpgradeLogic | Resolves ownership, prerequisites, affordability, visibility, capacity, automatic base Spray access, tool unlock sources and stats, bat tiers, and bat cooldown. |
 | `src/modules/Game/TeleportLocalPlayer.lua` | TeleportLocalPlayer | Moves the local character to a CFrame or BasePart. |
 | `src/modules/Game/TeleportPlayer.lua` | TeleportPlayer | Moves a Player's character or a supplied character model to a target. |

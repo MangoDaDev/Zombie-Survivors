@@ -1,3 +1,5 @@
+local PlaceholderBatImage = "rbxassetid://129209820289889"
+
 local Images = {
 	Invite = "rbxassetid://115327667449209",
 	Group = "rbxassetid://85374765114431",
@@ -18,13 +20,22 @@ local Images = {
 	Spray = "rbxassetid://135880301537221",
 	SprayPaint = "rbxassetid://89126720010251",
 	Sponge = "rbxassetid://123208274489359",
+	SoftBrush = "rbxassetid://129209820289889",
+	Polisher = "rbxassetid://129209820289889",
+	Hairdryer = "rbxassetid://129209820289889",
+	Hammer = "rbxassetid://129209820289889",
+	Magnet = "rbxassetid://129209820289889",
 	WoodenBat = "rbxassetid://71860797320768",
 	StoneBat = "rbxassetid://138894146261760",
 	BronzeBat = "rbxassetid://124720062419393",
+	IronBat = PlaceholderBatImage,
 	GoldBat = "rbxassetid://75025107278341",
 	EmeraldBat = "rbxassetid://111478517832404",
+	TitaniumBat = PlaceholderBatImage,
 	DiamondBat = "rbxassetid://113517459215926",
+	ReinforcedSteelBat = PlaceholderBatImage,
 	ObsidianBat = "rbxassetid://140370237259106",
+	MeteoriteBat = PlaceholderBatImage,
 	ObjectiveArrow = "rbxassetid://123892753905134",
 	Vignette = "rbxassetid://129145674033527",
 	Sparkle = "rbxassetid://5639840603",
@@ -33,6 +44,11 @@ local Images = {
 		Dirt = "rbxassetid://111727278981257",
 		Paint = "rbxassetid://118966242175055",
 		Grease = "rbxassetid://97022398341091",
+		LightDust = "rbxassetid://129209820289889",
+		LooseDebris = "rbxassetid://129209820289889",
+		Bent = "rbxassetid://129209820289889",
+		Metal = "rbxassetid://129209820289889",
+		Polish = "rbxassetid://129209820289889",
 	},
 }
 

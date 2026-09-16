@@ -31,6 +31,16 @@ function UpgradeLogic.NormalizeOwnership(Value): { [string]: boolean }
 		end
 	end
 
+	-- Preserve previously purchased bat tiers when new bats are inserted into the progression.
+	local InsertedBatPrerequisites = {
+		GoldBat = "IronBat",
+		DiamondBat = "TitaniumBat",
+		ObsidianBat = "ReinforcedSteelBat",
+	}
+	for OwnedBatId, InsertedBatId in InsertedBatPrerequisites do
+		if Ownership[OwnedBatId] == true then Ownership[InsertedBatId] = true end
+	end
+
 	local RemovedInvalidUpgrade = true
 	while RemovedInvalidUpgrade do
 		RemovedInvalidUpgrade = false

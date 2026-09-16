@@ -60,6 +60,7 @@ local LastReportedRemaining = 0
 local LastProgressReport = 0
 local CompletionRequested = false
 local LastDirtFeedback = 0
+local LastHammerStrike = 0
 local CameraEntryId = 0
 local BaseCameraCFrame: CFrame?
 local OriginalCameraCFrame: CFrame?
@@ -556,11 +557,13 @@ local function FinishRemainingTargets(ToolId: string)
 		local Delay = (#RemainingStates > 1 and (Index - 1) / (#RemainingStates - 1) or 0) * Duration * 0.35
 		task.delay(Delay, function()
 			if not CompletionRequested or not Target.Parent then return end
-			if Step.Type == "Paint" and State.OriginalAppearance then
+			if (Step.Type == "Paint" or Step.Type == "Polish") and State.OriginalAppearance then
 				TweenService:Create(Target, TweenInfo.new(Duration * 0.65, Enum.EasingStyle.Quad), {
 					Color = State.OriginalAppearance.Color,
 					Transparency = State.OriginalAppearance.Transparency,
 				}):Play()
+			elseif Step.Type == "Bent" and State.RestoredCFrame then
+				TweenService:Create(Target, TweenInfo.new(Duration * 0.65, Enum.EasingStyle.Back), { CFrame = State.RestoredCFrame }):Play()
 			else
 				TweenService:Create(Target, TweenInfo.new(Duration * 0.65, Enum.EasingStyle.Quad), { Transparency = 1 }):Play()
 			end
@@ -571,8 +574,10 @@ local function FinishRemainingTargets(ToolId: string)
 		for _, State in RemainingStates do
 			if not State.Part.Parent then continue end
 			State.Completed = true
-			if Step.Type == "Paint" and State.OriginalAppearance then
+			if (Step.Type == "Paint" or Step.Type == "Polish") and State.OriginalAppearance then
 				PaintRenderer.ApplyAppearance(State.Part, State.OriginalAppearance)
+			elseif Step.Type == "Bent" and State.RestoredCFrame then
+				State.Part.CFrame = State.RestoredCFrame
 			else
 				State.Part:Destroy()
 			end
@@ -627,24 +632,44 @@ local function PrepareLocalStep(ToolId: string): boolean
 				if Target:IsA("BasePart") then table.insert(Targets, Target) end
 			end
 		end
-	else
+	elseif Step.Type == "Paint" or Step.Type == "Polish" then
 		Targets = PaintRenderer.GetPaintParts(Model)
 		local Template = ReplicatedStorage.Assets.Models.Items:FindFirstChild(ItemInfo.AssetName)
 		if Template and Template:IsA("Model") then
 			for _, Target in Targets do
 				OriginalAppearances[Target] = PaintRenderer.GetOriginalAppearance(Model, Target, Template)
+				if Step.Type == "Polish" and OriginalAppearances[Target] then
+					local OriginalColor = OriginalAppearances[Target].Color
+					local Hue, Saturation, Value = OriginalColor:ToHSV()
+					Target.Color = Color3.fromHSV(Hue, Saturation * 0.34, Value * 0.78)
+				end
+			end
+		end
+	else
+		local FolderName = if Step.Type == "Bent" and Model:FindFirstChild("BentComponents")
+			then "BentComponents"
+			elseif Step.Type == "Metal" and Model:FindFirstChild("MetalComponents") then "MetalComponents" else Step.Type
+		local Folder = Model:FindFirstChild(FolderName)
+		if Folder then
+			for _, Target in Folder:GetChildren() do
+				if Target:IsA("BasePart") then table.insert(Targets, Target) end
 			end
 		end
 	end
 
 	local MaximumHealth = if Step.Type == "Dirt" then ItemInfo.DirtHP else Step.TargetHP
 	for _, Target in Targets do
+		local RestoredCFrame = if Step.Type == "Bent"
+			then Target.CFrame * CFrame.Angles(math.rad(-22), math.rad(14), math.rad(-9))
+			else nil
 		table.insert(LocalTargetStates, {
 			Part = Target,
 			CurrentHealth = MaximumHealth,
 			MaximumHealth = MaximumHealth,
 			DamagedColor = Target.Color,
 			OriginalAppearance = OriginalAppearances[Target],
+			StartCFrame = Target.CFrame,
+			RestoredCFrame = RestoredCFrame,
 			BaseTransparency = Target.Transparency,
 			Completed = false,
 		})
@@ -707,9 +732,16 @@ local function ApplyToolLocally(ToolInfo, DeltaTime: number, MousePosition: Vect
 	local Ownership = DataService:get("Upgrades")
 	local Strength = ToolInfo.StrengthPerSecond * UpgradeLogic.GetToolStrengthMultiplier(Ownership, ToolInfo.Id)
 	local Damage = Strength * math.clamp(DeltaTime, 0, 0.2)
+	if Step.Type == "Bent" then
+		local Now = os.clock()
+		if Now - LastHammerStrike < (ToolInfo.StrikeInterval or 0.28) then return end
+		LastHammerStrike = Now
+		Damage = 1
+	end
 	local Radius = GetToolRadius(ToolInfo)
 	local Camera = Workspace.CurrentCamera
 	local ProgressChanged = false
+	local AppliedToTarget = false
 
 	for _, State in LocalTargetStates do
 		local Target = State.Part
@@ -718,6 +750,7 @@ local function ApplyToolLocally(ToolInfo, DeltaTime: number, MousePosition: Vect
 		local IsDirectSpongeTarget = Step.Type == "Grease" and AimPart == Target
 		local IsWithinBrush = IsVisible and (Vector2.new(ScreenPosition.X, ScreenPosition.Y) - MousePosition).Magnitude <= Radius
 		if not IsDirectSpongeTarget and not IsWithinBrush then continue end
+		AppliedToTarget = true
 
 		local PreviousHealth = State.CurrentHealth
 		State.CurrentHealth = math.max(0, PreviousHealth - Damage)
@@ -727,9 +760,23 @@ local function ApplyToolLocally(ToolInfo, DeltaTime: number, MousePosition: Vect
 				State.LastFeedback = Now
 				PlayLocalDirtFeedback(Target)
 			end
-		elseif Step.Type == "Grease" then
+		elseif Step.Type == "Grease" or Step.Type == "LightDust" then
 			local BaseTransparency = State.BaseTransparency
 			Target.Transparency = BaseTransparency + (1 - BaseTransparency) * (1 - State.CurrentHealth / math.max(State.MaximumHealth, 0.001))
+		elseif Step.Type == "Bent" and State.RestoredCFrame then
+			local RestoredAmount = 1 - State.CurrentHealth / math.max(State.MaximumHealth, 0.001)
+			Target.CFrame = State.StartCFrame:Lerp(State.RestoredCFrame, RestoredAmount)
+		elseif Step.Type == "Metal" then
+			local RestoredAmount = 1 - State.CurrentHealth / math.max(State.MaximumHealth, 0.001)
+			local ToolPosition = if SmoothedVisualToolCFrame then SmoothedVisualToolCFrame.Position else Workspace.CurrentCamera.CFrame.Position
+			local Direction = (ToolPosition - State.StartCFrame.Position).Unit
+			local ResistanceCurve = RestoredAmount ^ 1.7
+			Target.CFrame = State.StartCFrame + Direction * (ToolInfo.PullDistance or 1.4) * ResistanceCurve
+		elseif Step.Type == "LooseDebris" then
+			local ToolPosition = if SmoothedVisualToolCFrame then SmoothedVisualToolCFrame.Position else Workspace.CurrentCamera.CFrame.Position
+			local Direction = (Target.Position - ToolPosition).Unit
+			Target.CFrame += Direction * (ToolInfo.BlowSpeed or 8) * DeltaTime
+			Target.Transparency = math.clamp(Target.Transparency + DeltaTime * 0.9, 0, 1)
 		elseif State.OriginalAppearance then
 			local RestoredAmount = 1 - State.CurrentHealth / math.max(State.MaximumHealth, 0.001)
 			Target.Color = State.DamagedColor:Lerp(State.OriginalAppearance.Color, RestoredAmount)
@@ -741,12 +788,18 @@ local function ApplyToolLocally(ToolInfo, DeltaTime: number, MousePosition: Vect
 			ProgressChanged = true
 			LastCleanPosition = Target.Position
 			CameraImpulse = math.max(CameraImpulse, CleaningConfig.CameraTargetImpulseDistance)
-			if Step.Type == "Dirt" or Step.Type == "Grease" then
+			if Step.Type == "Dirt" or Step.Type == "Grease" or Step.Type == "LightDust" or Step.Type == "LooseDebris" or Step.Type == "Metal" then
 				Target:Destroy()
+			elseif Step.Type == "Bent" and State.RestoredCFrame then
+				Target.CFrame = State.RestoredCFrame
 			elseif State.OriginalAppearance then
 				PaintRenderer.ApplyAppearance(Target, State.OriginalAppearance)
 			end
 		end
+	end
+	if AppliedToTarget and Step.Type == "Bent" then
+		local Model = GetFixingItemModel()
+		if Model then Sounds.Play(ToolInfo.ImpactSoundName, Model.PrimaryPart or Model, TOOL_SOUND_MAX_DISTANCE) end
 	end
 
 	if ProgressChanged then ReportLocalProgress(false) end
@@ -818,7 +871,12 @@ UpdateVisualTool = function(DeltaTime)
 	end
 	local DesiredCFrame = GetDesiredToolCFrame(ToolInfo)
 	local Responsiveness = ToolInfo.PositionResponsiveness or CleaningConfig.ToolPositionResponsiveness
-	if UsingTool and ToolInfo.Id == "Sponge" then
+	if UsingTool and ToolInfo.Id == "Hammer" then
+		local StrikeProgress = math.clamp((os.clock() - LastHammerStrike) / math.max(ToolInfo.StrikeInterval or 0.28, 0.01), 0, 1)
+		local Swing = math.sin(StrikeProgress * math.pi) * math.rad(48)
+		DesiredCFrame *= CFrame.Angles(-Swing, 0, 0)
+	end
+	if UsingTool and (ToolInfo.Id == "Sponge" or ToolInfo.Id == "SoftBrush" or ToolInfo.Id == "Polisher") then
 		local AimPosition, _, SurfaceNormal = GetAimPosition()
 		if AimPosition and SurfaceNormal then
 			DesiredCFrame = GetSpongeUseCFrame(AimPosition, SurfaceNormal)
