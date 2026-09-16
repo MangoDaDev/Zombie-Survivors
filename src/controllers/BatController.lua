@@ -21,8 +21,11 @@ local BatController = {}
 local HookedTools: { [Tool]: boolean } = {}
 local CratePredictions = {}
 local CrateReactions = {}
+local DebrisFolder: Folder
+local ActiveDebrisCount = 0
 local Network
 local RandomGenerator = Random.new()
+local MAXIMUM_DEBRIS_COUNT = 80
 
 local function GetBatInfo(BatId)
 	for _, Info in BatInfo do
@@ -205,6 +208,69 @@ local function ShowPredictedImpact(Model, Handle, Info)
 	Sounds.Play(SoundName, Handle, 70)
 end
 
+local function ShakeCamera(Strength: number, Duration: number)
+	task.spawn(function()
+		local StartedAt = os.clock()
+		while os.clock() - StartedAt < Duration do
+			RunService.RenderStepped:Wait()
+			local Camera = Workspace.CurrentCamera
+			local Alpha = 1 - (os.clock() - StartedAt) / Duration
+			local Offset = Vector3.new(
+				RandomGenerator:NextNumber(-1, 1),
+				RandomGenerator:NextNumber(-1, 1),
+				0
+			) * Strength * Alpha
+			Camera.CFrame *= CFrame.new(Offset)
+		end
+	end)
+end
+
+local function CreateCrateDebris(Position: Vector3, Normal: Vector3, Color: Color3, Material: Enum.Material, IsFinalHit: boolean)
+	local FragmentCount = if IsFinalHit then 18 else 7
+	for _ = 1, FragmentCount do
+		if ActiveDebrisCount >= MAXIMUM_DEBRIS_COUNT then break end
+		local Fragment = Instance.new("Part")
+		Fragment.Name = "LocalCrateDebris"
+		Fragment.Anchored = false
+		Fragment.CanCollide = false
+		Fragment.CanQuery = false
+		Fragment.CanTouch = false
+		Fragment.CastShadow = false
+		Fragment.Color = Color
+		Fragment.Material = Material
+		local MaximumSize = if IsFinalHit then 0.85 else 0.55
+		Fragment.Size = Vector3.new(
+			RandomGenerator:NextNumber(0.18, MaximumSize),
+			RandomGenerator:NextNumber(0.16, MaximumSize),
+			RandomGenerator:NextNumber(0.18, MaximumSize)
+		)
+		Fragment.CFrame = CFrame.new(Position + Normal * 0.12)
+		Fragment.Parent = DebrisFolder
+		ActiveDebrisCount += 1
+		Fragment.Destroying:Once(function() ActiveDebrisCount = math.max(0, ActiveDebrisCount - 1) end)
+		local RandomDirection = Normal * RandomGenerator:NextNumber(0.8, 1.35)
+			+ Vector3.new(
+				RandomGenerator:NextNumber(-0.75, 0.75),
+				RandomGenerator:NextNumber(0.1, 0.9),
+				RandomGenerator:NextNumber(-0.75, 0.75)
+			)
+		local Speed = RandomGenerator:NextNumber(if IsFinalHit then 14 else 7, if IsFinalHit then 24 else 14)
+		Fragment.AssemblyLinearVelocity = RandomDirection.Unit * Speed
+		Fragment.AssemblyAngularVelocity = Vector3.new(
+			RandomGenerator:NextNumber(-18, 18),
+			RandomGenerator:NextNumber(-18, 18),
+			RandomGenerator:NextNumber(-18, 18)
+		)
+		local Lifetime = RandomGenerator:NextNumber(0.42, if IsFinalHit then 0.85 else 0.65)
+		task.delay(Lifetime * 0.55, function()
+			if Fragment.Parent then
+				TweenService:Create(Fragment, TweenInfo.new(Lifetime * 0.45), { Transparency = 1, Size = Fragment.Size * 0.35 }):Play()
+			end
+		end)
+		Debris:AddItem(Fragment, Lifetime)
+	end
+end
+
 local function DetectTargets(Tool, Info)
 	local Character = LocalPlayer.Character
 	local RootPart = Character and Character:FindFirstChild("HumanoidRootPart")
@@ -285,6 +351,9 @@ local function HookContainer(Container)
 end
 
 function BatController.Init()
+	DebrisFolder = Instance.new("Folder")
+	DebrisFolder.Name = "LocalCrateDebris"
+	DebrisFolder.Parent = Workspace
 	Network = Networker.client.new("BatController", BatController)
 	RunService.RenderStepped:Connect(function()
 		local Now = os.clock()
@@ -295,6 +364,33 @@ function BatController.Init()
 	task.spawn(function()
 		HookContainer(LocalPlayer:WaitForChild("Backpack"))
 	end)
+end
+
+function BatController.CrateHitConfirmed(_, Position, Normal, Color, Material, IsFinalHit, BatId)
+	if typeof(Position) ~= "Vector3" or typeof(Normal) ~= "Vector3" or Normal.Magnitude < 0.01
+		or typeof(Color) ~= "Color3" or typeof(Material) ~= "EnumItem" or type(IsFinalHit) ~= "boolean"
+		or type(BatId) ~= "string" or not GetBatInfo(BatId)
+	then return end
+	CreateCrateDebris(Position, Normal.Unit, Color, Material, IsFinalHit)
+	if not IsFinalHit then return end
+	ShakeCamera(0.075, 0.14)
+	local CrateInfoEntry = GetCrateInfo("CommonCrate")
+	local SoundNames = CrateInfoEntry and CrateInfoEntry.BreakSoundNames
+	if SoundNames and #SoundNames > 0 then
+		local Anchor = Instance.new("Part")
+		Anchor.Name = "LocalCrateBreakSound"
+		Anchor.Anchored = true
+		Anchor.CanCollide = false
+		Anchor.CanQuery = false
+		Anchor.CanTouch = false
+		Anchor.Size = Vector3.one * 0.05
+		Anchor.Transparency = 1
+		Anchor.Position = Position
+		Anchor.Parent = DebrisFolder
+		local Sound = Sounds.Play(SoundNames[RandomGenerator:NextInteger(1, #SoundNames)], Anchor, 75)
+		if Sound then Sound.Volume *= 0.65 end
+		Debris:AddItem(Anchor, 3)
+	end
 end
 
 function BatController.ReactToCrate(_, Model, AttackerPosition, BatId)

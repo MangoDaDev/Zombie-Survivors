@@ -15,7 +15,6 @@ local ItemInteractionConfig = {
 	PvpHitCooldown = 0.8,
 	PvpProtectionDuration = 2.5,
 	PvpMaximumHitDistance = 10,
-	FixingRotationSpeedDegrees = 24,
 	SurfacePlacementAttempts = 4,
 	SurfacePlacementOffset = 0.015,
 	MaximumDirtCount = 160,

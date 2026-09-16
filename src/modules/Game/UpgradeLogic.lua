@@ -52,18 +52,20 @@ function UpgradeLogic.GetState(Ownership, Upgrade): string
 	return if UpgradeLogic.ArePrerequisitesMet(Ownership, Upgrade) then "Available" else "Locked"
 end
 
-function UpgradeLogic.IsAffordable(Ownership, Upgrade, Cash): boolean
+function UpgradeLogic.CanPurchaseUpgrade(Ownership, Upgrade, Cash): boolean
 	return Upgrade.Purchasable ~= false
 		and UpgradeLogic.GetState(Ownership, Upgrade) == "Available"
 		and type(Cash) == "number"
 		and Cash >= Upgrade.Cost
 end
 
+UpgradeLogic.IsAffordable = UpgradeLogic.CanPurchaseUpgrade
+
 function UpgradeLogic.GetAffordableUpgrades(Ownership, Cash): { any }
 	local AffordableUpgrades = {}
 
 	for _, Upgrade in UpgradeConfig.Upgrades do
-		if UpgradeLogic.IsAffordable(Ownership, Upgrade, Cash) then
+		if UpgradeLogic.CanPurchaseUpgrade(Ownership, Upgrade, Cash) then
 			table.insert(AffordableUpgrades, Upgrade)
 		end
 	end

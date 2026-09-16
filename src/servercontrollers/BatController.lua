@@ -143,6 +143,23 @@ local function HasClearHitPath(AttackerCharacter: Model, TargetCharacter: Model,
 	return Workspace:Raycast(Origin, Target - Origin, Parameters) == nil
 end
 
+local function GetCrateImpact(Model: Model, Origin: Vector3)
+	local Parameters = RaycastParams.new()
+	Parameters.FilterType = Enum.RaycastFilterType.Include
+	Parameters.FilterDescendantsInstances = { Model }
+	Parameters.IgnoreWater = true
+	local TargetPosition = Model:GetPivot().Position
+	local Direction = TargetPosition - Origin
+	local Result = if Direction.Magnitude > 0.01 then Workspace:Raycast(Origin, Direction.Unit * (Direction.Magnitude + 8), Parameters) else nil
+	if Result then
+		return Result.Position, Result.Normal, Result.Instance.Color, Result.Instance.Material
+	end
+	local Part = Model.PrimaryPart or Model:FindFirstChildWhichIsA("BasePart")
+	if not Part then return TargetPosition, Vector3.yAxis, Color3.fromRGB(125, 90, 62), Enum.Material.Wood end
+	local Normal = Origin - Part.Position
+	return Part.Position, if Normal.Magnitude > 0.01 then Normal.Unit else Vector3.yAxis, Part.Color, Part.Material
+end
+
 local function HitPlayer(Attacker: Player, TargetPlayer: Player, AttackerRoot: BasePart, Info, Now: number)
 	if Attacker == TargetPlayer or Now < (ProtectedUntil[TargetPlayer] or 0) then return end
 	local AttackerCharacter = Attacker.Character
@@ -225,8 +242,13 @@ function BatController.Swing(_, Player, Targets)
 				end
 			end
 			if IsTargetInRange(Player, RootPart, Target:GetPivot().Position, Info, Now) then
+				local ImpactPosition, ImpactNormal, ImpactColor, ImpactMaterial = GetCrateImpact(Target, RootPart.Position)
 				local Damaged = CrateController.DamageCrate(Player, Target, Info.CrateDamage)
-				if Damaged and not Target.Parent then GuidanceController.MarkTutorialCrateBroken(Player, Target) end
+				local IsFinalHit = Damaged and not Target.Parent
+				if IsFinalHit then GuidanceController.MarkTutorialCrateBroken(Player, Target) end
+				if Damaged then
+					Network:fire(Player, "CrateHitConfirmed", ImpactPosition, ImpactNormal, ImpactColor, ImpactMaterial, IsFinalHit, Info.Id)
+				end
 				if Damaged and Target.Parent then
 					Network:fireAllExcept(Player, "ReactToCrate", Target, RootPart.Position, Info.Id)
 				end

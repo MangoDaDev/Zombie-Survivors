@@ -1,4 +1,5 @@
 local Debris = game:GetService("Debris")
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
@@ -8,6 +9,7 @@ local CrateRuntime = require(ReplicatedStorage.Modules.Game.CrateRuntime)
 local GuidanceController = require(ReplicatedStorage.Controllers.GuidanceController)
 local ItemsInfo = require(ReplicatedStorage.Modules.Game.ItemsInfo)
 local FormatNumber = require(ReplicatedStorage.Modules.Math.FormatNumber)
+local Images = require(ReplicatedStorage.Modules.UI.Images)
 local MultiplyNumberSequence = require(ReplicatedStorage.Modules.Math.MultiplyNumberSequence)
 local Networker = require(ReplicatedStorage.Packages.networker)
 local RarityInfo = require(ReplicatedStorage.Modules.Game.RarityInfo)
@@ -15,8 +17,11 @@ local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
 
 local CrateController = {}
 local RevealFolder: Folder
+local RevealGui: ScreenGui
 local Reveals = {}
+local ScreenEffectId = 0
 local RandomGenerator = Random.new()
+local LocalPlayer = Players.LocalPlayer
 
 local PinwheelTemplates = {
 	Common = "Common",
@@ -128,8 +133,8 @@ local function PlayTick(Info, Model, Index)
 	end
 end
 
-local function CreateRevealBurst(Position)
-	for Index = 1, 14 do
+local function CreateRevealBurst(Position, Config)
+	for Index = 1, Config.ParticleCount do
 		local Particle = Instance.new("Part")
 		Particle.Name = "RevealParticle"
 		Particle.Anchored = true
@@ -137,21 +142,97 @@ local function CreateRevealBurst(Position)
 		Particle.CanQuery = false
 		Particle.CanTouch = false
 		Particle.Material = Enum.Material.Neon
-		Particle.Color = if Index % 2 == 0 then Color3.fromRGB(255, 232, 111) else Color3.new(1, 1, 1)
-		Particle.Size = Vector3.one * RandomGenerator:NextNumber(0.09, 0.18)
+		Particle.Color = if Index % 3 == 0 then Color3.new(1, 1, 1) else Config.Color
+		Particle.Size = Vector3.one * RandomGenerator:NextNumber(0.07, 0.14) * Config.Intensity
 		Particle.Position = Position
 		Particle.Parent = RevealFolder
 		local Direction = Vector3.new(RandomGenerator:NextNumber(-1, 1), RandomGenerator:NextNumber(0.2, 1), RandomGenerator:NextNumber(-1, 1)).Unit
 		TweenService:Create(
 			Particle,
 			TweenInfo.new(0.55, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-			{ Position = Position + Direction * RandomGenerator:NextNumber(2, 4), Transparency = 1, Size = Vector3.zero }
+			{ Position = Position + Direction * RandomGenerator:NextNumber(2, 4) * Config.Intensity, Transparency = 1, Size = Vector3.zero }
 		):Play()
 		Debris:AddItem(Particle, 0.6)
 	end
 end
 
+local function PlayScreenReveal(Position, Config)
+	ScreenEffectId += 1
+	local EffectId = ScreenEffectId
+	RevealGui:ClearAllChildren()
+
+	local Camera = Workspace.CurrentCamera
+	local ViewportPosition, IsVisible = Camera:WorldToViewportPoint(Position)
+	local Origin = if IsVisible
+		then Vector2.new(ViewportPosition.X, ViewportPosition.Y)
+		else Camera.ViewportSize / 2
+
+	local Vignette = Instance.new("ImageLabel")
+	Vignette.Name = "RarityVignette"
+	Vignette.BackgroundTransparency = 1
+	Vignette.Image = Images.Vignette
+	Vignette.ImageColor3 = Config.Color
+	Vignette.ImageTransparency = 1
+	Vignette.Size = UDim2.fromScale(1, 1)
+	Vignette.ZIndex = 1
+	Vignette.Parent = RevealGui
+
+	local Flash = Instance.new("Frame")
+	Flash.Name = "RevealFlash"
+	Flash.BackgroundColor3 = Config.Color
+	Flash.BackgroundTransparency = 1 - Config.FlashStrength
+	Flash.BorderSizePixel = 0
+	Flash.Size = UDim2.fromScale(1, 1)
+	Flash.ZIndex = 2
+	Flash.Parent = RevealGui
+
+	TweenService:Create(Vignette, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		ImageTransparency = 1 - Config.VignetteOpacity,
+	}):Play()
+	TweenService:Create(Flash, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		BackgroundTransparency = 1,
+	}):Play()
+
+	for Index = 1, Config.SparkleCount do
+		local Sparkle = Instance.new("ImageLabel")
+		Sparkle.Name = "RevealSparkle"
+		Sparkle.AnchorPoint = Vector2.new(0.5, 0.5)
+		Sparkle.BackgroundTransparency = 1
+		Sparkle.Image = Images.Sparkle
+		Sparkle.ImageColor3 = if Index % 4 == 0 then Color3.new(1, 1, 1) else Config.Color
+		Sparkle.ImageTransparency = RandomGenerator:NextNumber(0, 0.15)
+		Sparkle.Position = UDim2.fromOffset(Origin.X, Origin.Y)
+		Sparkle.Rotation = RandomGenerator:NextNumber(-180, 180)
+		local Size = RandomGenerator:NextNumber(12, 25) * math.min(Config.Intensity, 1.6)
+		Sparkle.Size = UDim2.fromOffset(Size, Size)
+		Sparkle.ZIndex = 3
+		Sparkle.Parent = RevealGui
+		local Angle = RandomGenerator:NextNumber(0, math.pi * 2)
+		local Distance = RandomGenerator:NextNumber(55, 145) * math.min(Config.Intensity, 1.5)
+		local Target = Origin + Vector2.new(math.cos(Angle), math.sin(Angle)) * Distance
+		TweenService:Create(
+			Sparkle,
+			TweenInfo.new(RandomGenerator:NextNumber(0.38, 0.62), Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+			{
+				ImageTransparency = 1,
+				Position = UDim2.fromOffset(Target.X, Target.Y),
+				Rotation = Sparkle.Rotation + RandomGenerator:NextNumber(-100, 100),
+				Size = UDim2.fromOffset(Size * 0.35, Size * 0.35),
+			}
+		):Play()
+		Debris:AddItem(Sparkle, 0.7)
+	end
+
+	task.delay(math.min(Config.RevealEffectDuration, 0.75), function()
+		if EffectId ~= ScreenEffectId or not Vignette.Parent then return end
+		TweenService:Create(Vignette, TweenInfo.new(0.25, Enum.EasingStyle.Quad), { ImageTransparency = 1 }):Play()
+		Debris:AddItem(Vignette, 0.3)
+		Debris:AddItem(Flash, 0.3)
+	end)
+end
+
 local function CreateRarityEffect(Model: Model, Rarity: string)
+	local Config = RarityInfo.Get(Rarity)
 	local PinwheelFolder = ReplicatedStorage.Assets.VFX:FindFirstChild("RarityPinwheels")
 	local TemplateName = PinwheelTemplates[Rarity]
 	local Template = PinwheelFolder and TemplateName and PinwheelFolder:FindFirstChild(TemplateName)
@@ -173,16 +254,19 @@ local function CreateRarityEffect(Model: Model, Rarity: string)
 	Anchor.Parent = RevealFolder
 	local Effect = Template:Clone()
 	Effect.Parent = Anchor
-	local SizeScale = math.clamp(MaximumSize / 3, 1, 3)
+	local SizeScale = math.clamp(MaximumSize / 3, 1, 3) * Config.PinwheelIntensity
 	local MaximumLifetime = 0
 	for _, Emitter in Effect:GetDescendants() do
 		if not Emitter:IsA("ParticleEmitter") then continue end
 		Emitter.Size = MultiplyNumberSequence(Emitter.Size, SizeScale)
+		Emitter.Color = ColorSequence.new(Config.Color)
+		Emitter.LightEmission = math.clamp(Emitter.LightEmission * Config.PinwheelIntensity, 0, 1)
+		Emitter.Rate *= Config.PinwheelIntensity
 		Emitter.Enabled = true
-		Emitter:Emit(1)
+		Emitter:Emit(math.max(1, math.floor(Config.PinwheelIntensity + 0.5)))
 		MaximumLifetime = math.max(MaximumLifetime, Emitter.Lifetime.Max)
 	end
-	local Duration = RarityInfo.Get(Rarity).RevealEffectDuration or 1
+	local Duration = Config.RevealEffectDuration or 1
 	task.delay(Duration, function()
 		if not Effect.Parent then return end
 		for _, Emitter in Effect:GetDescendants() do
@@ -192,7 +276,7 @@ local function CreateRarityEffect(Model: Model, Rarity: string)
 	Debris:AddItem(Anchor, Duration + MaximumLifetime + 0.25)
 end
 
-function CrateController.StartReveal(_, RewardId, ActualItemId, GroundCFrame, CrateId)
+function CrateController.StartReveal(_, RewardId, ActualItemId, GroundCFrame, CrateId, RevealingPlayer)
 	local Info = GetCrateInfo(CrateId)
 	local ActualItemInfo = GetItemInfo(ActualItemId)
 	if type(RewardId) ~= "string" or not Info or not ActualItemInfo or typeof(GroundCFrame) ~= "CFrame" then return end
@@ -213,13 +297,21 @@ function CrateController.StartReveal(_, RewardId, ActualItemId, GroundCFrame, Cr
 		end
 		if Reveals[RewardId] ~= Reveal or Reveal.Cancelled then return end
 		local Position = if Reveal.Model then Reveal.Model:GetPivot().Position else GroundCFrame.Position
+		local Config = RarityInfo.Get(ActualItemInfo.Rarity)
 		if Reveal.Model then
 			CreateRarityEffect(Reveal.Model, ActualItemInfo.Rarity)
 			Reveal.Model:Destroy()
 			Reveal.Model = nil
 		end
-		Sounds.Play(Info.RevealCompleteSoundName, Workspace.CurrentCamera, 70)
-		CreateRevealBurst(Position)
+		CreateRevealBurst(Position, Config)
+		if RevealingPlayer == LocalPlayer then
+			PlayScreenReveal(Position, Config)
+			local Sound = Sounds.Play(Config.RevealSoundName or Info.RevealCompleteSoundName, Workspace.CurrentCamera, 70)
+			if Sound then
+				Sound.Volume *= Config.RevealSoundVolume
+				Sound.PlaybackSpeed *= Config.RevealSoundPitch
+			end
+		end
 		Reveals[RewardId] = nil
 	end)
 end
@@ -256,6 +348,12 @@ function CrateController.Init()
 	RevealFolder = Instance.new("Folder")
 	RevealFolder.Name = "LocalCrateReveals"
 	RevealFolder.Parent = Workspace
+	RevealGui = Instance.new("ScreenGui")
+	RevealGui.Name = "LocalRevealVFX"
+	RevealGui.DisplayOrder = 80
+	RevealGui.IgnoreGuiInset = true
+	RevealGui.ResetOnSpawn = false
+	RevealGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 	local CrateNetwork = Networker.client.new("CrateController", CrateController)
 	local Snapshot = CrateNetwork:fetch("GetRuntimeState")
 

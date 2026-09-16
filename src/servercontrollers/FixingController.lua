@@ -1,6 +1,5 @@
 local Debris = game:GetService("Debris")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
 local ServerStorage = game:GetService("ServerStorage")
 local TweenService = game:GetService("TweenService")
 
@@ -10,7 +9,6 @@ local CleaningConfig = require(ReplicatedStorage.Modules.Game.CleaningConfig)
 local EconomyConfig = require(ReplicatedStorage.Modules.Game.EconomyConfig)
 local DirtRenderer = require(ReplicatedStorage.Modules.Game.DirtRenderer)
 local GreaseRenderer = require(ReplicatedStorage.Modules.Game.GreaseRenderer)
-local ItemInteractionConfig = require(ReplicatedStorage.Modules.Game.ItemInteractionConfig)
 local ItemInfoBillboard = require(ReplicatedStorage.Modules.UI.ItemInfoBillboard)
 local ItemsInfo = require(ReplicatedStorage.Modules.Game.ItemsInfo)
 local MuseumController = require(ServerStorage.Controllers.MuseumController)
@@ -22,8 +20,6 @@ local ToolResolver = require(ReplicatedStorage.Modules.Game.ToolResolver)
 local UpgradeLogic = require(ReplicatedStorage.Modules.Game.UpgradeLogic)
 
 local CONFIG = {
-	RotationSpeed = math.rad(ItemInteractionConfig.FixingRotationSpeedDegrees),
-	RotationResponsiveness = 5,
 	FeedbackSoundMaxDistance = 50,
 }
 local FixingController = {}
@@ -43,7 +39,8 @@ end
 
 local function PlaceItemOnTable(Model: Model, Box: BasePart, TableSurface: BasePart)
 	local BoxOffset = Model:GetPivot():ToObjectSpace(Box.CFrame)
-	local BoxRotation = TableSurface.CFrame.Rotation * CFrame.Angles(math.rad(CleaningConfig.ItemTiltDegrees), 0, 0)
+	local BoxRotation = TableSurface.CFrame.Rotation
+		* CFrame.Angles(0, math.rad(CleaningConfig.ItemPresentationRotationDegrees), 0)
 	local SurfaceNormal = TableSurface.CFrame.UpVector
 	local HalfSize = Box.Size / 2
 	local SupportHeight = math.abs(BoxRotation.RightVector:Dot(SurfaceNormal)) * HalfSize.X
@@ -420,20 +417,11 @@ local function StartFixing(Player)
 		Prompt = if Prompt and Prompt:IsA("ProximityPrompt") then Prompt else nil,
 		IsUsingTool = false,
 		ActiveToolId = nil,
-		CurrentRotationSpeed = CONFIG.RotationSpeed,
 		StepIndex = StepIndex,
 		Completing = false,
 		TransitionId = 0,
 		LastProgress = -1,
 	}
-	Session.Connection = RunService.Heartbeat:Connect(function(DeltaTime)
-		if not Model.Parent or not RootPart.Parent or Humanoid.Health <= 0 then task.defer(ClearSession, Player); return end
-		local TargetRotationSpeed = if Session.IsUsingTool then 0 else CONFIG.RotationSpeed
-		local Blend = 1 - math.exp(-CONFIG.RotationResponsiveness * DeltaTime)
-		Session.CurrentRotationSpeed += (TargetRotationSpeed - Session.CurrentRotationSpeed) * Blend
-		if math.abs(TargetRotationSpeed - Session.CurrentRotationSpeed) < math.rad(0.05) then Session.CurrentRotationSpeed = TargetRotationSpeed end
-		Model:PivotTo(Model:GetPivot() * CFrame.Angles(0, Session.CurrentRotationSpeed * DeltaTime, 0))
-	end)
 	Session.CharacterConnection = Player.CharacterRemoving:Connect(function(RemovingCharacter)
 		if RemovingCharacter == RootPart.Parent then task.defer(ClearSession, Player) end
 	end)

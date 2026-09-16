@@ -13,12 +13,14 @@ local Networker = require(ReplicatedStorage.Packages.networker)
 local NotificationManager = require(ReplicatedStorage.Modules.UI.NotificationManager)
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
 local UIStyle = require(ReplicatedStorage.Modules.UI.UIStyle)
+local Notification = require(ReplicatedStorage.UI.Effects.Notification)
 local Vide = require(ReplicatedStorage.Packages.vide)
 
 local Action = Vide.action
 local Cleanup = Vide.cleanup
 local Create = Vide.create
 local Derive = Vide.derive
+local Effect = Vide.effect
 local Source = Vide.source
 local Spring = Vide.spring
 
@@ -73,7 +75,7 @@ local function CreateNode(Properties)
 		return RevealDistance() ~= nil
 	end)
 	local IsAffordable = Derive(function()
-		return UpgradeLogic.IsAffordable(Properties.Ownership(), Upgrade, Properties.Cash())
+		return UpgradeLogic.CanPurchaseUpgrade(Properties.Ownership(), Upgrade, Properties.Cash())
 	end)
 	local Transparency = Spring(
 		Derive(function()
@@ -99,6 +101,18 @@ local function CreateNode(Properties)
 		0.86
 	)
 	local Icon = Images[Upgrade.Icon] or Images.Upgrade
+	local NodeNotification
+
+	Effect(function()
+		local Amount = if Properties.IsOpen() and IsAffordable() then 1 else 0
+		if NodeNotification then NodeNotification:SetAmount(Amount) end
+	end)
+	Cleanup(function()
+		if NodeNotification then
+			NodeNotification:Destroy()
+			NodeNotification = nil
+		end
+	end)
 
 	local function CanAfford(): boolean
 		return type(Properties.Cash()) == "number" and Properties.Cash() >= Upgrade.Cost
@@ -128,6 +142,10 @@ local function CreateNode(Properties)
 			return Transparency() < 0.985
 		end,
 		ZIndex = 3,
+		Action(function(Instance)
+			NodeNotification = Notification.new("AvailableUpgrade", Instance)
+			NodeNotification:SetAmount(if Properties.IsOpen() and IsAffordable() then 1 else 0)
+		end),
 		Create "UIAspectRatioConstraint" { AspectRatio = 1 },
 		Create "UIScale" { Scale = Scale },
 		Create "TextLabel" {
@@ -322,6 +340,12 @@ return function()
 	local LastDragPosition: Vector2?
 	local DragDistance = 0
 	local DraggedLastInput = false
+	local OpenButtonNotification
+
+	Effect(function()
+		local Amount = AffordableCount()
+		if OpenButtonNotification then OpenButtonNotification:SetAmount(Amount) end
+	end)
 
 	local function UpdateTutorialPulse()
 		if IsOpenUpgradesStep() or AffordableCount() > 0 then
@@ -460,6 +484,10 @@ return function()
 		TutorialPulseTween:Cancel()
 		TutorialPulseValue:Destroy()
 		NotificationManager.SetActive("AffordableUpgrade", false, "")
+		if OpenButtonNotification then
+			OpenButtonNotification:Destroy()
+			OpenButtonNotification = nil
+		end
 		if ViewportConnection then
 			ViewportConnection:Disconnect()
 		end
@@ -509,6 +537,7 @@ return function()
 				Upgrade = Upgrade,
 				Ownership = Ownership,
 				Cash = Cash,
+				IsOpen = IsOpen,
 				RevealDistances = RevealDistances,
 				IsPurchasing = IsPurchasing,
 				LastPurchasedId = LastPurchasedId,
@@ -592,6 +621,10 @@ return function()
 				return UDim2.fromOffset(ButtonSize, ButtonSize)
 			end,
 			ZIndex = 25,
+			Action(function(Instance)
+				OpenButtonNotification = Notification.new("AvailableUpgrades", Instance)
+				OpenButtonNotification:SetAmount(AffordableCount())
+			end),
 			Create "UICorner" { CornerRadius = UDim.new(0, 19) },
 			Create "UIStroke" {
 				Color = function()

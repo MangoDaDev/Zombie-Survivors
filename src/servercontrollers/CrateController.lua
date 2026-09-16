@@ -161,23 +161,6 @@ local function SetModelOnGround(Model, GroundCFrame)
 	Model:PivotTo(Model:GetPivot() + Vector3.new(0, GroundCFrame.Position.Y - BottomY, 0))
 end
 
-local function CreateBreakShards(State)
-	local Origin = State.Model:GetPivot().Position
-	for Index = 1, 9 do
-		local Shard = Instance.new("Part")
-		Shard.Name = "CrateShard"
-		Shard.Size = Vector3.new(0.18, 0.18, RandomGenerator:NextNumber(0.35, 0.7)) * State.Scale
-		Shard.Color = Color3.fromRGB(111, 74, 47)
-		Shard.Material = Enum.Material.Wood
-		Shard.CanCollide = false
-		Shard.CFrame = CFrame.new(Origin) * CFrame.Angles(RandomGenerator:NextNumber(0, 6), RandomGenerator:NextNumber(0, 6), RandomGenerator:NextNumber(0, 6))
-		Shard.Parent = Workspace
-		Shard.AssemblyLinearVelocity = Vector3.new(RandomGenerator:NextNumber(-13, 13), RandomGenerator:NextNumber(10, 20), RandomGenerator:NextNumber(-13, 13))
-		Shard.AssemblyAngularVelocity = Vector3.new(RandomGenerator:NextNumber(-12, 12), RandomGenerator:NextNumber(-12, 12), RandomGenerator:NextNumber(-12, 12))
-		Debris:AddItem(Shard, 1.4)
-	end
-end
-
 local function SendPurchaseFeedback(Player, Status, ItemName, Detail)
 	Network:fire(Player, "PurchaseFeedback", Status, ItemName, Detail)
 end
@@ -299,7 +282,7 @@ local function CreateReward(State, Player: Player)
 			Prompt.Enabled = Workspace:GetServerTimeNow() >= Reward.AvailableAt
 		end
 	end)
-	Network:fireAll("StartReveal", RewardId, ItemInfo.Id, GroundCFrame, Info.Id)
+	Network:fireAll("StartReveal", RewardId, ItemInfo.Id, GroundCFrame, Info.Id, Player)
 	task.delay(RevealDuration, function()
 		if Rewards[RewardId] ~= Reward then return end
 		for _, Part in Model:GetDescendants() do
@@ -358,7 +341,6 @@ local function BreakCrate(State, Player: Player)
 	SoundAnchor.Parent = Workspace
 	Sounds.Play(SoundName, SoundAnchor, 90)
 	Debris:AddItem(SoundAnchor, 5)
-	CreateBreakShards(State)
 	CreateReward(State, Player)
 	State.Model:Destroy()
 	task.delay(State.Info.RespawnDelay, function()

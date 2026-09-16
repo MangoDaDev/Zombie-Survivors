@@ -41,7 +41,7 @@ function UpgradeController.Purchase(_, Player: Player, UpgradeId: string)
 		return false, "Requirements not met"
 	end
 	local Cash = DataService:get(Player, "Cash")
-	if type(Cash) ~= "number" or Cash < Upgrade.Cost then
+	if not UpgradeLogic.CanPurchaseUpgrade(Ownership, Upgrade, Cash) then
 		PurchaseLocks[Player] = nil
 		return false, "Not enough cash"
 	end
