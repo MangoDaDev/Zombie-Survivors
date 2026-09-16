@@ -5,7 +5,7 @@ local ItemInfoBillboardController = {}
 
 local ITEM_INFO_TAG = "ItemInfoBillboard"
 local CLOSE_DISTANCE = 35
-local MEDIUM_DISTANCE = 70
+local MEDIUM_DISTANCE = 90
 local MAX_VISIBLE_BILLBOARDS = 4
 local OVERLAP_DISTANCE = 130
 local UPDATE_INTERVAL = 0.2

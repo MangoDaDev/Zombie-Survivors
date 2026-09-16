@@ -11,7 +11,7 @@ local BILLBOARD_SIZE = UDim2.fromScale(7.5, 4)
 local BILLBOARD_HEIGHT_OFFSET = 2
 local BILLBOARD_HEIGHT_SCALE = 0.18
 local COMIC_FONT = UIStyle.Font
-local MAX_DISTANCE = 90
+local MAX_DISTANCE = 110
 local ITEM_INFO_TAG = "ItemInfoBillboard"
 
 local function addStroke(label: TextLabel)
@@ -70,7 +70,7 @@ return function(itemInfo, adornee: BasePart, fixingState): BillboardGui
 	local billboard = Instance.new("BillboardGui")
 	billboard.Name = "ItemInfo"
 	billboard.Adornee = adornee
-	billboard.AlwaysOnTop = false
+	billboard.AlwaysOnTop = true
 	billboard.MaxDistance = MAX_DISTANCE
 	billboard.Size = BILLBOARD_SIZE
 	local ItemModel = adornee:FindFirstAncestorOfClass("Model")

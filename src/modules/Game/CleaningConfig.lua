@@ -73,6 +73,31 @@ local CleaningConfig = {
 			SurfaceRotationDegrees = Vector3.new(0, 90, 0),
 			PositionResponsiveness = 30,
 		},
+		{
+			Id = "SoftBrush", DisplayName = "Soft Brush", TemplateName = "Soft Brush", VFXStartPartName = "Handle",
+			LoopSoundName = "SlowSwoosh", RadiusPixels = 34, StrengthPerSecond = 2.4, PositionResponsiveness = 32,
+			SurfaceRotationDegrees = Vector3.new(0, 90, 0),
+		},
+		{
+			Id = "Polisher", DisplayName = "Polisher", TemplateName = "Polisher", VFXStartPartName = "PolishingPadFront",
+			LoopSoundName = "Rolling", RadiusPixels = 42, StrengthPerSecond = 1.9, PositionResponsiveness = 28,
+			SurfaceRotationDegrees = Vector3.new(0, 90, 0),
+		},
+		{
+			Id = "Hairdryer", DisplayName = "Hairdryer", TemplateName = "Hairdryer", VFXStartPartName = "Handle",
+			LoopSoundName = "Wind", LoopSoundVolume = 0.55, RadiusPixels = 68, StrengthPerSecond = 3.4,
+			PositionResponsiveness = 24, AirflowRange = 8, AirflowConeDegrees = 24, BlowSpeed = 8,
+		},
+		{
+			Id = "Hammer", DisplayName = "Hammer", TemplateName = "Hammer", VFXStartPartName = "Handle",
+			RadiusPixels = 30, StrengthPerSecond = 5, PositionResponsiveness = 36, StrikeInterval = 0.28,
+			ImpactSoundName = "MetalHitSoft",
+		},
+		{
+			Id = "Magnet", DisplayName = "Magnet", TemplateName = "Magnet", VFXStartPartName = "Magnet",
+			LoopSoundName = "MagnetEquip", RadiusPixels = 46, StrengthPerSecond = 1.8, PositionResponsiveness = 26,
+			PullDistance = 1.4,
+		},
 	},
 	Steps = {
 		{
@@ -82,6 +107,18 @@ local CleaningConfig = {
 			IconName = "Dirt",
 			DisplayName = "Spraying",
 			ToolId = "Spray",
+			CompletionSoundName = "Reward1",
+		},
+		{
+			Id = "Sponge",
+			MinimumRestorationTier = 2,
+			Type = "Grease",
+			IconName = "Grease",
+			DisplayName = "Scrubbing",
+			ToolId = "Sponge",
+			TargetHP = 2,
+			PatchColor = Color3.fromRGB(177, 126, 42),
+			PatchTransparency = 0.24,
 			CompletionSoundName = "Reward1",
 		},
 		{
@@ -98,16 +135,25 @@ local CleaningConfig = {
 			CompletionSoundName = "Reward1",
 		},
 		{
-			Id = "Sponge",
-			MinimumRestorationTier = 2,
-			Type = "Grease",
-			IconName = "Grease",
-			DisplayName = "Scrubbing",
-			ToolId = "Sponge",
-			TargetHP = 2,
-			PatchColor = Color3.fromRGB(177, 126, 42),
-			PatchTransparency = 0.24,
-			CompletionSoundName = "Reward1",
+			Id = "SoftBrush", MinimumRestorationTier = 2, Type = "LightDust", IconName = "LightDust",
+			DisplayName = "Brushing Dust", ToolId = "SoftBrush", TargetHP = 1.5,
+			PatchColor = Color3.fromRGB(132, 136, 141), PatchTransparency = 0.48, CompletionSoundName = "Reward1",
+		},
+		{
+			Id = "Hairdryer", MinimumRestorationTier = 3, Type = "LooseDebris", IconName = "LooseDebris",
+			DisplayName = "Blowing Debris", ToolId = "Hairdryer", TargetHP = 1, CompletionSoundName = "Swoosh",
+		},
+		{
+			Id = "Hammer", MinimumRestorationTier = 5, Type = "Bent", IconName = "Bent",
+			DisplayName = "Realigning Parts", ToolId = "Hammer", TargetHP = 5, CompletionSoundName = "MetalHitSoft",
+		},
+		{
+			Id = "Magnet", MinimumRestorationTier = 6, Type = "Metal", IconName = "Metal",
+			DisplayName = "Extracting Metal", ToolId = "Magnet", TargetHP = 3, CompletionSoundName = "MagnetUnequip",
+		},
+		{
+			Id = "Polisher", MinimumRestorationTier = 4, Type = "Polish", IconName = "Polish",
+			DisplayName = "Polishing Finish", ToolId = "Polisher", TargetHP = 2, CompletionSoundName = "Reward2",
 		},
 	},
 	FullCompletion = {
