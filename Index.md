@@ -121,7 +121,7 @@ Quick reference for the project's first-party Luau scripts. Generated Wally depe
 | `src/modules/UI/NotificationManager.lua` | NotificationManager | Provides reusable transient notifications and keyed inactive-to-active transition suppression. |
 | `src/modules/UI/PlayVFX.lua` | PlayVFX | Clones, starts, and cleans up reusable visual and sound effects. |
 | `src/modules/UI/Sounds.lua` | Sounds | Resolves any approved Studio-owned sound by name and handles cloned positional playback and cleanup. |
-| `src/modules/UI/UIStyle.lua` | UIStyle | Provides the shared ComicNeueAngular game font for first-party and configured package interfaces. |
+| `src/modules/UI/UIStyle.lua` | UIStyle | Centralizes the STUD design system font, palette, textures, corner radii, and outline tokens for first-party interfaces. |
 
 ## `src/server` - Server bootstrap
 
@@ -147,7 +147,7 @@ Quick reference for the project's first-party Luau scripts. Generated Wally depe
 | `src/servercontrollers/ConveyorController.lua` | ConveyorController | Retains the inactive legacy conveyor spawning and purchase implementation. |
 | `src/servercontrollers/CrateController.lua` | CrateController | Spawns tiered crate fields and pity crates, owns health, loot rolls, synchronized reveals, interaction-safe world-item despawn countdowns, purchases, and area resets. |
 | `src/servercontrollers/DataController.lua` | DataController | Handles the self-service `/resetdata` chat command and resets the requesting player's profile through DataService. |
-| `src/servercontrollers/FixingController.lua` | FixingController | Owns fixing sessions, stable BoundingBox-based tabletop placement, saved progress, validated unfinished damage placement, equipped-tool validation, and rarity-scaled completion. |
+| `src/servercontrollers/FixingController.lua` | FixingController | Owns fixing sessions, BoundingBox-centered tabletop placement and fixing rotation, saved progress, validated unfinished damage placement, equipped-tool validation, and rarity-scaled completion. |
 | `src/servercontrollers/GuidanceController.lua` | GuidanceController | Persists and advances tutorial objectives, assigns and reset-safely replaces each new player's nearest common crate, and sends contextual guidance. |
 | `src/servercontrollers/MuseumController.lua` | MuseumController | Builds only purchased museum levels and globally numbered displays, spawns the separate fixing table and movable roof, and handles placement, removal, selling, tutorial milestones, and visitor-facing exhibits. |
 | `src/servercontrollers/VisitorController.lua` | VisitorController | Targets active visitors from occupied exhibit count times the player's guests-per-display upgrade, schedules grounded visitor routes and payments, advances the first-income objective, and reserves exhibit viewing capacity. |
@@ -160,7 +160,7 @@ Quick reference for the project's first-party Luau scripts. Generated Wally depe
 | --- | --- | --- |
 | `src/UI/App.lua` | App | Composes the root ScreenGui, carrying, cleaning, guidance, notification, crate reset, upgrade, and general HUD components. |
 | `src/UI/App.story.lua` | App Story | Exposes the App component for UI story previews. |
-| `src/UI/Classes/Button.lua` | Button | Provides a reusable reactive Vide button with hover and press feedback. |
+| `src/UI/Classes/Button.lua` | Button | Provides a reusable reactive STUD-style Vide button with layered depth, texture, disabled state, and hover/press feedback. |
 | `src/UI/HUD/BottomRight.lua` | BottomRight | Displays saved cash and animates the HUD when cash increases. |
 | `src/UI/HUD/CarryOverlay.lua` | CarryOverlay | Shows the Drop button only while the local player is carrying a world item. |
 | `src/UI/HUD/CleaningHUD.lua` | CleaningHUD | Displays the cursor-centered cleaning brush and smoothly animated current-step progress. |
@@ -170,5 +170,5 @@ Quick reference for the project's first-party Luau scripts. Generated Wally depe
 | `src/UI/HUD/Notifications.lua` | Notifications | Renders reusable transient notification messages with compact attention animation. |
 | `src/UI/Effects/HoverExpand.lua` | HoverExpand | Provides the reusable hover scaling used by attention notification badges. |
 | `src/UI/Effects/Notification.lua` | Notification | Provides counted attention badges with periodic pulse, shake, color, hover, and lifecycle cleanup. |
-| `src/UI/Menus/UpgradeTree.lua` | UpgradeTree | Provides a responsive opener with a live purchasable-upgrade count, then opens centered on Start and renders edge-touching ownership-colored hex branches on one movable and scalable canvas, with per-node purchase notifications, masked ghost details, drag panning, zoom, reveals, and purchasing. |
+| `src/UI/Menus/UpgradeTree.lua` | UpgradeTree | Provides a responsive STUD-style upgrade panel and opener with a live purchasable-upgrade count, textured paper canvas, consistent state-colored nodes and controls, masked ghost details, drag panning, zoom, reveals, and purchasing. |
 | `src/UI/UIOrigin.lua` | UIOrigin | Mounts the Vide application once into the local PlayerGui. |

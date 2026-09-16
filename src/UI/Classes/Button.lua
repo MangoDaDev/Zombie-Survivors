@@ -46,7 +46,7 @@ return function(props: Props)
 	return create "Frame" {
 		Name = "Button",
 		BackgroundColor3 = function()
-			return readOr(props.BackgroundColor3, Color3.fromRGB(55, 60, 72))
+			return if enabled() then UIStyle.Colors.InkSoft else UIStyle.Colors.Ink
 		end,
 		BackgroundTransparency = function()
 			return if enabled() then 0 else 0.45
@@ -56,8 +56,45 @@ return function(props: Props)
 			return readOr(props.LayoutOrder, 0)
 		end,
 		Size = UDim2.fromScale(0.3, 1),
-		create "UICorner" { CornerRadius = UDim.new(0, 10) },
+		create "UICorner" { CornerRadius = UIStyle.CornerRadius },
+		create "UIStroke" {
+			ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+			Color = UIStyle.Colors.Ink,
+			Thickness = UIStyle.OutlineThickness,
+			Transparency = 0.08,
+		},
 		create "UIScale" { Scale = scale },
+		create "Frame" {
+			Name = "Content",
+			BackgroundColor3 = function()
+				return readOr(props.BackgroundColor3, UIStyle.Colors.Blue)
+			end,
+			BorderSizePixel = 0,
+			Size = UDim2.new(1, 0, 0.88, 0),
+			ZIndex = 1,
+			create "UICorner" { CornerRadius = UIStyle.CornerRadius },
+			create "UIGradient" {
+				Color = ColorSequence.new(UIStyle.Colors.Paper, UIStyle.Colors.PaperShadow),
+				Rotation = 90,
+				Transparency = NumberSequence.new(0.78, 0.9),
+			},
+			create "ImageLabel" {
+				Name = "StudTexture",
+				BackgroundTransparency = 1,
+				Image = UIStyle.StudTexture,
+				ImageTransparency = UIStyle.StudTransparency,
+				ScaleType = Enum.ScaleType.Tile,
+				Size = UDim2.fromScale(1, 1),
+				TileSize = UDim2.fromOffset(54, 54),
+				ZIndex = 2,
+			},
+			create "UIStroke" {
+				ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+				Color = UIStyle.Colors.Paper,
+				Thickness = UIStyle.OutlineThickness,
+				Transparency = UIStyle.InsideStrokeTransparency,
+			},
+		},
 		create "TextLabel" {
 			BackgroundTransparency = 1,
 			Size = UDim2.fromScale(1, 1),
@@ -67,6 +104,12 @@ return function(props: Props)
 			end,
 			TextColor3 = Color3.new(1, 1, 1),
 			TextScaled = true,
+			ZIndex = 3,
+			create "UIStroke" {
+				Color = UIStyle.Colors.Ink,
+				StrokeSizingMode = Enum.StrokeSizingMode.ScaledSize,
+				Thickness = 0.055,
+			},
 			create "UITextSizeConstraint" { MaxTextSize = 24, MinTextSize = 15 },
 		},
 		create "TextButton" {
@@ -77,6 +120,7 @@ return function(props: Props)
 			Size = UDim2.fromScale(1, 1),
 			Text = "",
 			FontFace = UIStyle.Font,
+			ZIndex = 5,
 			MouseEnter = function()
 				if enabled() and not hovered() then
 					hovered(true)

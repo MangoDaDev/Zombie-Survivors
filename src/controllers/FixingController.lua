@@ -422,6 +422,7 @@ local function EnterFixingView()
 			Network:fire("Exit")
 			return
 		end
+		Camera.CFrame = GetFixingCameraCFrame(Camera, CameraPart, TableSurface, Box)
 		if UpdateVisualTool then UpdateVisualTool(DeltaTime) end
 	end)
 	CameraBound = true

@@ -27,8 +27,8 @@ local Spring = Vide.spring
 local LocalPlayer = Players.LocalPlayer
 
 local StateColors = {
-	Available = Color3.fromRGB(105, 109, 114),
-	Purchased = Color3.fromRGB(235, 238, 240),
+	Available = UIStyle.Colors.Blue,
+	Purchased = UIStyle.Colors.Paper,
 }
 local TreeCanvasSize = UpgradeConfig.CameraBounds * 2 + Vector2.one * UpgradeConfig.NodeSize * 2
 
@@ -180,12 +180,12 @@ local function CreateNode(Properties)
 			Image = Images.Hexagon,
 			ImageColor3 = function()
 				if not IsDetailed() then
-					return Color3.new(0, 0, 0)
+					return UIStyle.Colors.Ink
 				end
 				if IsAffordable() then
-					return Color3.fromRGB(75, 190, 132)
+					return UIStyle.Colors.Green
 				end
-				return StateColors[State()] or Color3.fromRGB(105, 109, 114)
+				return StateColors[State()] or UIStyle.Colors.Muted
 			end,
 			Rotation = 90,
 			ScaleType = Enum.ScaleType.Fit,
@@ -565,8 +565,8 @@ return function()
 	local ViewportProperties = {
 		Name = "TreeViewport",
 		Active = true,
-		BackgroundColor3 = Color3.fromRGB(36, 39, 44),
-		BackgroundTransparency = 0.08,
+		BackgroundColor3 = Color3.fromRGB(24, 24, 26),
+		BackgroundTransparency = 0,
 		BorderSizePixel = 0,
 		ClipsDescendants = true,
 		Position = UDim2.fromScale(0.025, 0.12),
@@ -580,7 +580,24 @@ return function()
 				ViewportSize(Viewport.AbsoluteSize)
 			end)
 		end),
-		Create "UICorner" { CornerRadius = UDim.new(0, 15) },
+		Create "UICorner" { CornerRadius = UIStyle.CornerRadius },
+		Create "UIStroke" {
+			ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+			Color = UIStyle.Colors.BlueDark,
+			Thickness = UIStyle.OutlineThickness,
+			Transparency = 0.08,
+		},
+		Create "ImageLabel" {
+			Name = "StudTexture",
+			BackgroundTransparency = 1,
+			Image = UIStyle.StudTexture,
+			ImageColor3 = UIStyle.Colors.Paper,
+			ImageTransparency = 0.94,
+			ScaleType = Enum.ScaleType.Tile,
+			Size = UDim2.fromScale(1, 1),
+			TileSize = UDim2.fromOffset(72, 72),
+			ZIndex = 22,
+		},
 		Create "Frame"(CanvasProperties),
 	}
 
@@ -604,15 +621,12 @@ return function()
 		BackgroundTransparency = 1,
 		Size = UDim2.fromScale(1, 1),
 		ZIndex = 20,
-		-- Keep the existing UI hierarchy intact; button feedback is applied through reactive properties.
 		Create "Frame" {
 			Name = "OpenButton",
 			AnchorPoint = Vector2.new(0, 0.5),
 			BackgroundColor3 = function()
-				local AttentionColor = if AffordableCount() > 0
-					then Color3.fromRGB(45, 132, 82)
-					else Color3.fromRGB(42, 112, 132)
-				return Color3.fromRGB(50, 54, 61):Lerp(AttentionColor, TutorialPulse() * 0.72)
+				local AttentionColor = if AffordableCount() > 0 then UIStyle.Colors.Green else UIStyle.Colors.Blue
+				return UIStyle.Colors.InkSoft:Lerp(AttentionColor, TutorialPulse() * 0.72)
 			end,
 			BorderSizePixel = 0,
 			Position = UDim2.fromScale(0.018, 0.52),
@@ -625,17 +639,25 @@ return function()
 				OpenButtonNotification = Notification.new("AvailableUpgrades", Instance)
 				OpenButtonNotification:SetAmount(AffordableCount())
 			end),
-			Create "UICorner" { CornerRadius = UDim.new(0, 19) },
+			Create "UICorner" { CornerRadius = UIStyle.CornerRadius },
 			Create "UIStroke" {
 				Color = function()
-					local AttentionColor = if AffordableCount() > 0
-						then Color3.fromRGB(118, 255, 175)
-						else Color3.fromRGB(116, 229, 255)
-					return Color3.fromRGB(103, 125, 140):Lerp(AttentionColor, TutorialPulse())
+					local AttentionColor = if AffordableCount() > 0 then UIStyle.Colors.Green else UIStyle.Colors.Blue
+					return UIStyle.Colors.Ink:Lerp(AttentionColor, TutorialPulse())
 				end,
 				Thickness = function()
 					return 3 + TutorialPulse() * 2
 				end,
+			},
+			Create "ImageLabel" {
+				Name = "StudTexture",
+				BackgroundTransparency = 1,
+				Image = UIStyle.StudTexture,
+				ImageTransparency = UIStyle.StudTransparency,
+				ScaleType = Enum.ScaleType.Tile,
+				Size = UDim2.fromScale(1, 0.88),
+				TileSize = UDim2.fromOffset(48, 48),
+				ZIndex = 25,
 			},
 			Create "ImageLabel" {
 				BackgroundTransparency = 1,
@@ -708,7 +730,7 @@ return function()
 		Create "CanvasGroup" {
 			Name = "UpgradeTree",
 			AnchorPoint = Vector2.new(0.5, 0.5),
-			BackgroundColor3 = Color3.fromRGB(29, 32, 37),
+			BackgroundColor3 = UIStyle.Colors.Ink,
 			BorderSizePixel = 0,
 			GroupTransparency = PanelTransparency,
 			Interactable = IsOpen,
@@ -721,8 +743,27 @@ return function()
 			Create "UIAspectRatioConstraint" { AspectRatio = 1.618 },
 			Create "UISizeConstraint" { MaxSize = Vector2.new(1_100, 650) },
 			Create "UIScale" { Scale = PanelScale },
-			Create "UICorner" { CornerRadius = UDim.new(0, 20) },
-			Create "UIStroke" { Color = Color3.fromRGB(87, 99, 110), Thickness = 3 },
+			Create "UICorner" { CornerRadius = UIStyle.CornerRadius },
+			Create "UIStroke" {
+				Color = UIStyle.Colors.BlueDark,
+				Thickness = UIStyle.OutlineThickness,
+			},
+			Create "Frame" {
+				Name = "Header",
+				BackgroundColor3 = UIStyle.Colors.BlueDark,
+				BorderSizePixel = 0,
+				Size = UDim2.fromScale(1, 0.115),
+				ZIndex = 22,
+				Create "UICorner" { CornerRadius = UIStyle.CornerRadius },
+				Create "Frame" {
+					AnchorPoint = Vector2.new(0, 1),
+					BackgroundColor3 = UIStyle.Colors.BlueDark,
+					BorderSizePixel = 0,
+					Position = UDim2.fromScale(0, 1),
+					Size = UDim2.fromScale(1, 0.12),
+					ZIndex = 23,
+				},
+			},
 			Create "TextLabel" {
 				BackgroundTransparency = 1,
 				FontFace = UIStyle.Font,
@@ -736,8 +777,9 @@ return function()
 			},
 			Create "TextButton" {
 				AnchorPoint = Vector2.new(1, 0),
-				BackgroundColor3 = Color3.fromRGB(142, 74, 80),
-				Position = UDim2.fromScale(0.975, 0.025),
+				AutoButtonColor = false,
+				BackgroundColor3 = UIStyle.Colors.Red,
+				Position = UDim2.fromScale(0.975, 0.012),
 				Size = UDim2.fromOffset(40, 36),
 				Text = "X",
 				TextColor3 = Color3.new(1, 1, 1),
@@ -748,7 +790,8 @@ return function()
 					IsOpen(false)
 					Sounds.Play("Click", LocalPlayer.PlayerGui)
 				end,
-				Create "UICorner" { CornerRadius = UDim.new(0, 9) },
+				Create "UICorner" { CornerRadius = UIStyle.SmallCornerRadius },
+				Create "UIStroke" { Color = UIStyle.Colors.Ink, Thickness = 2 },
 			},
 			Create "Frame" {
 				Name = "ZoomControls",
@@ -759,7 +802,8 @@ return function()
 				ZIndex = 26,
 				Create "UIListLayout" { FillDirection = Enum.FillDirection.Vertical, Padding = UDim.new(0, 8) },
 				Create "TextButton" {
-					BackgroundColor3 = Color3.fromRGB(54, 59, 66),
+					AutoButtonColor = false,
+					BackgroundColor3 = UIStyle.Colors.InkSoft,
 					FontFace = UIStyle.Font,
 					Size = UDim2.fromOffset(42, 42),
 					Text = "+",
@@ -770,10 +814,12 @@ return function()
 						SetZoom(ZoomTarget() * UpgradeConfig.ZoomStep)
 						Sounds.Play("Click", LocalPlayer.PlayerGui)
 					end,
-					Create "UICorner" { CornerRadius = UDim.new(0, 10) },
+					Create "UICorner" { CornerRadius = UIStyle.SmallCornerRadius },
+					Create "UIStroke" { Color = UIStyle.Colors.Ink, Thickness = 2 },
 				},
 				Create "TextButton" {
-					BackgroundColor3 = Color3.fromRGB(54, 59, 66),
+					AutoButtonColor = false,
+					BackgroundColor3 = UIStyle.Colors.InkSoft,
 					FontFace = UIStyle.Font,
 					Size = UDim2.fromOffset(42, 42),
 					Text = "−",
@@ -784,7 +830,8 @@ return function()
 						SetZoom(ZoomTarget() / UpgradeConfig.ZoomStep)
 						Sounds.Play("Click", LocalPlayer.PlayerGui)
 					end,
-					Create "UICorner" { CornerRadius = UDim.new(0, 10) },
+					Create "UICorner" { CornerRadius = UIStyle.SmallCornerRadius },
+					Create "UIStroke" { Color = UIStyle.Colors.Ink, Thickness = 2 },
 				},
 			},
 			Create "Frame"(ViewportProperties),
