@@ -30,5 +30,12 @@
 - Do not hide ordinary code errors with `pcall`, overengineer one-off behavior, or hardcode the same data in multiple places.
 - Do not repair the intentionally missing local Rojo/Rokit target or run automated playtests without an explicit request.
 - When a recurring mistake is discovered and fixed, add one short preventive rule here without expanding this file into documentation.
-- When I tell you explicitly to Not do something, leave a not in the code for future agents to not do it too.
-- DO NOT use screen capture or similar tools. They do not work.
+* If the user explicitly says **not** to do something, leave a clear code comment so future agents do not reintroduce it.
+* Leave short comments for important user-requested behavior so future agents stay on task. Update them if the user later changes the requirement.
+* **DO NOT use screen capture, screenshots, or similar visual inspection tools. They do not work for this project.**
+Do not change anything unrelated to the user's request.
+Do not generate images unless EXPLICITLY asked to.
+- Do not duplicate functionality that already exists somewhere in the project.
+If I correct you, immediately apply the correction to the current task instead of restarting from scratch.
+When an agent makes a recurring mistake and the user corrects it, add or improve a concise AGENTS.md rule so future agents avoid the same mistake.
+- Treat repeated user corrections as feedback about the agent workflow. When appropriate, update AGENTS.md with a short general rule that prevents the same problem from happening again.
