@@ -1,6 +1,8 @@
 local EconomyConfig = {
 	-- Values above 1 increase every active and passive payout while reducing upgrade costs.
 	ProgressionSpeedMultiplier = 1,
+	-- Scales restorable item purchase prices without changing restoration tool costs.
+	ItemPurchasePriceMultiplier = 0.5,
 	-- Scales restoration rewards and restored-item sale values without changing purchase prices.
 	ActiveIncomeMultiplier = 1.1,
 	-- Gives onboarding rarities extra active income, blended back to normal by Legendary.
@@ -139,7 +141,9 @@ function EconomyConfig.GetItemPrice(Rarity: string, DifficultyValue: number): nu
 	local PriceMaximum = Info.PriceRange[2]
 	local BasePrice = PriceMinimum + (PriceMaximum - PriceMinimum) * DifficultyAlpha
 
-	return RoundToReadableValue(BasePrice * GetLateGameScale(Info.ProgressionStage))
+	return RoundToReadableValue(
+		BasePrice * EconomyConfig.ItemPurchasePriceMultiplier * GetLateGameScale(Info.ProgressionStage)
+	)
 end
 
 function EconomyConfig.GetSaleValue(Rarity: string, Price: number): number
@@ -209,6 +213,7 @@ end
 function EconomyConfig.Validate()
 	for _, Value in {
 		EconomyConfig.ProgressionSpeedMultiplier,
+		EconomyConfig.ItemPurchasePriceMultiplier,
 		EconomyConfig.ActiveIncomeMultiplier,
 		EconomyConfig.OnboardingIncomeMultiplier,
 		EconomyConfig.PassiveIncomeMultiplier,
