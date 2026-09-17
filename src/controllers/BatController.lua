@@ -1,5 +1,6 @@
 local CollectionService = game:GetService("CollectionService")
 local Debris = game:GetService("Debris")
+local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -7,8 +8,10 @@ local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 
 local BatInfo = require(ReplicatedStorage.Modules.Game.BatInfo)
+local CollisionGroups = require(ReplicatedStorage.Modules.Game.CollisionGroups)
 local CrateInfo = require(ReplicatedStorage.Modules.Game.CrateInfo)
 local CrateRuntime = require(ReplicatedStorage.Modules.Game.CrateRuntime)
+local CrateController = require(ReplicatedStorage.Controllers.CrateController)
 local DataService = require(ReplicatedStorage.Packages.dataservice).client
 local Networker = require(ReplicatedStorage.Packages.networker)
 local RuntimeState = require(ReplicatedStorage.Modules.Game.RuntimeState)
@@ -26,6 +29,9 @@ local ActiveDebrisCount = 0
 local Network
 local RandomGenerator = Random.new()
 local MAXIMUM_DEBRIS_COUNT = 80
+local DebrisCollisionDuration = 0.55
+local CreateCrateDebris
+local ShakeCamera
 
 local function GetBatInfo(BatId)
 	for _, Info in BatInfo do
@@ -140,7 +146,7 @@ end
 local function PredictCrateDamage(Model, Damage, Info)
 	local RuntimeCrate = CrateRuntime.Get(Model)
 	local Health = RuntimeCrate and RuntimeCrate.Health or Info.Health
-	if type(Health) ~= "number" or Health <= 0 then return end
+	if type(Health) ~= "number" or Health <= 0 then return false end
 	local State = CratePredictions[Model]
 	if not State then
 		State = {
@@ -160,6 +166,9 @@ local function PredictCrateDamage(Model, Damage, Info)
 	end
 	local Prediction = { Damage = Damage }
 	table.insert(State.Pending, Prediction)
+	local PendingDamage = 0
+	for _, PendingPrediction in State.Pending do PendingDamage += PendingPrediction.Damage end
+	local PredictedHealth = math.max(0, State.ConfirmedHealth - PendingDamage)
 	State.HoldUntil = os.clock() + Info.PredictionTimeout
 	RenderPredictedHealth(Model, State)
 	task.delay(Info.PredictionTimeout, function()
@@ -167,6 +176,7 @@ local function PredictCrateDamage(Model, Damage, Info)
 		local Index = table.find(State.Pending, Prediction)
 		if Index then table.remove(State.Pending, Index); RenderPredictedHealth(Model, State) end
 	end)
+	return PredictedHealth <= 0
 end
 
 local function GetTargetModel(Part): Model?
@@ -190,11 +200,32 @@ local function CanTargetCrate(Model: Model): boolean
 end
 
 local function ShowPredictedImpact(Model, Handle, Info)
+	local PredictionId
 	if CollectionService:HasTag(Model, "Crate") then
-		PredictCrateDamage(Model, Info.CrateDamage, Info)
+		local IsPredictedFinalHit = PredictCrateDamage(Model, Info.CrateDamage, Info)
 		local Character = LocalPlayer.Character
 		local RootPart = Character and Character:FindFirstChild("HumanoidRootPart")
 		if RootPart and RootPart:IsA("BasePart") then ReactToCrate(Model, RootPart.Position, Info) end
+		local RuntimeCrate = CrateRuntime.Get(Model)
+		local CrateInfoEntry = GetCrateInfo(RuntimeCrate and RuntimeCrate.CrateId or Model.Name)
+		local Part = Model.PrimaryPart or Model:FindFirstChildWhichIsA("BasePart")
+		if Part then
+			if CrateInfoEntry then Sounds.Play(CrateInfoEntry.DamageSoundName, Part, 80) end
+			local Center = Model:GetPivot().Position
+			local Direction = RootPart and RootPart.Position - Center or Vector3.yAxis
+			CreateCrateDebris(Center, if Direction.Magnitude > 0.01 then Direction.Unit else Vector3.yAxis, Part.Color, Part.Material, IsPredictedFinalHit)
+		end
+		if IsPredictedFinalHit then
+			PredictionId = HttpService:GenerateGUID(false)
+			CrateController.BeginPredictedReveal(PredictionId, Model, Info.Id)
+			ShakeCamera(0.075, 0.14)
+			local BreakSoundNames = CrateInfoEntry and CrateInfoEntry.BreakSoundNames
+			if BreakSoundNames and #BreakSoundNames > 0 then
+				local BreakSoundName = BreakSoundNames[RandomGenerator:NextInteger(1, #BreakSoundNames)]
+				local BreakSound = Sounds.Play(BreakSoundName, Handle, 75)
+				if BreakSound then BreakSound.Volume *= 0.65 end
+			end
+		end
 	end
 	local Highlight = Instance.new("Highlight")
 	Highlight.FillColor = Color3.new(1, 1, 1)
@@ -206,9 +237,10 @@ local function ShowPredictedImpact(Model, Handle, Info)
 	Debris:AddItem(Highlight, 0.18)
 	local SoundName = Info.ImpactSoundNames[RandomGenerator:NextInteger(1, #Info.ImpactSoundNames)]
 	Sounds.Play(SoundName, Handle, 70)
+	return PredictionId
 end
 
-local function ShakeCamera(Strength: number, Duration: number)
+ShakeCamera = function(Strength: number, Duration: number)
 	task.spawn(function()
 		local StartedAt = os.clock()
 		while os.clock() - StartedAt < Duration do
@@ -225,43 +257,49 @@ local function ShakeCamera(Strength: number, Duration: number)
 	end)
 end
 
-local function CreateCrateDebris(Position: Vector3, Normal: Vector3, Color: Color3, Material: Enum.Material, IsFinalHit: boolean)
+CreateCrateDebris = function(Position: Vector3, Normal: Vector3, Color: Color3, Material: Enum.Material, IsFinalHit: boolean)
 	local FragmentCount = if IsFinalHit then 18 else 7
 	for _ = 1, FragmentCount do
 		if ActiveDebrisCount >= MAXIMUM_DEBRIS_COUNT then break end
 		local Fragment = Instance.new("Part")
 		Fragment.Name = "LocalCrateDebris"
 		Fragment.Anchored = false
-		Fragment.CanCollide = false
+		-- Crate studs briefly bounce only on the ground before becoming non-collidable.
+		Fragment.CanCollide = true
 		Fragment.CanQuery = false
 		Fragment.CanTouch = false
 		Fragment.CastShadow = false
+		Fragment.CollisionGroup = CollisionGroups.CrateDebris
 		Fragment.Color = Color
 		Fragment.Material = Material
-		local MaximumSize = if IsFinalHit then 0.85 else 0.55
+		Fragment.CustomPhysicalProperties = PhysicalProperties.new(0.7, 0.35, 0.55, 1, 1)
+		local MaximumSize = if IsFinalHit then 1.25 else 0.9
 		Fragment.Size = Vector3.new(
-			RandomGenerator:NextNumber(0.18, MaximumSize),
-			RandomGenerator:NextNumber(0.16, MaximumSize),
-			RandomGenerator:NextNumber(0.18, MaximumSize)
+			RandomGenerator:NextNumber(0.4, MaximumSize),
+			RandomGenerator:NextNumber(0.35, MaximumSize),
+			RandomGenerator:NextNumber(0.4, MaximumSize)
 		)
-		Fragment.CFrame = CFrame.new(Position + Normal * 0.12)
+		Fragment.CFrame = CFrame.new(Position)
 		Fragment.Parent = DebrisFolder
 		ActiveDebrisCount += 1
 		Fragment.Destroying:Once(function() ActiveDebrisCount = math.max(0, ActiveDebrisCount - 1) end)
-		local RandomDirection = Normal * RandomGenerator:NextNumber(0.8, 1.35)
+		local RandomDirection = Normal * RandomGenerator:NextNumber(0.45, 0.85)
 			+ Vector3.new(
-				RandomGenerator:NextNumber(-0.75, 0.75),
-				RandomGenerator:NextNumber(0.1, 0.9),
-				RandomGenerator:NextNumber(-0.75, 0.75)
+				RandomGenerator:NextNumber(-1.15, 1.15),
+				RandomGenerator:NextNumber(1.05, 1.75),
+				RandomGenerator:NextNumber(-1.15, 1.15)
 			)
-		local Speed = RandomGenerator:NextNumber(if IsFinalHit then 14 else 7, if IsFinalHit then 24 else 14)
+		local Speed = RandomGenerator:NextNumber(if IsFinalHit then 24 else 16, if IsFinalHit then 38 else 27)
 		Fragment.AssemblyLinearVelocity = RandomDirection.Unit * Speed
 		Fragment.AssemblyAngularVelocity = Vector3.new(
 			RandomGenerator:NextNumber(-18, 18),
 			RandomGenerator:NextNumber(-18, 18),
 			RandomGenerator:NextNumber(-18, 18)
 		)
-		local Lifetime = RandomGenerator:NextNumber(0.42, if IsFinalHit then 0.85 else 0.65)
+		local Lifetime = RandomGenerator:NextNumber(0.9, if IsFinalHit then 1.45 else 1.15)
+		task.delay(DebrisCollisionDuration, function()
+			if Fragment.Parent then Fragment.CanCollide = false end
+		end)
 		task.delay(Lifetime * 0.55, function()
 			if Fragment.Parent then
 				TweenService:Create(Fragment, TweenInfo.new(Lifetime * 0.45), { Transparency = 1, Size = Fragment.Size * 0.35 }):Play()
@@ -288,8 +326,8 @@ local function DetectTargets(Tool, Info)
 		local IsCrate = Model and CollectionService:HasTag(Model, "Crate")
 		if Model and not Seen[Model] and (not IsCrate or CanTargetCrate(Model)) then
 			Seen[Model] = true
-			table.insert(Targets, Model)
-			ShowPredictedImpact(Model, Handle, Info)
+			local PredictionId = ShowPredictedImpact(Model, Handle, Info)
+			table.insert(Targets, { Model = Model, PredictionId = PredictionId })
 		end
 	end
 	Network:fire("Swing", Targets)
@@ -366,31 +404,14 @@ function BatController.Init()
 	end)
 end
 
-function BatController.CrateHitConfirmed(_, Position, Normal, Color, Material, IsFinalHit, BatId)
+function BatController.CrateHitConfirmed(_, Position, Normal, Color, Material, IsFinalHit, BatId, PredictionId)
 	if typeof(Position) ~= "Vector3" or typeof(Normal) ~= "Vector3" or Normal.Magnitude < 0.01
 		or typeof(Color) ~= "Color3" or typeof(Material) ~= "EnumItem" or type(IsFinalHit) ~= "boolean"
 		or type(BatId) ~= "string" or not GetBatInfo(BatId)
+		or (PredictionId ~= nil and type(PredictionId) ~= "string")
 	then return end
-	CreateCrateDebris(Position, Normal.Unit, Color, Material, IsFinalHit)
-	if not IsFinalHit then return end
-	ShakeCamera(0.075, 0.14)
-	local CrateInfoEntry = GetCrateInfo("CommonCrate")
-	local SoundNames = CrateInfoEntry and CrateInfoEntry.BreakSoundNames
-	if SoundNames and #SoundNames > 0 then
-		local Anchor = Instance.new("Part")
-		Anchor.Name = "LocalCrateBreakSound"
-		Anchor.Anchored = true
-		Anchor.CanCollide = false
-		Anchor.CanQuery = false
-		Anchor.CanTouch = false
-		Anchor.Size = Vector3.one * 0.05
-		Anchor.Transparency = 1
-		Anchor.Position = Position
-		Anchor.Parent = DebrisFolder
-		local Sound = Sounds.Play(SoundNames[RandomGenerator:NextInteger(1, #SoundNames)], Anchor, 75)
-		if Sound then Sound.Volume *= 0.65 end
-		Debris:AddItem(Anchor, 3)
-	end
+	-- Hit and break feedback is predicted locally at swing time; the server only confirms authority.
+	if not IsFinalHit and PredictionId then CrateController.CancelPredictedReveal(PredictionId) end
 end
 
 function BatController.ReactToCrate(_, Model, AttackerPosition, BatId)

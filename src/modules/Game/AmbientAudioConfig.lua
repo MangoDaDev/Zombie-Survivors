@@ -7,7 +7,6 @@ local AmbientAudioConfig = {
 	},
 	Music = {
 		FolderName = "Music",
-		Volume = 0.1,
 	},
 }
 

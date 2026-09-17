@@ -727,7 +727,7 @@ function FixingController.ReportProgress(_, Player, ToolId, Remaining)
 end
 
 function FixingController.CompleteStep(_, Player, ToolId)
-	-- Assisted completion happens after input use ends at 90%, so equipped-tool validation is sufficient here.
+	-- Assisted completion happens after input use ends at the configured threshold, so equipped-tool validation is sufficient here.
 	local Session = Sessions[Player]
 	local Step = Session and Session.Steps[Session.StepIndex]
 	local StepState = Session and GetStepState(Session)

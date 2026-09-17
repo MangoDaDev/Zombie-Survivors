@@ -152,12 +152,12 @@ local function GetCrateImpact(Model: Model, Origin: Vector3)
 	local Direction = TargetPosition - Origin
 	local Result = if Direction.Magnitude > 0.01 then Workspace:Raycast(Origin, Direction.Unit * (Direction.Magnitude + 8), Parameters) else nil
 	if Result then
-		return Result.Position, Result.Normal, Result.Instance.Color, Result.Instance.Material
+		return TargetPosition, Result.Normal, Result.Instance.Color, Result.Instance.Material
 	end
 	local Part = Model.PrimaryPart or Model:FindFirstChildWhichIsA("BasePart")
 	if not Part then return TargetPosition, Vector3.yAxis, Color3.fromRGB(125, 90, 62), Enum.Material.Wood end
 	local Normal = Origin - Part.Position
-	return Part.Position, if Normal.Magnitude > 0.01 then Normal.Unit else Vector3.yAxis, Part.Color, Part.Material
+	return TargetPosition, if Normal.Magnitude > 0.01 then Normal.Unit else Vector3.yAxis, Part.Color, Part.Material
 end
 
 local function HitPlayer(Attacker: Player, TargetPlayer: Player, AttackerRoot: BasePart, Info, Now: number)
@@ -230,8 +230,11 @@ function BatController.Swing(_, Player, Targets)
 	if Now - (LastSwings[Player] or 0) < MinimumServerCooldown then return end
 	LastSwings[Player] = Now
 	local HitTargets = {}
-	for _, Target in Targets do
+	for _, TargetData in Targets do
+		local Target = if type(TargetData) == "table" then TargetData.Model else TargetData
+		local PredictionId = if type(TargetData) == "table" then TargetData.PredictionId else nil
 		if typeof(Target) ~= "Instance" or HitTargets[Target] then continue end
+		if PredictionId ~= nil and (type(PredictionId) ~= "string" or #PredictionId > 64) then continue end
 		HitTargets[Target] = true
 		if Target:IsA("Model") and Target:HasTag("Crate") then
 			if DataService:get(Player, "TutorialStep") == "PickUpItem" then
@@ -243,11 +246,11 @@ function BatController.Swing(_, Player, Targets)
 			end
 			if IsTargetInRange(Player, RootPart, Target:GetPivot().Position, Info, Now) then
 				local ImpactPosition, ImpactNormal, ImpactColor, ImpactMaterial = GetCrateImpact(Target, RootPart.Position)
-				local Damaged = CrateController.DamageCrate(Player, Target, Info.CrateDamage)
+				local Damaged = CrateController.DamageCrate(Player, Target, Info.CrateDamage, PredictionId)
 				local IsFinalHit = Damaged and not Target.Parent
 				if IsFinalHit then GuidanceController.MarkTutorialCrateBroken(Player, Target) end
 				if Damaged then
-					Network:fire(Player, "CrateHitConfirmed", ImpactPosition, ImpactNormal, ImpactColor, ImpactMaterial, IsFinalHit, Info.Id)
+					Network:fire(Player, "CrateHitConfirmed", ImpactPosition, ImpactNormal, ImpactColor, ImpactMaterial, IsFinalHit, Info.Id, PredictionId)
 				end
 				if Damaged and Target.Parent then
 					Network:fireAllExcept(Player, "ReactToCrate", Target, RootPart.Position, Info.Id)

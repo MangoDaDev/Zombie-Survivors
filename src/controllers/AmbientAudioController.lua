@@ -17,6 +17,7 @@ local PlaylistIndex = 0
 local LastTemplate: Sound?
 local DuckId = 0
 local VolumeMultiplier = 1
+local MusicBaseVolume = 0
 
 local HIGH_RARITIES = { "Legendary", "Mythic", "Secret" }
 
@@ -58,13 +59,15 @@ local function PlayNextTrack()
 	PlaylistIndex += 1
 	local Template = Playlist[PlaylistIndex]
 	LastTemplate = Template
+	MusicBaseVolume = Template.Volume
 	if MusicTween then MusicTween:Cancel(); MusicTween = nil end
 	if Music then Music:Destroy() end
 
 	Music = Template:Clone()
 	Music.Name = "Music"
 	Music.Looped = false
-	Music.Volume = AmbientAudioConfig.Music.Volume * VolumeMultiplier
+	-- Preserve the volume authored on each music Sound so it can be tuned in Studio.
+	Music.Volume = MusicBaseVolume * VolumeMultiplier
 	Music.Parent = SoundService
 	Music.Ended:Once(PlayNextTrack)
 	if Music.SoundId ~= "" then Music:Play() else PlayNextTrack() end
@@ -84,11 +87,11 @@ function AmbientAudioController.Duck(Duration: number?)
 	local ActiveDuckId = DuckId
 	local Config = AmbientAudioConfig.Ducking
 	VolumeMultiplier = Config.VolumeMultiplier
-	TweenMusicVolume(AmbientAudioConfig.Music.Volume * VolumeMultiplier, Config.FadeOutDuration)
+	TweenMusicVolume(MusicBaseVolume * VolumeMultiplier, Config.FadeOutDuration)
 	task.delay(Duration or Config.HoldDuration, function()
 		if ActiveDuckId ~= DuckId then return end
 		VolumeMultiplier = 1
-		TweenMusicVolume(AmbientAudioConfig.Music.Volume, Config.FadeInDuration)
+		TweenMusicVolume(MusicBaseVolume, Config.FadeInDuration)
 	end)
 end
 

@@ -76,8 +76,9 @@ function RestorationTargetRenderer.GetSuggestedCount(Model: Model, Type: string)
 		if Folder and #Folder:GetChildren() > 0 then return #Folder:GetChildren() end
 	end
 	local _, TotalArea = SurfacePlacement.GetSurfaceParts(Model)
-	local Density = if Type == "LightDust" then 5.2 elseif Type == "LooseDebris" then 2.5 else 0.55
-	local Maximum = if Type == "LightDust" then 84 elseif Type == "LooseDebris" then 48 else 8
+	-- Keep surface damage prominent without allowing large items to create unbounded part counts.
+	local Density = if Type == "LightDust" then 7.4 elseif Type == "LooseDebris" then 3.6 else 0.55
+	local Maximum = if Type == "LightDust" then 120 elseif Type == "LooseDebris" then 68 else 8
 	return math.clamp(math.round(math.sqrt(TotalArea) * Density), 1, Maximum)
 end
 
@@ -162,7 +163,7 @@ function RestorationTargetRenderer.Add(Model: Model, Type: string, Count: number
 		Target.Massless = true
 		Target.Material = Enum.Material.SmoothPlastic
 		if Type == "LightDust" then
-			local Size = math.clamp(math.sqrt(TotalArea / math.max(Count, 1)) * 0.48, 0.08, 0.42)
+			local Size = math.clamp(math.sqrt(TotalArea / math.max(Count, 1)) * 0.56, 0.09, 0.42)
 			Target.Shape = Enum.PartType.Block
 			Target.Size = Vector3.new(Size, 0.018, Size)
 			Target.Color = Step.PatchColor

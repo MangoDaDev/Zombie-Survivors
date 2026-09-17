@@ -15,10 +15,18 @@ local function AssignPart(Descendant: Instance)
 end
 
 function CollisionController.Init()
+	RegisterGroup(CollisionGroups.CrateDebris)
+	RegisterGroup(CollisionGroups.Ground)
 	RegisterGroup(CollisionGroups.PlayerCharacters)
 	RegisterGroup(CollisionGroups.NPCCharacters)
+	PhysicsService:CollisionGroupSetCollidable(CollisionGroups.CrateDebris, "Default", false)
+	PhysicsService:CollisionGroupSetCollidable(CollisionGroups.CrateDebris, CollisionGroups.Ground, true)
+	PhysicsService:CollisionGroupSetCollidable(CollisionGroups.CrateDebris, CollisionGroups.PlayerCharacters, false)
+	PhysicsService:CollisionGroupSetCollidable(CollisionGroups.CrateDebris, CollisionGroups.NPCCharacters, false)
 	PhysicsService:CollisionGroupSetCollidable(CollisionGroups.PlayerCharacters, CollisionGroups.PlayerCharacters, false)
 	PhysicsService:CollisionGroupSetCollidable(CollisionGroups.PlayerCharacters, CollisionGroups.NPCCharacters, false)
+	local Ground = workspace:FindFirstChild("Baseplate")
+	if Ground and Ground:IsA("BasePart") then Ground.CollisionGroup = CollisionGroups.Ground end
 end
 
 function CollisionController.OnCharacterAdded(Player: Player, Character: Model)

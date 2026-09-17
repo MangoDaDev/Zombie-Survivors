@@ -1,5 +1,4 @@
 local CollectionService = game:GetService("CollectionService")
-local Debris = game:GetService("Debris")
 local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -21,7 +20,6 @@ local MuseumController = require(ServerStorage.Controllers.MuseumController)
 local Networker = require(ReplicatedStorage.Packages.networker)
 local PlayerStateController = require(ServerStorage.Controllers.PlayerStateController)
 local RestorationVisuals = require(ReplicatedStorage.Modules.Game.RestorationVisuals)
-local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
 local TutorialConfig = require(ReplicatedStorage.Modules.Game.TutorialConfig)
 local UIStyle = require(ReplicatedStorage.Modules.UI.UIStyle)
 
@@ -219,7 +217,7 @@ local function PurchaseReward(RewardId, Player)
 	RemoveReward(RewardId, "Purchased", Player)
 end
 
-local function CreateReward(State, Player: Player)
+local function CreateReward(State, Player: Player, PredictionId)
 	local Info = State.Info
 	local ItemInfo = GetRewardItemInfo(Player, Info)
 	if not ItemInfo then return end
@@ -281,7 +279,7 @@ local function CreateReward(State, Player: Player)
 			Prompt.Enabled = Workspace:GetServerTimeNow() >= Reward.AvailableAt
 		end
 	end)
-	Network:fireAll("StartReveal", RewardId, ItemInfo.Id, GroundCFrame, Info.Id, Player)
+	Network:fireAll("StartReveal", RewardId, ItemInfo.Id, GroundCFrame, Info.Id, Player, PredictionId)
 	task.delay(RevealDuration, function()
 		if Rewards[RewardId] ~= Reward then return end
 		for _, Part in Model:GetDescendants() do
@@ -319,31 +317,18 @@ local function UpdateRewardDespawnTimers()
 	for _, RewardId in ExpiredRewardIds do RemoveReward(RewardId, "Expired") end
 end
 
-local function BreakCrate(State, Player: Player)
+local function BreakCrate(State, Player: Player, PredictionId)
 	if Crates[State.Model] ~= State then return end
 	local BreakGeneration = ResetGeneration
 	Crates[State.Model] = nil
-	local SoundName = State.Info.BreakSoundNames[RandomGenerator:NextInteger(1, #State.Info.BreakSoundNames)]
-	local SoundAnchor = Instance.new("Part")
-	SoundAnchor.Name = "CrateBreakSound"
-	SoundAnchor.Anchored = true
-	SoundAnchor.CanCollide = false
-	SoundAnchor.CanQuery = false
-	SoundAnchor.CanTouch = false
-	SoundAnchor.CFrame = CFrame.new(State.BaseCFrame.Position)
-	SoundAnchor.Size = Vector3.one * 0.1
-	SoundAnchor.Transparency = 1
-	SoundAnchor.Parent = Workspace
-	Sounds.Play(SoundName, SoundAnchor, 90)
-	Debris:AddItem(SoundAnchor, 5)
-	CreateReward(State, Player)
+	CreateReward(State, Player, PredictionId)
 	State.Model:Destroy()
 	task.delay(State.Info.RespawnDelay, function()
 		if State.Info.Respawns ~= false and ResetGeneration == BreakGeneration then CrateController.Spawn(State.Info) end
 	end)
 end
 
-function CrateController.DamageCrate(Player, Model, Damage): boolean
+function CrateController.DamageCrate(Player, Model, Damage, PredictionId): boolean
 	local State = Crates[Model]
 	local RootPart = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
 	if not State or not RootPart or not RootPart:IsA("BasePart") or type(Damage) ~= "number" then return false end
@@ -354,13 +339,12 @@ function CrateController.DamageCrate(Player, Model, Damage): boolean
 	TweenService:Create(State.HealthGroup, TweenInfo.new(0.08), { GroupTransparency = 0 }):Play()
 	TweenService:Create(State.HealthFill, TweenInfo.new(State.Info.HealthBarTweenTime, Enum.EasingStyle.Quad), { Size = UDim2.fromScale(State.Health / State.Info.Health, 1) }):Play()
 	State.HealthLabel.Text = `{math.ceil(State.Health)}/{State.Info.Health}`
-	Sounds.Play(State.Info.DamageSoundName, State.Model.PrimaryPart, 80)
 	task.delay(State.Info.HealthBarHideDelay, function()
 		if Crates[Model] == State and State.VisibilityId == VisibilityId then
 			TweenService:Create(State.HealthGroup, TweenInfo.new(0.25), { GroupTransparency = 1 }):Play()
 		end
 	end)
-	if State.Health <= 0 then BreakCrate(State, Player) end
+	if State.Health <= 0 then BreakCrate(State, Player, PredictionId) end
 	return true
 end
 

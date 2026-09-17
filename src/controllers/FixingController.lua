@@ -118,17 +118,17 @@ local function GetEquippedCleaningTool(): (Tool?, any?)
 	return nil, nil
 end
 
-local function GetToolRadius(ToolInfo): number
+local function GetToolRadiusScale(ToolInfo): number
 	local Ownership = DataService:get("Upgrades")
-	-- Keep cleaning effectiveness in world space so device resolution cannot change the footprint.
-	return (ToolInfo.RadiusStuds or CleaningConfig.BrushRadiusStuds) * UpgradeLogic.GetToolRadiusMultiplier(Ownership, ToolInfo.Id)
+	-- Radius is a fraction of viewport height, keeping the apparent footprint independent of item scale and camera distance.
+	return (ToolInfo.RadiusScale or CleaningConfig.BrushRadiusScale) * UpgradeLogic.GetToolRadiusMultiplier(Ownership, ToolInfo.Id)
 end
 
-local function GetProjectedToolRadius(Camera: Camera, ToolInfo, WorldPosition: Vector3): number
+local function GetWorldToolRadius(Camera: Camera, ToolInfo, WorldPosition: Vector3): number
 	local CameraPosition = Camera.CFrame:PointToObjectSpace(WorldPosition)
 	local Depth = math.max(-CameraPosition.Z, 0.1)
-	local WorldUnitsPerPixel = 2 * Depth * math.tan(math.rad(Camera.FieldOfView / 2)) / math.max(Camera.ViewportSize.Y, 1)
-	return GetToolRadius(ToolInfo) / WorldUnitsPerPixel
+	local ViewHeight = 2 * Depth * math.tan(math.rad(Camera.FieldOfView / 2))
+	return GetToolRadiusScale(ToolInfo) * ViewHeight
 end
 
 local function UpdateToolInterface()
@@ -768,15 +768,26 @@ local function GetLocalProgress(): number
 	return math.clamp((LocalStepTotal - LocalStepRemaining + PartialProgress) / math.max(LocalStepTotal, 1), 0, 1)
 end
 
-local function GetDistanceToPart(Position: Vector3, Part: BasePart): number
-	local LocalPosition = Part.CFrame:PointToObjectSpace(Position)
+local function GetProjectedDistanceToPart(AimPosition: Vector3, Part: BasePart): number
+	local Camera = Workspace.CurrentCamera
+	local AimDirection = Camera.CFrame:VectorToObjectSpace((AimPosition - Camera.CFrame.Position).Unit)
+	local PartPosition = Camera.CFrame:PointToObjectSpace(Part.Position)
+	local Depth = -PartPosition.Z
+	if Depth <= 0.01 or AimDirection.Z >= -0.001 then return math.huge end
+	local RayPosition = AimDirection * (Depth / -AimDirection.Z)
 	local HalfSize = Part.Size / 2
-	local ClosestLocalPosition = Vector3.new(
-		math.clamp(LocalPosition.X, -HalfSize.X, HalfSize.X),
-		math.clamp(LocalPosition.Y, -HalfSize.Y, HalfSize.Y),
-		math.clamp(LocalPosition.Z, -HalfSize.Z, HalfSize.Z)
-	)
-	return (Position - Part.CFrame:PointToWorldSpace(ClosestLocalPosition)).Magnitude
+	local CameraRight = Camera.CFrame.RightVector
+	local CameraUp = Camera.CFrame.UpVector
+	local HorizontalExtent = math.abs(CameraRight:Dot(Part.CFrame.RightVector)) * HalfSize.X
+		+ math.abs(CameraRight:Dot(Part.CFrame.UpVector)) * HalfSize.Y
+		+ math.abs(CameraRight:Dot(Part.CFrame.LookVector)) * HalfSize.Z
+	local VerticalExtent = math.abs(CameraUp:Dot(Part.CFrame.RightVector)) * HalfSize.X
+		+ math.abs(CameraUp:Dot(Part.CFrame.UpVector)) * HalfSize.Y
+		+ math.abs(CameraUp:Dot(Part.CFrame.LookVector)) * HalfSize.Z
+	local HorizontalDistance = math.max(math.abs(PartPosition.X - RayPosition.X) - HorizontalExtent, 0)
+	local VerticalDistance = math.max(math.abs(PartPosition.Y - RayPosition.Y) - VerticalExtent, 0)
+	local ViewHeight = 2 * Depth * math.tan(math.rad(Camera.FieldOfView / 2))
+	return Vector2.new(HorizontalDistance, VerticalDistance).Magnitude / math.max(ViewHeight, 0.001)
 end
 
 local function ApplyToolLocally(ToolInfo, DeltaTime: number, AimPosition: Vector3?)
@@ -788,14 +799,29 @@ local function ApplyToolLocally(ToolInfo, DeltaTime: number, AimPosition: Vector
 	local Strength = ToolInfo.StrengthPerSecond * UpgradeLogic.GetToolStrengthMultiplier(Ownership, ToolInfo.Id)
 	local Damage = Strength * math.clamp(DeltaTime, 0, 0.2)
 	if Step.Type == "Bent" then Damage = 1 end
-	local Radius = GetToolRadius(ToolInfo)
+	local RadiusScale = GetToolRadiusScale(ToolInfo)
 	local ProgressChanged = false
 	local AppliedToTarget = false
+	local NearestTargetState
+	local NearestTargetDistance = math.huge
+	if Step.Type == "Bent" and AimPosition then
+		for _, State in LocalTargetStates do
+			if State.Completed or not State.Part.Parent then continue end
+			local Distance = GetProjectedDistanceToPart(AimPosition, State.Part)
+			if Distance <= RadiusScale and Distance < NearestTargetDistance then
+				NearestTargetState = State
+				NearestTargetDistance = Distance
+			end
+		end
+	end
 
 	for _, State in LocalTargetStates do
 		local Target = State.Part
 		if State.Completed or not Target.Parent then continue end
-		if not AimPosition or GetDistanceToPart(AimPosition, Target) > Radius then continue end
+		-- Project the cleaning circle through the active item's full depth; same-item geometry never occludes targets.
+		if not AimPosition or GetProjectedDistanceToPart(AimPosition, Target) > RadiusScale then continue end
+		-- A hammer strike affects the nearest valid damaged part inside its full tool radius.
+		if Step.Type == "Bent" and State ~= NearestTargetState then continue end
 		AppliedToTarget = true
 
 		local PreviousHealth = State.CurrentHealth
@@ -859,7 +885,11 @@ local function ApplyToolLocally(ToolInfo, DeltaTime: number, AimPosition: Vector
 	if ProgressChanged then ReportLocalProgress(false) end
 	local Progress = GetLocalProgress()
 	RuntimeState.Set(LocalPlayer, "CleaningProgress", Progress)
-	CameraPush = CleaningConfig.CameraFinalPushDistance * math.clamp((Progress - 0.8) / 0.1, 0, 1)
+	CameraPush = CleaningConfig.CameraFinalPushDistance * math.clamp(
+		(Progress - (CleaningConfig.AutoCompletionThreshold - 0.1)) / 0.1,
+		0,
+		1
+	)
 	if Progress >= CleaningConfig.AutoCompletionThreshold then
 		CompletionRequested = true
 		UsingTool = false
@@ -869,6 +899,30 @@ local function ApplyToolLocally(ToolInfo, DeltaTime: number, AimPosition: Vector
 		ReportLocalProgress(true)
 		FinishRemainingTargets(ToolInfo.Id)
 	end
+end
+
+local function GetHandleSurfaceOffset(HandleCFrame: CFrame, SurfaceNormal: Vector3): number
+	if not ViewmodelHandle then return CleaningConfig.ItemSurfaceOffset end
+	local HalfSize = ViewmodelHandle.Size / 2
+	local Normal = SurfaceNormal.Unit
+	local Extent = math.abs(Normal:Dot(HandleCFrame.RightVector)) * HalfSize.X
+		+ math.abs(Normal:Dot(HandleCFrame.UpVector)) * HalfSize.Y
+		+ math.abs(Normal:Dot(HandleCFrame.LookVector)) * HalfSize.Z
+	return Extent + CleaningConfig.ItemSurfaceOffset
+end
+
+local function GetSurfaceToolCFrame(AimPosition: Vector3, SurfaceNormal: Vector3): CFrame
+	local Camera = Workspace.CurrentCamera
+	local Up = SurfaceNormal.Unit
+	local Right = Camera.CFrame.RightVector - Up * Camera.CFrame.RightVector:Dot(Up)
+	if Right.Magnitude < 0.01 then Right = Camera.CFrame.UpVector - Up * Camera.CFrame.UpVector:Dot(Up) end
+	Right = Right.Unit
+	local Back = Right:Cross(Up).Unit
+	local SurfaceCFrame = CFrame.fromMatrix(AimPosition, Right, Up, Back)
+	local RotationDegrees = CleaningConfig.ToolRotationCorrectionDegrees
+	local HandleCFrame = SurfaceCFrame
+		* CFrame.Angles(math.rad(RotationDegrees.X), math.rad(RotationDegrees.Y), math.rad(RotationDegrees.Z))
+	return SurfaceCFrame + Up * GetHandleSurfaceOffset(HandleCFrame, Up)
 end
 
 local function GetDesiredToolCFrame(ToolInfo): CFrame
@@ -892,32 +946,25 @@ local function GetDesiredToolCFrame(ToolInfo): CFrame
 end
 
 local function GetSpongeUseCFrame(AimPosition: Vector3, SurfaceNormal: Vector3): CFrame
-	local Camera = Workspace.CurrentCamera
-	local Up = SurfaceNormal.Unit
-	local Right = Camera.CFrame.RightVector - Up * Camera.CFrame.RightVector:Dot(Up)
-	if Right.Magnitude < 0.01 then Right = Camera.CFrame.UpVector - Up * Camera.CFrame.UpVector:Dot(Up) end
-	Right = Right.Unit
-	local Back = Right:Cross(Up).Unit
+	local SurfaceCFrame = GetSurfaceToolCFrame(AimPosition, SurfaceNormal)
+	local Up = SurfaceCFrame.UpVector
+	local Right = SurfaceCFrame.RightVector
+	local Back = SurfaceCFrame.LookVector
 	local ScrubTime = os.clock() * CleaningConfig.SpongeScrubFrequency
 	local ScrubOffset = Right * math.sin(ScrubTime) * CleaningConfig.SpongeScrubDistance
 		+ Back * math.sin(ScrubTime * 0.5) * CleaningConfig.SpongeScrubSideDistance
-	local Position = AimPosition + Up * CleaningConfig.SpongeSurfaceOffset + ScrubOffset
-	return CFrame.fromMatrix(Position, Right, Up, Back)
+	return SurfaceCFrame + ScrubOffset
 end
 
 local function GetHammerUseCFrame(AimPosition: Vector3, SurfaceNormal: Vector3, StrikeProgress: number): CFrame
-	local Camera = Workspace.CurrentCamera
-	local Up = SurfaceNormal.Unit
-	local Right = Camera.CFrame.RightVector - Up * Camera.CFrame.RightVector:Dot(Up)
-	if Right.Magnitude < 0.01 then Right = Camera.CFrame.UpVector - Up * Camera.CFrame.UpVector:Dot(Up) end
-	Right = Right.Unit
-	local Back = Right:Cross(Up).Unit
+	local SurfaceCFrame = GetSurfaceToolCFrame(AimPosition, SurfaceNormal)
+	local Up = SurfaceCFrame.UpVector
 	local ContactProgress = CleaningConfig.HammerContactProgress
 	local RaisedAmount = if StrikeProgress <= ContactProgress
 		then 1 - StrikeProgress / ContactProgress
 		else (StrikeProgress - ContactProgress) / (1 - ContactProgress)
-	local Position = AimPosition + Up * (CleaningConfig.HammerSurfaceOffset + CleaningConfig.HammerStrikeLiftDistance * RaisedAmount)
-	return CFrame.fromMatrix(Position, Right, Up, Back)
+	local Position = SurfaceCFrame.Position + Up * CleaningConfig.HammerStrikeLiftDistance * RaisedAmount
+	return (SurfaceCFrame - SurfaceCFrame.Position + Position)
 		* CFrame.Angles(math.rad(-CleaningConfig.HammerRaisedAngleDegrees * RaisedAmount), 0, 0)
 end
 
@@ -1053,12 +1100,8 @@ function FixingController.Init()
 		if IsApplicable then
 			AimPosition, AimPart, SurfaceNormal = GetAimPosition()
 			RuntimeState.Set(LocalPlayer, "CleaningCursorPosition", GetCursorPosition())
-			-- Project from one stable item depth; ray-hit depth can disappear or jump across surface gaps.
-			local FixingItem = GetFixingItemModel()
-			local Box = FixingItem and FixingItem:FindFirstChild("BoundingBox")
-			if Box and Box:IsA("BasePart") then
-				RuntimeState.Set(LocalPlayer, "CleaningBrushRadius", GetProjectedToolRadius(Workspace.CurrentCamera, ToolInfo, Box.Position))
-			end
+			-- Detection uses this viewport-height fraction directly; pixel conversion is only for drawing the HUD circle.
+			RuntimeState.Set(LocalPlayer, "CleaningBrushRadius", GetToolRadiusScale(ToolInfo) * Workspace.CurrentCamera.ViewportSize.Y)
 		end
 		if not UsingTool then return end
 		if not Tool or not ToolInfo or ToolInfo.Id ~= ActiveToolId or ToolInfo.Id ~= RuntimeState.Get(LocalPlayer, "CleaningStepToolId")
@@ -1078,7 +1121,7 @@ function FixingController.Init()
 			SmoothedToolPosition = if SmoothedToolPosition then SmoothedToolPosition:Lerp(AimPosition, Blend) else AimPosition
 			ToolEndPart.Position = SmoothedToolPosition
 			ToolBeam.Enabled = true
-			ToolBeam.Width1 = GetToolRadius(ToolInfo) * 2 * ToolInfo.VFXWidthScale
+			ToolBeam.Width1 = GetWorldToolRadius(Camera, ToolInfo, AimPosition) * 2 * ToolInfo.VFXWidthScale
 			if ToolInfo.ColorFromTarget and AimPart then
 				local TargetColor = AimPart.Color
 				for _, State in LocalTargetStates do

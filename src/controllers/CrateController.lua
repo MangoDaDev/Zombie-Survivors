@@ -19,6 +19,7 @@ local CrateController = {}
 local RevealFolder: Folder
 local RevealGui: ScreenGui
 local Reveals = {}
+local PredictedReveals = {}
 local ScreenEffectId = 0
 local RandomGenerator = Random.new()
 local LocalPlayer = Players.LocalPlayer
@@ -280,44 +281,158 @@ local function CreateRarityEffect(Model: Model, Rarity: string)
 	Debris:AddItem(Anchor, Duration + MaximumLifetime + 0.25)
 end
 
-function CrateController.StartReveal(_, RewardId, ActualItemId, GroundCFrame, CrateId, RevealingPlayer)
-	local Info = GetCrateInfo(CrateId)
-	local ActualItemInfo = GetItemInfo(ActualItemId)
-	if type(RewardId) ~= "string" or not Info or not ActualItemInfo or typeof(GroundCFrame) ~= "CFrame" then return end
-	local Reveal = { Cancelled = false, Model = nil }
-	Reveals[RewardId] = Reveal
-	task.spawn(function()
-		for Index = 1, Info.PreviewSwitchCount do
-			if Reveals[RewardId] ~= Reveal or Reveal.Cancelled then return end
-			if Reveal.Model then Reveal.Model:Destroy() end
-			local PreviewInfo = if Index == Info.PreviewSwitchCount
-				then ActualItemInfo
-				else CrateInfo.GetRandomItem(ItemsInfo, Info, RandomGenerator)
-			Reveal.Model = PreviewInfo and CreatePreview(PreviewInfo, GroundCFrame, RevealFolder) or nil
-			local Alpha = if Info.PreviewSwitchCount > 1 then (Index - 1) / (Info.PreviewSwitchCount - 1) else 1
-			local Delay = Info.PreviewStartDelay + (Info.PreviewEndDelay - Info.PreviewStartDelay) * Alpha * Alpha
-			if Reveal.Model then PulseModel(Reveal.Model, Delay); PlayTick(Info, Reveal.Model, Index) end
-			task.wait(Delay)
+local function GetMinimumRevealDuration(Info): number
+	local Duration = 0
+	for Index = 1, Info.PreviewSwitchCount do
+		local Alpha = if Info.PreviewSwitchCount > 1 then (Index - 1) / (Info.PreviewSwitchCount - 1) else 1
+		Duration += Info.PreviewStartDelay + (Info.PreviewEndDelay - Info.PreviewStartDelay) * Alpha * Alpha
+	end
+	return Duration
+end
+
+local function PlayBreakSound(GroundCFrame, Info)
+	local Anchor = Instance.new("Part")
+	Anchor.Name = "LocalCrateBreakSound"
+	Anchor.Anchored = true
+	Anchor.CanCollide = false
+	Anchor.CanQuery = false
+	Anchor.CanTouch = false
+	Anchor.Size = Vector3.one * 0.05
+	Anchor.Transparency = 1
+	Anchor.CFrame = GroundCFrame
+	Anchor.Parent = RevealFolder
+	local SoundName = Info.BreakSoundNames[RandomGenerator:NextInteger(1, #Info.BreakSoundNames)]
+	local Sound = Sounds.Play(SoundName, Anchor, 75)
+	if Sound then Sound.Volume *= 0.65 end
+	Debris:AddItem(Anchor, 3)
+end
+
+local function RestorePredictedCrate(Reveal)
+	if not Reveal.CrateModel or not Reveal.CrateModel.Parent then return end
+	for Part, CanQuery in Reveal.CrateParts do
+		if Part.Parent then
+			Part.LocalTransparencyModifier = 0
+			Part.CanQuery = CanQuery
 		end
-		if Reveals[RewardId] ~= Reveal or Reveal.Cancelled then return end
-		local Position = if Reveal.Model then Reveal.Model:GetPivot().Position else GroundCFrame.Position
-		local Config = RarityInfo.Get(ActualItemInfo.Rarity)
+	end
+	if Reveal.HealthBillboard and Reveal.HealthBillboard.Parent then Reveal.HealthBillboard.Enabled = true end
+end
+
+local function RunReveal(Reveal)
+	task.spawn(function()
+		local Index = 0
+		while not Reveal.Cancelled do
+			Index += 1
+			if Reveal.Model then Reveal.Model:Destroy() end
+			local MinimumFinished = os.clock() - Reveal.StartedAt >= Reveal.MinimumDuration
+			local IsFinalPreview = Reveal.ActualItemInfo ~= nil and MinimumFinished
+			local PreviewInfo = if IsFinalPreview
+				then Reveal.ActualItemInfo
+				else CrateInfo.GetRandomItem(ItemsInfo, Reveal.Info, RandomGenerator)
+			Reveal.Model = PreviewInfo and CreatePreview(PreviewInfo, Reveal.GroundCFrame, RevealFolder) or nil
+			local DelayIndex = math.min(Index, Reveal.Info.PreviewSwitchCount)
+			local Alpha = if Reveal.Info.PreviewSwitchCount > 1 then (DelayIndex - 1) / (Reveal.Info.PreviewSwitchCount - 1) else 1
+			local Delay = Reveal.Info.PreviewStartDelay + (Reveal.Info.PreviewEndDelay - Reveal.Info.PreviewStartDelay) * Alpha * Alpha
+			if Reveal.Model then PulseModel(Reveal.Model, Delay); PlayTick(Reveal.Info, Reveal.Model, DelayIndex) end
+			task.wait(Delay)
+			if IsFinalPreview then break end
+		end
+		if Reveal.Cancelled or not Reveal.ActualItemInfo then return end
+		local Position = if Reveal.Model then Reveal.Model:GetPivot().Position else Reveal.GroundCFrame.Position
+		local Config = RarityInfo.Get(Reveal.ActualItemInfo.Rarity)
 		if Reveal.Model then
-			CreateRarityEffect(Reveal.Model, ActualItemInfo.Rarity)
+			CreateRarityEffect(Reveal.Model, Reveal.ActualItemInfo.Rarity)
 			Reveal.Model:Destroy()
 			Reveal.Model = nil
 		end
 		CreateRevealBurst(Position, Config)
-		if RevealingPlayer == LocalPlayer then
+		if Reveal.RevealingPlayer == LocalPlayer then
 			PlayScreenReveal(Position, Config)
-			local Sound = Sounds.Play(Config.RevealSoundName or Info.RevealCompleteSoundName, Workspace.CurrentCamera, 70)
+			local Sound = Sounds.Play(Config.RevealSoundName or Reveal.Info.RevealCompleteSoundName, Workspace.CurrentCamera, 70)
 			if Sound then
 				Sound.Volume *= Config.RevealSoundVolume
 				Sound.PlaybackSpeed *= Config.RevealSoundPitch
 			end
 		end
-		Reveals[RewardId] = nil
+		if Reveal.RewardId then Reveals[Reveal.RewardId] = nil end
 	end)
+end
+
+function CrateController.BeginPredictedReveal(PredictionId, Model, CrateId)
+	local Info = GetCrateInfo(CrateId)
+	if type(PredictionId) ~= "string" or typeof(Model) ~= "Instance" or not Model:IsA("Model") or not Info then return end
+	local BoundingCFrame, BoundingSize = Model:GetBoundingBox()
+	local Pivot = Model:GetPivot()
+	local GroundCFrame = CFrame.new(Pivot.X, BoundingCFrame.Position.Y - BoundingSize.Y / 2, Pivot.Z) * Pivot.Rotation
+	local Reveal = {
+		ActualItemInfo = nil,
+		Cancelled = false,
+		CrateModel = Model,
+		CrateParts = {},
+		GroundCFrame = GroundCFrame,
+		Info = Info,
+		MinimumDuration = GetMinimumRevealDuration(Info),
+		Model = nil,
+		RevealingPlayer = LocalPlayer,
+		StartedAt = os.clock(),
+	}
+	PredictedReveals[PredictionId] = Reveal
+	for _, Descendant in Model:GetDescendants() do
+		if Descendant:IsA("BasePart") then
+			Reveal.CrateParts[Descendant] = Descendant.CanQuery
+			Descendant.LocalTransparencyModifier = 1
+			Descendant.CanQuery = false
+		end
+	end
+	local PrimaryPart = Model.PrimaryPart
+	Reveal.HealthBillboard = PrimaryPart and PrimaryPart:FindFirstChild("CrateHealth")
+	if Reveal.HealthBillboard and Reveal.HealthBillboard:IsA("BillboardGui") then Reveal.HealthBillboard.Enabled = false end
+	RunReveal(Reveal)
+	task.delay(8, function()
+		if PredictedReveals[PredictionId] ~= Reveal or Reveal.ActualItemInfo then return end
+		PredictedReveals[PredictionId] = nil
+		Reveal.Cancelled = true
+		if Reveal.Model then Reveal.Model:Destroy() end
+		RestorePredictedCrate(Reveal)
+	end)
+end
+
+function CrateController.CancelPredictedReveal(PredictionId)
+	local Reveal = PredictedReveals[PredictionId]
+	if not Reveal then return end
+	PredictedReveals[PredictionId] = nil
+	Reveal.Cancelled = true
+	if Reveal.Model then Reveal.Model:Destroy() end
+	RestorePredictedCrate(Reveal)
+end
+
+function CrateController.StartReveal(_, RewardId, ActualItemId, GroundCFrame, CrateId, RevealingPlayer, PredictionId)
+	local Info = GetCrateInfo(CrateId)
+	local ActualItemInfo = GetItemInfo(ActualItemId)
+	if type(RewardId) ~= "string" or not Info or not ActualItemInfo or typeof(GroundCFrame) ~= "CFrame" then return end
+	local Reveal = if RevealingPlayer == LocalPlayer and type(PredictionId) == "string" then PredictedReveals[PredictionId] else nil
+	if Reveal then
+		PredictedReveals[PredictionId] = nil
+		Reveal.ActualItemInfo = ActualItemInfo
+		Reveal.GroundCFrame = GroundCFrame
+		Reveal.RewardId = RewardId
+		Reveals[RewardId] = Reveal
+		return
+	end
+	Reveal = {
+		ActualItemInfo = ActualItemInfo,
+		Cancelled = false,
+		GroundCFrame = GroundCFrame,
+		Info = Info,
+		MinimumDuration = GetMinimumRevealDuration(Info),
+		Model = nil,
+		RevealingPlayer = RevealingPlayer,
+		RewardId = RewardId,
+		StartedAt = os.clock(),
+	}
+	Reveals[RewardId] = Reveal
+	PlayBreakSound(GroundCFrame, Info)
+	RunReveal(Reveal)
 end
 
 function CrateController.RemoveReveal(_, RewardId)
