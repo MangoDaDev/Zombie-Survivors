@@ -1,11 +1,11 @@
+local GaussianRandom = require(script.Parent.Parent.Math.GaussianRandom)
+
 local SharedCrateInfo = {
 	TemplateFolderName = "Crates",
 	RespawnDelay = 0.6,
 	SpawnPadding = 4,
 	MinimumSpawnSeparation = 8,
-	ScaleMinimum = 0.8,
-	ScaleMaximum = 1.15,
-	ScaleMode = 1.05,
+	ScaleStandardDeviation = 0.12,
 	ScaleLuckStrength = 2,
 	HealthBarHideDelay = 1.6,
 	HealthBarTweenTime = 0.12,
@@ -44,6 +44,7 @@ local CrateInfo = {
 	},
 	NewPlayerDropSequence = { 1, 6, 5, 14 },
 	Crates = {
+		-- Keep higher-tier rewards gated behind the matching bat progression through sharply increasing durability.
 		CreateCrate({
 			Id = "CommonCrate",
 			DisplayName = "Common",
@@ -61,7 +62,7 @@ local CrateInfo = {
 			Id = "UncommonCrate",
 			DisplayName = "Uncommon",
 			TemplateName = "UncommonCrate",
-			Health = 72,
+			Health = 160,
 			MaximumActive = 36,
 			SpawnDepthBias = -0.45,
 			RarityChances = {
@@ -75,7 +76,7 @@ local CrateInfo = {
 			Id = "RareCrate",
 			DisplayName = "Rare",
 			TemplateName = "RareCrate",
-			Health = 280,
+			Health = 1_000,
 			MaximumActive = 24,
 			SpawnDepthBias = 0.1,
 			RarityChances = {
@@ -90,7 +91,7 @@ local CrateInfo = {
 			Id = "EpicCrate",
 			DisplayName = "Epic",
 			TemplateName = "EpicCrate",
-			Health = 900,
+			Health = 5_000,
 			MaximumActive = 16,
 			SpawnDepthBias = 0.5,
 			RarityChances = {
@@ -106,7 +107,7 @@ local CrateInfo = {
 			Id = "LegendaryCrate",
 			DisplayName = "Legendary",
 			TemplateName = "LegendaryCrate",
-			Health = 2_600,
+			Health = 20_000,
 			MaximumActive = 8,
 			SpawnDepthBias = 0.9,
 			RarityChances = {
@@ -122,7 +123,7 @@ local CrateInfo = {
 			Id = "MythicalCrate",
 			DisplayName = "Mythical",
 			TemplateName = "MythicalCrate",
-			Health = 7_000,
+			Health = 60_000,
 			MaximumActive = 1,
 			SpawnDepthBias = 1,
 			RarityChances = {
@@ -141,7 +142,7 @@ local CrateInfo = {
 			Id = "SecretCrate",
 			DisplayName = "Secret",
 			TemplateName = "SecretCrate",
-			Health = 18_000,
+			Health = 160_000,
 			MaximumActive = 1,
 			SpawnDepthBias = 1,
 			RarityChances = {
@@ -183,17 +184,10 @@ end
 
 function CrateInfo.RollScale(Info, RandomGenerator: Random?): number
 	local Generator = RandomGenerator or DefaultRandom
-	local Minimum = Info.ScaleMinimum
-	local Maximum = Info.ScaleMaximum
-	local Mode = Info.ScaleMode
-	local Range = Maximum - Minimum
-	local ModeChance = (Mode - Minimum) / Range
-	local Roll = Generator:NextNumber()
-	-- This triangular distribution favors slightly larger crates while averaging exactly normal size.
-	if Roll < ModeChance then
-		return Minimum + math.sqrt(Roll * Range * (Mode - Minimum))
-	end
-	return Maximum - math.sqrt((1 - Roll) * Range * (Maximum - Mode))
+	local StandardDeviation = Info.ScaleStandardDeviation
+	-- Log-normal sizing has no hard bounds, stays positive, averages 1x, and keeps a longer high-size tail.
+	local LogMean = -(StandardDeviation ^ 2) / 2
+	return math.exp(GaussianRandom(LogMean, StandardDeviation, Generator))
 end
 
 function CrateInfo.GetScaleLuck(Info, Scale: number): number
@@ -258,15 +252,14 @@ end
 
 function CrateInfo.Validate()
 	local PreviousExpectedStage = 0
+	local PreviousHealth = 0
 	local SeenIds = {}
 	for _, Info in CrateInfo.Crates do
 		assert(type(Info.Id) == "string" and not SeenIds[Info.Id], `Invalid or duplicate crate id {tostring(Info.Id)}`)
 		assert(type(Info.Health) == "number" and Info.Health > 0, `Invalid health for crate {Info.Id}`)
-		assert(type(Info.ScaleMinimum) == "number" and type(Info.ScaleMaximum) == "number"
-			and type(Info.ScaleMode) == "number" and Info.ScaleMinimum < Info.ScaleMode
-			and Info.ScaleMode < Info.ScaleMaximum, `Invalid scale distribution for {Info.Id}`)
-		assert(math.abs((Info.ScaleMinimum + Info.ScaleMode + Info.ScaleMaximum) / 3 - 1) <= 0.02,
-			`Average crate scale must remain near normal for {Info.Id}`)
+		assert(Info.Health > PreviousHealth, `Crate health must increase at {Info.Id}`)
+		assert(type(Info.ScaleStandardDeviation) == "number" and Info.ScaleStandardDeviation > 0,
+			`Invalid scale distribution for {Info.Id}`)
 		assert(type(Info.ScaleLuckStrength) == "number" and Info.ScaleLuckStrength >= 0,
 			`Invalid scale luck strength for {Info.Id}`)
 		local Chances = CrateInfo.GetNormalizedRarityChances(Info)
@@ -283,6 +276,7 @@ function CrateInfo.Validate()
 			assert(ExpectedStage > PreviousExpectedStage, `Regular crate quality must increase at {Info.Id}`)
 			PreviousExpectedStage = ExpectedStage
 		end
+		PreviousHealth = Info.Health
 		SeenIds[Info.Id] = true
 	end
 end

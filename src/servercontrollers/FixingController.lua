@@ -453,7 +453,7 @@ local function StartFixing(Player)
 	if not CameraPart or not CameraPart:IsA("BasePart") then Model:Destroy(); return end
 	PlaceItemOnTable(Model, Box, PromptPart)
 	Model.Parent = Museum
-	ItemInfoBillboard(Info, Box, State)
+	-- Keep the standard item billboard hidden while the player is actively fixing the item.
 	local RootWasAnchored = RootPart.Anchored
 	local Humanoid = Player.Character and Player.Character:FindFirstChildOfClass("Humanoid")
 	if not Humanoid then Model:Destroy(); return end

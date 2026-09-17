@@ -109,15 +109,15 @@ Estimated base restoration time from the real model geometry:
 
 ## Crates
 
-| Crate | Old -> new health | Old -> new expected item price | New minimum-average-maximum outcome |
+| Crate | Previous -> current health | Old -> new expected item price | New minimum-average-maximum outcome |
 | --- | ---: | ---: | ---: |
-| Common | 12 -> 16 | 11,693 -> 535 | 120 / 535 / 12,000 |
-| Uncommon | 48 -> 72 | 24,734 -> 2,784 | 120 / 2,784 / 90,000 |
-| Rare | 160 -> 280 | 66,059 -> 24,273 | 120 / 24,273 / 450,000 |
-| Epic | 600 -> 900 | 153,498 -> 129,913 | 120 / 129,913 / 2,400,000 |
-| Legendary | 1,800 -> 2,600 | 401,312 -> 408,654 | 700 / 408,654 / 12,000,000 |
-| Mythical pity | 5,000 -> 7,000 | 1,052,059 -> 1,147,907 | 4,000 / 1,147,907 / 12,000,000 |
-| Secret pity | 12,000 -> 18,000 | 2,704,664 -> 3,136,949 | 4,000 / 3,136,949 / 12,000,000 |
+| Common | 16 -> 16 | 11,693 -> 535 | 120 / 535 / 12,000 |
+| Uncommon | 72 -> 160 | 24,734 -> 2,784 | 120 / 2,784 / 90,000 |
+| Rare | 280 -> 1,000 | 66,059 -> 24,273 | 120 / 24,273 / 450,000 |
+| Epic | 900 -> 5,000 | 153,498 -> 129,913 | 120 / 129,913 / 2,400,000 |
+| Legendary | 2,600 -> 20,000 | 401,312 -> 408,654 | 700 / 408,654 / 12,000,000 |
+| Mythical pity | 7,000 -> 60,000 | 1,052,059 -> 1,147,907 | 4,000 / 1,147,907 / 12,000,000 |
+| Secret pity | 18,000 -> 160,000 | 2,704,664 -> 3,136,949 | 4,000 / 3,136,949 / 12,000,000 |
 
 Rarity odds are listed Common through Secret:
 
@@ -149,17 +149,17 @@ The reset interval changed from 150s to 180s, normal respawn delay from 0.75s to
 | Obsidian | 2,400 -> 1,800 | 0.39s |
 | Meteorite | 4,500 -> 2,800 | 0.37s |
 
-New time to break, before cooldown upgrades:
+Current time to break, before cooldown upgrades:
 
 | Crate | Wooden | Stone | Iron | Emerald | Meteorite |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | Common | 1.65s | 0.52s | immediate | immediate | immediate |
-| Uncommon | 9.35s | 2.60s | 0.49s | immediate | immediate |
-| Rare | 37.95s | 11.96s | 1.96s | 0.45s | immediate |
-| Epic | 123.20s | 38.48s | 6.37s | 1.35s | immediate |
-| Legendary | 356.95s | 112.32s | 19.11s | 4.05s | immediate |
-| Mythical | 961.95s | 303.16s | 52.43s | 11.70s | 0.74s |
-| Secret | 2,474.45s | 779.48s | 135.24s | 31.05s | 2.22s |
+| Uncommon | 21.45s | 6.76s | 0.98s | immediate | immediate |
+| Rare | 136.95s | 43.16s | 7.35s | 1.35s | immediate |
+| Epic | 686.95s | 216.32s | 37.24s | 8.55s | 0.37s |
+| Legendary | 2,749.45s | 866.32s | 150.43s | 34.20s | 2.59s |
+| Mythical | 8,249.45s | 2,599.48s | 452.27s | 103.50s | 7.77s |
+| Secret | 21,999.45s | 6,933.16s | 1,205.89s | 276.75s | 21.09s |
 
 Cooldown upgrade multipliers changed from `0.90 / 0.78 / 0.64` to `0.88 / 0.75 / 0.62`.
 
@@ -239,12 +239,12 @@ Representative active income includes item purchase, restoration reward, sale, e
 | Stage | Representative crate / bat | Cycle time | Net cash per item | Active income/minute |
 | --- | --- | ---: | ---: | ---: |
 | Early Common | Common / Wooden | 17.2s | 894 | 3,120 |
-| Early-mid Uncommon | Uncommon / Stone | 40.4s | 3,663 | 5,439 |
-| Mid Rare | Rare / Iron | 46.4s | 16,877 | 21,833 |
-| Mid-late Epic | Epic / Gold | 65.9s | 91,470 | 83,306 |
-| Late Legendary | Legendary / Emerald | 80.1s | 315,818 | 236,568 |
-| Late Mythic | Mythical / Titanium | 98.1s | 1,701,250 | 1,040,096 |
-| Endgame Secret | Secret / Obsidian | 96.3s | 8,249,999 | 5,141,610 |
+| Early-mid Uncommon | Uncommon / Stone | 44.6s | 3,663 | 4,932 |
+| Mid Rare | Rare / Iron | 51.8s | 16,877 | 19,552 |
+| Mid-late Epic | Epic / Gold | 80.9s | 91,470 | 67,806 |
+| Late Legendary | Legendary / Emerald | 110.3s | 315,818 | 171,874 |
+| Late Mythic | Mythical / Titanium | 148.8s | 1,701,250 | 685,804 |
+| Endgame Secret | Secret / Obsidian | 127.1s | 8,249,999 | 3,894,264 |
 
 Representative passive income at six inspections per visitor slot per minute:
 
