@@ -60,13 +60,18 @@ local LastReportedRemaining = 0
 local LastProgressReport = 0
 local CompletionRequested = false
 local LastDirtFeedback = 0
-local LastHammerStrike = 0
+local HammerStrikeStartedAt: number?
+local HammerStrikeApplied = false
+local HammerStrikeAimPosition: Vector3?
+local HammerStrikeSurfaceNormal: Vector3?
+local HammerInputHeld = false
 local CameraEntryId = 0
 local BaseCameraCFrame: CFrame?
 local OriginalCameraCFrame: CFrame?
 local CameraImpulse = 0
 local CameraPush = 0
 local LastCleanPosition: Vector3?
+local ActiveTouchInput: InputObject?
 
 local CAMERA_BINDING_NAME = "CleaningCameraAndArm"
 local CAMERA_SETUP_TIMEOUT = 10
@@ -114,7 +119,15 @@ end
 
 local function GetToolRadius(ToolInfo): number
 	local Ownership = DataService:get("Upgrades")
-	return ToolInfo.RadiusPixels * UpgradeLogic.GetToolRadiusMultiplier(Ownership, ToolInfo.Id)
+	-- Keep cleaning effectiveness in world space so device resolution cannot change the footprint.
+	return (ToolInfo.RadiusStuds or CleaningConfig.BrushRadiusStuds) * UpgradeLogic.GetToolRadiusMultiplier(Ownership, ToolInfo.Id)
+end
+
+local function GetProjectedToolRadius(Camera: Camera, ToolInfo, WorldPosition: Vector3): number
+	local CameraPosition = Camera.CFrame:PointToObjectSpace(WorldPosition)
+	local Depth = math.max(-CameraPosition.Z, 0.1)
+	local WorldUnitsPerPixel = 2 * Depth * math.tan(math.rad(Camera.FieldOfView / 2)) / math.max(Camera.ViewportSize.Y, 1)
+	return GetToolRadius(ToolInfo) / WorldUnitsPerPixel
 end
 
 local function UpdateToolInterface()
@@ -139,7 +152,7 @@ local function UpdateToolInterface()
 		and ToolInfo.Id == RequiredToolId
 		and RuntimeState.Get(LocalPlayer, "CleaningStepComplete", false) ~= true
 	RuntimeState.Set(LocalPlayer, "CleaningRadiusVisible", IsApplicable)
-	RuntimeState.Set(LocalPlayer, "CleaningBrushRadius", if IsApplicable then GetToolRadius(ToolInfo) else nil)
+	RuntimeState.Set(LocalPlayer, "CleaningBrushRadius", nil)
 	if UsingTool and (not IsApplicable or ToolInfo.Id ~= ActiveToolId) then
 		ReportLocalProgress(true)
 		UsingTool = false
@@ -302,6 +315,11 @@ local function Restore(Instant: boolean?)
 	LastReportedRemaining = 0
 	CompletionRequested = false
 	LastCleanPosition = nil
+	HammerStrikeStartedAt = nil
+	HammerStrikeApplied = false
+	HammerStrikeAimPosition = nil
+	HammerStrikeSurfaceNormal = nil
+	HammerInputHeld = false
 end
 
 local function GetScreenWorldPosition(Camera, ScreenPosition, Depth): Vector3
@@ -314,6 +332,7 @@ end
 
 local function GetCursorPosition(): Vector2
 	-- Keep cleaning input in raw screen space so it matches the IgnoreGuiInset HUD.
+	if ActiveTouchInput then return Vector2.new(ActiveTouchInput.Position.X, ActiveTouchInput.Position.Y) end
 	return UserInputService:GetMouseLocation()
 end
 
@@ -399,7 +418,7 @@ local function GetFixingCameraCFrame(Camera: Camera, CameraPart: BasePart, Table
 
 	local Elevation = math.rad(CleaningConfig.ItemCameraElevationDegrees)
 	local ViewDirection = (FrontDirection * math.cos(Elevation) + SurfaceNormal * math.sin(Elevation)).Unit
-	local VerticalFieldOfView = math.rad(Camera.FieldOfView)
+	local VerticalFieldOfView = math.rad(CleaningConfig.CameraFieldOfView)
 	local AspectRatio = Camera.ViewportSize.X / math.max(Camera.ViewportSize.Y, 1)
 	local HorizontalFieldOfView = 2 * math.atan(math.tan(VerticalFieldOfView / 2) * AspectRatio)
 	local HalfHeight = Box.Size.Y / 2
@@ -414,6 +433,10 @@ local function GetFixingCameraCFrame(Camera: Camera, CameraPart: BasePart, Table
 		CleaningConfig.ItemCameraMinimumDistance,
 		DepthExtent + FitDistance * CleaningConfig.ItemCameraPadding
 	)
+	local ItemSize = Box.Size.Magnitude
+	local SmallItemFactor = 1 - math.clamp(ItemSize / CleaningConfig.ItemCameraSmallItemThreshold, 0, 1)
+	-- Preserve physical scale cues without changing the established framing for larger items.
+	Distance += SmallItemFactor * CleaningConfig.ItemCameraSmallItemExtraDistance
 	return CFrame.lookAt(TargetPosition + ViewDirection * Distance, TargetPosition, SurfaceNormal)
 end
 
@@ -659,8 +682,10 @@ local function PrepareLocalStep(ToolId: string): boolean
 
 	local MaximumHealth = if Step.Type == "Dirt" then ItemInfo.DirtHP else Step.TargetHP
 	for _, Target in Targets do
+		local BendRotation = Step.BendRotationDegrees or Vector3.new(28, -18, 12)
+		local DamageRotation = CFrame.Angles(math.rad(BendRotation.X), math.rad(BendRotation.Y), math.rad(BendRotation.Z))
 		local RestoredCFrame = if Step.Type == "Bent"
-			then Target.CFrame * CFrame.Angles(math.rad(-22), math.rad(14), math.rad(-9))
+			then Target.CFrame * DamageRotation:Inverse()
 			else nil
 		table.insert(LocalTargetStates, {
 			Part = Target,
@@ -724,7 +749,18 @@ local function GetLocalProgress(): number
 	return math.clamp((LocalStepTotal - LocalStepRemaining + PartialProgress) / math.max(LocalStepTotal, 1), 0, 1)
 end
 
-local function ApplyToolLocally(ToolInfo, DeltaTime: number, MousePosition: Vector2, AimPart: BasePart?)
+local function GetDistanceToPart(Position: Vector3, Part: BasePart): number
+	local LocalPosition = Part.CFrame:PointToObjectSpace(Position)
+	local HalfSize = Part.Size / 2
+	local ClosestLocalPosition = Vector3.new(
+		math.clamp(LocalPosition.X, -HalfSize.X, HalfSize.X),
+		math.clamp(LocalPosition.Y, -HalfSize.Y, HalfSize.Y),
+		math.clamp(LocalPosition.Z, -HalfSize.Z, HalfSize.Z)
+	)
+	return (Position - Part.CFrame:PointToWorldSpace(ClosestLocalPosition)).Magnitude
+end
+
+local function ApplyToolLocally(ToolInfo, DeltaTime: number, AimPosition: Vector3?)
 	-- Cleaning interaction is intentionally client-authoritative so brush feedback never waits on network latency.
 	if LocalStepId ~= ToolInfo.Id and not PrepareLocalStep(ToolInfo.Id) then return end
 	local Step = CleaningConfig.GetStep(ToolInfo.Id)
@@ -732,24 +768,15 @@ local function ApplyToolLocally(ToolInfo, DeltaTime: number, MousePosition: Vect
 	local Ownership = DataService:get("Upgrades")
 	local Strength = ToolInfo.StrengthPerSecond * UpgradeLogic.GetToolStrengthMultiplier(Ownership, ToolInfo.Id)
 	local Damage = Strength * math.clamp(DeltaTime, 0, 0.2)
-	if Step.Type == "Bent" then
-		local Now = os.clock()
-		if Now - LastHammerStrike < (ToolInfo.StrikeInterval or 0.28) then return end
-		LastHammerStrike = Now
-		Damage = 1
-	end
+	if Step.Type == "Bent" then Damage = 1 end
 	local Radius = GetToolRadius(ToolInfo)
-	local Camera = Workspace.CurrentCamera
 	local ProgressChanged = false
 	local AppliedToTarget = false
 
 	for _, State in LocalTargetStates do
 		local Target = State.Part
 		if State.Completed or not Target.Parent then continue end
-		local ScreenPosition, IsVisible = Camera:WorldToViewportPoint(Target.Position)
-		local IsDirectSpongeTarget = Step.Type == "Grease" and AimPart == Target
-		local IsWithinBrush = IsVisible and (Vector2.new(ScreenPosition.X, ScreenPosition.Y) - MousePosition).Magnitude <= Radius
-		if not IsDirectSpongeTarget and not IsWithinBrush then continue end
+		if not AimPosition or GetDistanceToPart(AimPosition, Target) > Radius then continue end
 		AppliedToTarget = true
 
 		local PreviousHealth = State.CurrentHealth
@@ -810,6 +837,7 @@ local function ApplyToolLocally(ToolInfo, DeltaTime: number, MousePosition: Vect
 		CompletionRequested = true
 		UsingTool = false
 		ActiveToolId = nil
+		HammerInputHeld = false
 		StopToolEffects()
 		ReportLocalProgress(true)
 		FinishRemainingTargets(ToolInfo.Id)
@@ -850,6 +878,39 @@ local function GetSpongeUseCFrame(AimPosition: Vector3, SurfaceNormal: Vector3):
 	return CFrame.fromMatrix(Position, Right, Up, Back)
 end
 
+local function GetHammerUseCFrame(AimPosition: Vector3, SurfaceNormal: Vector3, StrikeProgress: number): CFrame
+	local Camera = Workspace.CurrentCamera
+	local Up = SurfaceNormal.Unit
+	local Right = Camera.CFrame.RightVector - Up * Camera.CFrame.RightVector:Dot(Up)
+	if Right.Magnitude < 0.01 then Right = Camera.CFrame.UpVector - Up * Camera.CFrame.UpVector:Dot(Up) end
+	Right = Right.Unit
+	local Back = Right:Cross(Up).Unit
+	local ContactProgress = CleaningConfig.HammerContactProgress
+	local RaisedAmount = if StrikeProgress <= ContactProgress
+		then 1 - StrikeProgress / ContactProgress
+		else (StrikeProgress - ContactProgress) / (1 - ContactProgress)
+	local Position = AimPosition + Up * (CleaningConfig.HammerSurfaceOffset + CleaningConfig.HammerStrikeLiftDistance * RaisedAmount)
+	return CFrame.fromMatrix(Position, Right, Up, Back)
+		* CFrame.Angles(math.rad(-CleaningConfig.HammerRaisedAngleDegrees * RaisedAmount), 0, 0)
+end
+
+local function StopHammerUse()
+	UsingTool = false
+	ActiveToolId = nil
+	HammerStrikeStartedAt = nil
+	HammerStrikeApplied = false
+	StopToolEffects()
+	ReportLocalProgress(true)
+	Network:fire("StopUsingTool")
+end
+
+local function StartHammerStrike(AimPosition: Vector3, SurfaceNormal: Vector3)
+	HammerStrikeStartedAt = os.clock()
+	HammerStrikeApplied = false
+	HammerStrikeAimPosition = AimPosition
+	HammerStrikeSurfaceNormal = SurfaceNormal
+end
+
 local function PositionViewmodelTool(ToolCFrame: CFrame)
 	local RotationDegrees = CleaningConfig.ToolRotationCorrectionDegrees
 	local CorrectedToolCFrame = ToolCFrame
@@ -871,10 +932,25 @@ UpdateVisualTool = function(DeltaTime)
 	end
 	local DesiredCFrame = GetDesiredToolCFrame(ToolInfo)
 	local Responsiveness = ToolInfo.PositionResponsiveness or CleaningConfig.ToolPositionResponsiveness
-	if UsingTool and ToolInfo.Id == "Hammer" then
-		local StrikeProgress = math.clamp((os.clock() - LastHammerStrike) / math.max(ToolInfo.StrikeInterval or 0.28, 0.01), 0, 1)
-		local Swing = math.sin(StrikeProgress * math.pi) * math.rad(48)
-		DesiredCFrame *= CFrame.Angles(-Swing, 0, 0)
+	local HammerContactPosition: Vector3?
+	if ToolInfo.Id == "Hammer" and HammerStrikeStartedAt and HammerStrikeAimPosition and HammerStrikeSurfaceNormal then
+		local StrikeDuration = math.max(ToolInfo.StrikeInterval or 0.28, 0.01)
+		local StrikeProgress = math.clamp((os.clock() - HammerStrikeStartedAt) / StrikeDuration, 0, 1)
+		DesiredCFrame = GetHammerUseCFrame(HammerStrikeAimPosition, HammerStrikeSurfaceNormal, StrikeProgress)
+		Responsiveness = ToolInfo.PositionResponsiveness or CleaningConfig.ToolPositionResponsiveness
+		if not HammerStrikeApplied and StrikeProgress >= CleaningConfig.HammerContactProgress then
+			HammerStrikeApplied = true
+			HammerContactPosition = HammerStrikeAimPosition
+		end
+		if StrikeProgress >= 1 then
+			HammerStrikeStartedAt = nil
+			if HammerInputHeld then
+				local AimPosition, _, SurfaceNormal = GetAimPosition()
+				if AimPosition and SurfaceNormal then StartHammerStrike(AimPosition, SurfaceNormal) end
+			else
+				StopHammerUse()
+			end
+		end
 	end
 	if UsingTool and (ToolInfo.Id == "Sponge" or ToolInfo.Id == "SoftBrush" or ToolInfo.Id == "Polisher") then
 		local AimPosition, _, SurfaceNormal = GetAimPosition()
@@ -886,6 +962,9 @@ UpdateVisualTool = function(DeltaTime)
 	local Blend = 1 - math.exp(-Responsiveness * DeltaTime)
 	SmoothedVisualToolCFrame = if SmoothedVisualToolCFrame then SmoothedVisualToolCFrame:Lerp(DesiredCFrame, Blend) else DesiredCFrame
 	PositionViewmodelTool(SmoothedVisualToolCFrame)
+	if HammerContactPosition then
+		ApplyToolLocally(ToolInfo, DeltaTime, HammerContactPosition)
+	end
 	if FakeArm then
 		local Camera = Workspace.CurrentCamera
 		local ArmStart = GetScreenWorldPosition(Camera, CleaningConfig.FakeArmScreenPosition, CleaningConfig.FakeArmCameraDepth)
@@ -923,6 +1002,8 @@ function FixingController.Init()
 		if IsComplete == true then
 			UsingTool = false
 			ActiveToolId = nil
+			HammerInputHeld = false
+			HammerStrikeStartedAt = nil
 			StopToolEffects()
 		end
 	end)
@@ -940,22 +1021,24 @@ function FixingController.Init()
 		then
 			UsingTool = false
 			ActiveToolId = nil
+			HammerInputHeld = false
+			HammerStrikeStartedAt = nil
 			StopToolEffects()
 			Network:fire("StopUsingTool")
 			return
 		end
-		local AimPosition, AimPart = GetAimPosition()
+		local AimPosition, AimPart, SurfaceNormal = GetAimPosition()
 		local Camera = Workspace.CurrentCamera
-		local MousePosition = GetCursorPosition()
+		RuntimeState.Set(LocalPlayer, "CleaningCursorPosition", GetCursorPosition())
+		if AimPosition then
+			RuntimeState.Set(LocalPlayer, "CleaningBrushRadius", GetProjectedToolRadius(Camera, ToolInfo, AimPosition))
+		end
 		if AimPosition and ToolEndPart and ToolBeam then
 			local Blend = 1 - math.exp(-CleaningConfig.SprayEndpointResponsiveness * DeltaTime)
 			SmoothedToolPosition = if SmoothedToolPosition then SmoothedToolPosition:Lerp(AimPosition, Blend) else AimPosition
 			ToolEndPart.Position = SmoothedToolPosition
 			ToolBeam.Enabled = true
-			local CameraPosition = Camera.CFrame:PointToObjectSpace(SmoothedToolPosition)
-			local Depth = math.max(-CameraPosition.Z, 0.1)
-			local WorldUnitsPerPixel = 2 * Depth * math.tan(math.rad(Camera.FieldOfView / 2)) / math.max(Camera.ViewportSize.Y, 1)
-			ToolBeam.Width1 = GetToolRadius(ToolInfo) * 2 * WorldUnitsPerPixel * ToolInfo.VFXWidthScale
+			ToolBeam.Width1 = GetToolRadius(ToolInfo) * 2 * ToolInfo.VFXWidthScale
 			if ToolInfo.ColorFromTarget and AimPart then
 				local TargetColor = AimPart.Color
 				for _, State in LocalTargetStates do
@@ -975,7 +1058,11 @@ function FixingController.Init()
 		elseif ToolBeam then
 			ToolBeam.Enabled = false
 		end
-		ApplyToolLocally(ToolInfo, DeltaTime, MousePosition, AimPart)
+		if ToolInfo.Id == "Hammer" then
+			if not HammerStrikeStartedAt and AimPosition and SurfaceNormal then StartHammerStrike(AimPosition, SurfaceNormal) end
+		else
+			ApplyToolLocally(ToolInfo, DeltaTime, AimPosition)
+		end
 	end)
 	RuntimeState.GetChangedSignal(LocalPlayer, "CleaningRestorationComplete"):Connect(function(IsComplete)
 		if IsComplete == true then
@@ -985,17 +1072,26 @@ function FixingController.Init()
 	end)
 	UserInputService.InputBegan:Connect(function(Input, Processed)
 		if Processed then return end
-		if Input.UserInputType == Enum.UserInputType.MouseButton1 and RuntimeState.Get(LocalPlayer, "IsFixing", false) == true and not UsingTool then
+		local IsPrimaryInput = Input.UserInputType == Enum.UserInputType.MouseButton1
+			or Input.UserInputType == Enum.UserInputType.Touch
+		if IsPrimaryInput and RuntimeState.Get(LocalPlayer, "IsFixing", false) == true and not UsingTool then
+			if Input.UserInputType == Enum.UserInputType.Touch then ActiveTouchInput = Input end
+			RuntimeState.Set(LocalPlayer, "CleaningCursorPosition", GetCursorPosition())
 			local Tool, ToolInfo = GetEquippedCleaningTool()
 			if Tool and ToolInfo and ToolInfo.Id == RuntimeState.Get(LocalPlayer, "CleaningStepToolId")
 				and RuntimeState.Get(LocalPlayer, "CleaningStepComplete", false) ~= true
 			then
 				UsingTool = true
 				ActiveToolId = ToolInfo.Id
+				HammerInputHeld = ToolInfo.Id == "Hammer"
 				if Tool ~= ViewmodelSourceTool then CreateViewmodelTool(Tool, ToolInfo) end
 				if ViewmodelTool then StartToolEffects(ViewmodelTool, ToolInfo) end
 				CameraImpulse = math.max(CameraImpulse, CleaningConfig.CameraToolImpulseDistance)
 				Network:fire("StartUsingTool", ToolInfo.Id)
+				if ToolInfo.Id == "Hammer" then
+					local AimPosition, _, SurfaceNormal = GetAimPosition()
+					if AimPosition and SurfaceNormal then StartHammerStrike(AimPosition, SurfaceNormal) end
+				end
 			end
 		elseif Input.KeyCode == Enum.KeyCode.Q and RuntimeState.Get(LocalPlayer, "IsFixing", false) == true then
 			ReportLocalProgress(true)
@@ -1003,13 +1099,21 @@ function FixingController.Init()
 		end
 	end)
 	UserInputService.InputEnded:Connect(function(Input)
-		if Input.UserInputType == Enum.UserInputType.MouseButton1 and UsingTool then
-			ReportLocalProgress(true)
-			UsingTool = false
-			ActiveToolId = nil
-			StopToolEffects()
-			Network:fire("StopUsingTool")
+		local IsActiveTouch = Input == ActiveTouchInput
+		local IsPrimaryInput = Input.UserInputType == Enum.UserInputType.MouseButton1 or IsActiveTouch
+		if IsPrimaryInput and UsingTool then
+			if ActiveToolId == "Hammer" then
+				HammerInputHeld = false
+				if not HammerStrikeStartedAt then StopHammerUse() end
+			else
+				ReportLocalProgress(true)
+				UsingTool = false
+				ActiveToolId = nil
+				StopToolEffects()
+				Network:fire("StopUsingTool")
+			end
 		end
+		if IsActiveTouch then ActiveTouchInput = nil end
 	end)
 	EnterFixingView()
 end

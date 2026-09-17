@@ -30,7 +30,7 @@ Quick reference for the project's first-party Luau scripts. Generated Wally depe
 | `src/controllers/ConveyorItemController.lua` | ConveyorItemController | Retains the inactive legacy ConveyorItem SharedClass renderer. |
 | `src/controllers/CrateController.lua` | CrateController | Plays client-only silhouette roulette, pulsing previews, rarity-scaled pinwheels, bursts, local vignette/flash/sparkles/audio, and compact crate-purchase guidance. |
 | `src/controllers/AmbientAudioController.lua` | AmbientAudioController | Shuffles and plays every track in the Music asset folder without repeats, and smoothly ducks music for high-rarity reveals and restoration completion states. |
-| `src/controllers/FixingController.lua` | FixingController | Owns smoothly blended, stable BoundingBox-fitted fixing cameras, assisted final cleanup, responsive client-authoritative cleaning damage, presentation feedback, Fix prompts, avatar hiding, and the tool/fake-arm viewmodel. |
+| `src/controllers/FixingController.lua` | FixingController | Owns smoothly blended, size-aware BoundingBox-fitted fixing cameras, device-independent world-space cleaning footprints, assisted final cleanup, responsive client-authoritative cleaning damage, contact-timed click/hold Hammer strikes, presentation feedback, Fix prompts, avatar hiding, and the surface-following tool/fake-arm viewmodel. |
 | `src/controllers/GuidanceController.lua` | GuidanceController | Resolves authoritative tutorial or contextual objectives, manages their local highlight, directional beam, and objective text, and immediately clears completed interface guidance. |
 | `src/controllers/InventoryController.lua` | InventoryController | Controls Satchel visibility, displays native Tool texture icons, requests carried-item drops, keeps the bat in the first slot, and sends validated inventory ordering to the server. |
 | `src/controllers/MuseumVisitorController.lua` | MuseumVisitorController | Registers the client MuseumVisitor SharedClass renderer. |
@@ -60,7 +60,7 @@ Quick reference for the project's first-party Luau scripts. Generated Wally depe
 | Path | Name | Responsibility |
 | --- | --- | --- |
 | `src/modules/Game/_PlayerFreezeState.lua` | PlayerFreezeState | Stores and manages the local character's anchored freeze state. |
-| `src/modules/Game/CleaningConfig.lua` | CleaningConfig | Registers Spray, Sponge, Spray Paint, Soft Brush, Polisher, Hairdryer, Hammer, and Magnet restoration tools and derives item actions from restoration tiers, alongside viewmodel positioning, VFX, and completion behavior. |
+| `src/modules/Game/CleaningConfig.lua` | CleaningConfig | Registers Spray, Sponge, Spray Paint, Soft Brush, Polisher, Hairdryer, Hammer, and Magnet restoration tools and derives item actions from restoration tiers, alongside world-space brush sizes, size-aware camera framing, viewmodel positioning, VFX, and completion behavior. |
 | `src/modules/Game/AmbientAudioConfig.lua` | AmbientAudioConfig | Centralizes playlist volume and presentation ducking values. |
 | `src/modules/Game/CollisionGroups.lua` | CollisionGroups | Defines shared player and NPC collision-group names used by server characters and client-rendered visitors. |
 | `src/modules/Game/EconomyConfig.lua` | EconomyConfig | Centralizes progression-stage price bands, restoration tiers and rewards, starting cash, the minimum item price, and rarity-scaled museum income while deriving final item values from item difficulty. |
@@ -76,7 +76,7 @@ Quick reference for the project's first-party Luau scripts. Generated Wally depe
 | `src/modules/Game/PaintRenderer.lua` | PaintRenderer | Applies faded paint damage while safely preserving and restoring each part's own original color, material, material variant, reflectance, and transparency. |
 | `src/modules/Game/RarityInfo.lua` | RarityInfo | Centralizes Common through Secret colors, name gradients, reveal timing, intensity, pinwheel, vignette, flash, sparkle, particle, and reveal-audio tuning. |
 | `src/modules/Game/RestorationVisuals.lua` | RestorationVisuals | Applies every unfinished restoration layer consistently across rewards, carrying, inventory, and legacy item sources. |
-| `src/modules/Game/RestorationTargetRenderer.lua` | RestorationTargetRenderer | Creates and tracks scaled light-dust, loose-debris, bent-component, embedded-metal, and dull-finish targets for the specialized restoration tools. |
+| `src/modules/Game/RestorationTargetRenderer.lua` | RestorationTargetRenderer | Creates and tracks scaled light-dust, loose-debris, visibly misaligned bent-component, embedded-metal, and dull-finish targets for the specialized restoration tools while preserving exact bent-part restore transforms. |
 | `src/modules/Game/SurfacePlacement.lua` | SurfacePlacement | Selects area-weighted item surfaces and uses bounded outward raycasts to return validated exterior positions and normals. |
 | `src/modules/Game/TutorialConfig.lua` | TutorialConfig | Defines the short ordered objectives used by the persistent guided tutorial. |
 | `src/modules/Game/UpgradeConfig.lua` | UpgradeConfig | Defines the deterministic graph-based upgrade layout, linear restoration-tool progression, reusable lower-right level branches, capacity, tool stats, eleven bat tiers, and bat cooldowns. |

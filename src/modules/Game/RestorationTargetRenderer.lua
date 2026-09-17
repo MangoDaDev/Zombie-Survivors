@@ -54,7 +54,10 @@ function RestorationTargetRenderer.Add(Model: Model, Type: string, Count: number
 		for _, Part in ExistingFolder:GetChildren() do
 			if not Part:IsA("BasePart") then continue end
 			local RestoredCFrame = Part.CFrame
-			if Type == "Bent" then Part.CFrame *= CFrame.Angles(math.rad(22), math.rad(-14), math.rad(9)) end
+			if Type == "Bent" then
+				local BendRotation = Step.BendRotationDegrees or Vector3.new(28, -18, 12)
+				Part.CFrame *= CFrame.Angles(math.rad(BendRotation.X), math.rad(BendRotation.Y), math.rad(BendRotation.Z))
+			end
 			States[Part] = { CurrentHealth = HP, MaximumHealth = HP, RestoredCFrame = RestoredCFrame, StartCFrame = Part.CFrame, Type = Type }
 			table.insert(Targets, Part)
 		end
@@ -100,8 +103,19 @@ function RestorationTargetRenderer.Add(Model: Model, Type: string, Count: number
 			Target.Color = Color3.fromRGB(92, 99, 108)
 			Target.Material = Enum.Material.Metal
 		end
-		Target.CFrame = GetSurfaceCFrame(Placement.Position, Placement.Normal, Generator:NextNumber(0, math.pi * 2))
-		States[Target] = { CurrentHealth = HP, MaximumHealth = HP, StartCFrame = Target.CFrame, Type = Type }
+		local RestoredCFrame = GetSurfaceCFrame(Placement.Position, Placement.Normal, Generator:NextNumber(0, math.pi * 2))
+		Target.CFrame = RestoredCFrame
+		if Type == "Bent" then
+			local BendRotation = Step.BendRotationDegrees or Vector3.new(28, -18, 12)
+			Target.CFrame *= CFrame.Angles(math.rad(BendRotation.X), math.rad(BendRotation.Y), math.rad(BendRotation.Z))
+		end
+		States[Target] = {
+			CurrentHealth = HP,
+			MaximumHealth = HP,
+			StartCFrame = Target.CFrame,
+			RestoredCFrame = if Type == "Bent" then RestoredCFrame else nil,
+			Type = Type,
+		}
 		Target.Parent = Folder
 		table.insert(Targets, Target)
 	end

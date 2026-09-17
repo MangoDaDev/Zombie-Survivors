@@ -18,12 +18,13 @@ local LocalPlayer = Players.LocalPlayer
 return function()
 	local IsFixing = Source(RuntimeState.Get(LocalPlayer, "IsFixing", false) == true)
 	local RadiusVisible = Source(RuntimeState.Get(LocalPlayer, "CleaningRadiusVisible", false) == true)
-	local BrushRadius = Source(RuntimeState.Get(LocalPlayer, "CleaningBrushRadius", CleaningConfig.BrushRadiusPixels))
+	local BrushRadius = Source(RuntimeState.Get(LocalPlayer, "CleaningBrushRadius", 0))
 	local StepName = Source(RuntimeState.Get(LocalPlayer, "CleaningStepName", "Cleaning"))
 	local StepComplete = Source(RuntimeState.Get(LocalPlayer, "CleaningStepComplete", false) == true)
 	local ProgressTarget = Source(RuntimeState.Get(LocalPlayer, "CleaningProgress", 0))
 	local Progress = Spring(ProgressTarget, 0.16, 0.85)
 	local CursorPosition = Source(UserInputService:GetMouseLocation())
+	local ActiveTouchInput: InputObject?
 	local Connections = {
 		RuntimeState.GetChangedSignal(LocalPlayer, "IsFixing"):Connect(function(Value)
 			IsFixing(Value == true)
@@ -32,7 +33,7 @@ return function()
 			RadiusVisible(Value == true)
 		end),
 		RuntimeState.GetChangedSignal(LocalPlayer, "CleaningBrushRadius"):Connect(function(Value)
-			BrushRadius(Value or CleaningConfig.BrushRadiusPixels)
+			BrushRadius(Value or 0)
 		end),
 		RuntimeState.GetChangedSignal(LocalPlayer, "CleaningStepName"):Connect(function(Value)
 			StepName(Value or "Cleaning")
@@ -43,8 +44,23 @@ return function()
 		RuntimeState.GetChangedSignal(LocalPlayer, "CleaningProgress"):Connect(function(Value)
 			ProgressTarget(Value or 0)
 		end),
+		RuntimeState.GetChangedSignal(LocalPlayer, "CleaningCursorPosition"):Connect(function(Value)
+			if typeof(Value) == "Vector2" then CursorPosition(Value) end
+		end),
+		UserInputService.InputBegan:Connect(function(Input)
+			if Input.UserInputType ~= Enum.UserInputType.Touch then return end
+			ActiveTouchInput = Input
+			CursorPosition(Vector2.new(Input.Position.X, Input.Position.Y))
+		end),
+		UserInputService.InputChanged:Connect(function(Input)
+			if Input ~= ActiveTouchInput then return end
+			CursorPosition(Vector2.new(Input.Position.X, Input.Position.Y))
+		end),
+		UserInputService.InputEnded:Connect(function(Input)
+			if Input == ActiveTouchInput then ActiveTouchInput = nil end
+		end),
 		RunService.RenderStepped:Connect(function()
-			CursorPosition(UserInputService:GetMouseLocation())
+			if not ActiveTouchInput then CursorPosition(UserInputService:GetMouseLocation()) end
 		end),
 	}
 	Cleanup(function()
