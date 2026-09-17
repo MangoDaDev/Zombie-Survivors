@@ -228,6 +228,12 @@ local function CreateReward(State, Player: Player, PredictionId)
 	if not Box or not Box:IsA("BasePart") then Model:Destroy(); return end
 	Model.PrimaryPart = Box
 	Model.Name = `CrateReward_{ItemInfo.Name}`
+	local DirtCount = DirtRenderer.GetSuggestedCount(Template)
+	local FixingState = { Total = DirtCount, Remaining = DirtCount, Completed = false }
+	local GroundCFrame = State.GroundCFrame
+	SetModelOnGround(Model, GroundCFrame)
+	-- Apply restoration damage before hiding the reward so no pristine frame can reveal the item.
+	RestorationVisuals.Apply(Model, ItemInfo, FixingState)
 	local RevealTransparencies = {}
 	for _, Part in Model:GetDescendants() do
 		if Part:IsA("BasePart") then
@@ -239,8 +245,6 @@ local function CreateReward(State, Player: Player, PredictionId)
 			Part.Transparency = 1
 		end
 	end
-	local GroundCFrame = State.GroundCFrame
-	SetModelOnGround(Model, GroundCFrame)
 	Model.Parent = RewardFolder
 	local Prompt = Instance.new("ProximityPrompt")
 	Prompt.Name = "PurchasePrompt"
@@ -257,7 +261,8 @@ local function CreateReward(State, Player: Player, PredictionId)
 		Id = RewardId,
 		Info = Info,
 		ItemId = ItemInfo.Id,
-		DirtCount = DirtRenderer.GetSuggestedCount(Template),
+		DirtCount = DirtCount,
+		FixingState = FixingState,
 		Model = Model,
 		Prompt = Prompt,
 		AvailableAt = Workspace:GetServerTimeNow() + RevealDuration + Info.RevealFadeTime,
@@ -279,7 +284,7 @@ local function CreateReward(State, Player: Player, PredictionId)
 			Prompt.Enabled = Workspace:GetServerTimeNow() >= Reward.AvailableAt
 		end
 	end)
-	Network:fireAll("StartReveal", RewardId, ItemInfo.Id, GroundCFrame, Info.Id, Player, PredictionId)
+	Network:fireAll("StartReveal", RewardId, ItemInfo.Id, GroundCFrame, Info.Id, Player, PredictionId, Model, DirtCount)
 	task.delay(RevealDuration, function()
 		if Rewards[RewardId] ~= Reward then return end
 		for _, Part in Model:GetDescendants() do
@@ -293,9 +298,8 @@ local function CreateReward(State, Player: Player, PredictionId)
 		task.delay(Info.RevealFadeTime, function()
 			if Rewards[RewardId] ~= Reward then return end
 			Reward.RevealTransparencies = nil
-			local FixingState = { Total = Reward.DirtCount, Remaining = Reward.DirtCount, Completed = false }
-			RestorationVisuals.Apply(Model, ItemInfo, FixingState)
-			local Billboard = ItemInfoBillboard(ItemInfo, Box, FixingState)
+			local Billboard = ItemInfoBillboard(ItemInfo, Box, Reward.FixingState)
+			Reward.FixingState = nil
 			Reward.CountdownRow = ItemDespawnCountdown.Create(Billboard)
 			Prompt.Enabled = true
 		end)

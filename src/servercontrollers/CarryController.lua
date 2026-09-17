@@ -165,6 +165,10 @@ local function attachCarriedModel(player: Player, state: CarryState): boolean
 			* (itemInfo.CarryOffset or DEFAULT_CARRY_OFFSET)
 			* CFrame.Angles(0, math.rad(180), 0)
 	)
+	local fixing = dataService:get(player, "Fixing") or {}
+	local fixingState = fixing[tostring(state.itemId)]
+	-- Generate every restoration layer before the weld pass so dust and debris move with the carried item.
+	RestorationVisuals.Apply(model, itemInfo, fixingState)
 	prepareParts(model, boundingBox)
 
 	local carryWeld = Instance.new("WeldConstraint")
@@ -172,9 +176,6 @@ local function attachCarriedModel(player: Player, state: CarryState): boolean
 	carryWeld.Part1 = boundingBox
 	carryWeld.Parent = boundingBox
 	model.Parent = character
-	local fixing = dataService:get(player, "Fixing") or {}
-	local fixingState = fixing[tostring(state.itemId)]
-	RestorationVisuals.Apply(model, itemInfo, fixingState)
 	local DisplayInfo = table.clone(itemInfo)
 	DisplayInfo.Price = state.Ownership.CurrentPrice
 	ItemInfoBillboard(DisplayInfo, boundingBox, fixingState)
@@ -237,8 +238,8 @@ local function createTool(player: Player, itemId: number): Tool?
 
 	handle.Name = "Handle"
 	handle.Transparency = 1
-	prepareParts(model, handle)
 	RestorationVisuals.Apply(model, itemInfo, fixingState)
+	prepareParts(model, handle)
 	for _, child in model:GetChildren() do
 		child.Parent = tool
 	end

@@ -13,6 +13,7 @@ local Images = require(ReplicatedStorage.Modules.UI.Images)
 local MultiplyNumberSequence = require(ReplicatedStorage.Modules.Math.MultiplyNumberSequence)
 local Networker = require(ReplicatedStorage.Packages.networker)
 local RarityInfo = require(ReplicatedStorage.Modules.Game.RarityInfo)
+local RestorationVisuals = require(ReplicatedStorage.Modules.Game.RestorationVisuals)
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
 
 local CrateController = {}
@@ -318,6 +319,35 @@ local function RestorePredictedCrate(Reveal)
 	if Reveal.HealthBillboard and Reveal.HealthBillboard.Parent then Reveal.HealthBillboard.Enabled = true end
 end
 
+local function HandOffLocalReward(Model, Reveal)
+	local Silhouette = Model:FindFirstChild("Silhouette")
+	if Silhouette then Silhouette:Destroy() end
+	Model.Name = `LocalRevealedReward_{Reveal.ActualItemInfo.Name}`
+	local DirtCount = math.max(1, math.round(Reveal.DirtCount or 1))
+	local FixingState = { Total = DirtCount, Remaining = DirtCount, Completed = false }
+	RestorationVisuals.Apply(Model, Reveal.ActualItemInfo, FixingState)
+	local AuthoritativeModel = Reveal.AuthoritativeModel
+	local Prompt = AuthoritativeModel and AuthoritativeModel:FindFirstChild("PurchasePrompt", true)
+	if not Prompt or not Prompt:IsA("ProximityPrompt") then
+		Debris:AddItem(Model, 3)
+		return
+	end
+	if Prompt.Enabled then
+		Model:Destroy()
+		return
+	end
+	local Connection
+	Connection = Prompt:GetPropertyChangedSignal("Enabled"):Connect(function()
+		if not Prompt.Enabled then return end
+		Connection:Disconnect()
+		if Model.Parent then Model:Destroy() end
+	end)
+	Model.Destroying:Once(function()
+		if Connection.Connected then Connection:Disconnect() end
+	end)
+	Debris:AddItem(Model, 5)
+end
+
 local function RunReveal(Reveal)
 	task.spawn(function()
 		local Index = 0
@@ -342,7 +372,8 @@ local function RunReveal(Reveal)
 		local Config = RarityInfo.Get(Reveal.ActualItemInfo.Rarity)
 		if Reveal.Model then
 			CreateRarityEffect(Reveal.Model, Reveal.ActualItemInfo.Rarity)
-			Reveal.Model:Destroy()
+			-- Keep a dirty local stand-in visible until the authoritative reward has fully appeared.
+			HandOffLocalReward(Reveal.Model, Reveal)
 			Reveal.Model = nil
 		end
 		CreateRevealBurst(Position, Config)
@@ -406,14 +437,26 @@ function CrateController.CancelPredictedReveal(PredictionId)
 	RestorePredictedCrate(Reveal)
 end
 
-function CrateController.StartReveal(_, RewardId, ActualItemId, GroundCFrame, CrateId, RevealingPlayer, PredictionId)
+function CrateController.CancelPredictedRevealsForCrate(Model)
+	local PredictionIds = {}
+	for PredictionId, Reveal in PredictedReveals do
+		if Reveal.CrateModel == Model then table.insert(PredictionIds, PredictionId) end
+	end
+	for _, PredictionId in PredictionIds do CrateController.CancelPredictedReveal(PredictionId) end
+end
+
+function CrateController.StartReveal(_, RewardId, ActualItemId, GroundCFrame, CrateId, RevealingPlayer, PredictionId, AuthoritativeModel, DirtCount)
 	local Info = GetCrateInfo(CrateId)
 	local ActualItemInfo = GetItemInfo(ActualItemId)
-	if type(RewardId) ~= "string" or not Info or not ActualItemInfo or typeof(GroundCFrame) ~= "CFrame" then return end
+	if type(RewardId) ~= "string" or not Info or not ActualItemInfo or typeof(GroundCFrame) ~= "CFrame"
+		or typeof(AuthoritativeModel) ~= "Instance" or not AuthoritativeModel:IsA("Model") or type(DirtCount) ~= "number"
+	then return end
 	local Reveal = if RevealingPlayer == LocalPlayer and type(PredictionId) == "string" then PredictedReveals[PredictionId] else nil
 	if Reveal then
 		PredictedReveals[PredictionId] = nil
 		Reveal.ActualItemInfo = ActualItemInfo
+		Reveal.AuthoritativeModel = AuthoritativeModel
+		Reveal.DirtCount = DirtCount
 		Reveal.GroundCFrame = GroundCFrame
 		Reveal.RewardId = RewardId
 		Reveals[RewardId] = Reveal
@@ -421,9 +464,11 @@ function CrateController.StartReveal(_, RewardId, ActualItemId, GroundCFrame, Cr
 	end
 	Reveal = {
 		ActualItemInfo = ActualItemInfo,
+		AuthoritativeModel = AuthoritativeModel,
 		Cancelled = false,
 		GroundCFrame = GroundCFrame,
 		Info = Info,
+		DirtCount = DirtCount,
 		MinimumDuration = GetMinimumRevealDuration(Info),
 		Model = nil,
 		RevealingPlayer = RevealingPlayer,

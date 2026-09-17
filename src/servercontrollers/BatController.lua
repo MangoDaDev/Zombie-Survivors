@@ -84,22 +84,31 @@ local function EnsureBat(Player)
 	Tool.Parent = Backpack
 end
 
-local function IsCFrameInRange(OriginCFrame, TargetPosition, Info): boolean
-	local Offset = TargetPosition - OriginCFrame.Position
-	local Distance = Offset.Magnitude
-	if Distance > Info.Range + Info.ValidationDistanceBuffer then return false end
-	if Distance <= 0.01 then return true end
-	return OriginCFrame.LookVector:Dot(Offset.Unit) >= Info.MinimumFacingDot
+local function IsCFrameInRange(OriginCFrame, Target, Info): boolean
+	local Parameters = OverlapParams.new()
+	Parameters.FilterType = Enum.RaycastFilterType.Include
+	Parameters.FilterDescendantsInstances = { Target }
+	Parameters.MaxParts = 1
+	local HitboxCFrame = OriginCFrame * CFrame.new(0, 0, -Info.Range / 2)
+	-- Allow for replicated character/crate motion around the client's exact overlap volume.
+	local ValidationPadding = Info.ValidationDistanceBuffer * 2
+	local HitboxSize = Vector3.new(Info.HitboxWidth, Info.HitboxHeight, Info.Range) + Vector3.one * ValidationPadding
+	return #Workspace:GetPartBoundsInBox(HitboxCFrame, HitboxSize, Parameters) > 0
 end
 
-local function IsTargetInRange(Player, RootPart, TargetPosition, Info, Now): boolean
-	if IsCFrameInRange(RootPart.CFrame, TargetPosition, Info) then return true end
+local function IsTargetInRange(Player, RootPart, Target, Info, SwingTime): boolean
+	if IsCFrameInRange(RootPart.CFrame, Target, Info) then return true end
+	local ClosestSnapshot
+	local ClosestDifference = math.huge
 	for _, Snapshot in PositionHistory[Player] or {} do
-		if Now - Snapshot.Time <= Info.ValidationHistoryWindow and IsCFrameInRange(Snapshot.CFrame, TargetPosition, Info) then
-			return true
+		local Difference = math.abs(Snapshot.Time - SwingTime)
+		if Difference < ClosestDifference then
+			ClosestSnapshot = Snapshot
+			ClosestDifference = Difference
 		end
 	end
-	return false
+	return ClosestSnapshot ~= nil and ClosestDifference <= Info.ValidationHistoryWindow
+		and IsCFrameInRange(ClosestSnapshot.CFrame, Target, Info)
 end
 
 local function RecordPositions(Now)
@@ -169,7 +178,7 @@ local function HitPlayer(Attacker: Player, TargetPlayer: Player, AttackerRoot: B
 	if not AttackerCharacter or not TargetCharacter or not TargetRoot or not TargetRoot:IsA("BasePart") or not TargetHumanoid or TargetHumanoid.Health <= 0 then return end
 	if TargetRoot.Anchored or PlayerStateController.Get(TargetPlayer, "IsFixing", false) == true then return end
 	if (TargetRoot.Position - AttackerRoot.Position).Magnitude > ItemInteractionConfig.PvpMaximumHitDistance then return end
-	if not IsTargetInRange(Attacker, AttackerRoot, TargetRoot.Position, Info, Now) then return end
+	if not IsTargetInRange(Attacker, AttackerRoot, TargetCharacter, Info, Now) then return end
 	if not HasClearHitPath(AttackerCharacter, TargetCharacter, AttackerRoot.Position, TargetRoot.Position) then return end
 
 	local Hits = LastPlayerHits[Attacker] or {}
@@ -208,27 +217,38 @@ local function HitPlayer(Attacker: Player, TargetPlayer: Player, AttackerRoot: B
 	end)
 end
 
-function BatController.Swing(_, Player, Targets)
-	if type(Targets) ~= "table" or #Targets > 16
-		or PlayerStateController.Get(Player, "IsFixing", false) == true
+function BatController.Swing(_, Player, Targets, BatId, SwingTime)
+	if type(Targets) ~= "table" or #Targets > 16 then return end
+	local function RejectCratePredictions(Reason)
+		for _, TargetData in Targets do
+			if type(TargetData) == "table" and typeof(TargetData.Model) == "Instance"
+				and TargetData.Model:IsA("Model") and type(TargetData.PredictionId) == "string"
+			then Network:fire(Player, "CrateHitRejected", TargetData.Model, TargetData.PredictionId, Reason) end
+		end
+	end
+	if PlayerStateController.Get(Player, "IsFixing", false) == true
 		or PlayerStateController.Get(Player, "IsPvpStunned", false) == true
-	then return end
+	then RejectCratePredictions("PlayerState"); return end
 	local Character = Player.Character
 	local RootPart = Character and Character:FindFirstChild("HumanoidRootPart")
-	local Tool = Character and Character:FindFirstChildOfClass("Tool")
-	local Info = ToolResolver.GetBatInfo(Tool)
-	local BatId = Info and Info.Id
 	local Ownership = DataService:get(Player, "Upgrades")
 	local OwnedBatId = UpgradeLogic.GetBatId(Ownership)
+	local Info = if type(BatId) == "string" then GetBatInfo(BatId) else nil
 	local CooldownMultiplier = UpgradeLogic.GetBatCooldownMultiplier(Ownership)
-	if not RootPart or not RootPart:IsA("BasePart") or not Info or BatId ~= OwnedBatId then return end
-	local Now = os.clock()
+	local Now = Workspace:GetServerTimeNow()
+	if not RootPart or not RootPart:IsA("BasePart") then RejectCratePredictions("MissingCharacter"); return end
+	if not Info or BatId ~= OwnedBatId then RejectCratePredictions("BatOwnership"); return end
+	if type(SwingTime) ~= "number" or math.abs(Now - SwingTime) > Info.ValidationHistoryWindow then
+		RejectCratePredictions("StaleSwing")
+		return
+	end
 	local MinimumServerCooldown = math.max(
 		0,
 		Info.SwingCooldown * CooldownMultiplier * Info.ServerCooldownFactor - Info.ServerCooldownLeeway
 	)
-	if Now - (LastSwings[Player] or 0) < MinimumServerCooldown then return end
-	LastSwings[Player] = Now
+	local LastSwing = LastSwings[Player]
+	if LastSwing and SwingTime - LastSwing < MinimumServerCooldown then RejectCratePredictions("Cooldown"); return end
+	LastSwings[Player] = SwingTime
 	local HitTargets = {}
 	for _, TargetData in Targets do
 		local Target = if type(TargetData) == "table" then TargetData.Model else TargetData
@@ -241,20 +261,25 @@ function BatController.Swing(_, Player, Targets)
 				local TutorialCrate = GuidanceController.GetTutorialCrateForPlayer(Player)
 				if Target ~= TutorialCrate then
 					if TutorialCrate then GuidanceController.Show(Player, "Break Highlighted Crate", TutorialCrate) end
+					if PredictionId then Network:fire(Player, "CrateHitRejected", Target, PredictionId, "TutorialTarget") end
 					continue
 				end
 			end
-			if IsTargetInRange(Player, RootPart, Target:GetPivot().Position, Info, Now) then
+			if IsTargetInRange(Player, RootPart, Target, Info, SwingTime) then
 				local ImpactPosition, ImpactNormal, ImpactColor, ImpactMaterial = GetCrateImpact(Target, RootPart.Position)
 				local Damaged = CrateController.DamageCrate(Player, Target, Info.CrateDamage, PredictionId)
 				local IsFinalHit = Damaged and not Target.Parent
 				if IsFinalHit then GuidanceController.MarkTutorialCrateBroken(Player, Target) end
 				if Damaged then
 					Network:fire(Player, "CrateHitConfirmed", ImpactPosition, ImpactNormal, ImpactColor, ImpactMaterial, IsFinalHit, Info.Id, PredictionId)
+				elseif PredictionId then
+					Network:fire(Player, "CrateHitRejected", Target, PredictionId, "InactiveCrate")
 				end
 				if Damaged and Target.Parent then
 					Network:fireAllExcept(Player, "ReactToCrate", Target, RootPart.Position, Info.Id)
 				end
+			elseif PredictionId then
+				Network:fire(Player, "CrateHitRejected", Target, PredictionId, "Range")
 			end
 			continue
 		end
@@ -268,7 +293,7 @@ end
 function BatController.Init()
 	Network = Networker.server.new("BatController", BatController, { BatController.Swing })
 	RunService.Heartbeat:Connect(function()
-		RecordPositions(os.clock())
+		RecordPositions(Workspace:GetServerTimeNow())
 	end)
 end
 

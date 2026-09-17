@@ -143,9 +143,9 @@ local function ReconcileCrateHealth(Model, State, NewHealth)
 	RenderPredictedHealth(Model, State)
 end
 
-local function PredictCrateDamage(Model, Damage, Info)
+local function PredictCrateDamage(Model, Damage, PredictionId, InitialHealth)
 	local RuntimeCrate = CrateRuntime.Get(Model)
-	local Health = RuntimeCrate and RuntimeCrate.Health or Info.Health
+	local Health = RuntimeCrate and RuntimeCrate.Health or InitialHealth
 	if type(Health) ~= "number" or Health <= 0 then return false end
 	local State = CratePredictions[Model]
 	if not State then
@@ -164,19 +164,35 @@ local function PredictCrateDamage(Model, Damage, Info)
 			CrateRuntime.Clear(Model)
 		end)
 	end
-	local Prediction = { Damage = Damage }
+	local Prediction = { Damage = Damage, Id = PredictionId }
 	table.insert(State.Pending, Prediction)
 	local PendingDamage = 0
 	for _, PendingPrediction in State.Pending do PendingDamage += PendingPrediction.Damage end
 	local PredictedHealth = math.max(0, State.ConfirmedHealth - PendingDamage)
-	State.HoldUntil = os.clock() + Info.PredictionTimeout
+	State.HoldUntil = math.huge
 	RenderPredictedHealth(Model, State)
-	task.delay(Info.PredictionTimeout, function()
-		if CratePredictions[Model] ~= State then return end
-		local Index = table.find(State.Pending, Prediction)
-		if Index then table.remove(State.Pending, Index); RenderPredictedHealth(Model, State) end
-	end)
 	return PredictedHealth <= 0
+end
+
+local function RejectCratePrediction(Model, PredictionId, Reason)
+	if RunService:IsStudio() then warn(`Crate hit prediction rejected: {Reason or "Unknown"}`) end
+	local State = CratePredictions[Model]
+	if State then
+		for Index, Prediction in State.Pending do
+			if Prediction.Id ~= PredictionId then continue end
+			table.remove(State.Pending, Index)
+			State.HoldUntil = os.clock() + 0.25
+			RenderPredictedHealth(Model, State)
+			break
+		end
+		local PendingDamage = 0
+		for _, Prediction in State.Pending do PendingDamage += Prediction.Damage end
+		if State.ConfirmedHealth - PendingDamage > 0 then
+			CrateController.CancelPredictedRevealsForCrate(Model)
+			return
+		end
+	end
+	CrateController.CancelPredictedReveal(PredictionId)
 end
 
 local function GetTargetModel(Part): Model?
@@ -202,12 +218,18 @@ end
 local function ShowPredictedImpact(Model, Handle, Info)
 	local PredictionId
 	if CollectionService:HasTag(Model, "Crate") then
-		local IsPredictedFinalHit = PredictCrateDamage(Model, Info.CrateDamage, Info)
+		PredictionId = HttpService:GenerateGUID(false)
+		local RuntimeCrate = CrateRuntime.Get(Model)
+		local CrateInfoEntry = GetCrateInfo(RuntimeCrate and RuntimeCrate.CrateId or Model.Name)
+		local IsPredictedFinalHit = PredictCrateDamage(
+			Model,
+			Info.CrateDamage,
+			PredictionId,
+			CrateInfoEntry and CrateInfoEntry.Health
+		)
 		local Character = LocalPlayer.Character
 		local RootPart = Character and Character:FindFirstChild("HumanoidRootPart")
 		if RootPart and RootPart:IsA("BasePart") then ReactToCrate(Model, RootPart.Position, Info) end
-		local RuntimeCrate = CrateRuntime.Get(Model)
-		local CrateInfoEntry = GetCrateInfo(RuntimeCrate and RuntimeCrate.CrateId or Model.Name)
 		local Part = Model.PrimaryPart or Model:FindFirstChildWhichIsA("BasePart")
 		if Part then
 			if CrateInfoEntry then Sounds.Play(CrateInfoEntry.DamageSoundName, Part, 80) end
@@ -216,7 +238,6 @@ local function ShowPredictedImpact(Model, Handle, Info)
 			CreateCrateDebris(Center, if Direction.Magnitude > 0.01 then Direction.Unit else Vector3.yAxis, Part.Color, Part.Material, IsPredictedFinalHit)
 		end
 		if IsPredictedFinalHit and CrateInfoEntry then
-			PredictionId = HttpService:GenerateGUID(false)
 			-- Keep lethal-hit break presentation client-side so latency never delays the crate disappearing.
 			CrateController.BeginPredictedReveal(PredictionId, Model, CrateInfoEntry.Id)
 			ShakeCamera(0.075, 0.14)
@@ -310,11 +331,11 @@ CreateCrateDebris = function(Position: Vector3, Normal: Vector3, Color: Color3, 
 	end
 end
 
-local function DetectTargets(Tool, Info)
+local function DetectTargets(Tool, Info, SwingTime)
 	local Character = LocalPlayer.Character
 	local RootPart = Character and Character:FindFirstChild("HumanoidRootPart")
 	local Handle = Tool:FindFirstChild("Handle")
-	if not Character or not RootPart or not RootPart:IsA("BasePart") or not Handle or not Handle:IsA("BasePart") then return end
+	if not Character or not RootPart or not RootPart:IsA("BasePart") or not Handle or not Handle:IsA("BasePart") then return 0 end
 	local Parameters = OverlapParams.new()
 	Parameters.FilterType = Enum.RaycastFilterType.Exclude
 	Parameters.FilterDescendantsInstances = { Character }
@@ -331,7 +352,9 @@ local function DetectTargets(Tool, Info)
 			table.insert(Targets, { Model = Model, PredictionId = PredictionId })
 		end
 	end
-	Network:fire("Swing", Targets)
+	-- An empty scan must not consume the authoritative swing cooldown.
+	if #Targets > 0 then Network:fire("Swing", Targets, Info.Id, SwingTime) end
+	return #Targets
 end
 
 local function Swing(Tool, Info)
@@ -346,6 +369,9 @@ local function Swing(Tool, Info)
 	local Trail = Handle:FindFirstChildOfClass("Trail")
 	if Trail then Trail.Enabled = true end
 	Sounds.Play(Info.SwingSoundName, Handle, 70)
+	-- Resolve local crate hits immediately; animation timing must never delay break prediction or roulette.
+	local SwingTime = Workspace:GetServerTimeNow()
+	local TargetCount = DetectTargets(Tool, Info, SwingTime)
 	TweenService:Create(
 		Tool,
 		TweenInfo.new(Info.ImpactDelay, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
@@ -358,7 +384,8 @@ local function Swing(Tool, Info)
 		}
 	):Play()
 	task.delay(Info.ImpactDelay, function()
-		if Tool.Parent == LocalPlayer.Character then DetectTargets(Tool, Info) end
+		-- Retry once at the visual impact frame only when the immediate scan found nothing.
+		if TargetCount == 0 and Tool.Parent == LocalPlayer.Character then DetectTargets(Tool, Info, SwingTime) end
 		TweenService:Create(
 			Tool,
 			TweenInfo.new(math.max(SwingCooldown - Info.ImpactDelay, 0.05), Enum.EasingStyle.Back, Enum.EasingDirection.Out),
@@ -413,6 +440,13 @@ function BatController.CrateHitConfirmed(_, Position, Normal, Color, Material, I
 	then return end
 	-- Hit and break feedback is predicted locally at swing time; the server only confirms authority.
 	if not IsFinalHit and PredictionId then CrateController.CancelPredictedReveal(PredictionId) end
+end
+
+function BatController.CrateHitRejected(_, Model, PredictionId, Reason)
+	if typeof(Model) ~= "Instance" or not Model:IsA("Model") or type(PredictionId) ~= "string"
+		or (Reason ~= nil and type(Reason) ~= "string")
+	then return end
+	RejectCratePrediction(Model, PredictionId, Reason)
 end
 
 function BatController.ReactToCrate(_, Model, AttackerPosition, BatId)
