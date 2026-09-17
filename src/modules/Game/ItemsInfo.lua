@@ -12,6 +12,7 @@ type ItemDefinition = {
 
 export type ItemInfo = ItemDefinition & {
 	Price: number,
+	SaleValue: number,
 	GuestPay: number,
 	RestorationTier: number,
 }
@@ -1023,6 +1024,7 @@ local ItemDefinitions: { ItemDefinition } = {
 }
 
 EconomyConfig.ApplyToItems(ItemDefinitions)
+EconomyConfig.ValidateItems(ItemDefinitions)
 
 local ItemsInfo: { ItemInfo } = ItemDefinitions :: any
 

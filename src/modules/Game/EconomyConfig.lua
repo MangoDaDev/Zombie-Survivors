@@ -1,56 +1,70 @@
 local EconomyConfig = {
-	StartingCash = 500,
-	MinimumRestorationReward = 60,
-	RestorationRewardRate = 0.6,
+	-- Values above 1 increase every active and passive payout while reducing upgrade costs.
+	ProgressionSpeedMultiplier = 1,
+	-- Scales restoration rewards and restored-item sale values without changing purchase prices.
+	ActiveIncomeMultiplier = 1.1,
+	-- Scales museum visitor payments only.
+	PassiveIncomeMultiplier = 0.9,
+	-- Values above 1 increase every upgrade price.
+	UpgradeCostMultiplier = 1,
+	-- Values above 1 steepen rarity prices and later-stage upgrade costs.
+	LateGameCurveMultiplier = 1,
+
+	StartingCash = 750,
+	MinimumRestorationReward = 75,
+	RestorationRewardRate = 0.75,
+	RecoveryCrateId = "CommonCrate",
+	RecoveryItemId = 1,
+	RarityOrder = { "Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythic", "Secret" },
 	Rarities = {
 		Common = {
 			ProgressionStage = 1,
 			RestorationTier = 1,
 			SourcePriceRange = { 25, 52 },
-			PriceRange = { 80, 320 },
-			GuestPayRate = 0.08,
+			PriceRange = { 120, 500 },
+			GuestPayRate = 0.025,
 		},
 		Uncommon = {
 			ProgressionStage = 2,
 			RestorationTier = 2,
 			SourcePriceRange = { 60, 118 },
-			PriceRange = { 650, 3_200 },
-			GuestPayRate = 0.05,
+			PriceRange = { 700, 2_200 },
+			GuestPayRate = 0.018,
 		},
 		Rare = {
 			ProgressionStage = 3,
 			RestorationTier = 3,
 			SourcePriceRange = { 130, 235 },
-			PriceRange = { 8_000, 32_000 },
-			GuestPayRate = 0.022,
+			PriceRange = { 4_000, 12_000 },
+			GuestPayRate = 0.012,
 		},
 		Epic = {
 			ProgressionStage = 4,
 			RestorationTier = 4,
 			SourcePriceRange = { 240, 460 },
-			PriceRange = { 55_000, 220_000 },
-			GuestPayRate = 0.009,
+			PriceRange = { 30_000, 90_000 },
+			GuestPayRate = 0.008,
 		},
 		Legendary = {
 			ProgressionStage = 5,
 			RestorationTier = 5,
 			SourcePriceRange = { 500, 880 },
-			PriceRange = { 350_000, 950_000 },
-			GuestPayRate = 0.004,
+			PriceRange = { 150_000, 450_000 },
+			GuestPayRate = 0.005,
 		},
 		Mythic = {
 			ProgressionStage = 6,
 			RestorationTier = 6,
 			SourcePriceRange = { 900, 1_400 },
-			PriceRange = { 1_500_000, 4_500_000 },
-			GuestPayRate = 0.0018,
+			PriceRange = { 800_000, 2_400_000 },
+			GuestPayRate = 0.003,
 		},
 		Secret = {
 			ProgressionStage = 7,
 			RestorationTier = 7,
 			SourcePriceRange = { 1_800, 2_500 },
-			PriceRange = { 7_500_000, 20_000_000 },
-			GuestPayRate = 0.0008,
+			PriceRange = { 5_000_000, 12_000_000 },
+			GuestPayRate = 0.002,
 		},
 	},
 }
@@ -66,16 +80,39 @@ local function RoundToReadableValue(Value: number): number
 	return math.max(Interval, math.round(Value / Interval) * Interval)
 end
 
+local function GetLateGameScale(ProgressionStage: number): number
+	return EconomyConfig.LateGameCurveMultiplier ^ math.max(ProgressionStage - 3, 0)
+end
+
+local function GetActiveIncomeScale(): number
+	return EconomyConfig.ProgressionSpeedMultiplier * EconomyConfig.ActiveIncomeMultiplier
+end
+
+local function GetPassiveIncomeScale(): number
+	return EconomyConfig.ProgressionSpeedMultiplier * EconomyConfig.PassiveIncomeMultiplier
+end
+
 function EconomyConfig.GetRarity(Rarity: string)
 	return EconomyConfig.Rarities[Rarity] or EconomyConfig.Rarities.Common
 end
 
 function EconomyConfig.GetMinimumItemPrice(): number
 	local MinimumPrice = math.huge
-	for _, RarityInfo in EconomyConfig.Rarities do
-		MinimumPrice = math.min(MinimumPrice, RarityInfo.PriceRange[1])
+	for _, Rarity in EconomyConfig.RarityOrder do
+		local Info = EconomyConfig.Rarities[Rarity]
+		MinimumPrice = math.min(MinimumPrice, EconomyConfig.GetItemPrice(Rarity, Info.SourcePriceRange[1]))
 	end
 	return MinimumPrice
+end
+
+function EconomyConfig.GetMinimumPriceForRestorationTier(RestorationTier: number): number?
+	for _, Rarity in EconomyConfig.RarityOrder do
+		local Info = EconomyConfig.Rarities[Rarity]
+		if Info.RestorationTier == RestorationTier then
+			return EconomyConfig.GetItemPrice(Rarity, Info.SourcePriceRange[1])
+		end
+	end
+	return nil
 end
 
 function EconomyConfig.GetItemPrice(Rarity: string, DifficultyValue: number): number
@@ -89,13 +126,18 @@ function EconomyConfig.GetItemPrice(Rarity: string, DifficultyValue: number): nu
 	)
 	local PriceMinimum = Info.PriceRange[1]
 	local PriceMaximum = Info.PriceRange[2]
+	local BasePrice = PriceMinimum + (PriceMaximum - PriceMinimum) * DifficultyAlpha
 
-	return RoundToReadableValue(PriceMinimum + (PriceMaximum - PriceMinimum) * DifficultyAlpha)
+	return RoundToReadableValue(BasePrice * GetLateGameScale(Info.ProgressionStage))
+end
+
+function EconomyConfig.GetSaleValue(Price: number): number
+	return RoundToReadableValue(Price * GetActiveIncomeScale())
 end
 
 function EconomyConfig.GetGuestPay(Rarity: string, Price: number): number
 	local Info = EconomyConfig.GetRarity(Rarity)
-	return math.max(1, RoundToReadableValue(Price * Info.GuestPayRate))
+	return math.max(1, RoundToReadableValue(Price * Info.GuestPayRate * GetPassiveIncomeScale()))
 end
 
 function EconomyConfig.GetRestorationTier(Rarity: string): number
@@ -103,15 +145,78 @@ function EconomyConfig.GetRestorationTier(Rarity: string): number
 end
 
 function EconomyConfig.GetRestorationReward(Price: number): number
-	return math.max(EconomyConfig.MinimumRestorationReward, RoundToReadableValue(Price * EconomyConfig.RestorationRewardRate))
+	return math.max(
+		EconomyConfig.MinimumRestorationReward,
+		RoundToReadableValue(Price * EconomyConfig.RestorationRewardRate * GetActiveIncomeScale())
+	)
+end
+
+function EconomyConfig.GetUpgradeCost(BaseCost: number, ProgressionStage: number?): number
+	if BaseCost <= 0 then return 0 end
+	local Stage = ProgressionStage or 1
+	local CostScale = EconomyConfig.UpgradeCostMultiplier
+		* GetLateGameScale(Stage)
+		/ EconomyConfig.ProgressionSpeedMultiplier
+	return RoundToReadableValue(BaseCost * CostScale)
+end
+
+function EconomyConfig.GetRecoveryGrant(Cash: number, PurchasePrice: number): number
+	return math.max(0, PurchasePrice - math.max(0, Cash))
 end
 
 function EconomyConfig.ApplyToItems(ItemsInfo)
 	for _, ItemInfo in ItemsInfo do
 		ItemInfo.Price = EconomyConfig.GetItemPrice(ItemInfo.Rarity, ItemInfo.DifficultyValue)
+		ItemInfo.SaleValue = EconomyConfig.GetSaleValue(ItemInfo.Price)
 		ItemInfo.GuestPay = EconomyConfig.GetGuestPay(ItemInfo.Rarity, ItemInfo.Price)
 		ItemInfo.RestorationTier = EconomyConfig.GetRestorationTier(ItemInfo.Rarity)
 	end
 end
+
+function EconomyConfig.ValidateItems(ItemsInfo)
+	local SeenIds = {}
+	for _, ItemInfo in ItemsInfo do
+		local Info = EconomyConfig.Rarities[ItemInfo.Rarity]
+		assert(Info, `Unknown item rarity {tostring(ItemInfo.Rarity)}`)
+		assert(type(ItemInfo.Id) == "number" and not SeenIds[ItemInfo.Id], `Invalid or duplicate item id {tostring(ItemInfo.Id)}`)
+		assert(type(ItemInfo.ChanceWeight) == "number" and ItemInfo.ChanceWeight > 0, `Invalid chance weight for item {ItemInfo.Id}`)
+		assert(
+			type(ItemInfo.DifficultyValue) == "number"
+				and ItemInfo.DifficultyValue >= Info.SourcePriceRange[1]
+				and ItemInfo.DifficultyValue <= Info.SourcePriceRange[2],
+			`Item {ItemInfo.Id} difficulty is outside its rarity range`
+		)
+		SeenIds[ItemInfo.Id] = true
+	end
+end
+
+function EconomyConfig.Validate()
+	for _, Value in {
+		EconomyConfig.ProgressionSpeedMultiplier,
+		EconomyConfig.ActiveIncomeMultiplier,
+		EconomyConfig.PassiveIncomeMultiplier,
+		EconomyConfig.UpgradeCostMultiplier,
+		EconomyConfig.LateGameCurveMultiplier,
+	} do
+		assert(type(Value) == "number" and Value > 0, "Economy multipliers must be positive")
+	end
+
+	local PreviousPrice = 0
+	local PreviousStage = 0
+	for _, Rarity in EconomyConfig.RarityOrder do
+		local Info = EconomyConfig.Rarities[Rarity]
+		assert(Info, `Missing rarity economy for {Rarity}`)
+		assert(Info.ProgressionStage > PreviousStage, `Rarity stage must increase at {Rarity}`)
+		assert(Info.SourcePriceRange[1] <= Info.SourcePriceRange[2], `Invalid source price range for {Rarity}`)
+		assert(Info.PriceRange[1] <= Info.PriceRange[2], `Invalid price range for {Rarity}`)
+		local MinimumPrice = EconomyConfig.GetItemPrice(Rarity, Info.SourcePriceRange[1])
+		assert(MinimumPrice > PreviousPrice, `Minimum item price must increase at {Rarity}`)
+		assert(Info.GuestPayRate > 0, `Guest pay rate must be positive for {Rarity}`)
+		PreviousPrice = MinimumPrice
+		PreviousStage = Info.ProgressionStage
+	end
+end
+
+EconomyConfig.Validate()
 
 return EconomyConfig

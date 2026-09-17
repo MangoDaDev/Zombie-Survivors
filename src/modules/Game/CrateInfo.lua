@@ -1,6 +1,6 @@
 local SharedCrateInfo = {
 	TemplateFolderName = "Crates",
-	RespawnDelay = 0.75,
+	RespawnDelay = 0.6,
 	SpawnPadding = 4,
 	MinimumSpawnSeparation = 8,
 	ScaleMinimum = 0.9,
@@ -31,7 +31,7 @@ end
 
 local CrateInfo = {
 	Reset = {
-		Interval = 150,
+		Interval = 180,
 		MinimumWallVisibleTime = 5,
 		SpawnInterval = 0.08,
 		WallTemplateName = "ResetWall",
@@ -40,111 +40,98 @@ local CrateInfo = {
 		PartName = "PityDisplay",
 		PixelsPerStud = 16,
 	},
-	NewPlayerDropSequence = { 1, 6, 5 },
+	NewPlayerDropSequence = { 1, 6, 5, 14 },
 	Crates = {
 		CreateCrate({
 			Id = "CommonCrate",
 			DisplayName = "Common",
 			TemplateName = "CommonCrate",
-			Health = 12,
+			Health = 16,
 			MaximumActive = 48,
 			SpawnDepthBias = -0.9,
 			RarityChances = {
-				Common = 72,
-				Uncommon = 20,
-				Rare = 6,
-				Epic = 1.5,
-				Legendary = 0.4,
-				Mythic = 0.09,
-				Secret = 0.01,
+				Common = 88,
+				Uncommon = 11,
+				Rare = 1,
 			},
 		}),
 		CreateCrate({
 			Id = "UncommonCrate",
 			DisplayName = "Uncommon",
 			TemplateName = "UncommonCrate",
-			Health = 48,
+			Health = 72,
 			MaximumActive = 36,
 			SpawnDepthBias = -0.45,
 			RarityChances = {
-				Common = 52,
-				Uncommon = 30,
-				Rare = 13,
-				Epic = 4,
-				Legendary = 0.8,
-				Mythic = 0.18,
-				Secret = 0.02,
+				Common = 35,
+				Uncommon = 50,
+				Rare = 14,
+				Epic = 1,
 			},
 		}),
 		CreateCrate({
 			Id = "RareCrate",
 			DisplayName = "Rare",
 			TemplateName = "RareCrate",
-			Health = 160,
+			Health = 280,
 			MaximumActive = 24,
 			SpawnDepthBias = 0.1,
 			RarityChances = {
-				Common = 32,
-				Uncommon = 32,
-				Rare = 23,
-				Epic = 10,
-				Legendary = 2.4,
-				Mythic = 0.54,
-				Secret = 0.06,
+				Common = 8,
+				Uncommon = 25,
+				Rare = 45,
+				Epic = 20,
+				Legendary = 2,
 			},
 		}),
 		CreateCrate({
 			Id = "EpicCrate",
 			DisplayName = "Epic",
 			TemplateName = "EpicCrate",
-			Health = 600,
+			Health = 900,
 			MaximumActive = 16,
 			SpawnDepthBias = 0.5,
 			RarityChances = {
-				Common = 16,
-				Uncommon = 27,
-				Rare = 29,
-				Epic = 20,
-				Legendary = 6.5,
-				Mythic = 1.35,
-				Secret = 0.15,
+				Common = 2,
+				Uncommon = 8,
+				Rare = 25,
+				Epic = 45,
+				Legendary = 18,
+				Mythic = 2,
 			},
 		}),
 		CreateCrate({
 			Id = "LegendaryCrate",
 			DisplayName = "Legendary",
 			TemplateName = "LegendaryCrate",
-			Health = 1_800,
+			Health = 2_600,
 			MaximumActive = 8,
 			SpawnDepthBias = 0.9,
 			RarityChances = {
-				Common = 7,
-				Uncommon = 16,
-				Rare = 27,
-				Epic = 28,
-				Legendary = 17,
-				Mythic = 4.5,
-				Secret = 0.5,
+				Uncommon = 2,
+				Rare = 13,
+				Epic = 32,
+				Legendary = 44,
+				Mythic = 8,
+				Secret = 1,
 			},
 		}),
 		CreateCrate({
 			Id = "MythicalCrate",
 			DisplayName = "Mythical",
 			TemplateName = "MythicalCrate",
-			Health = 5_000,
+			Health = 7_000,
 			MaximumActive = 1,
 			SpawnDepthBias = 1,
 			RarityChances = {
-				Common = 2,
-				Uncommon = 8,
-				Rare = 18,
-				Epic = 28,
-				Legendary = 27,
-				Mythic = 15,
-				Secret = 2,
+				Rare = 5,
+				Epic = 20,
+				Legendary = 40,
+				Mythic = 30,
+				Secret = 5,
 			},
 			PityOnly = true,
-			PityInterval = 600,
+			PityInterval = 420,
 			Respawns = false,
 			DisplayColor = Color3.fromRGB(255, 48, 65),
 		}),
@@ -152,20 +139,18 @@ local CrateInfo = {
 			Id = "SecretCrate",
 			DisplayName = "Secret",
 			TemplateName = "SecretCrate",
-			Health = 12_000,
+			Health = 18_000,
 			MaximumActive = 1,
 			SpawnDepthBias = 1,
 			RarityChances = {
-				Common = 0.5,
-				Uncommon = 3,
-				Rare = 8.5,
-				Epic = 18,
-				Legendary = 27,
-				Mythic = 34,
-				Secret = 9,
+				Rare = 1,
+				Epic = 7,
+				Legendary = 22,
+				Mythic = 45,
+				Secret = 25,
 			},
 			PityOnly = true,
-			PityInterval = 1_800,
+			PityInterval = 1_200,
 			Respawns = false,
 			DisplayColor = Color3.fromRGB(245, 245, 245),
 		}),
@@ -247,5 +232,31 @@ function CrateInfo.GetRandomItem(ItemsInfo, Info, RandomGenerator: Random?)
 	end
 	return Candidates[#Candidates]
 end
+
+function CrateInfo.Validate()
+	local PreviousExpectedStage = 0
+	local SeenIds = {}
+	for _, Info in CrateInfo.Crates do
+		assert(type(Info.Id) == "string" and not SeenIds[Info.Id], `Invalid or duplicate crate id {tostring(Info.Id)}`)
+		assert(type(Info.Health) == "number" and Info.Health > 0, `Invalid health for crate {Info.Id}`)
+		local Chances = CrateInfo.GetNormalizedRarityChances(Info)
+		local TotalChance = 0
+		local ExpectedStage = 0
+		for Stage, Rarity in RarityOrder do
+			local RawChance = Info.RarityChances[Rarity]
+			assert(RawChance == nil or (type(RawChance) == "number" and RawChance >= 0), `Invalid {Rarity} chance for {Info.Id}`)
+			TotalChance += Chances[Rarity] or 0
+			ExpectedStage += Stage * (Chances[Rarity] or 0)
+		end
+		assert(math.abs(TotalChance - 1) < 0.0001, `Crate chances do not normalize for {Info.Id}`)
+		if Info.PityOnly ~= true then
+			assert(ExpectedStage > PreviousExpectedStage, `Regular crate quality must increase at {Info.Id}`)
+			PreviousExpectedStage = ExpectedStage
+		end
+		SeenIds[Info.Id] = true
+	end
+end
+
+CrateInfo.Validate()
 
 return CrateInfo

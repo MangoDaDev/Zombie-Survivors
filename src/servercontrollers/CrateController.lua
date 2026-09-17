@@ -9,6 +9,7 @@ local Workspace = game:GetService("Workspace")
 local CarryController = require(ServerStorage.Controllers.CarryController)
 local CrateInfo = require(ReplicatedStorage.Modules.Game.CrateInfo)
 local DirtRenderer = require(ReplicatedStorage.Modules.Game.DirtRenderer)
+local EconomyConfig = require(ReplicatedStorage.Modules.Game.EconomyConfig)
 local FormatNumber = require(ReplicatedStorage.Modules.Math.FormatNumber)
 local FormatTime = require(ReplicatedStorage.Modules.Math.FormatTime)
 local ItemInfoBillboard = require(ReplicatedStorage.Modules.UI.ItemInfoBillboard)
@@ -44,7 +45,20 @@ local function GetItemInfo(ItemId)
 	end
 end
 
+local function IsRecoveryEligible(Player: Player, Info): boolean
+	if not Info or Info.Id ~= EconomyConfig.RecoveryCrateId then return false end
+	local Cash = DataService:get(Player, "Cash")
+	local Inventory = DataService:get(Player, "Inventory")
+	local Displays = DataService:get(Player, "Displays")
+	return type(Cash) == "number"
+		and Cash < EconomyConfig.GetMinimumItemPrice()
+		and (type(Inventory) ~= "table" or #Inventory == 0)
+		and (type(Displays) ~= "table" or next(Displays) == nil)
+end
+
 local function GetRewardItemInfo(Player: Player, Info)
+	-- A cash-poor player with no owned items always has a modest common-crate recovery loop.
+	if IsRecoveryEligible(Player, Info) then return GetItemInfo(EconomyConfig.RecoveryItemId), true end
 	local GuaranteedDropCount = DataService:get(Player, "GuaranteedDropCount")
 	local IsNewPlayer = GuaranteedDropCount ~= 0
 		or DataService:get(Player, "TutorialStep") == TutorialConfig.InitialStep
@@ -53,10 +67,10 @@ local function GetRewardItemInfo(Player: Player, Info)
 		local GuaranteedItemInfo = GuaranteedItemId and GetItemInfo(GuaranteedItemId)
 		if GuaranteedItemInfo then
 			DataService:set(Player, "GuaranteedDropCount", GuaranteedDropCount + 1)
-			return GuaranteedItemInfo
+			return GuaranteedItemInfo, false
 		end
 	end
-	return CrateInfo.GetRandomItem(ItemsInfo, Info, RandomGenerator)
+	return CrateInfo.GetRandomItem(ItemsInfo, Info, RandomGenerator), false
 end
 
 local function GetRevealDuration(Info): number
@@ -204,6 +218,9 @@ local function PurchaseReward(RewardId, Player)
 	local RootPart = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
 	local Cash = DataService:get(Player, "Cash")
 	if not RootPart or not RootPart:IsA("BasePart") or type(Cash) ~= "number" then SendPurchaseFeedback(Player, "Unavailable", ItemInfo.Name); return end
+	if Cash < ItemInfo.Price and Reward.IsRecovery and IsRecoveryEligible(Player, Reward.Info) then
+		Cash += EconomyConfig.GetRecoveryGrant(Cash, ItemInfo.Price)
+	end
 	if Cash < ItemInfo.Price then SendPurchaseFeedback(Player, "NotEnoughCash", ItemInfo.Name, ItemInfo.Price - Cash); return end
 	if (RootPart.Position - Reward.Model:GetPivot().Position).Magnitude > Reward.Info.PurchaseDistance then return end
 	Reward.Purchased = true
@@ -219,7 +236,7 @@ end
 
 local function CreateReward(State, Player: Player, PredictionId)
 	local Info = State.Info
-	local ItemInfo = GetRewardItemInfo(Player, Info)
+	local ItemInfo, IsRecovery = GetRewardItemInfo(Player, Info)
 	if not ItemInfo then return end
 	local Template = ReplicatedStorage.Assets.Models.Items:FindFirstChild(ItemInfo.AssetName)
 	if not Template or not Template:IsA("Model") then return end
@@ -268,6 +285,7 @@ local function CreateReward(State, Player: Player, PredictionId)
 		AvailableAt = Workspace:GetServerTimeNow() + RevealDuration + Info.RevealFadeTime,
 		ExpiresAt = Workspace:GetServerTimeNow() + RevealDuration + Info.RevealFadeTime + ItemInteractionConfig.WorldItemDespawnDuration,
 		Purchased = false,
+		IsRecovery = IsRecovery,
 		RevealTransparencies = RevealTransparencies,
 	}
 	Rewards[RewardId] = Reward

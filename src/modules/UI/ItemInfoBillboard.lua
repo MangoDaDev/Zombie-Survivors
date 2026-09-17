@@ -115,7 +115,8 @@ return function(itemInfo, adornee: BasePart, fixingState): BillboardGui
 	local GuestPayRow = createStatRow(Images.Binoculars, itemInfo.GuestPay, UDim2.fromScale(0, 0.5), "$", 0.24, 0.14)
 	GuestPayRow.Name = "GuestPay"
 	GuestPayRow.Parent = billboard
-	local PriceRow = createStatRow(Images.Cash, itemInfo.Price, UDim2.fromScale(0, 0.73), nil, 0.18, 0.09)
+	local DisplayValue = if IsCleaningComplete then itemInfo.SaleValue else itemInfo.Price
+	local PriceRow = createStatRow(Images.Cash, DisplayValue, UDim2.fromScale(0, 0.73), nil, 0.18, 0.09)
 	PriceRow.Name = "Price"
 	PriceRow.Parent = billboard
 	local RequiredSteps = CleaningConfig.GetStepsForItem(itemInfo)

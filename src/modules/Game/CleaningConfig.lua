@@ -1,5 +1,5 @@
 local CleaningConfig = {
-	AutoCompletionThreshold = 0.8,
+	AutoCompletionThreshold = 0.75,
 	BrushRadiusScale = 0.075,
 	CameraFieldOfView = 60,
 	CameraEntryDuration = 0.38,
@@ -7,7 +7,7 @@ local CleaningConfig = {
 	CameraToolImpulseDistance = 0.045,
 	CameraTargetImpulseDistance = 0.025,
 	CameraFinalPushDistance = 0.16,
-	AssistedCleanupDuration = 0.32,
+	AssistedCleanupDuration = 0.25,
 	ItemCameraElevationDegrees = 20,
 	ItemCameraNearDistance = 0.5,
 	ItemCameraLargeItemMargin = 1.14,
@@ -34,73 +34,49 @@ local CleaningConfig = {
 	HammerStrikeLiftDistance = 0.48,
 	HammerContactProgress = 0.42,
 	HammerRaisedAngleDegrees = 42,
-	StepTransitionDelay = 0.45,
-	FullCompletionDelay = 1.8,
+	StepTransitionDelay = 0.3,
+	FullCompletionDelay = 1.2,
 	DirtDamageSoundName = "Hooked",
 	Tools = {
 		{
-			Id = "Spray",
-			DisplayName = "Spray",
-			TemplateName = "SprayBottle",
-			VFXFolderName = "SprayBottle",
-			VFXName = "WaterEffect",
-			VFXStartPartName = "EffectStart",
-			LoopSoundName = "SprayLoop",
-			RadiusScale = 0.075,
-			StrengthPerSecond = 3.2,
-			VFXWidthScale = 1,
-			PositionResponsiveness = 22,
+			Id = "Spray", DisplayName = "Spray", TemplateName = "SprayBottle", VFXFolderName = "SprayBottle",
+			VFXName = "WaterEffect", VFXStartPartName = "EffectStart", LoopSoundName = "SprayLoop",
+			RadiusScale = 0.08, StrengthPerSecond = 3.6, VFXWidthScale = 1, PositionResponsiveness = 22,
 		},
 		{
-			Id = "SprayPaint",
-			DisplayName = "Spray Paint",
-			TemplateName = "SprayPaint",
-			VFXFolderName = "SprayPaint",
-			VFXName = "Paint",
-			VFXStartPartName = "EffectStart",
-			LoopSoundName = "SprayPaintLoop",
-			RadiusScale = 0.075,
-			StrengthPerSecond = 3.2,
-			VFXWidthScale = 1,
-			ColorFromTarget = true,
-			ColorResponsiveness = 14,
-			PositionResponsiveness = 22,
-		},
-		{
-			Id = "Sponge",
-			DisplayName = "Sponge",
-			TemplateName = "Sponge",
-			VFXStartPartName = "Handle",
-			LoopSoundName = "SpongeLoop",
-			RadiusScale = 0.0501,
-			StrengthPerSecond = 2.8,
-			VFXWidthScale = 1,
-			SurfaceRotationDegrees = Vector3.new(0, 90, 0),
-			PositionResponsiveness = 30,
+			Id = "Sponge", DisplayName = "Sponge", TemplateName = "Sponge", VFXStartPartName = "Handle",
+			LoopSoundName = "SpongeLoop", RadiusScale = 0.055, StrengthPerSecond = 3.2, VFXWidthScale = 1,
+			SurfaceRotationDegrees = Vector3.new(0, 90, 0), PositionResponsiveness = 30,
 		},
 		{
 			Id = "SoftBrush", DisplayName = "Soft Brush", TemplateName = "Soft Brush", VFXStartPartName = "Handle",
-			LoopSoundName = "SlowSwoosh", RadiusScale = 0.0471, StrengthPerSecond = 2.4, PositionResponsiveness = 32,
-			SurfaceRotationDegrees = Vector3.new(0, 90, 0),
-		},
-		{
-			Id = "Polisher", DisplayName = "Polisher", TemplateName = "Polisher", VFXStartPartName = "PolishingPadFront",
-			LoopSoundName = "Rolling", RadiusScale = 0.0582, StrengthPerSecond = 1.9, PositionResponsiveness = 28,
+			LoopSoundName = "SlowSwoosh", RadiusScale = 0.052, StrengthPerSecond = 3, PositionResponsiveness = 32,
 			SurfaceRotationDegrees = Vector3.new(0, 90, 0),
 		},
 		{
 			Id = "Hairdryer", DisplayName = "Hairdryer", TemplateName = "Hairdryer", VFXStartPartName = "Handle",
-			LoopSoundName = "Wind", LoopSoundVolume = 0.55, RadiusScale = 0.0945, StrengthPerSecond = 3.4,
+			LoopSoundName = "Wind", LoopSoundVolume = 0.55, RadiusScale = 0.1, StrengthPerSecond = 3.8,
 			PositionResponsiveness = 24, AirflowRange = 8, AirflowConeDegrees = 24, BlowSpeed = 8,
 		},
 		{
+			Id = "SprayPaint", DisplayName = "Spray Paint", TemplateName = "SprayPaint", VFXFolderName = "SprayPaint",
+			VFXName = "Paint", VFXStartPartName = "EffectStart", LoopSoundName = "SprayPaintLoop",
+			RadiusScale = 0.08, StrengthPerSecond = 3.4, VFXWidthScale = 1, ColorFromTarget = true,
+			ColorResponsiveness = 14, PositionResponsiveness = 22,
+		},
+		{
+			Id = "Polisher", DisplayName = "Polisher", TemplateName = "Polisher", VFXStartPartName = "PolishingPadFront",
+			LoopSoundName = "Rolling", RadiusScale = 0.065, StrengthPerSecond = 2.8, PositionResponsiveness = 28,
+			SurfaceRotationDegrees = Vector3.new(0, 90, 0),
+		},
+		{
 			Id = "Hammer", DisplayName = "Hammer", TemplateName = "Hammer", VFXStartPartName = "Handle",
-			RadiusScale = 0.0417, StrengthPerSecond = 5, PositionResponsiveness = 36, StrikeInterval = 0.28,
+			RadiusScale = 0.045, StrengthPerSecond = 5, PositionResponsiveness = 36, StrikeInterval = 0.28,
 			ImpactSoundName = "MetalHitSoft",
 		},
 		{
 			Id = "Magnet", DisplayName = "Magnet", TemplateName = "Magnet", VFXStartPartName = "Magnet",
-			LoopSoundName = "MagnetEquip", RadiusScale = 0.0639, StrengthPerSecond = 1.8, PositionResponsiveness = 26,
+			LoopSoundName = "MagnetEquip", RadiusScale = 0.07, StrengthPerSecond = 2.6, PositionResponsiveness = 26,
 			PullDistance = 1.4,
 		},
 	},
@@ -127,19 +103,6 @@ local CleaningConfig = {
 			CompletionSoundName = "Reward1",
 		},
 		{
-			Id = "SprayPaint",
-			MinimumRestorationTier = 4,
-			Type = "Paint",
-			IconName = "Paint",
-			DisplayName = "Restoring Paint",
-			ToolId = "SprayPaint",
-			TargetHP = 2,
-			DirtColor = Color3.fromRGB(88, 68, 50),
-			DirtAmountMinimum = 0.78,
-			DirtAmountMaximum = 0.96,
-			CompletionSoundName = "Reward1",
-		},
-		{
 			Id = "SoftBrush", MinimumRestorationTier = 2, Type = "LightDust", IconName = "LightDust",
 			DisplayName = "Brushing Dust", ToolId = "SoftBrush", TargetHP = 1.5,
 			PatchColor = Color3.fromRGB(132, 136, 141), PatchTransparency = 0.48, CompletionSoundName = "Reward1",
@@ -149,6 +112,16 @@ local CleaningConfig = {
 			DisplayName = "Blowing Debris", ToolId = "Hairdryer", TargetHP = 1, CompletionSoundName = "Swoosh",
 		},
 		{
+			Id = "SprayPaint", MinimumRestorationTier = 4, Type = "Paint", IconName = "Paint",
+			DisplayName = "Restoring Paint", ToolId = "SprayPaint", TargetHP = 2,
+			DirtColor = Color3.fromRGB(88, 68, 50), DirtAmountMinimum = 0.78, DirtAmountMaximum = 0.96,
+			CompletionSoundName = "Reward1",
+		},
+		{
+			Id = "Polisher", MinimumRestorationTier = 4, Type = "Polish", IconName = "Polish",
+			DisplayName = "Polishing Finish", ToolId = "Polisher", TargetHP = 2, CompletionSoundName = "Reward2",
+		},
+		{
 			Id = "Hammer", MinimumRestorationTier = 5, Type = "Bent", IconName = "Bent",
 			DisplayName = "Realigning Parts", ToolId = "Hammer", TargetHP = 5,
 			BendRotationDegrees = Vector3.new(28, -18, 12), CompletionSoundName = "MetalHitSoft",
@@ -156,10 +129,6 @@ local CleaningConfig = {
 		{
 			Id = "Magnet", MinimumRestorationTier = 6, Type = "Metal", IconName = "Metal",
 			DisplayName = "Extracting Metal", ToolId = "Magnet", TargetHP = 3, CompletionSoundName = "MagnetUnequip",
-		},
-		{
-			Id = "Polisher", MinimumRestorationTier = 4, Type = "Polish", IconName = "Polish",
-			DisplayName = "Polishing Finish", ToolId = "Polisher", TargetHP = 2, CompletionSoundName = "Reward2",
 		},
 	},
 	FullCompletion = {
@@ -207,6 +176,21 @@ function CleaningConfig.ItemHasStep(ItemInfo, StepId: string): boolean
 	return false
 end
 
+function CleaningConfig.Validate()
+	local Tools = {}
+	for _, ToolInfo in CleaningConfig.Tools do
+		assert(type(ToolInfo.Id) == "string" and not Tools[ToolInfo.Id], `Invalid or duplicate cleaning tool {tostring(ToolInfo.Id)}`)
+		assert(ToolInfo.StrengthPerSecond > 0 and ToolInfo.RadiusScale > 0, `Invalid cleaning balance for {ToolInfo.Id}`)
+		Tools[ToolInfo.Id] = true
+	end
+	local PreviousTier = 0
+	for _, StepInfo in CleaningConfig.Steps do
+		assert(Tools[StepInfo.ToolId], `Restoration step {StepInfo.Id} has no configured tool`)
+		assert(StepInfo.MinimumRestorationTier >= PreviousTier, `Restoration tiers must not decrease at {StepInfo.Id}`)
+		PreviousTier = StepInfo.MinimumRestorationTier
+	end
+end
+
 function CleaningConfig.IsCleaningComplete(FixingState): boolean
 	if type(FixingState) ~= "table" then
 		return false
@@ -224,5 +208,7 @@ function CleaningConfig.IsCleaningComplete(FixingState): boolean
 	end
 	return type(FixingState.Remaining) == "number" and FixingState.Remaining <= 0
 end
+
+CleaningConfig.Validate()
 
 return CleaningConfig

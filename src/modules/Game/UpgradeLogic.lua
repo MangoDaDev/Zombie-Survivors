@@ -42,12 +42,12 @@ function UpgradeLogic.NormalizeOwnership(Value): { [string]: boolean }
 	end
 	local ToolUnlockProgression = {
 		"UnlockSponge",
-		"UnlockSprayPaint",
 		"UnlockSoftBrush",
 		"UnlockHairdryer",
+		"UnlockSprayPaint",
+		"UnlockPolisher",
 		"UnlockHammer",
 		"UnlockMagnet",
-		"UnlockPolisher",
 	}
 	local HighestOwnedToolIndex = 0
 	for Index, UpgradeId in ToolUnlockProgression do

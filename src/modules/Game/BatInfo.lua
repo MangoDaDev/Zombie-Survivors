@@ -38,7 +38,7 @@ local BatInfo = {
 		DisplayName = "Stone Bat",
 		TemplateName = "Stone Bat",
 		Icon = "StoneBat",
-		CrateDamage = 20,
+		CrateDamage = 12,
 		SwingCooldown = 0.52,
 		Range = 7.25,
 	}),
@@ -47,7 +47,7 @@ local BatInfo = {
 		DisplayName = "Bronze Bat",
 		TemplateName = "Bronze Bat",
 		Icon = "BronzeBat",
-		CrateDamage = 50,
+		CrateDamage = 32,
 		SwingCooldown = 0.5,
 		Range = 7.35,
 	}),
@@ -56,7 +56,7 @@ local BatInfo = {
 		DisplayName = "Iron Bat",
 		TemplateName = "Iron Bat",
 		Icon = "IronBat",
-		CrateDamage = 80,
+		CrateDamage = 65,
 		SwingCooldown = 0.49,
 		Range = 7.42,
 	}),
@@ -65,7 +65,7 @@ local BatInfo = {
 		DisplayName = "Gold Bat",
 		TemplateName = "Gold Bat",
 		Icon = "GoldBat",
-		CrateDamage = 140,
+		CrateDamage = 130,
 		SwingCooldown = 0.47,
 		Range = 7.55,
 	}),
@@ -74,7 +74,7 @@ local BatInfo = {
 		DisplayName = "Emerald Bat",
 		TemplateName = "Emerald Bat",
 		Icon = "EmeraldBat",
-		CrateDamage = 300,
+		CrateDamage = 260,
 		SwingCooldown = 0.45,
 		Range = 7.7,
 	}),
@@ -83,7 +83,7 @@ local BatInfo = {
 		DisplayName = "Titanium Bat",
 		TemplateName = "Titanium Bat",
 		Icon = "TitaniumBat",
-		CrateDamage = 550,
+		CrateDamage = 450,
 		SwingCooldown = 0.43,
 		Range = 7.85,
 	}),
@@ -92,7 +92,7 @@ local BatInfo = {
 		DisplayName = "Diamond Bat",
 		TemplateName = "Diamond Bat",
 		Icon = "DiamondBat",
-		CrateDamage = 900,
+		CrateDamage = 750,
 		SwingCooldown = 0.42,
 		Range = 8,
 	}),
@@ -101,7 +101,7 @@ local BatInfo = {
 		DisplayName = "Reinforced Steel Bat",
 		TemplateName = "Reinforced Steel Bat",
 		Icon = "ReinforcedSteelBat",
-		CrateDamage = 1_400,
+		CrateDamage = 1_150,
 		SwingCooldown = 0.41,
 		Range = 8.12,
 	}),
@@ -110,7 +110,7 @@ local BatInfo = {
 		DisplayName = "Obsidian Bat",
 		TemplateName = "ObsidianBat",
 		Icon = "ObsidianBat",
-		CrateDamage = 2_400,
+		CrateDamage = 1_800,
 		SwingCooldown = 0.39,
 		Range = 8.3,
 	}),
@@ -119,10 +119,19 @@ local BatInfo = {
 		DisplayName = "Meteorite Bat",
 		TemplateName = "Meteorite Bat",
 		Icon = "MeteoriteBat",
-		CrateDamage = 4_500,
+		CrateDamage = 2_800,
 		SwingCooldown = 0.37,
 		Range = 8.5,
 	}),
 }
+
+local PreviousDamage = 0
+local PreviousCooldown = math.huge
+for _, Info in BatInfo do
+	assert(Info.CrateDamage > PreviousDamage, `Bat damage must increase at {Info.Id}`)
+	assert(Info.SwingCooldown <= PreviousCooldown, `Bat cooldown must not increase at {Info.Id}`)
+	PreviousDamage = Info.CrateDamage
+	PreviousCooldown = Info.SwingCooldown
+end
 
 return BatInfo

@@ -138,7 +138,7 @@ local function SellDisplayedItem(Player: Player, DisplayState: DisplayState)
 	local ItemId = DisplayState.itemId
 	local ItemInfo = ItemId and GetItemInfo(ItemId)
 	if not ItemInfo or not ClearDisplay(Player, DisplayState) then return end
-	DataService:update(Player, "Cash", function(Cash) return (if type(Cash) == "number" then Cash else 0) + ItemInfo.Price end)
+	DataService:update(Player, "Cash", function(Cash) return (if type(Cash) == "number" then Cash else 0) + ItemInfo.SaleValue end)
 	GuidanceController.Advance(Player, "EarnMoney")
 	Sounds.Play("Kaching", DisplayState.itemCFrame, SFX_MAX_DISTANCE)
 end
