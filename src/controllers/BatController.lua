@@ -215,9 +215,10 @@ local function ShowPredictedImpact(Model, Handle, Info)
 			local Direction = RootPart and RootPart.Position - Center or Vector3.yAxis
 			CreateCrateDebris(Center, if Direction.Magnitude > 0.01 then Direction.Unit else Vector3.yAxis, Part.Color, Part.Material, IsPredictedFinalHit)
 		end
-		if IsPredictedFinalHit then
+		if IsPredictedFinalHit and CrateInfoEntry then
 			PredictionId = HttpService:GenerateGUID(false)
-			CrateController.BeginPredictedReveal(PredictionId, Model, Info.Id)
+			-- Keep lethal-hit break presentation client-side so latency never delays the crate disappearing.
+			CrateController.BeginPredictedReveal(PredictionId, Model, CrateInfoEntry.Id)
 			ShakeCamera(0.075, 0.14)
 			local BreakSoundNames = CrateInfoEntry and CrateInfoEntry.BreakSoundNames
 			if BreakSoundNames and #BreakSoundNames > 0 then
