@@ -4,6 +4,51 @@ local SurfacePlacement = require(script.Parent.SurfacePlacement)
 
 local RestorationTargetRenderer = {}
 local States = setmetatable({}, { __mode = "k" })
+local ExcludedBentFolders = {
+	Bent = true,
+	BentComponents = true,
+	Dirt = true,
+	Grease = true,
+	LightDust = true,
+	LooseDebris = true,
+	Metal = true,
+	MetalComponents = true,
+}
+
+local function IsBentCandidate(Model: Model, Part: Instance): boolean
+	if not Part:IsA("BasePart") or Part.Name == "BoundingBox" or Part.Transparency >= 1 then return false end
+	local Current = Part.Parent
+	while Current and Current ~= Model do
+		if ExcludedBentFolders[Current.Name] then return false end
+		Current = Current.Parent
+	end
+	return true
+end
+
+function RestorationTargetRenderer.GetBentParts(Model: Model, Count: number?): { BasePart }
+	local Box = Model:FindFirstChild("BoundingBox")
+	local Center = if Box and Box:IsA("BasePart") then Box.Position else Model:GetPivot().Position
+	local Candidates = {}
+	for _, Descendant in Model:GetDescendants() do
+		if not IsBentCandidate(Model, Descendant) then continue end
+		local Part = Descendant :: BasePart
+		local Size = Part.Size
+		local MinimumAxis = math.max(math.min(Size.X, Size.Y, Size.Z), 0.01)
+		local Elongation = math.max(Size.X, Size.Y, Size.Z) / MinimumAxis
+		table.insert(Candidates, {
+			Part = Part,
+			Score = (Part.Position - Center).Magnitude + math.min(Elongation, 8) * 0.2,
+			Name = Part:GetFullName(),
+		})
+	end
+	table.sort(Candidates, function(A, B)
+		if math.abs(A.Score - B.Score) > 0.001 then return A.Score > B.Score end
+		return A.Name < B.Name
+	end)
+	local Targets = {}
+	for Index = 1, math.min(Count or 2, #Candidates) do table.insert(Targets, Candidates[Index].Part) end
+	return Targets
+end
 
 local function GetSeed(Model: Model, Salt: number): number
 	return (tonumber(string.byte(Model.Name, 1)) or 1) * Salt
@@ -21,7 +66,10 @@ function RestorationTargetRenderer.GetSuggestedCount(Model: Model, Type: string)
 	if Type == "Polish" then return #PaintRenderer.GetPaintParts(Model) end
 	if Type == "Bent" then
 		local Folder = Model:FindFirstChild("BentComponents")
-		return if Folder then math.max(1, #Folder:GetChildren()) else 1
+		if Folder then return math.max(1, #Folder:GetChildren()) end
+		local CandidateCount = #RestorationTargetRenderer.GetBentParts(Model, math.huge)
+		-- Keep Hammer damage prominent: at least half of every item's real visible parts begin bent.
+		return math.max(1, math.ceil(CandidateCount * 0.5))
 	end
 	if Type == "Metal" then
 		local Folder = Model:FindFirstChild("MetalComponents")
@@ -58,10 +106,39 @@ function RestorationTargetRenderer.Add(Model: Model, Type: string, Count: number
 				local BendRotation = Step.BendRotationDegrees or Vector3.new(28, -18, 12)
 				Part.CFrame *= CFrame.Angles(math.rad(BendRotation.X), math.rad(BendRotation.Y), math.rad(BendRotation.Z))
 			end
-			States[Part] = { CurrentHealth = HP, MaximumHealth = HP, RestoredCFrame = RestoredCFrame, StartCFrame = Part.CFrame, Type = Type }
+			local ModelPivot = Model:GetPivot()
+			States[Part] = {
+				CurrentHealth = HP,
+				MaximumHealth = HP,
+				RestoredCFrame = RestoredCFrame,
+				RestoredRelativeCFrame = ModelPivot:ToObjectSpace(RestoredCFrame),
+				StartCFrame = Part.CFrame,
+				StartRelativeCFrame = ModelPivot:ToObjectSpace(Part.CFrame),
+				Type = Type,
+			}
 			table.insert(Targets, Part)
 		end
 		if #Targets > 0 then return Targets end
+	end
+	if Type == "Bent" then
+		local Targets = RestorationTargetRenderer.GetBentParts(Model, Count)
+		local BendRotation = Step.BendRotationDegrees or Vector3.new(28, -18, 12)
+		local DamageRotation = CFrame.Angles(math.rad(BendRotation.X), math.rad(BendRotation.Y), math.rad(BendRotation.Z))
+		local ModelPivot = Model:GetPivot()
+		for _, Part in Targets do
+			local RestoredRelativeCFrame = ModelPivot:ToObjectSpace(Part.CFrame)
+			Part.CFrame *= DamageRotation
+			States[Part] = {
+				CurrentHealth = HP,
+				MaximumHealth = HP,
+				RestoredCFrame = ModelPivot * RestoredRelativeCFrame,
+				RestoredRelativeCFrame = RestoredRelativeCFrame,
+				StartCFrame = Part.CFrame,
+				StartRelativeCFrame = ModelPivot:ToObjectSpace(Part.CFrame),
+				Type = Type,
+			}
+		end
+		return Targets
 	end
 
 	local SurfaceParts, TotalArea = SurfacePlacement.GetSurfaceParts(Model)
@@ -105,15 +182,11 @@ function RestorationTargetRenderer.Add(Model: Model, Type: string, Count: number
 		end
 		local RestoredCFrame = GetSurfaceCFrame(Placement.Position, Placement.Normal, Generator:NextNumber(0, math.pi * 2))
 		Target.CFrame = RestoredCFrame
-		if Type == "Bent" then
-			local BendRotation = Step.BendRotationDegrees or Vector3.new(28, -18, 12)
-			Target.CFrame *= CFrame.Angles(math.rad(BendRotation.X), math.rad(BendRotation.Y), math.rad(BendRotation.Z))
-		end
 		States[Target] = {
 			CurrentHealth = HP,
 			MaximumHealth = HP,
 			StartCFrame = Target.CFrame,
-			RestoredCFrame = if Type == "Bent" then RestoredCFrame else nil,
+			RestoredCFrame = nil,
 			Type = Type,
 		}
 		Target.Parent = Folder
@@ -130,6 +203,18 @@ end
 
 function RestorationTargetRenderer.GetState(Target: BasePart)
 	return States[Target]
+end
+
+function RestorationTargetRenderer.Restore(Model: Model, Target: BasePart)
+	local State = States[Target]
+	if not State or not Target.Parent then return end
+	if State.OriginalColor then
+		Target.Color = State.OriginalColor
+	elseif State.RestoredRelativeCFrame then
+		Target.CFrame = Model:GetPivot() * State.RestoredRelativeCFrame
+	elseif State.RestoredCFrame then
+		Target.CFrame = State.RestoredCFrame
+	end
 end
 
 function RestorationTargetRenderer.Clear(Model: Model, Type: string)

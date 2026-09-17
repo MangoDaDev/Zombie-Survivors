@@ -36,6 +36,10 @@
 Do not change anything unrelated to the user's request.
 Do not generate images unless EXPLICITLY asked to.
 - Do not duplicate functionality that already exists somewhere in the project.
+- Hammer damage must visibly rotate real item parts; generated surface markers are not a substitute for bent geometry.
+- Assisted 90% restoration completion must not require input to remain held while the finishing animation runs.
+- Prepare stage-specific damage before equipping its tool; tool input must only improve the item, and completed geometry must persist through later stages.
 If I correct you, immediately apply the correction to the current task instead of restarting from scratch.
 When an agent makes a recurring mistake and the user corrects it, add or improve a concise AGENTS.md rule so future agents avoid the same mistake.
 - Treat repeated user corrections as feedback about the agent workflow. When appropriate, update AGENTS.md with a short general rule that prevents the same problem from happening again.
+Ask for any clarifications before beginning only if nesscecary

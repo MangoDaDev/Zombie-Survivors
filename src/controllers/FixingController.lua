@@ -13,6 +13,7 @@ local ItemsInfo = require(ReplicatedStorage.Modules.Game.ItemsInfo)
 local Networker = require(ReplicatedStorage.Packages.networker)
 local PaintRenderer = require(ReplicatedStorage.Modules.Game.PaintRenderer)
 local RuntimeState = require(ReplicatedStorage.Modules.Game.RuntimeState)
+local RestorationTargetRenderer = require(ReplicatedStorage.Modules.Game.RestorationTargetRenderer)
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
 local ToolResolver = require(ReplicatedStorage.Modules.Game.ToolResolver)
 local UpgradeLogic = require(ReplicatedStorage.Modules.Game.UpgradeLogic)
@@ -152,7 +153,7 @@ local function UpdateToolInterface()
 		and ToolInfo.Id == RequiredToolId
 		and RuntimeState.Get(LocalPlayer, "CleaningStepComplete", false) ~= true
 	RuntimeState.Set(LocalPlayer, "CleaningRadiusVisible", IsApplicable)
-	RuntimeState.Set(LocalPlayer, "CleaningBrushRadius", nil)
+	if not IsApplicable then RuntimeState.Set(LocalPlayer, "CleaningBrushRadius", nil) end
 	if UsingTool and (not IsApplicable or ToolInfo.Id ~= ActiveToolId) then
 		ReportLocalProgress(true)
 		UsingTool = false
@@ -422,21 +423,24 @@ local function GetFixingCameraCFrame(Camera: Camera, CameraPart: BasePart, Table
 	local AspectRatio = Camera.ViewportSize.X / math.max(Camera.ViewportSize.Y, 1)
 	local HorizontalFieldOfView = 2 * math.atan(math.tan(VerticalFieldOfView / 2) * AspectRatio)
 	local HalfHeight = Box.Size.Y / 2
+	-- The item rotates during restoration, so frame its full yaw envelope instead of only its starting orientation.
 	local FootprintRadius = Vector2.new(Box.Size.X, Box.Size.Z).Magnitude / 2
 	local VerticalExtent = HalfHeight * math.cos(Elevation) + FootprintRadius * math.sin(Elevation)
 	local DepthExtent = HalfHeight * math.sin(Elevation) + FootprintRadius * math.cos(Elevation)
-	local FitDistance = math.max(
+	local RequiredFitDistance = math.max(
 		FootprintRadius / math.max(math.tan(HorizontalFieldOfView / 2), 0.01),
 		VerticalExtent / math.max(math.tan(VerticalFieldOfView / 2), 0.01)
 	)
-	local Distance = math.max(
-		CleaningConfig.ItemCameraMinimumDistance,
-		DepthExtent + FitDistance * CleaningConfig.ItemCameraPadding
-	)
 	local ItemSize = Box.Size.Magnitude
-	local SmallItemFactor = 1 - math.clamp(ItemSize / CleaningConfig.ItemCameraSmallItemThreshold, 0, 1)
-	-- Preserve physical scale cues without changing the established framing for larger items.
-	Distance += SmallItemFactor * CleaningConfig.ItemCameraSmallItemExtraDistance
+	local SmallItemFactor = 1 - math.clamp(
+		(ItemSize - CleaningConfig.ItemCameraSmallSize)
+			/ math.max(CleaningConfig.ItemCameraLargeSize - CleaningConfig.ItemCameraSmallSize, 0.01),
+		0,
+		1
+	)
+	local Margin = CleaningConfig.ItemCameraLargeItemMargin
+		+ (CleaningConfig.ItemCameraSmallItemMargin - CleaningConfig.ItemCameraLargeItemMargin) * SmallItemFactor
+	local Distance = math.max(CleaningConfig.ItemCameraNearDistance, DepthExtent + RequiredFitDistance * Margin)
 	return CFrame.lookAt(TargetPosition + ViewDirection * Distance, TargetPosition, SurfaceNormal)
 end
 
@@ -578,15 +582,19 @@ local function FinishRemainingTargets(ToolId: string)
 	for Index, State in RemainingStates do
 		local Target = State.Part
 		local Delay = (#RemainingStates > 1 and (Index - 1) / (#RemainingStates - 1) or 0) * Duration * 0.35
-		task.delay(Delay, function()
-			if not CompletionRequested or not Target.Parent then return end
+			task.delay(Delay, function()
+				if not CompletionRequested or not Target.Parent then return end
 			if (Step.Type == "Paint" or Step.Type == "Polish") and State.OriginalAppearance then
 				TweenService:Create(Target, TweenInfo.new(Duration * 0.65, Enum.EasingStyle.Quad), {
 					Color = State.OriginalAppearance.Color,
 					Transparency = State.OriginalAppearance.Transparency,
 				}):Play()
 			elseif Step.Type == "Bent" and State.RestoredCFrame then
-				TweenService:Create(Target, TweenInfo.new(Duration * 0.65, Enum.EasingStyle.Back), { CFrame = State.RestoredCFrame }):Play()
+				local Model = GetFixingItemModel()
+				local RestoredCFrame = if Model and State.RestoredRelativeCFrame
+					then Model:GetPivot() * State.RestoredRelativeCFrame
+					else State.RestoredCFrame
+				TweenService:Create(Target, TweenInfo.new(Duration * 0.65, Enum.EasingStyle.Back), { CFrame = RestoredCFrame }):Play()
 			else
 				TweenService:Create(Target, TweenInfo.new(Duration * 0.65, Enum.EasingStyle.Quad), { Transparency = 1 }):Play()
 			end
@@ -600,7 +608,10 @@ local function FinishRemainingTargets(ToolId: string)
 			if (Step.Type == "Paint" or Step.Type == "Polish") and State.OriginalAppearance then
 				PaintRenderer.ApplyAppearance(State.Part, State.OriginalAppearance)
 			elseif Step.Type == "Bent" and State.RestoredCFrame then
-				State.Part.CFrame = State.RestoredCFrame
+				local Model = GetFixingItemModel()
+				State.Part.CFrame = if Model and State.RestoredRelativeCFrame
+					then Model:GetPivot() * State.RestoredRelativeCFrame
+					else State.RestoredCFrame
 			else
 				State.Part:Destroy()
 			end
@@ -641,6 +652,7 @@ local function PrepareLocalStep(ToolId: string): boolean
 
 	local Targets = {}
 	local OriginalAppearances = {}
+	local SavedTargetCount = RuntimeState.Get(LocalPlayer, "CleaningStepRemaining", 2)
 	if Step.Type == "Dirt" then
 		local Dirt = Model:FindFirstChild("Dirt")
 		if Dirt then
@@ -661,12 +673,16 @@ local function PrepareLocalStep(ToolId: string): boolean
 		if Template and Template:IsA("Model") then
 			for _, Target in Targets do
 				OriginalAppearances[Target] = PaintRenderer.GetOriginalAppearance(Model, Target, Template)
-				if Step.Type == "Polish" and OriginalAppearances[Target] then
-					local OriginalColor = OriginalAppearances[Target].Color
-					local Hue, Saturation, Value = OriginalColor:ToHSV()
-					Target.Color = Color3.fromHSV(Hue, Saturation * 0.34, Value * 0.78)
-				end
 			end
+		end
+	elseif Step.Type == "Bent" then
+		local AuthoredFolder = Model:FindFirstChild("BentComponents")
+		if AuthoredFolder then
+			for _, Target in AuthoredFolder:GetChildren() do
+				if Target:IsA("BasePart") then table.insert(Targets, Target) end
+			end
+		else
+			Targets = RestorationTargetRenderer.GetBentParts(Model, SavedTargetCount)
 		end
 	else
 		local FolderName = if Step.Type == "Bent" and Model:FindFirstChild("BentComponents")
@@ -687,6 +703,7 @@ local function PrepareLocalStep(ToolId: string): boolean
 		local RestoredCFrame = if Step.Type == "Bent"
 			then Target.CFrame * DamageRotation:Inverse()
 			else nil
+		local ModelPivot = Model:GetPivot()
 		table.insert(LocalTargetStates, {
 			Part = Target,
 			CurrentHealth = MaximumHealth,
@@ -695,6 +712,8 @@ local function PrepareLocalStep(ToolId: string): boolean
 			OriginalAppearance = OriginalAppearances[Target],
 			StartCFrame = Target.CFrame,
 			RestoredCFrame = RestoredCFrame,
+			StartRelativeCFrame = if Step.Type == "Bent" then ModelPivot:ToObjectSpace(Target.CFrame) else nil,
+			RestoredRelativeCFrame = if RestoredCFrame then ModelPivot:ToObjectSpace(RestoredCFrame) else nil,
 			BaseTransparency = Target.Transparency,
 			Completed = false,
 		})
@@ -792,7 +811,12 @@ local function ApplyToolLocally(ToolInfo, DeltaTime: number, AimPosition: Vector
 			Target.Transparency = BaseTransparency + (1 - BaseTransparency) * (1 - State.CurrentHealth / math.max(State.MaximumHealth, 0.001))
 		elseif Step.Type == "Bent" and State.RestoredCFrame then
 			local RestoredAmount = 1 - State.CurrentHealth / math.max(State.MaximumHealth, 0.001)
-			Target.CFrame = State.StartCFrame:Lerp(State.RestoredCFrame, RestoredAmount)
+			local Model = GetFixingItemModel()
+			if Model and State.StartRelativeCFrame and State.RestoredRelativeCFrame then
+				Target.CFrame = Model:GetPivot() * State.StartRelativeCFrame:Lerp(State.RestoredRelativeCFrame, RestoredAmount)
+			else
+				Target.CFrame = State.StartCFrame:Lerp(State.RestoredCFrame, RestoredAmount)
+			end
 		elseif Step.Type == "Metal" then
 			local RestoredAmount = 1 - State.CurrentHealth / math.max(State.MaximumHealth, 0.001)
 			local ToolPosition = if SmoothedVisualToolCFrame then SmoothedVisualToolCFrame.Position else Workspace.CurrentCamera.CFrame.Position
@@ -818,7 +842,10 @@ local function ApplyToolLocally(ToolInfo, DeltaTime: number, AimPosition: Vector
 			if Step.Type == "Dirt" or Step.Type == "Grease" or Step.Type == "LightDust" or Step.Type == "LooseDebris" or Step.Type == "Metal" then
 				Target:Destroy()
 			elseif Step.Type == "Bent" and State.RestoredCFrame then
-				Target.CFrame = State.RestoredCFrame
+				local Model = GetFixingItemModel()
+				Target.CFrame = if Model and State.RestoredRelativeCFrame
+					then Model:GetPivot() * State.RestoredRelativeCFrame
+					else State.RestoredCFrame
 			elseif State.OriginalAppearance then
 				PaintRenderer.ApplyAppearance(Target, State.OriginalAppearance)
 			end
@@ -1006,6 +1033,8 @@ function FixingController.Init()
 			HammerStrikeStartedAt = nil
 			StopToolEffects()
 		end
+		-- Tool and completion state can replicate in either order; always refresh radius visibility.
+		UpdateToolInterface()
 	end)
 	FixingInterface.ExitRequested:Connect(function()
 		if RuntimeState.Get(LocalPlayer, "IsFixing", false) == true then
@@ -1014,8 +1043,24 @@ function FixingController.Init()
 		end
 	end)
 	RunService.RenderStepped:Connect(function(DeltaTime)
-		if not UsingTool then return end
 		local Tool, ToolInfo = GetEquippedCleaningTool()
+		local IsApplicable = Tool ~= nil
+			and ToolInfo ~= nil
+			and RuntimeState.Get(LocalPlayer, "IsFixing", false) == true
+			and ToolInfo.Id == RuntimeState.Get(LocalPlayer, "CleaningStepToolId")
+			and RuntimeState.Get(LocalPlayer, "CleaningStepComplete", false) ~= true
+		local AimPosition, AimPart, SurfaceNormal
+		if IsApplicable then
+			AimPosition, AimPart, SurfaceNormal = GetAimPosition()
+			RuntimeState.Set(LocalPlayer, "CleaningCursorPosition", GetCursorPosition())
+			-- Project from one stable item depth; ray-hit depth can disappear or jump across surface gaps.
+			local FixingItem = GetFixingItemModel()
+			local Box = FixingItem and FixingItem:FindFirstChild("BoundingBox")
+			if Box and Box:IsA("BasePart") then
+				RuntimeState.Set(LocalPlayer, "CleaningBrushRadius", GetProjectedToolRadius(Workspace.CurrentCamera, ToolInfo, Box.Position))
+			end
+		end
+		if not UsingTool then return end
 		if not Tool or not ToolInfo or ToolInfo.Id ~= ActiveToolId or ToolInfo.Id ~= RuntimeState.Get(LocalPlayer, "CleaningStepToolId")
 			or RuntimeState.Get(LocalPlayer, "CleaningStepComplete", false) == true
 		then
@@ -1027,12 +1072,7 @@ function FixingController.Init()
 			Network:fire("StopUsingTool")
 			return
 		end
-		local AimPosition, AimPart, SurfaceNormal = GetAimPosition()
 		local Camera = Workspace.CurrentCamera
-		RuntimeState.Set(LocalPlayer, "CleaningCursorPosition", GetCursorPosition())
-		if AimPosition then
-			RuntimeState.Set(LocalPlayer, "CleaningBrushRadius", GetProjectedToolRadius(Camera, ToolInfo, AimPosition))
-		end
 		if AimPosition and ToolEndPart and ToolBeam then
 			local Blend = 1 - math.exp(-CleaningConfig.SprayEndpointResponsiveness * DeltaTime)
 			SmoothedToolPosition = if SmoothedToolPosition then SmoothedToolPosition:Lerp(AimPosition, Blend) else AimPosition

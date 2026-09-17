@@ -74,7 +74,7 @@ return function()
 		Visible = IsFixing,
 		Create "Frame" {
 			Name = "BrushRadius",
-			Visible = RadiusVisible,
+			Visible = function() return RadiusVisible() and BrushRadius() > 0 end,
 			AnchorPoint = Vector2.new(0.5, 0.5),
 			BackgroundColor3 = Color3.fromRGB(120, 220, 255),
 			BackgroundTransparency = 0.82,

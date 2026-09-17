@@ -232,7 +232,7 @@ local function PrepareAllTargets(Session)
 		end
 	end
 	for _, Step in Session.Steps do
-		if Step.Type == "Dirt" or Step.Type == "Grease" or Step.Type == "Paint" then continue end
+		if Step.Type == "Dirt" or Step.Type == "Grease" or Step.Type == "Paint" or Step.Type == "Polish" then continue end
 		local StepState = Session.State.Steps[Step.Id]
 		if StepState.Completed == true then continue end
 		local Targets = RestorationTargetRenderer.Add(Session.Model, Step.Type, StepState.Remaining, Step.TargetHP, Step)
@@ -241,6 +241,21 @@ local function PrepareAllTargets(Session)
 		StepState.Total = CompletedCount + #Targets
 		StepState.Remaining = #Targets
 	end
+end
+
+local function RestoreCompletedBentTargets(Session)
+	for _, Target in Session.RestoredBentTargets do
+		RestorationTargetRenderer.Restore(Session.Model, Target)
+	end
+end
+
+local function PrepareCurrentPolishTargets(Session, Step, StepState)
+	if Step.Type ~= "Polish" or Session.RestorationTargets[Step.Id] then return end
+	local Targets = RestorationTargetRenderer.Add(Session.Model, Step.Type, StepState.Remaining, Step.TargetHP, Step)
+	Session.RestorationTargets[Step.Id] = Targets
+	local CompletedCount = math.max(0, StepState.Total - StepState.Remaining)
+	StepState.Total = CompletedCount + #Targets
+	StepState.Remaining = #Targets
 end
 
 local function ClearCurrentTargets(Session)
@@ -257,7 +272,15 @@ local function ClearCurrentTargets(Session)
 		Session.PaintTargets = nil
 	elseif Session.RestorationTargets and Session.RestorationTargets[Step.Id] then
 		for _, Target in Session.RestorationTargets[Step.Id] do
-			if Target.Parent and (Step.Type == "LightDust" or Step.Type == "LooseDebris" or Step.Type == "Metal") then Target:Destroy() end
+			if not Target.Parent then continue end
+			if Step.Type == "Bent" then
+				RestorationTargetRenderer.Restore(Session.Model, Target)
+				table.insert(Session.RestoredBentTargets, Target)
+			elseif Step.Type == "Polish" then
+				RestorationTargetRenderer.Restore(Session.Model, Target)
+			elseif Step.Type == "LightDust" or Step.Type == "LooseDebris" or Step.Type == "Metal" then
+				Target:Destroy()
+			end
 		end
 		Session.RestorationTargets[Step.Id] = nil
 	end
@@ -267,6 +290,10 @@ local function PrepareCurrentStep(Player, Session)
 	local Step = Session.Steps[Session.StepIndex]
 	local StepState = GetStepState(Session)
 	if not Step or not StepState then return end
+	-- Completed Hammer work must remain aligned through every later stage.
+	RestoreCompletedBentTargets(Session)
+	-- Prepare the dull finish before equipping the Polisher; input only improves it.
+	PrepareCurrentPolishTargets(Session, Step, StepState)
 	Session.LastProgress = -1
 	PlayerStateController.Set(Player, "CleaningStepName", Step.DisplayName)
 	PlayerStateController.Set(Player, "CleaningStepTotal", StepState.Total)
@@ -458,6 +485,7 @@ local function StartFixing(Player)
 		Completing = false,
 		TransitionId = 0,
 		LastProgress = -1,
+		RestoredBentTargets = {},
 	}
 	Session.Connection = RunService.Heartbeat:Connect(function(DeltaTime)
 		if not Model.Parent or not RootPart.Parent or Humanoid.Health <= 0 then task.defer(ClearSession, Player); return end
@@ -699,13 +727,12 @@ function FixingController.ReportProgress(_, Player, ToolId, Remaining)
 end
 
 function FixingController.CompleteStep(_, Player, ToolId)
-	-- Keep cleaning completion client-authoritative; only verify the required unlocked tool is equipped.
+	-- Assisted completion happens after input use ends at 90%, so equipped-tool validation is sufficient here.
 	local Session = Sessions[Player]
 	local Step = Session and Session.Steps[Session.StepIndex]
 	local StepState = Session and GetStepState(Session)
 	local Tool = Step and GetCleaningTool(Player, Step.ToolId)
 	if not Session or Session.Completing or not Step or not StepState or Step.ToolId ~= ToolId
-		or not Session.IsUsingTool or Session.ActiveToolId ~= ToolId
 		or not IsToolUnlocked(Player, ToolId)
 		or not Tool or Tool.Parent ~= Player.Character
 	then return end
