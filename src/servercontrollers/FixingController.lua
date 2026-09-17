@@ -93,7 +93,7 @@ local function CompleteRestorationState(Player, ItemId, ItemInfo, State)
 	end
 	State.CompletionRewardClaimed = true
 	SaveState(Player, ItemId, State)
-	local Reward = EconomyConfig.GetRestorationReward(ItemInfo.Price)
+	local Reward = EconomyConfig.GetRestorationReward(ItemInfo.Rarity, ItemInfo.Price)
 	DataService:update(Player, "Cash", function(Cash)
 		return (if type(Cash) == "number" then Cash else 0) + Reward
 	end)

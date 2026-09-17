@@ -5,7 +5,7 @@
 This rebalance models the full cash loop as `purchase price -> restoration reward -> restored sale value`, plus optional visitor income while the item is displayed. All values below use the default tuning controls in `EconomyConfig`.
 
 - Active net profit per completed-and-sold item is `SaleValue + RestorationReward - PurchasePrice`.
-- Restoration-time estimates use the real surface areas and visible-part counts of all 100 Studio item models. They assume normal cursor coverage, the 75% assisted-completion threshold, and conservative multi-target coverage from each tool radius.
+- Restoration-time estimates use the real surface areas and visible-part counts of all 100 Studio item models. The table below was produced with the former 75% assisted-completion threshold; the implemented threshold is now 85%, so players must manually cover 13.3% more of each restoration step before assisted cleanup.
 - Crate break time is `(ceil(Health / Damage) - 1) * SwingCooldown`; the first hit is immediate. Travel, target selection, reveal, and an 8-second handling allowance are included only in active-income estimates.
 - Passive estimates use six successful inspections per visitor slot per minute. Actual results depend on museum geometry, travel paths, random activity counts, reservations, and occupied displays.
 - No playtest was run. These are static estimates intended to be checked against telemetry.
@@ -26,20 +26,22 @@ This rebalance models the full cash loop as `purchase price -> restoration rewar
 | --- | ---: | --- |
 | `ProgressionSpeedMultiplier` | 1.00 | Above 1 increases active/passive payouts and reduces all upgrade costs. It never changes damaged-item purchase prices. |
 | `ActiveIncomeMultiplier` | 1.10 | Scales restoration rewards and restored-item sale values only. |
+| `OnboardingIncomeMultiplier` | 2.00 | Multiplies Common active income, then blends down across later rarities. |
+| `OnboardingIncomeBlendEndStage` | 5 | Ends the blend at Legendary, where active income returns to its normal 1.00x rarity scale. |
 | `PassiveIncomeMultiplier` | 0.90 | Scales visitor payments only. |
 | `UpgradeCostMultiplier` | 1.00 | Above 1 increases all upgrade costs. |
 | `LateGameCurveMultiplier` | 1.00 | Above 1 compounds rarity prices and later-stage upgrade costs after stage 3. |
 
-Every multiplier is applied once in a named EconomyConfig calculation. Item purchase price, restored sale value, restoration reward, visitor pay, and upgrade cost each have one authoritative calculation.
+The onboarding rarity scales are Common 2.00x, Uncommon 1.75x, Rare 1.50x, Epic 1.25x, and Legendary onward 1.00x. They apply to restoration rewards and restored sale values, not purchase prices or visitor income. Every multiplier is applied once in a named EconomyConfig calculation. Item purchase price, restored sale value, restoration reward, visitor pay, and upgrade cost each have one authoritative calculation.
 
 ## Item values and income
 
 | Rarity | Old price range | New price range | Old -> new average | New average sale | New average restore reward | Old -> new guest rate | New average guest pay |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| Common | 80-320 | 120-500 | 202 -> 313 | 344 | 257 | 8% -> 2.5% | 7 |
-| Uncommon | 650-3,200 | 700-2,200 | 2,090 -> 1,546 | 1,701 | 1,277 | 5% -> 1.8% | 25 |
-| Rare | 8,000-32,000 | 4,000-12,000 | 22,811 -> 8,937 | 9,842 | 7,376 | 2.2% -> 1.2% | 97 |
-| Epic | 55,000-220,000 | 30,000-90,000 | 151,540 -> 65,045 | 71,550 | 53,670 | 0.9% -> 0.8% | 469 |
+| Common | 80-320 | 120-500 | 202 -> 313 | 690 | 517 | 8% -> 2.5% | 7 |
+| Uncommon | 650-3,200 | 700-2,200 | 2,090 -> 1,546 | 2,976 | 2,233 | 5% -> 1.8% | 25 |
+| Rare | 8,000-32,000 | 4,000-12,000 | 22,811 -> 8,937 | 14,753 | 11,061 | 2.2% -> 1.2% | 97 |
+| Epic | 55,000-220,000 | 30,000-90,000 | 151,540 -> 65,045 | 89,430 | 67,085 | 0.9% -> 0.8% | 469 |
 | Legendary | 350,000-950,000 | 150,000-450,000 | 733,273 -> 341,545 | 375,727 | 281,636 | 0.4% -> 0.5% | 1,539 |
 | Mythic | 1,500,000-4,500,000 | 800,000-2,400,000 | 3,450,000 -> 1,840,000 | 2,022,500 | 1,518,750 | 0.18% -> 0.3% | 4,975 |
 | Secret | 7,500,000-20,000,000 | 5,000,000-12,000,000 | 14,493,333 -> 8,916,667 | 9,808,333 | 7,358,333 | 0.08% -> 0.2% | 16,050 |
@@ -51,12 +53,12 @@ Other economy settings:
 | Starting cash | 500 | 750 |
 | Minimum restoration reward | 60 | 75 |
 | Restoration reward rate | 60% | 75% before the active-income multiplier |
-| Restored sale value | 100% of purchase price | 110% at default tuning |
+| Restored sale value | 100% of purchase price | 220% for Common, blended to the 110% base by Legendary |
 | Guaranteed early drops | Wrench, Toaster, Basketball | Wrench, Toaster, Basketball, Alarm Clock |
 | Dropped-item transfer multiplier | 1.50x | 1.25x |
 | Maximum dropped-item price | 10x base | 3x base |
 
-The four guaranteed items cost 120, 400, 260, and 190. Their expected active net profits are 110, 370, 240, and 175, so they add about 895 cash before visitor income. This is enough to buy Sponge, Soft Brush, Spray Speed I, and the Stone Bat without depending on a rare drop.
+The four guaranteed items cost 120, 400, 260, and 190. Their expected active net profits are 345, 1,140, 740, and 545, so they add about 2,770 cash before visitor income. This accelerates onboarding without changing item purchase prices or visitor income.
 
 ## Restoration order, time, and gating
 
@@ -78,7 +80,7 @@ This matches the cumulative restoration steps: tiers 1-6 introduce Spray; Sponge
 
 | Restoration setting | Old | New |
 | --- | ---: | ---: |
-| Assisted completion threshold | 80% | 75% |
+| Assisted completion threshold | 80% | 85% |
 | Assisted cleanup duration | 0.32s | 0.25s |
 | Step transition delay | 0.45s | 0.30s |
 | Full completion delay | 1.80s | 1.20s |
@@ -232,17 +234,17 @@ The cumulative column includes that tool's full unlock prerequisites.
 
 ## Expected income and payback
 
-Representative active income includes item purchase, restoration reward, sale, expected restoration time, matching-stage crate break time, and eight seconds for reveal/transport/handling.
+Representative active income includes item purchase, restoration reward, sale, expected restoration time, matching-stage crate break time, and eight seconds for reveal/transport/handling. The 85%-threshold cycle times are estimates derived from the measured 75%-threshold restoration times by scaling their active restoration portion by `85 / 75`.
 
 | Stage | Representative crate / bat | Cycle time | Net cash per item | Active income/minute |
 | --- | --- | ---: | ---: | ---: |
-| Early Common | Common / Wooden | 16.3s | 288 | 1,057 |
-| Early-mid Uncommon | Uncommon / Stone | 36.9s | 1,432 | 2,328 |
-| Mid Rare | Rare / Iron | 42.1s | 8,281 | 11,813 |
-| Mid-late Epic | Epic / Gold | 59.4s | 60,175 | 60,762 |
-| Late Legendary | Legendary / Emerald | 72.1s | 315,818 | 262,999 |
-| Late Mythic | Mythical / Titanium | 88.3s | 1,701,250 | 1,156,657 |
-| Endgame Secret | Secret / Obsidian | 86.3s | 8,249,999 | 5,735,140 |
+| Early Common | Common / Wooden | 17.2s | 894 | 3,120 |
+| Early-mid Uncommon | Uncommon / Stone | 40.4s | 3,663 | 5,439 |
+| Mid Rare | Rare / Iron | 46.4s | 16,877 | 21,833 |
+| Mid-late Epic | Epic / Gold | 65.9s | 91,470 | 83,306 |
+| Late Legendary | Legendary / Emerald | 80.1s | 315,818 | 236,568 |
+| Late Mythic | Mythical / Titanium | 98.1s | 1,701,250 | 1,040,096 |
+| Endgame Secret | Secret / Obsidian | 96.3s | 8,249,999 | 5,141,610 |
 
 Representative passive income at six inspections per visitor slot per minute:
 
@@ -278,7 +280,7 @@ Higher speed levels cost roughly 10x the prior level, so their payback intention
 | Milestone | Static estimate for a new player |
 | --- | --- |
 | First useful upgrade | Sponge is affordable immediately; Spray Speed I and Stone Bat are each reachable after the first few Common restorations. |
-| Four guaranteed Common restorations | Roughly 4-8 minutes including tutorial movement and reveal time; yields about 895 net cash before visitor payments. |
+| Four guaranteed Common restorations | Roughly 4-8 minutes including tutorial movement and reveal time; yields about 2,770 net cash before visitor payments. |
 | Sponge + Soft Brush + Spray Speed I + Stone Bat | Roughly 6-12 minutes without needing a rare drop. |
 | Hairdryer and meaningful museum/combat choices | Roughly 10-20 minutes depending on display use and crate choice. |
 | Complete Epic tool set through Polisher | Roughly 25-45 minutes. |

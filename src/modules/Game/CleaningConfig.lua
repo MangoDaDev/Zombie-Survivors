@@ -1,5 +1,5 @@
 local CleaningConfig = {
-	AutoCompletionThreshold = 0.75,
+	AutoCompletionThreshold = 0.85,
 	BrushRadiusScale = 0.075,
 	CameraFieldOfView = 60,
 	CameraEntryDuration = 0.38,

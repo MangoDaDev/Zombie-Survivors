@@ -3,6 +3,9 @@ local EconomyConfig = {
 	ProgressionSpeedMultiplier = 1,
 	-- Scales restoration rewards and restored-item sale values without changing purchase prices.
 	ActiveIncomeMultiplier = 1.1,
+	-- Gives onboarding rarities extra active income, blended back to normal by Legendary.
+	OnboardingIncomeMultiplier = 2,
+	OnboardingIncomeBlendEndStage = 5,
 	-- Scales museum visitor payments only.
 	PassiveIncomeMultiplier = 0.9,
 	-- Values above 1 increase every upgrade price.
@@ -96,6 +99,14 @@ function EconomyConfig.GetRarity(Rarity: string)
 	return EconomyConfig.Rarities[Rarity] or EconomyConfig.Rarities.Common
 end
 
+function EconomyConfig.GetOnboardingIncomeScale(Rarity: string): number
+	local ProgressionStage = EconomyConfig.GetRarity(Rarity).ProgressionStage
+	local BlendLength = math.max(EconomyConfig.OnboardingIncomeBlendEndStage - 1, 1)
+	local BlendAlpha = math.clamp((ProgressionStage - 1) / BlendLength, 0, 1)
+	return EconomyConfig.OnboardingIncomeMultiplier
+		+ (1 - EconomyConfig.OnboardingIncomeMultiplier) * BlendAlpha
+end
+
 function EconomyConfig.GetMinimumItemPrice(): number
 	local MinimumPrice = math.huge
 	for _, Rarity in EconomyConfig.RarityOrder do
@@ -131,8 +142,8 @@ function EconomyConfig.GetItemPrice(Rarity: string, DifficultyValue: number): nu
 	return RoundToReadableValue(BasePrice * GetLateGameScale(Info.ProgressionStage))
 end
 
-function EconomyConfig.GetSaleValue(Price: number): number
-	return RoundToReadableValue(Price * GetActiveIncomeScale())
+function EconomyConfig.GetSaleValue(Rarity: string, Price: number): number
+	return RoundToReadableValue(Price * GetActiveIncomeScale() * EconomyConfig.GetOnboardingIncomeScale(Rarity))
 end
 
 function EconomyConfig.GetGuestPay(Rarity: string, Price: number): number
@@ -144,10 +155,15 @@ function EconomyConfig.GetRestorationTier(Rarity: string): number
 	return EconomyConfig.GetRarity(Rarity).RestorationTier
 end
 
-function EconomyConfig.GetRestorationReward(Price: number): number
+function EconomyConfig.GetRestorationReward(Rarity: string, Price: number): number
 	return math.max(
 		EconomyConfig.MinimumRestorationReward,
-		RoundToReadableValue(Price * EconomyConfig.RestorationRewardRate * GetActiveIncomeScale())
+		RoundToReadableValue(
+			Price
+				* EconomyConfig.RestorationRewardRate
+				* GetActiveIncomeScale()
+				* EconomyConfig.GetOnboardingIncomeScale(Rarity)
+		)
 	)
 end
 
@@ -167,7 +183,7 @@ end
 function EconomyConfig.ApplyToItems(ItemsInfo)
 	for _, ItemInfo in ItemsInfo do
 		ItemInfo.Price = EconomyConfig.GetItemPrice(ItemInfo.Rarity, ItemInfo.DifficultyValue)
-		ItemInfo.SaleValue = EconomyConfig.GetSaleValue(ItemInfo.Price)
+		ItemInfo.SaleValue = EconomyConfig.GetSaleValue(ItemInfo.Rarity, ItemInfo.Price)
 		ItemInfo.GuestPay = EconomyConfig.GetGuestPay(ItemInfo.Rarity, ItemInfo.Price)
 		ItemInfo.RestorationTier = EconomyConfig.GetRestorationTier(ItemInfo.Rarity)
 	end
@@ -194,15 +210,22 @@ function EconomyConfig.Validate()
 	for _, Value in {
 		EconomyConfig.ProgressionSpeedMultiplier,
 		EconomyConfig.ActiveIncomeMultiplier,
+		EconomyConfig.OnboardingIncomeMultiplier,
 		EconomyConfig.PassiveIncomeMultiplier,
 		EconomyConfig.UpgradeCostMultiplier,
 		EconomyConfig.LateGameCurveMultiplier,
 	} do
 		assert(type(Value) == "number" and Value > 0, "Economy multipliers must be positive")
 	end
+	assert(
+		type(EconomyConfig.OnboardingIncomeBlendEndStage) == "number"
+			and EconomyConfig.OnboardingIncomeBlendEndStage >= 2,
+		"Onboarding income blend end stage must be at least 2"
+	)
 
 	local PreviousPrice = 0
 	local PreviousStage = 0
+	local PreviousOnboardingScale = math.huge
 	for _, Rarity in EconomyConfig.RarityOrder do
 		local Info = EconomyConfig.Rarities[Rarity]
 		assert(Info, `Missing rarity economy for {Rarity}`)
@@ -212,8 +235,12 @@ function EconomyConfig.Validate()
 		local MinimumPrice = EconomyConfig.GetItemPrice(Rarity, Info.SourcePriceRange[1])
 		assert(MinimumPrice > PreviousPrice, `Minimum item price must increase at {Rarity}`)
 		assert(Info.GuestPayRate > 0, `Guest pay rate must be positive for {Rarity}`)
+		local OnboardingScale = EconomyConfig.GetOnboardingIncomeScale(Rarity)
+		assert(OnboardingScale >= 1, `Onboarding income scale cannot reduce income for {Rarity}`)
+		assert(OnboardingScale <= PreviousOnboardingScale, `Onboarding income scale must not increase at {Rarity}`)
 		PreviousPrice = MinimumPrice
 		PreviousStage = Info.ProgressionStage
+		PreviousOnboardingScale = OnboardingScale
 	end
 end
 

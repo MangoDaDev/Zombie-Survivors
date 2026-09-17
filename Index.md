@@ -60,10 +60,10 @@ Quick reference for the project's first-party Luau scripts. Generated Wally depe
 | Path | Name | Responsibility |
 | --- | --- | --- |
 | `src/modules/Game/_PlayerFreezeState.lua` | PlayerFreezeState | Stores and manages the local character's anchored freeze state. |
-| `src/modules/Game/CleaningConfig.lua` | CleaningConfig | Registers the tier-ordered restoration tools and actions, balanced strength/radius values, viewport-relative targeting, size-aware camera framing, geometry-aware viewmodel positioning, VFX, 75%-threshold assisted completion, and static tool/tier validation. |
+| `src/modules/Game/CleaningConfig.lua` | CleaningConfig | Registers the tier-ordered restoration tools and actions, balanced strength/radius values, viewport-relative targeting, size-aware camera framing, geometry-aware viewmodel positioning, VFX, 85%-threshold assisted completion, and static tool/tier validation. |
 | `src/modules/Game/AmbientAudioConfig.lua` | AmbientAudioConfig | Centralizes playlist folder selection and presentation ducking values while track volume remains authored on each Sound. |
 | `src/modules/Game/CollisionGroups.lua` | CollisionGroups | Defines shared player, NPC, ground, and crate-debris collision-group names. |
-| `src/modules/Game/EconomyConfig.lua` | EconomyConfig | Centralizes the five economy tuning controls, progression-stage price bands, purchase/sale values, active and passive rewards, starting and recovery cash rules, readable rounding, and item/range validation. |
+| `src/modules/Game/EconomyConfig.lua` | EconomyConfig | Centralizes economy tuning controls, progression-stage price bands, blended onboarding income, purchase/sale values, active and passive rewards, starting and recovery cash rules, readable rounding, and item/range validation. |
 | `src/modules/Game/BatInfo.lua` | BatInfo | Configures the eleven-tier Wooden-through-Meteorite crate-only bat progression with progressively improved damage, timing, range, latency-tolerant validation, and sounds. |
 | `src/modules/Game/CrateInfo.lua` | CrateInfo | Configures regular and pity-only crate tiers, four affordable new-player drops, normalized and validated rarity distributions, weighted item rolls, population limits, health/respawn pacing, and the reset cycle. |
 | `src/modules/Game/DataTemplate.lua` | DataTemplate | Defines saved defaults for cash, guaranteed opening drops, inventory, museum displays, restoration state, tutorial progress, and upgrade ownership. |

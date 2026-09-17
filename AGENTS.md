@@ -25,6 +25,8 @@
 ## Recurring Mistakes To Avoid
 
 - Do not guess Studio asset paths; inspect `ReplicatedStorage.Assets` and use exact existing names.
+- Before using `WaitForChild` in Studio tooling or validation code, verify the instance path and always provide a timeout so a wrong path cannot stall the task indefinitely.
+- Keep verification proportional to the change; for simple configuration or balance edits, use targeted source checks and compilation rather than broad Studio or DataModel validation unless runtime data is directly involved.
 - Do not create raw remotes for normal gameplay or duplicate the legacy `SharedClass` replication pattern.
 - Do not mutate shared Studio-owned asset templates; clone them when runtime ownership or cleanup is needed.
 - Do not hide ordinary code errors with `pcall`, overengineer one-off behavior, or hardcode the same data in multiple places.
