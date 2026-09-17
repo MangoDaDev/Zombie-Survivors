@@ -3,8 +3,10 @@ local SharedCrateInfo = {
 	RespawnDelay = 0.6,
 	SpawnPadding = 4,
 	MinimumSpawnSeparation = 8,
-	ScaleMinimum = 0.9,
-	ScaleMaximum = 1.12,
+	ScaleMinimum = 0.8,
+	ScaleMaximum = 1.15,
+	ScaleMode = 1.05,
+	ScaleLuckStrength = 2,
 	HealthBarHideDelay = 1.6,
 	HealthBarTweenTime = 0.12,
 	DamageSoundName = "CrateDamage",
@@ -179,14 +181,35 @@ function CrateInfo.GetPityCrates(): { any }
 	return Results
 end
 
-function CrateInfo.GetNormalizedRarityChances(Info): { [string]: number }
+function CrateInfo.RollScale(Info, RandomGenerator: Random?): number
+	local Generator = RandomGenerator or DefaultRandom
+	local Minimum = Info.ScaleMinimum
+	local Maximum = Info.ScaleMaximum
+	local Mode = Info.ScaleMode
+	local Range = Maximum - Minimum
+	local ModeChance = (Mode - Minimum) / Range
+	local Roll = Generator:NextNumber()
+	-- This triangular distribution favors slightly larger crates while averaging exactly normal size.
+	if Roll < ModeChance then
+		return Minimum + math.sqrt(Roll * Range * (Mode - Minimum))
+	end
+	return Maximum - math.sqrt((1 - Roll) * Range * (Maximum - Mode))
+end
+
+function CrateInfo.GetScaleLuck(Info, Scale: number): number
+	return math.max(0.05, 1 + (Scale - 1) * Info.ScaleLuckStrength)
+end
+
+function CrateInfo.GetNormalizedRarityChances(Info, Luck: number?): { [string]: number }
 	local Chances = {}
 	local Total = 0
-	for _, Rarity in RarityOrder do
+	local LuckMultiplier = if type(Luck) == "number" then math.max(Luck, 0.05) else 1
+	for Stage, Rarity in RarityOrder do
 		local Chance = Info and Info.RarityChances and Info.RarityChances[Rarity]
 		if type(Chance) == "number" and Chance > 0 then
-			Chances[Rarity] = Chance
-			Total += Chance
+			local AdjustedChance = Chance * LuckMultiplier ^ (Stage - 1)
+			Chances[Rarity] = AdjustedChance
+			Total += AdjustedChance
 		end
 	end
 
@@ -200,9 +223,9 @@ function CrateInfo.GetNormalizedRarityChances(Info): { [string]: number }
 	return Chances
 end
 
-function CrateInfo.GetRandomItem(ItemsInfo, Info, RandomGenerator: Random?)
+function CrateInfo.GetRandomItem(ItemsInfo, Info, RandomGenerator: Random?, Luck: number?)
 	local Generator = RandomGenerator or DefaultRandom
-	local Chances = CrateInfo.GetNormalizedRarityChances(Info)
+	local Chances = CrateInfo.GetNormalizedRarityChances(Info, Luck)
 	local Roll = Generator:NextNumber()
 	local SelectedRarity = "Common"
 	for _, Rarity in RarityOrder do
@@ -239,6 +262,13 @@ function CrateInfo.Validate()
 	for _, Info in CrateInfo.Crates do
 		assert(type(Info.Id) == "string" and not SeenIds[Info.Id], `Invalid or duplicate crate id {tostring(Info.Id)}`)
 		assert(type(Info.Health) == "number" and Info.Health > 0, `Invalid health for crate {Info.Id}`)
+		assert(type(Info.ScaleMinimum) == "number" and type(Info.ScaleMaximum) == "number"
+			and type(Info.ScaleMode) == "number" and Info.ScaleMinimum < Info.ScaleMode
+			and Info.ScaleMode < Info.ScaleMaximum, `Invalid scale distribution for {Info.Id}`)
+		assert(math.abs((Info.ScaleMinimum + Info.ScaleMode + Info.ScaleMaximum) / 3 - 1) <= 0.02,
+			`Average crate scale must remain near normal for {Info.Id}`)
+		assert(type(Info.ScaleLuckStrength) == "number" and Info.ScaleLuckStrength >= 0,
+			`Invalid scale luck strength for {Info.Id}`)
 		local Chances = CrateInfo.GetNormalizedRarityChances(Info)
 		local TotalChance = 0
 		local ExpectedStage = 0

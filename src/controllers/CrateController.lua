@@ -21,6 +21,7 @@ local RevealFolder: Folder
 local RevealGui: ScreenGui
 local Reveals = {}
 local PredictedReveals = {}
+local HealthVisibilityIds = setmetatable({}, { __mode = "k" })
 local ScreenEffectId = 0
 local RandomGenerator = Random.new()
 local LocalPlayer = Players.LocalPlayer
@@ -66,6 +67,54 @@ local function GetCrateInfo(CrateId)
 	for _, Info in CrateInfo.Crates do
 		if Info.Id == CrateId then return Info end
 	end
+end
+
+local function GetHealthInterface(Model)
+	local PrimaryPart = Model.PrimaryPart
+	local Billboard = PrimaryPart and PrimaryPart:FindFirstChild("CrateHealth")
+	local Group = Billboard and Billboard:FindFirstChild("Group")
+	local Track = Group and Group:FindFirstChild("Track")
+	local Fill = Track and Track:FindFirstChild("Fill")
+	local HealthLabel = Track and Track:FindFirstChild("Health")
+	if Group and Group:IsA("CanvasGroup") and Fill and Fill:IsA("Frame")
+		and HealthLabel and HealthLabel:IsA("TextLabel")
+	then
+		return Group, Fill, HealthLabel
+	end
+	return nil, nil, nil
+end
+
+function CrateController.RenderCrateHealth(Model, Health, MaximumHealth, CrateId)
+	if not Model.Parent or type(Health) ~= "number" or type(MaximumHealth) ~= "number" then return end
+	local Group, Fill, HealthLabel = GetHealthInterface(Model)
+	if not Group then return end
+	local Info = GetCrateInfo(CrateId)
+	local FillSize = UDim2.fromScale(math.clamp(Health / math.max(MaximumHealth, 1), 0, 1), 1)
+	HealthLabel.Text = `{math.ceil(Health)}/{MaximumHealth}`
+	if Health >= MaximumHealth then
+		Fill.Size = FillSize
+		return
+	end
+	HealthVisibilityIds[Model] = (HealthVisibilityIds[Model] or 0) + 1
+	local VisibilityId = HealthVisibilityIds[Model]
+	TweenService:Create(Group, TweenInfo.new(0.04), { GroupTransparency = 0 }):Play()
+	TweenService:Create(Fill, TweenInfo.new(if Info then Info.HealthBarTweenTime else 0.12, Enum.EasingStyle.Quad), {
+		Size = FillSize,
+	}):Play()
+	task.delay(if Info then Info.HealthBarHideDelay else 1.6, function()
+		if Model.Parent and HealthVisibilityIds[Model] == VisibilityId then
+			TweenService:Create(Group, TweenInfo.new(0.25), { GroupTransparency = 1 }):Play()
+		end
+	end)
+end
+
+function CrateController.HoldCrateHealth(Model, Health, MaximumHealth)
+	if not Model.Parent or type(Health) ~= "number" or type(MaximumHealth) ~= "number" then return end
+	local Group, Fill, HealthLabel = GetHealthInterface(Model)
+	if not Group then return end
+	Group.GroupTransparency = 0
+	Fill.Size = UDim2.fromScale(math.clamp(Health / math.max(MaximumHealth, 1), 0, 1), 1)
+	HealthLabel.Text = `{math.ceil(Health)}/{MaximumHealth}`
 end
 
 local function GetItemInfo(ItemId)
@@ -492,6 +541,8 @@ function CrateController.UpdateCrateHealth(_, Model, CrateId, Health, MaximumHea
 	if typeof(Model) ~= "Instance" or not Model:IsA("Model") then return end
 	if type(CrateId) ~= "string" or type(Health) ~= "number" or type(MaximumHealth) ~= "number" then return end
 
+	-- Render authoritative health locally before prediction reconciliation so delayed server updates cannot rewind the bar.
+	CrateController.RenderCrateHealth(Model, Health, MaximumHealth, CrateId)
 	CrateRuntime.Set(Model, CrateId, Health, MaximumHealth)
 end
 

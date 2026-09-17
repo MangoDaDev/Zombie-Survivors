@@ -76,7 +76,7 @@ local function ShowToolRequirement(Player, ToolId)
 	local ToolInfo = GetToolInfo(ToolId)
 	local Upgrade = UpgradeLogic.GetToolUnlockUpgrade(ToolId)
 	local DisplayName = if ToolInfo then ToolInfo.DisplayName else ToolId
-	GuidanceController.Show(Player, `Requires {DisplayName}`, nil, if Upgrade then `Upgrade:{Upgrade.Id}` else nil)
+	GuidanceController.Show(Player, `Requires {DisplayName} To Complete`, nil, if Upgrade then `Upgrade:{Upgrade.Id}` else nil)
 end
 
 local function SaveState(Player, ItemId, State)
@@ -388,6 +388,13 @@ local function GetFirstAvailableIncompleteStep(Player, State, Steps): number?
 	return nil
 end
 
+local function GetFirstMissingToolStep(Player, State, Steps)
+	for _, Step in Steps do
+		if State.Steps[Step.Id].Completed ~= true and not IsToolUnlocked(Player, Step.ToolId) then return Step end
+	end
+	return nil
+end
+
 local function StartFixing(Player)
 	if Sessions[Player] then return end
 	local ItemId = CarryController.GetEquippedItemId(Player)
@@ -427,19 +434,19 @@ local function StartFixing(Player)
 		end
 	end
 	NormalizeState(State, Model, Steps)
-	local StepIndex = GetFirstAvailableIncompleteStep(Player, State, Steps)
-	if not GetFirstIncompleteStep(State, Steps) then
+	local StepIndex = GetFirstIncompleteStep(State, Steps)
+	if not StepIndex then
 		CompleteRestorationState(Player, ItemId, Info, State)
 		Model:Destroy()
 		GuidanceController.Advance(Player, "CleanThis")
 		GuidanceController.Show(Player, "Ready To Display")
 		return
 	end
-	if not StepIndex then
-		local RequiredStepIndex = GetFirstIncompleteStep(State, Steps)
-		local RequiredStep = RequiredStepIndex and Steps[RequiredStepIndex]
+	-- Require every remaining tool before entering fixing so the player cannot get stuck midway.
+	local MissingToolStep = GetFirstMissingToolStep(Player, State, Steps)
+	if MissingToolStep then
 		Model:Destroy()
-		if RequiredStep then ShowToolRequirement(Player, RequiredStep.ToolId) end
+		ShowToolRequirement(Player, MissingToolStep.ToolId)
 		return
 	end
 	local CameraPart = TableModel and TableModel:FindFirstChild("CamPart")

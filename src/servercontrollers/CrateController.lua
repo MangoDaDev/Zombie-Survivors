@@ -24,6 +24,7 @@ local RestorationVisuals = require(ReplicatedStorage.Modules.Game.RestorationVis
 local TutorialConfig = require(ReplicatedStorage.Modules.Game.TutorialConfig)
 local UIStyle = require(ReplicatedStorage.Modules.UI.UIStyle)
 
+local MapAssets = ReplicatedStorage.Assets.Models.Map
 local CrateController = {}
 local DataService
 local Network
@@ -56,7 +57,7 @@ local function IsRecoveryEligible(Player: Player, Info): boolean
 		and (type(Displays) ~= "table" or next(Displays) == nil)
 end
 
-local function GetRewardItemInfo(Player: Player, Info)
+local function GetRewardItemInfo(Player: Player, Info, Luck: number)
 	-- A cash-poor player with no owned items always has a modest common-crate recovery loop.
 	if IsRecoveryEligible(Player, Info) then return GetItemInfo(EconomyConfig.RecoveryItemId), true end
 	local GuaranteedDropCount = DataService:get(Player, "GuaranteedDropCount")
@@ -70,7 +71,7 @@ local function GetRewardItemInfo(Player: Player, Info)
 			return GuaranteedItemInfo, false
 		end
 	end
-	return CrateInfo.GetRandomItem(ItemsInfo, Info, RandomGenerator), false
+	return CrateInfo.GetRandomItem(ItemsInfo, Info, RandomGenerator, Luck), false
 end
 
 local function GetRevealDuration(Info): number
@@ -141,7 +142,7 @@ local function CreateHealthBar(Model, Info)
 end
 
 local function GetSpawnCFrame(Info): CFrame?
-	local Area = Workspace:FindFirstChild("CrateSpawnArea")
+	local Area = MapAssets:FindFirstChild("CrateSpawnArea")
 	if not Area or not Area:IsA("BasePart") then return nil end
 	for _ = 1, 12 do
 		local X = RandomGenerator:NextNumber(-Area.Size.X / 2 + Info.SpawnPadding, Area.Size.X / 2 - Info.SpawnPadding)
@@ -236,7 +237,7 @@ end
 
 local function CreateReward(State, Player: Player, PredictionId)
 	local Info = State.Info
-	local ItemInfo, IsRecovery = GetRewardItemInfo(Player, Info)
+	local ItemInfo, IsRecovery = GetRewardItemInfo(Player, Info, State.Luck)
 	if not ItemInfo then return end
 	local Template = ReplicatedStorage.Assets.Models.Items:FindFirstChild(ItemInfo.AssetName)
 	if not Template or not Template:IsA("Model") then return end
@@ -356,16 +357,6 @@ function CrateController.DamageCrate(Player, Model, Damage, PredictionId): boole
 	if not State or not RootPart or not RootPart:IsA("BasePart") or type(Damage) ~= "number" then return false end
 	State.Health = math.max(0, State.Health - math.clamp(Damage, 0, State.Info.Health))
 	Network:fireAll("UpdateCrateHealth", State.Model, State.Info.Id, State.Health, State.Info.Health)
-	State.VisibilityId += 1
-	local VisibilityId = State.VisibilityId
-	TweenService:Create(State.HealthGroup, TweenInfo.new(0.08), { GroupTransparency = 0 }):Play()
-	TweenService:Create(State.HealthFill, TweenInfo.new(State.Info.HealthBarTweenTime, Enum.EasingStyle.Quad), { Size = UDim2.fromScale(State.Health / State.Info.Health, 1) }):Play()
-	State.HealthLabel.Text = `{math.ceil(State.Health)}/{State.Info.Health}`
-	task.delay(State.Info.HealthBarHideDelay, function()
-		if Crates[Model] == State and State.VisibilityId == VisibilityId then
-			TweenService:Create(State.HealthGroup, TweenInfo.new(0.25), { GroupTransparency = 1 }):Play()
-		end
-	end)
 	if State.Health <= 0 then BreakCrate(State, Player, PredictionId) end
 	return true
 end
@@ -385,7 +376,8 @@ function CrateController.Spawn(Info, AllowDuringReset): boolean
 	local Template = TemplateFolder and TemplateFolder:FindFirstChild(Info.TemplateName)
 	if not SpawnCFrame or not Template or not Template:IsA("Model") then return false end
 	local Model = Template:Clone()
-	local Scale = RandomGenerator:NextNumber(Info.ScaleMinimum, Info.ScaleMaximum)
+	local Scale = CrateInfo.RollScale(Info, RandomGenerator)
+	local Luck = CrateInfo.GetScaleLuck(Info, Scale)
 	local YRotation = RandomGenerator:NextNumber(0, math.pi * 2)
 	Model:ScaleTo(Scale)
 	Model.Name = Info.Id
@@ -396,30 +388,29 @@ function CrateController.Spawn(Info, AllowDuringReset): boolean
 	SetModelOnGround(Model, GroundCFrame)
 	Model.Parent = CrateFolder
 	CollectionService:AddTag(Model, "Crate")
-	local HealthGroup, HealthFill, HealthLabel = CreateHealthBar(Model, Info)
+	CreateHealthBar(Model, Info)
 	Crates[Model] = {
 		Model = Model,
 		Info = Info,
 		Health = Info.Health,
-		HealthGroup = HealthGroup,
-		HealthFill = HealthFill,
-		HealthLabel = HealthLabel,
 		BaseCFrame = Model:GetPivot(),
 		GroundCFrame = GroundCFrame,
+		Luck = Luck,
 		Scale = Scale,
 		YRotation = YRotation,
-		VisibilityId = 0,
 	}
 	Network:fireAll("UpdateCrateHealth", Model, Info.Id, Info.Health, Info.Health)
 	return true
 end
 
-local function IsPlayerInCrateArea(Player, Area): boolean
+local function IsPlayerInCrateZone(Player, Zone): boolean
 	local Character = Player.Character
 	local RootPart = Character and Character:FindFirstChild("HumanoidRootPart")
 	if not RootPart or not RootPart:IsA("BasePart") then return false end
-	local LocalPosition = Area.CFrame:PointToObjectSpace(RootPart.Position)
-	return math.abs(LocalPosition.X) <= Area.Size.X / 2 and math.abs(LocalPosition.Z) <= Area.Size.Z / 2
+	local LocalPosition = Zone.CFrame:PointToObjectSpace(RootPart.Position)
+	return math.abs(LocalPosition.X) <= Zone.Size.X / 2
+		and math.abs(LocalPosition.Y) <= Zone.Size.Y / 2
+		and math.abs(LocalPosition.Z) <= Zone.Size.Z / 2
 end
 
 local function SetResetWallVisible(IsVisible)
@@ -480,10 +471,11 @@ local function ResetCrates(BoundaryTime)
 	Network:fireAll("UpdateResetState", NextResetTime, true)
 	SetResetWallVisible(true)
 	local ResetStartedAt = Workspace:GetServerTimeNow()
-	local Area = Workspace:FindFirstChild("CrateSpawnArea")
-	if Area and Area:IsA("BasePart") then
+	local CrateZone = MapAssets:FindFirstChild("CrateZone")
+	if CrateZone and CrateZone:IsA("BasePart") then
+		-- Anyone inside the authored crate volume is returned home before reset cleanup begins.
 		for _, Player in Players:GetPlayers() do
-			if IsPlayerInCrateArea(Player, Area) then MuseumController.TeleportPlayerToMuseum(Player) end
+			if IsPlayerInCrateZone(Player, CrateZone) then MuseumController.TeleportPlayerToMuseum(Player) end
 		end
 	end
 	ClearCrateArea()
@@ -612,7 +604,7 @@ function CrateController.Init()
 	RewardFolder = Instance.new("Folder")
 	RewardFolder.Name = "CrateRewards"
 	RewardFolder.Parent = Workspace
-	local WallTemplate = ReplicatedStorage.Assets.Models.Map:FindFirstChild(CrateInfo.Reset.WallTemplateName)
+	local WallTemplate = MapAssets:FindFirstChild(CrateInfo.Reset.WallTemplateName)
 	if WallTemplate and WallTemplate:IsA("BasePart") then
 		ResetWall = WallTemplate:Clone()
 		ResetWall.Name = "CrateResetWall"

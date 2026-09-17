@@ -85,6 +85,7 @@ return function(itemInfo, adornee: BasePart, fixingState): BillboardGui
 	nameLabel.Position = UDim2.fromScale(0, 0.16)
 	nameLabel.Size = UDim2.fromScale(1, 0.26)
 	local IsCleaningComplete = CleaningConfig.IsCleaningComplete(fixingState)
+	-- Keep the item name hidden until cleaning is complete; its rarity is intentionally always visible.
 	nameLabel.Text = if IsCleaningComplete then itemInfo.Name else "???"
 	nameLabel.TextColor3 = Color3.new(1, 1, 1)
 	nameLabel.TextScaled = true
@@ -93,9 +94,7 @@ return function(itemInfo, adornee: BasePart, fixingState): BillboardGui
 	addStroke(nameLabel)
 	local rarityGradient = Instance.new("UIGradient")
 	rarityGradient.Name = "RarityGradient"
-	rarityGradient.Color = if IsCleaningComplete
-		then RarityInfo.Get(itemInfo.Rarity).Gradient
-		else ColorSequence.new(Color3.fromRGB(168, 168, 168), Color3.fromRGB(225, 225, 225))
+	rarityGradient.Color = RarityInfo.Get(itemInfo.Rarity).Gradient
 	rarityGradient.Parent = nameLabel
 
 	local RarityLabel = Instance.new("TextLabel")
@@ -104,7 +103,7 @@ return function(itemInfo, adornee: BasePart, fixingState): BillboardGui
 	RarityLabel.FontFace = COMIC_FONT
 	RarityLabel.Position = UDim2.fromScale(0.2, 0.38)
 	RarityLabel.Size = UDim2.fromScale(0.6, 0.12)
-	RarityLabel.Text = if IsCleaningComplete then itemInfo.Rarity else "Unknown"
+	RarityLabel.Text = itemInfo.Rarity
 	RarityLabel.TextColor3 = Color3.new(1, 1, 1)
 	RarityLabel.TextScaled = true
 	RarityLabel.Parent = billboard
