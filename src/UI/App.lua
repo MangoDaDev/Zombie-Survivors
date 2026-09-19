@@ -14,6 +14,7 @@ local create = vide.create
 return function()
 	return create "ScreenGui" {
 		Name = "App",
+		-- Keep this enabled; topbar clearance is handled by the HUD's explicit safe offsets.
 		IgnoreGuiInset = true,
 		ResetOnSpawn = false,
 		BottomRight(),

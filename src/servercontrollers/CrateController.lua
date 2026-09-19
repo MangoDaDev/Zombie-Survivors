@@ -435,7 +435,7 @@ local function ClearCrateArea()
 end
 
 local function IsPityBoundary(Info, BoundaryTime): boolean
-	return Info.PityOnly == true and type(Info.PityInterval) == "number" and math.round(BoundaryTime) % Info.PityInterval == 0
+	return Info.PityOnly == true and type(Info.PityInterval) == "number" and BoundaryTime % Info.PityInterval == 0
 end
 
 local function SpawnConfiguredCrates(Infos)
@@ -445,15 +445,16 @@ local function SpawnConfiguredCrates(Infos)
 		while Spawned < Info.MaximumActive and Attempts < Info.MaximumActive * 12 do
 			Attempts += 1
 			if CrateController.Spawn(Info, true) then Spawned += 1 end
-			task.wait(CrateInfo.Reset.SpawnInterval)
+			-- Generate small batches quickly while still yielding often enough to avoid a frame hitch.
+			if Attempts % CrateInfo.Reset.SpawnBatchSize == 0 then task.wait(CrateInfo.Reset.SpawnInterval) end
 		end
 	end
 end
 
 local function SpawnPityCrate(Info)
-	for _ = 1, 48 do
+	for Attempt = 1, 48 do
 		if CrateController.Spawn(Info, true) then return end
-		task.wait(CrateInfo.Reset.SpawnInterval)
+		if Attempt % CrateInfo.Reset.SpawnBatchSize == 0 then task.wait(CrateInfo.Reset.SpawnInterval) end
 	end
 end
 
@@ -470,7 +471,7 @@ local function ResetCrates(BoundaryTime)
 	ResetGeneration += 1
 	Network:fireAll("UpdateResetState", NextResetTime, true)
 	SetResetWallVisible(true)
-	local ResetStartedAt = Workspace:GetServerTimeNow()
+	local ResetStartedAt = os.clock()
 	local CrateZone = MapAssets:FindFirstChild("CrateZone")
 	if CrateZone and CrateZone:IsA("BasePart") then
 		-- Anyone inside the authored crate volume is returned home before reset cleanup begins.
@@ -481,7 +482,7 @@ local function ResetCrates(BoundaryTime)
 	ClearCrateArea()
 	GuidanceController.ResetTutorialCrates()
 	SpawnAllCrates(BoundaryTime)
-	local RemainingWallTime = CrateInfo.Reset.MinimumWallVisibleTime - (Workspace:GetServerTimeNow() - ResetStartedAt)
+	local RemainingWallTime = CrateInfo.Reset.MinimumWallVisibleTime - (os.clock() - ResetStartedAt)
 	if RemainingWallTime > 0 then task.wait(RemainingWallTime) end
 	SetResetWallVisible(false)
 	Network:fireAll("UpdateResetState", NextResetTime, false)
@@ -537,13 +538,13 @@ local function CreatePityDisplay()
 end
 
 local function UpdatePityDisplay()
-	local Now = Workspace:GetServerTimeNow()
+	local Now = os.time()
 	for _, Info in CrateInfo.GetPityCrates() do
 		local Label = PityLabels[Info.Id]
 		if Label and Label.Parent then
 			local Remaining = math.max(0, math.ceil(GetNextAlignedTime(Info.PityInterval, Now) - Now))
 			local DisplayName = if Info.Id == "SecretCrate" then "SECRET" else `<font color="#FF3041">MYTHICAL</font>`
-			Label.Text = `<b>{DisplayName}</b> Crate in <b>{FormatTime(Remaining)}</b>`
+			Label.Text = `<b>{DisplayName}</b>: <b>{FormatTime(Remaining)}</b>`
 		end
 	end
 end
@@ -554,7 +555,7 @@ local function GetNextResetTime(Now): number
 end
 
 local function StartResetSchedule()
-	local Now = Workspace:GetServerTimeNow()
+	local Now = os.time()
 	local Interval = CrateInfo.Reset.Interval
 	local PreviousBoundary = math.floor(Now / Interval) * Interval
 	NextResetTime = PreviousBoundary + Interval
@@ -565,10 +566,10 @@ local function StartResetSchedule()
 		SpawnAllCrates(PreviousBoundary)
 	end
 	while true do
-		Now = Workspace:GetServerTimeNow()
+		Now = os.time()
 		while Now < NextResetTime do
 			task.wait(math.min(1, NextResetTime - Now))
-			Now = Workspace:GetServerTimeNow()
+			Now = os.time()
 		end
 		NextResetTime = GetNextResetTime(Now)
 		Network:fireAll("UpdateResetState", NextResetTime, false)

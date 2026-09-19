@@ -15,7 +15,7 @@ local TutorialConfig = {
 			Next = "UseTool",
 		},
 		UseTool = {
-			Text = "Use Required Tool",
+			Text = "Use The Tool",
 			Next = "CleanThis",
 		},
 		CleanThis = {

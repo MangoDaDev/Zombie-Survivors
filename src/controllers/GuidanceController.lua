@@ -183,7 +183,7 @@ local function RefreshTutorial()
 	local Text = Step and Step.Text
 	if StepId == "PickUpItem" then
 		local Target = GetStarterTarget()
-		if Target and Target.Parent and Target.Parent.Name == "Crates" then Text = "Break A Crate" end
+		if Target and Target.Parent and Target.Parent.Name == "Crates" then Text = "Break This Crate" end
 	elseif StepId == "UseTool" then
 		local ToolId = RuntimeState.Get(LocalPlayer, "CleaningStepToolId")
 		local ToolInfo = type(ToolId) == "string" and CleaningConfig.GetTool(ToolId) or nil

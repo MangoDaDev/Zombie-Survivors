@@ -41,7 +41,7 @@ local PurchaseFeedbackMessages = {
 		return "Deliver Item First"
 	end,
 	Expired = function()
-		return "Reward Expired"
+		return "Item Is Gone"
 	end,
 	Fixing = function()
 		return "Finish Cleaning"
@@ -50,16 +50,16 @@ local PurchaseFeedbackMessages = {
 		return `Need {FormatNumber(math.max(0, math.ceil(Detail or 0))) or "0"} More`
 	end,
 	NotReady = function()
-		return "Reveal In Progress"
+		return "Item Still Opening"
 	end,
 	PurchasedByAnother = function()
-		return "Already Purchased"
+		return "Item Already Taken"
 	end,
 	Success = function()
-		return "Item Purchased"
+		return "Item Is Yours"
 	end,
 	Unavailable = function()
-		return "Item Unavailable"
+		return "Item Not Ready"
 	end,
 }
 

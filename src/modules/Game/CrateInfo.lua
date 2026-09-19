@@ -33,9 +33,10 @@ end
 
 local CrateInfo = {
 	Reset = {
-		Interval = 180,
+		Interval = 150,
 		MinimumWallVisibleTime = 5,
-		SpawnInterval = 0.08,
+		SpawnBatchSize = 8,
+		SpawnInterval = 0.02,
 		WallTemplateName = "ResetWall",
 	},
 	PityDisplay = {
@@ -134,7 +135,7 @@ local CrateInfo = {
 				Secret = 5,
 			},
 			PityOnly = true,
-			PityInterval = 420,
+			PityInterval = 450,
 			Respawns = false,
 			DisplayColor = Color3.fromRGB(255, 48, 65),
 		}),

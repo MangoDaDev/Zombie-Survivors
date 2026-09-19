@@ -155,7 +155,7 @@ local function CreateDroppedItem(Player: Player, DropData, DropCFrame: CFrame): 
 	local Prompt = Instance.new("ProximityPrompt")
 	Prompt.Name = "WorldItemPrompt"
 	Prompt.ActionText = `Buy {FormatNumber(Ownership.CurrentPrice) or "0"}`
-	Prompt.ObjectText = "Owner Retrieves Free"
+	Prompt.ObjectText = "Yours Is Free"
 	Prompt.HoldDuration = 0
 	Prompt.MaxActivationDistance = ItemInteractionConfig.DroppedItemPurchaseDistance
 	Prompt.RequiresLineOfSight = false

@@ -3,6 +3,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
 local NotificationManager = require(ReplicatedStorage.Modules.UI.NotificationManager)
+local SafeArea = require(ReplicatedStorage.Modules.UI.SafeArea)
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
 local UIStyle = require(ReplicatedStorage.Modules.UI.UIStyle)
 local Vide = require(ReplicatedStorage.Packages.vide)
@@ -10,6 +11,7 @@ local Vide = require(ReplicatedStorage.Packages.vide)
 local Action = Vide.action
 local Cleanup = Vide.cleanup
 local Create = Vide.create
+local Source = Vide.source
 
 local ALERT_WIDTH = 420
 local ALERT_HEIGHT = 48
@@ -20,6 +22,10 @@ return function()
 	local NotificationConnection: RBXScriptConnection?
 	local ActiveAlerts = {}
 	local NextLayoutOrder = 0
+	local TopOffset = Source(SafeArea.GetTopOffset(76))
+	local SafeAreaConnection = SafeArea.GetChangedSignal():Connect(function()
+		TopOffset(SafeArea.GetTopOffset(76))
+	end)
 
 	local function Show(NotificationText: string, Duration: number, Color: Color3?)
 		if not AlertContainer then return end
@@ -48,8 +54,10 @@ return function()
 		Label.Parent = Alert
 
 		local TextStroke = Instance.new("UIStroke")
+		TextStroke.Name = "NotificationStroke"
 		TextStroke.Color = UIStyle.Colors.Ink
-		TextStroke.Thickness = 2
+		TextStroke.StrokeSizingMode = Enum.StrokeSizingMode.ScaledSize
+		TextStroke.Thickness = 0.06
 		TextStroke.Transparency = 0.12
 		TextStroke.Parent = Label
 
@@ -83,6 +91,7 @@ return function()
 	end
 
 	Cleanup(function()
+		SafeAreaConnection:Disconnect()
 		if NotificationConnection then NotificationConnection:Disconnect() end
 		for Alert, AlertState in ActiveAlerts do
 			AlertState.TweenIn:Cancel()
@@ -98,7 +107,7 @@ return function()
 		AnchorPoint = Vector2.new(0.5, 0),
 		BackgroundTransparency = 1,
 		BorderSizePixel = 0,
-		Position = UDim2.fromScale(0.5, 0.035),
+		Position = function() return UDim2.new(0.5, 0, 0, TopOffset()) end,
 		Size = UDim2.fromOffset(ALERT_WIDTH, 260),
 		ZIndex = 80,
 		Action(function(Instance)

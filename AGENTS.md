@@ -37,6 +37,7 @@
 * Leave short comments for important user-requested behavior so future agents stay on task. Update them if the user later changes the requirement.
 * **DO NOT use screen capture, screenshots, or similar visual inspection tools. They do not work for this project.**
 Do not change anything unrelated to the user's request.
+Keep the main App `ScreenGui.IgnoreGuiInset` enabled; clear the Roblox topbar with explicit dynamic safe offsets.
 Do not generate images unless EXPLICITLY asked to.
 If I correct you, immediately apply the correction to the current task instead of restarting from scratch.
 When an agent makes a recurring mistake and the user corrects it, add or improve a concise AGENTS.md rule so future agents avoid the same mistake.

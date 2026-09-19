@@ -88,10 +88,10 @@ if not game:IsLoaded() then
 	game.Loaded:Wait()
 end
 
-SetProgress(0.4, "Loading interface...")
+SetProgress(0.4, "Loading Game...")
 player_gui:WaitForChild("App")
 
-SetProgress(0.75, "Loading character...")
+SetProgress(0.75, "Getting You Ready...")
 local character_controller = require(ReplicatedStorage.Controllers.CharacterController)
 character_controller:WaitUntilReady()
 

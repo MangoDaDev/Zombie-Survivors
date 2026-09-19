@@ -14,3 +14,4 @@
 - Reuse `Classes/Button.lua` before introducing another general-purpose button.
 - Reuse suitable Studio-owned assets from `ReplicatedStorage.Assets` instead of duplicating them. All sounds in `Assets.Sounds` are available for UI feedback unless their own name, attributes, folder guidance, or an `AGENTS` value says otherwise.
 - Clone sounds before playback and parent runtime copies appropriately so concurrent UI interactions do not fight over one shared Sound instance. Clean up each clone after playback.
+IF YOU ARE GOING TO BE CREATING/MODIFYING UI, READ AGENTSCREATINGUI.md

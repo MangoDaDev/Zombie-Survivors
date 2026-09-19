@@ -5,6 +5,7 @@ local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 
 local RuntimeState = require(ReplicatedStorage.Modules.Game.RuntimeState)
+local SafeArea = require(ReplicatedStorage.Modules.UI.SafeArea)
 local UIStyle = require(ReplicatedStorage.Modules.UI.UIStyle)
 local Vide = require(ReplicatedStorage.Packages.vide)
 
@@ -22,7 +23,7 @@ end
 return function()
 	local Text = Source(RuntimeState.Get(LocalPlayer, "GuidanceText"))
 	local Target = Source(RuntimeState.Get(LocalPlayer, "GuidanceTarget"))
-	local TargetPosition = Source(UDim2.fromScale(0.5, 0.16))
+	local TargetPosition = Source(UDim2.new(0.5, 0, 0, SafeArea.GetTopOffset(44)))
 	local ArrowRotation = Source(90)
 	local ArrowDirection = Source(Vector2.yAxis)
 	local HasTarget = Source(false)
@@ -83,9 +84,10 @@ return function()
 				end
 			end
 			if ScreenPosition then
+				local MinimumY = SafeArea.GetTopOffset(44)
 				local IndicatorPosition = Vector2.new(
 					math.clamp(ScreenPosition.X, 120, ViewportSize.X - 120),
-					math.clamp(ScreenPosition.Y - HeightOffset, 60, ViewportSize.Y - 90)
+					math.clamp(ScreenPosition.Y - HeightOffset, MinimumY, ViewportSize.Y - 90)
 				)
 				local Direction = ScreenPosition - IndicatorPosition
 				if Direction.Magnitude > 1 then
@@ -95,7 +97,7 @@ return function()
 				TargetPosition(UDim2.fromOffset(IndicatorPosition.X, IndicatorPosition.Y))
 				HasTarget(true)
 			else
-				TargetPosition(UDim2.fromScale(0.5, 0.16))
+				TargetPosition(UDim2.new(0.5, 0, 0, SafeArea.GetTopOffset(44)))
 				HasTarget(false)
 			end
 		end),

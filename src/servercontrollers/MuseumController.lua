@@ -152,14 +152,14 @@ local function PlaceEquippedItem(Player: Player, Assignment: MuseumAssignment, D
 		local ItemInfo = ToolResolver.GetItemInfo(Child)
 		if ItemInfo and Child:HasTag("satchelSlot") then Tool = Child; ItemId = ItemInfo.Id; break end
 	end
-	if not Tool or type(ItemId) ~= "number" or not GetItemInfo(ItemId) then GuidanceController.Show(Player, "Equip Restored Item"); return end
+	if not Tool or type(ItemId) ~= "number" or not GetItemInfo(ItemId) then GuidanceController.Show(Player, "Equip Fixed Item"); return end
 	local Inventory = DataService:get(Player, "Inventory")
 	if type(Inventory) ~= "table" then return end
 	local InventoryPosition = table.find(Inventory, ItemId)
 	local Fixing = DataService:get(Player, "Fixing") or {}
 	local FixingState = Fixing[tostring(ItemId)]
 	if not FixingState or FixingState.Completed ~= true then
-		GuidanceController.Show(Player, "Finish Restoration", Assignment.museum:FindFirstChild("PromptPart", true)); return
+		GuidanceController.Show(Player, "Finish Cleaning", Assignment.museum:FindFirstChild("PromptPart", true)); return
 	end
 	if not InventoryPosition or not SetDisplayItem(Player, DisplayState, ItemId) then return end
 	local Displays = CopyDisplays(DataService:get(Player, "Displays"))

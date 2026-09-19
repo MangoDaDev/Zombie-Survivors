@@ -4,12 +4,14 @@ local ServerStorage = game:GetService("ServerStorage")
 
 local GuidanceController = require(ServerStorage.Controllers.GuidanceController)
 local Networker = require(ReplicatedStorage.Packages.networker)
+local TutorialConfig = require(ReplicatedStorage.Modules.Game.TutorialConfig)
 local UpgradeConfig = require(ReplicatedStorage.Modules.Game.UpgradeConfig)
 local UpgradeLogic = require(ReplicatedStorage.Modules.Game.UpgradeLogic)
 
 local UpgradeController = {}
 local DataService
 local PurchaseLocks: { [Player]: boolean } = {}
+local ONBOARDING_UPGRADE_ID = "UnlockSponge"
 
 local function CopyOwnership(Value)
 	return UpgradeLogic.NormalizeOwnership(Value)
@@ -30,6 +32,10 @@ function UpgradeController.Purchase(_, Player: Player, UpgradeId: string)
 	if PurchaseLocks[Player] or Player.Parent ~= Players or type(UpgradeId) ~= "string" then return false, "Invalid request" end
 	local Upgrade = UpgradeConfig.Get(UpgradeId)
 	if not Upgrade or Upgrade.Purchasable == false then return false, "That upgrade cannot be purchased" end
+	-- Sponge is the only purchasable upgrade until the guided onboarding is complete.
+	if DataService:get(Player, "TutorialStep") ~= TutorialConfig.CompleteStep and UpgradeId ~= ONBOARDING_UPGRADE_ID then
+		return false, "Finish onboarding first"
+	end
 	PurchaseLocks[Player] = true
 	local Ownership = CopyOwnership(DataService:get(Player, "Upgrades"))
 	if UpgradeLogic.IsPurchased(Ownership, UpgradeId) then

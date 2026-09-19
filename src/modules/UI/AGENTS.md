@@ -6,4 +6,3 @@
 - Assets under `ReplicatedStorage.Assets` are reusable by default, including every sound in `Assets.Sounds`, unless an asset name, attribute, containing-folder instruction, or `AGENTS` value says otherwise.
 - Inspect the live asset hierarchy through Studio MCP before adding a new reference because Assets is Studio-owned and not mapped by Rojo.
 
-IF YOU ARE GOING TO BE CREATING/MODIFYING UI, READ AGENTSCREATINGUI.md

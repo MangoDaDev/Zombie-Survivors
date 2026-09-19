@@ -3,6 +3,7 @@ local ReplicatedStorage = game:GetService "ReplicatedStorage"
 local TweenService = game:GetService "TweenService"
 local UserInputService = game:GetService "UserInputService"
 
+local TutorialConfig = require(ReplicatedStorage.Modules.Game.TutorialConfig)
 local UpgradeConfig = require(ReplicatedStorage.Modules.Game.UpgradeConfig)
 local UpgradeLogic = require(ReplicatedStorage.Modules.Game.UpgradeLogic)
 local DataService = require(ReplicatedStorage.Packages.dataservice).client
@@ -25,10 +26,13 @@ local Source = Vide.source
 local Spring = Vide.spring
 
 local LocalPlayer = Players.LocalPlayer
+local ONBOARDING_START_ID = "Start"
+local ONBOARDING_UPGRADE_ID = "UnlockSponge"
 
 local StateColors = {
-	Available = UIStyle.Colors.Blue,
+	Mystery = Color3.new(0, 0, 0),
 	Purchased = UIStyle.Colors.Paper,
+	Unavailable = Color3.fromRGB(72, 72, 72),
 }
 
 -- IMPORTANT:
@@ -36,6 +40,26 @@ local StateColors = {
 -- The upgrade tree is intentionally designed to communicate progression through
 -- node placement, grouping, and spacing instead.
 local TreeCanvasSize = UpgradeConfig.CameraBounds * 2 + Vector2.one * UpgradeConfig.NodeSize * 2
+
+local function IsUpgradeVisibleDuringOnboarding(TutorialStep, UpgradeId: string): boolean
+	-- Show the owned starting node for context, while Sponge remains the only onboarding purchase.
+	return TutorialStep == TutorialConfig.CompleteStep
+		or UpgradeId == ONBOARDING_START_ID
+		or UpgradeId == ONBOARDING_UPGRADE_ID
+end
+
+local function GetPurchasableUpgrades(Ownership, Cash, TutorialStep): { any }
+	local PurchasableUpgrades = UpgradeLogic.GetAffordableUpgrades(Ownership, Cash)
+	if TutorialStep == TutorialConfig.CompleteStep then return PurchasableUpgrades end
+
+	for Index = #PurchasableUpgrades, 1, -1 do
+		if PurchasableUpgrades[Index].Id ~= ONBOARDING_UPGRADE_ID then
+			table.remove(PurchasableUpgrades, Index)
+		end
+	end
+	return PurchasableUpgrades
+end
+
 local function ResolveUpgradeIcon(Upgrade): string
 	-- Upgrade nodes use their configured icon key, including every bat tier.
 	return Images[Upgrade.Icon] or Images.Upgrade
@@ -83,8 +107,12 @@ local function CreateNode(Properties)
 	local ShowsDetails = Derive(function()
 		return RevealDistance() ~= nil
 	end)
+	local IsVisibleDuringOnboarding = Derive(function()
+		return IsUpgradeVisibleDuringOnboarding(Properties.TutorialStep(), Upgrade.Id)
+	end)
 	local IsAffordable = Derive(function()
-		return UpgradeLogic.CanPurchaseUpgrade(Properties.Ownership(), Upgrade, Properties.Cash())
+		return IsVisibleDuringOnboarding()
+			and UpgradeLogic.CanPurchaseUpgrade(Properties.Ownership(), Upgrade, Properties.Cash())
 	end)
 	local Transparency = Spring(
 		Derive(function()
@@ -129,7 +157,7 @@ local function CreateNode(Properties)
 
 	local function AttemptPurchase()
 		Pressed(false)
-		if not IsDetailed() or State() ~= "Available" or Properties.IsPurchasing() then
+		if not IsVisibleDuringOnboarding() or not IsDetailed() or State() ~= "Available" or Properties.IsPurchasing() then
 			return
 		end
 		if not CanAfford() then
@@ -149,7 +177,7 @@ local function CreateNode(Properties)
 		Position = UDim2.fromOffset(TreeCanvasSize.X / 2 + Upgrade.Position.X, TreeCanvasSize.Y / 2 + Upgrade.Position.Y),
 		Size = UDim2.fromOffset(UpgradeConfig.NodeSize, UpgradeConfig.NodeSize),
 		Visible = function()
-			return Transparency() < 0.985
+			return IsVisibleDuringOnboarding() and Transparency() < 0.985
 		end,
 		ZIndex = 3,
 		Action(function(Instance)
@@ -187,15 +215,14 @@ local function CreateNode(Properties)
 		Create "ImageLabel" {
 			Name = "Hexagon",
 			BackgroundTransparency = 1,
+			ClipsDescendants = false,
 			Image = Images.Hexagon,
 			ImageColor3 = function()
-				if not IsDetailed() then
-					return UIStyle.Colors.Ink
-				end
-				if IsAffordable() then
-					return UIStyle.Colors.Green
-				end
-				return StateColors[State()] or UIStyle.Colors.Muted
+				-- Mystery, owned, affordable, and unavailable nodes each keep a distinct state color.
+				if not IsDetailed() then return StateColors.Mystery end
+				if State() == "Purchased" then return StateColors.Purchased end
+				if IsAffordable() then return UIStyle.Colors.Blue end
+				return StateColors.Unavailable
 			end,
 			Rotation = 90,
 			ScaleType = Enum.ScaleType.Fit,
@@ -254,12 +281,12 @@ local function CreateNode(Properties)
 		},
 		Create "TextButton" {
 			Active = function()
-				return IsDetailed() and State() == "Available"
+				return IsVisibleDuringOnboarding() and IsDetailed() and State() == "Available"
 			end,
 			AutoButtonColor = false,
 			BackgroundTransparency = 1,
 			Selectable = function()
-				return IsDetailed() and State() == "Available"
+				return IsVisibleDuringOnboarding() and IsDetailed() and State() == "Available"
 			end,
 			Size = UDim2.fromScale(1, 1),
 			Text = "",
@@ -277,7 +304,8 @@ local function CreateNode(Properties)
 			InputBegan = function(Input)
 				Properties.BeginDrag(Input)
 				if
-					State() == "Available"
+					IsVisibleDuringOnboarding()
+					and State() == "Available"
 					and (
 						Input.UserInputType == Enum.UserInputType.MouseButton1
 						or Input.UserInputType == Enum.UserInputType.Touch
@@ -323,7 +351,7 @@ return function()
 		return UpgradeLogic.GetRevealDistances(Ownership(), UpgradeConfig.MaximumMysteryDistance)
 	end)
 	local AffordableCount = Derive(function()
-		return #UpgradeLogic.GetAffordableUpgrades(Ownership(), Cash())
+		return #GetPurchasableUpgrades(Ownership(), Cash(), TutorialStep())
 	end)
 	local IsOpenUpgradesStep = Derive(function()
 		return TutorialStep() == "OpenUpgrades"
@@ -352,7 +380,7 @@ return function()
 	local DraggedLastInput = false
 	local OpenButtonNotification
 	local AffordableUpgradeIds = {}
-	for _, Upgrade in UpgradeLogic.GetAffordableUpgrades(Ownership(), Cash()) do
+	for _, Upgrade in GetPurchasableUpgrades(Ownership(), Cash(), TutorialStep()) do
 		AffordableUpgradeIds[Upgrade.Id] = true
 	end
 	local AffordableNotificationScheduled = false
@@ -381,7 +409,7 @@ return function()
 
 			local CurrentAffordableUpgradeIds = {}
 			local NewlyAffordableUpgrades = {}
-			for _, Upgrade in UpgradeLogic.GetAffordableUpgrades(Ownership(), Cash()) do
+			for _, Upgrade in GetPurchasableUpgrades(Ownership(), Cash(), TutorialStep()) do
 				CurrentAffordableUpgradeIds[Upgrade.Id] = true
 				if not AffordableUpgradeIds[Upgrade.Id] then
 					table.insert(NewlyAffordableUpgrades, Upgrade)
@@ -391,8 +419,7 @@ return function()
 
 			-- A batch unlock is already represented by the upgrade button's count badge.
 			if #NewlyAffordableUpgrades == 1 then
-				local Upgrade = NewlyAffordableUpgrades[1]
-				NotificationManager.Notify(`New Upgrade Available: {Upgrade.Name}`, 4, UIStyle.Colors.Gold)
+				NotificationManager.Notify("New Upgrade Ready", 4, UIStyle.Colors.Gold)
 			end
 		end)
 	end
@@ -504,6 +531,7 @@ return function()
 	local TutorialConnection = DataService:getChangedSignal("TutorialStep"):Connect(function(Value)
 		TutorialStep(Value)
 		UpdateTutorialPulse()
+		UpdateAffordableNotification()
 	end)
 	local TutorialPulseConnection = TutorialPulseValue.Changed:Connect(TutorialPulse)
 	Cleanup(function()
@@ -547,10 +575,11 @@ return function()
 				if type(Reason) == "string" then
 					local Messages = {
 						["Invalid request"] = "Try Again",
-						["That upgrade cannot be purchased"] = "Upgrade Unavailable",
-						["Already purchased"] = "Already Purchased",
-						["Requirements not met"] = "Requirements Not Met",
+						["That upgrade cannot be purchased"] = "Upgrade Not Ready",
+						["Already purchased"] = "Already Bought",
+						["Requirements not met"] = "Upgrade Still Locked",
 						["Not enough cash"] = "Need More Cash",
+						["Finish onboarding first"] = "Finish Guide First",
 					}
 					local Message = Messages[Reason] or "Try Again"
 					GuidanceController.ShowLocal(Message)
@@ -568,6 +597,7 @@ return function()
 				Upgrade = Upgrade,
 				Ownership = Ownership,
 				Cash = Cash,
+				TutorialStep = TutorialStep,
 				IsOpen = IsOpen,
 				RevealDistances = RevealDistances,
 				IsPurchasing = IsPurchasing,

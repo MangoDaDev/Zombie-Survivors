@@ -260,7 +260,7 @@ function BatController.Swing(_, Player, Targets, BatId, SwingTime)
 			if DataService:get(Player, "TutorialStep") == "PickUpItem" then
 				local TutorialCrate = GuidanceController.GetTutorialCrateForPlayer(Player)
 				if Target ~= TutorialCrate then
-					if TutorialCrate then GuidanceController.Show(Player, "Break Highlighted Crate", TutorialCrate) end
+					if TutorialCrate then GuidanceController.Show(Player, "Break This Crate", TutorialCrate) end
 					if PredictionId then Network:fire(Player, "CrateHitRejected", Target, PredictionId, "TutorialTarget") end
 					continue
 				end

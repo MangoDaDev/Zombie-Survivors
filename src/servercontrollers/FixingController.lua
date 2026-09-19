@@ -76,7 +76,7 @@ local function ShowToolRequirement(Player, ToolId)
 	local ToolInfo = GetToolInfo(ToolId)
 	local Upgrade = UpgradeLogic.GetToolUnlockUpgrade(ToolId)
 	local DisplayName = if ToolInfo then ToolInfo.DisplayName else ToolId
-	GuidanceController.Show(Player, `Requires {DisplayName} To Complete`, nil, if Upgrade then `Upgrade:{Upgrade.Id}` else nil)
+	GuidanceController.Show(Player, `Use {DisplayName}`, nil, if Upgrade then `Upgrade:{Upgrade.Id}` else nil)
 end
 
 local function SaveState(Player, ItemId, State)

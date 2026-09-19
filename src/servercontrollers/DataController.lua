@@ -13,12 +13,12 @@ local ResettingPlayers: { [Player]: boolean } = {}
 local MaximumCash = 1_000_000_000_000
 
 local Commands = {
-	Commands = { Aliases = { "/commands", "/help" }, Description = "Lists commands or explains one command.", Usage = "/commands [command]" },
-	Respawn = { Aliases = { "/respawn" }, Description = "Respawns you. Owners may specify another player.", Usage = "/respawn [player]" },
-	ResetData = { Aliases = { "/resetdata" }, Description = "Owner only. Permanently resets a player's saved data.", Usage = "/resetdata [player] confirm", OwnerOnly = true },
-	SetCash = { Aliases = { "/setcash" }, Description = "Owner only. Sets a player's cash.", Usage = "/setcash <player> <amount>", OwnerOnly = true },
-	AddCash = { Aliases = { "/addcash" }, Description = "Owner only. Adds cash to a player.", Usage = "/addcash <player> <amount>", OwnerOnly = true },
-	Kick = { Aliases = { "/kick" }, Description = "Owner only. Removes a player from the server.", Usage = "/kick <player> [reason]", OwnerOnly = true },
+	Commands = { Aliases = { "/commands", "/help" }, Description = "Show Command Help", Usage = "/commands [command]" },
+	Respawn = { Aliases = { "/respawn" }, Description = "Bring A Player Back", Usage = "/respawn [player]" },
+	ResetData = { Aliases = { "/resetdata" }, Description = "Clear Saved Data", Usage = "/resetdata [player] confirm", OwnerOnly = true },
+	SetCash = { Aliases = { "/setcash" }, Description = "Set Player Cash", Usage = "/setcash <player> <amount>", OwnerOnly = true },
+	AddCash = { Aliases = { "/addcash" }, Description = "Give Player Cash", Usage = "/addcash <player> <amount>", OwnerOnly = true },
+	Kick = { Aliases = { "/kick" }, Description = "Remove A Player", Usage = "/kick <player> [reason]", OwnerOnly = true },
 }
 
 local function IsOwner(Player: Player): boolean
@@ -65,21 +65,21 @@ local function FindPlayer(Query: string, ExecutingPlayer: Player): (Player?, str
 		end
 	end
 	if #Matches == 1 then return Matches[1] end
-	if #Matches > 1 then return nil, `More than one player matches "{Query}".` end
-	return nil, `No player matches "{Query}".`
+	if #Matches > 1 then return nil, "Many Players Found" end
+	return nil, "Player Not Found"
 end
 
 local function GetTarget(ExecutingPlayer: Player, Query: string?): Player?
 	if not Query or Query == "" then return ExecutingPlayer end
 	local Target, ErrorMessage = FindPlayer(Query, ExecutingPlayer)
-	if not Target then Notify(ExecutingPlayer, ErrorMessage or "Player not found.") end
+	if not Target then Notify(ExecutingPlayer, ErrorMessage or "Player Not Found") end
 	return Target
 end
 
 local function GetAmount(ExecutingPlayer: Player, Value: string?): number?
 	local Amount = if Value then tonumber(Value) else nil
 	if not Amount or Amount ~= Amount or Amount == math.huge or Amount == -math.huge then
-		Notify(ExecutingPlayer, "Amount must be a valid whole number.")
+		Notify(ExecutingPlayer, "Use A Whole Number")
 		return nil
 	end
 	return math.floor(Amount)
@@ -95,12 +95,12 @@ local function RunCommands(Player: Player, Arguments: { string })
 				MatchesName = MatchesName or string.lower(string.gsub(Alias, "^/", "")) == RequestedName
 			end
 			if MatchesName then
-				if Command.OwnerOnly and not IsOwner(Player) then Notify(Player, "That command is only available to Owners."); return end
-				Notify(Player, `{Command.Usage} - {Command.Description}`)
+				if Command.OwnerOnly and not IsOwner(Player) then Notify(Player, "Owners Only"); return end
+				Notify(Player, Command.Usage)
 				return
 			end
 		end
-		Notify(Player, `Unknown command "{RequestedName}".`)
+		Notify(Player, "Command Not Found")
 		return
 	end
 	local Usages = {}
@@ -114,22 +114,22 @@ end
 local function RunRespawn(Player: Player, Arguments: { string })
 	local Target = GetTarget(Player, Arguments[1])
 	if not Target then return end
-	if Target ~= Player and not IsOwner(Player) then Notify(Player, "Only Owners can respawn another player."); return end
+	if Target ~= Player and not IsOwner(Player) then Notify(Player, "Owners Only"); return end
 	Target:LoadCharacter()
-	Notify(Player, if Target == Player then "Respawning..." else `Respawned {Target.Name}.`)
+	Notify(Player, if Target == Player then "Coming Back..." else `Brought {Target.Name} Back`)
 end
 
 local function RunResetData(Player: Player, Arguments: { string })
 	local TargetQuery = if string.lower(Arguments[1] or "") == "confirm" then nil else Arguments[1]
 	local Confirmation = if TargetQuery then Arguments[2] else Arguments[1]
-	if string.lower(Confirmation or "") ~= "confirm" then Notify(Player, `Confirmation required. Use {Commands.ResetData.Usage}.`); return end
+	if string.lower(Confirmation or "") ~= "confirm" then Notify(Player, "Type Confirm First"); return end
 	local Target = GetTarget(Player, TargetQuery)
 	if not Target or ResettingPlayers[Target] then
-		if Target then Notify(Player, `{Target.Name}'s data is already being reset.`) end
+		if Target then Notify(Player, "Reset In Progress") end
 		return
 	end
 	ResettingPlayers[Target] = true
-	Notify(Player, `Resetting data for {Target.Name}...`)
+	Notify(Player, `Resetting {Target.Name}`)
 	DataService:resetData(Target)
 end
 
@@ -140,7 +140,7 @@ local function RunSetCash(Player: Player, Arguments: { string })
 	if not Target or not Amount then return end
 	Amount = math.clamp(Amount, 0, MaximumCash)
 	DataService:set(Target, "Cash", Amount)
-	Notify(Player, `Set {Target.Name}'s cash to {Amount}.`)
+	Notify(Player, `Cash Set: {Amount}`)
 end
 
 local function RunAddCash(Player: Player, Arguments: { string })
@@ -151,7 +151,7 @@ local function RunAddCash(Player: Player, Arguments: { string })
 	DataService:update(Target, "Cash", function(CurrentCash)
 		return math.clamp((if type(CurrentCash) == "number" then CurrentCash else 0) + Amount, 0, MaximumCash)
 	end)
-	Notify(Player, `Added {Amount} cash to {Target.Name}.`)
+	Notify(Player, `Cash Added: {Amount}`)
 end
 
 local function RunKick(Player: Player, Arguments: { string })
@@ -160,7 +160,7 @@ local function RunKick(Player: Player, Arguments: { string })
 	if not Target then return end
 	local Reason = table.concat(Arguments, " ", 2)
 	Target:Kick(if Reason ~= "" then Reason else "Removed by an Owner.")
-	Notify(Player, `Kicked {Target.Name}.`)
+	Notify(Player, `Removed {Target.Name}`)
 end
 
 local Handlers = { Commands = RunCommands, Respawn = RunRespawn, ResetData = RunResetData, SetCash = RunSetCash, AddCash = RunAddCash, Kick = RunKick }
@@ -173,7 +173,7 @@ local function RegisterCommand(Name: string, Command)
 	ChatCommand.Triggered:Connect(function(TextSource, UnfilteredText)
 		local Player = Players:GetPlayerByUserId(TextSource.UserId)
 		if not Player then return end
-		if Command.OwnerOnly and not IsOwner(Player) then Notify(Player, "That command is only available to Owners."); return end
+		if Command.OwnerOnly and not IsOwner(Player) then Notify(Player, "Owners Only"); return end
 		local Arguments = ParseArguments(UnfilteredText)
 		table.remove(Arguments, 1)
 		Handlers[Name](Player, Arguments)

@@ -1,9 +1,9 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
-local Workspace = game:GetService("Workspace")
 
 local FormatTime = require(ReplicatedStorage.Modules.Math.FormatTime)
 local CrateRuntime = require(ReplicatedStorage.Modules.Game.CrateRuntime)
+local SafeArea = require(ReplicatedStorage.Modules.UI.SafeArea)
 local UIStyle = require(ReplicatedStorage.Modules.UI.UIStyle)
 local Vide = require(ReplicatedStorage.Packages.vide)
 
@@ -12,27 +12,27 @@ local Create = Vide.create
 local Source = Vide.source
 
 return function()
-	local TimerText = Source("Crates Reset in --:--")
+	local TimerText = Source("New Crates: --:--")
+	local TopOffset = Source(SafeArea.GetTopOffset(16))
 	local LastSecond = -1
 
 	local function UpdateTimer()
-		local NextResetTime, IsResetting = CrateRuntime.GetResetState()
-
-		if IsResetting then
-			TimerText("Crates Resetting...")
-			return
-		end
+		local NextResetTime = CrateRuntime.GetResetState()
 		if type(NextResetTime) ~= "number" then
-			TimerText("Crates Reset in --:--")
+			TimerText("New Crates: --:--")
 			return
 		end
-		local SecondsRemaining = math.max(0, math.ceil(NextResetTime - Workspace:GetServerTimeNow()))
+		-- Wall-clock time keeps counting while the server generates the next crate field.
+		local SecondsRemaining = math.max(0, NextResetTime - os.time())
 		if SecondsRemaining == LastSecond then return end
 		LastSecond = SecondsRemaining
-		TimerText(`Crates Reset in {FormatTime(SecondsRemaining)}`)
+		TimerText(`New Crates: {FormatTime(SecondsRemaining)}`)
 	end
 
 	local Connections = {
+		SafeArea.GetChangedSignal():Connect(function()
+			TopOffset(SafeArea.GetTopOffset(16))
+		end),
 		CrateRuntime.GetResetChangedSignal():Connect(UpdateTimer),
 		RunService.Heartbeat:Connect(UpdateTimer),
 	}
@@ -47,7 +47,7 @@ return function()
 		BackgroundColor3 = Color3.fromRGB(34, 15, 17),
 		BackgroundTransparency = 0.12,
 		BorderSizePixel = 0,
-		Position = UDim2.new(0.5, 0, 0.025, 40),
+		Position = function() return UDim2.new(0.5, 0, 0, TopOffset()) end,
 		Size = UDim2.fromScale(0.26, 0.055),
 		Create "UICorner" {
 			CornerRadius = UDim.new(0, 12),
