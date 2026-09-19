@@ -7,16 +7,17 @@ local ActiveNotifications = {}
 
 local NotificationManager = {}
 
-function NotificationManager.Notify(Text: string, Duration: number?)
+function NotificationManager.Notify(Text: string, Duration: number?, Color: Color3?)
 	if type(Text) ~= "string" or Text == "" then
 		return
 	end
 
 	local ResolvedDuration = if type(Duration) == "number" and Duration > 0 then Duration else 3
-	NotificationAdded:Fire(Text, ResolvedDuration)
+	local ResolvedColor = if typeof(Color) == "Color3" then Color else nil
+	NotificationAdded:Fire(Text, ResolvedDuration, ResolvedColor)
 end
 
-function NotificationManager.SetActive(NotificationId: string, IsActive: boolean, Text: string, Duration: number?)
+function NotificationManager.SetActive(NotificationId: string, IsActive: boolean, Text: string, Duration: number?, Color: Color3?)
 	local WasActive = ActiveNotifications[NotificationId] == true
 
 	if IsActive then
@@ -26,7 +27,7 @@ function NotificationManager.SetActive(NotificationId: string, IsActive: boolean
 	end
 
 	if IsActive and not WasActive then
-		NotificationManager.Notify(Text, Duration)
+		NotificationManager.Notify(Text, Duration, Color)
 	end
 end
 

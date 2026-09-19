@@ -351,6 +351,12 @@ return function()
 	local DragDistance = 0
 	local DraggedLastInput = false
 	local OpenButtonNotification
+	local AffordableUpgradeIds = {}
+	for _, Upgrade in UpgradeLogic.GetAffordableUpgrades(Ownership(), Cash()) do
+		AffordableUpgradeIds[Upgrade.Id] = true
+	end
+	local AffordableNotificationScheduled = false
+	local IsDestroyed = false
 
 	Effect(function()
 		local Amount = AffordableCount()
@@ -367,15 +373,31 @@ return function()
 	end
 
 	local function UpdateAffordableNotification()
-		NotificationManager.SetActive(
-			"AffordableUpgrade",
-			AffordableCount() > 0,
-			"An Upgrade Is Available!"
-		)
+		if AffordableNotificationScheduled then return end
+		AffordableNotificationScheduled = true
+		task.defer(function()
+			AffordableNotificationScheduled = false
+			if IsDestroyed then return end
+
+			local CurrentAffordableUpgradeIds = {}
+			local NewlyAffordableUpgrades = {}
+			for _, Upgrade in UpgradeLogic.GetAffordableUpgrades(Ownership(), Cash()) do
+				CurrentAffordableUpgradeIds[Upgrade.Id] = true
+				if not AffordableUpgradeIds[Upgrade.Id] then
+					table.insert(NewlyAffordableUpgrades, Upgrade)
+				end
+			end
+			AffordableUpgradeIds = CurrentAffordableUpgradeIds
+
+			-- A batch unlock is already represented by the upgrade button's count badge.
+			if #NewlyAffordableUpgrades == 1 then
+				local Upgrade = NewlyAffordableUpgrades[1]
+				NotificationManager.Notify(`New Upgrade Available: {Upgrade.Name}`, 4, UIStyle.Colors.Gold)
+			end
+		end)
 	end
 
 	UpdateTutorialPulse()
-	UpdateAffordableNotification()
 
 	local function BeginDrag(Input: InputObject)
 		if
@@ -485,6 +507,7 @@ return function()
 	end)
 	local TutorialPulseConnection = TutorialPulseValue.Changed:Connect(TutorialPulse)
 	Cleanup(function()
+		IsDestroyed = true
 		InputChangedConnection:Disconnect()
 		InputEndedConnection:Disconnect()
 		UpgradeConnection:Disconnect()
@@ -493,7 +516,6 @@ return function()
 		TutorialPulseConnection:Disconnect()
 		TutorialPulseTween:Cancel()
 		TutorialPulseValue:Destroy()
-		NotificationManager.SetActive("AffordableUpgrade", false, "")
 		if OpenButtonNotification then
 			OpenButtonNotification:Destroy()
 			OpenButtonNotification = nil
@@ -513,7 +535,6 @@ return function()
 			if Success and type(NewOwnership) == "table" then
 				Ownership(NewOwnership)
 				UpdateTutorialPulse()
-				UpdateAffordableNotification()
 				LastPurchasedId(Upgrade.Id)
 				Sounds.Play("Buy", LocalPlayer.PlayerGui)
 				task.delay(0.14, function()

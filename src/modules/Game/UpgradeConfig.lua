@@ -929,9 +929,11 @@ function UpgradeConfig.Validate()
 		local Upgrade = ById[Entry.UpgradeId]
 		CumulativeCost += Upgrade.Cost
 		local MinimumItemPrice = EconomyConfig.GetMinimumPriceForRestorationTier(Entry.RestorationTier)
+		local BaseMinimumItemPrice = MinimumItemPrice
+			and MinimumItemPrice / EconomyConfig.ItemPurchasePriceMultiplier
 		assert(
-			MinimumItemPrice and CumulativeCost <= MinimumItemPrice,
-			`Tool progression through {Entry.ToolId} costs more than the first tier-{Entry.RestorationTier} item`
+			BaseMinimumItemPrice and CumulativeCost <= BaseMinimumItemPrice,
+			`Tool progression through {Entry.ToolId} costs more than the base tier-{Entry.RestorationTier} item price`
 		)
 	end
 end
@@ -939,4 +941,3 @@ end
 UpgradeConfig.Validate()
 
 return UpgradeConfig
-

@@ -43,3 +43,5 @@ When an agent makes a recurring mistake and the user corrects it, add or improve
 - Treat repeated user corrections as feedback about the agent workflow. When appropriate, update AGENTS.md with a short general rule that prevents the same problem from happening again.
 Ask for any clarifications before beginning only if nesscecary
 * **DO NOT put game-specific logic, mechanics, behavior specifications, balancing rules, or feature requirements in `AGENTS.md`.** Put those requirements in the relevant scripts or modules instead. This `AGENTS.md` should only contain general development rules, coding standards, workflow instructions, architectural conventions, and best practices that apply across the project.
+Dont do unnesscecary assert
+If studio is in play mode, don't stop it unless it is needed to do the request.

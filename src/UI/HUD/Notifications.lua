@@ -1,91 +1,116 @@
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
 local NotificationManager = require(ReplicatedStorage.Modules.UI.NotificationManager)
+local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
 local UIStyle = require(ReplicatedStorage.Modules.UI.UIStyle)
 local Vide = require(ReplicatedStorage.Packages.vide)
 
+local Action = Vide.action
 local Cleanup = Vide.cleanup
 local Create = Vide.create
-local Source = Vide.source
+
+local ALERT_WIDTH = 420
+local ALERT_HEIGHT = 48
+local ALERT_TWEEN_INFO = TweenInfo.new(0.16, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
 
 return function()
-	local Attention = Source(0)
-	local IsVisible = Source(false)
-	local Text = Source("")
-	local AttentionValue = Instance.new("NumberValue")
-	local AttentionTween = TweenService:Create(
-		AttentionValue,
-		TweenInfo.new(0.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
-		{ Value = 1 }
-	)
-	local HideThread: thread?
+	local AlertContainer: Frame?
+	local NotificationConnection: RBXScriptConnection?
+	local ActiveAlerts = {}
+	local NextLayoutOrder = 0
 
-	local function Show(NotificationText: string, Duration: number)
-		Text(NotificationText)
-		IsVisible(true)
-		AttentionTween:Play()
+	local function Show(NotificationText: string, Duration: number, Color: Color3?)
+		if not AlertContainer then return end
+		NextLayoutOrder += 1
 
-		if HideThread then
-			task.cancel(HideThread)
-		end
+		local Alert = Instance.new("CanvasGroup")
+		Alert.Name = "Alert"
+		Alert.BackgroundTransparency = 1
+		Alert.LayoutOrder = NextLayoutOrder
+		Alert.Size = UDim2.fromOffset(ALERT_WIDTH, ALERT_HEIGHT)
+		Alert.ZIndex = 80
 
-		HideThread = task.delay(Duration, function()
-			HideThread = nil
-			IsVisible(false)
-			AttentionTween:Cancel()
-			AttentionValue.Value = 0
+		local Label = Instance.new("TextLabel")
+		Label.Name = "AlertText"
+		Label.AnchorPoint = Vector2.new(0.5, 0)
+		Label.BackgroundTransparency = 1
+		Label.ClipsDescendants = true
+		Label.FontFace = UIStyle.Font
+		Label.Position = UDim2.fromScale(0.5, 0)
+		Label.Size = UDim2.fromScale(0, 1)
+		Label.Text = NotificationText
+		Label.TextColor3 = Color or UIStyle.Colors.Red
+		Label.TextScaled = true
+		Label.TextWrapped = true
+		Label.ZIndex = 81
+		Label.Parent = Alert
+
+		local TextStroke = Instance.new("UIStroke")
+		TextStroke.Color = UIStyle.Colors.Ink
+		TextStroke.Thickness = 2
+		TextStroke.Transparency = 0.12
+		TextStroke.Parent = Label
+
+		local TextSizeConstraint = Instance.new("UITextSizeConstraint")
+		TextSizeConstraint.MaxTextSize = 28
+		TextSizeConstraint.MinTextSize = 12
+		TextSizeConstraint.Parent = Label
+
+		Alert.Parent = AlertContainer
+		Sounds.Play("Alert", Players.LocalPlayer.PlayerGui)
+
+		local TweenIn = TweenService:Create(Label, ALERT_TWEEN_INFO, { Size = UDim2.fromScale(1, 1) })
+		local TweenOut = TweenService:Create(Alert, ALERT_TWEEN_INFO, {
+			GroupTransparency = 1,
+			Size = UDim2.fromOffset(ALERT_WIDTH, 0),
+		})
+		local AlertState = { TweenIn = TweenIn, TweenOut = TweenOut }
+		ActiveAlerts[Alert] = AlertState
+		TweenIn:Play()
+		AlertState.Thread = task.spawn(function()
+			task.wait(Duration)
+			if not Alert.Parent then
+				ActiveAlerts[Alert] = nil
+				return
+			end
+			TweenOut:Play()
+			TweenOut.Completed:Wait()
+			ActiveAlerts[Alert] = nil
+			Alert:Destroy()
 		end)
 	end
 
-	local NotificationConnection = NotificationManager.GetNotificationAddedSignal():Connect(Show)
-	local AttentionConnection = AttentionValue.Changed:Connect(Attention)
-
 	Cleanup(function()
-		NotificationConnection:Disconnect()
-		AttentionConnection:Disconnect()
-		AttentionTween:Cancel()
-		AttentionValue:Destroy()
-
-		if HideThread then
-			task.cancel(HideThread)
+		if NotificationConnection then NotificationConnection:Disconnect() end
+		for Alert, AlertState in ActiveAlerts do
+			AlertState.TweenIn:Cancel()
+			AlertState.TweenOut:Cancel()
+			if AlertState.Thread then task.cancel(AlertState.Thread) end
+			Alert:Destroy()
 		end
+		table.clear(ActiveAlerts)
 	end)
 
 	return Create "Frame" {
 		Name = "Notifications",
 		AnchorPoint = Vector2.new(0.5, 0),
-		BackgroundColor3 = Color3.fromRGB(176, 46, 57),
+		BackgroundTransparency = 1,
 		BorderSizePixel = 0,
-		Position = function()
-			return UDim2.fromScale(0.5, 0.035) + UDim2.fromOffset(0, math.sin(Attention() * math.pi) * 4)
-		end,
-		Rotation = function()
-			return math.sin(Attention() * math.pi * 2) * 2.5
-		end,
-		Size = function()
-			local Scale = 1 + math.sin(Attention() * math.pi) * 0.05
-			return UDim2.fromOffset(290 * Scale, 54 * Scale)
-		end,
-		Visible = IsVisible,
+		Position = UDim2.fromScale(0.5, 0.035),
+		Size = UDim2.fromOffset(ALERT_WIDTH, 260),
 		ZIndex = 80,
-		Create "UICorner" { CornerRadius = UDim.new(0, 14) },
-		Create "UIStroke" {
-			ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-			Color = UIStyle.Colors.RedDark,
-			Thickness = UIStyle.OutlineThickness,
-			Transparency = 0.08,
-		},
-		Create "TextLabel" {
-			BackgroundTransparency = 1,
-			FontFace = UIStyle.Font,
-			Position = UDim2.fromScale(0.05, 0.12),
-			Size = UDim2.fromScale(0.9, 0.76),
-			Text = Text,
-			TextColor3 = Color3.new(1, 1, 1),
-			TextScaled = true,
-			ZIndex = 81,
-			Create "UITextSizeConstraint" { MaxTextSize = 24, MinTextSize = 12 },
+		Action(function(Instance)
+			AlertContainer = Instance :: Frame
+			NotificationConnection = NotificationManager.GetNotificationAddedSignal():Connect(Show)
+		end),
+		Create "UIListLayout" {
+			FillDirection = Enum.FillDirection.Vertical,
+			HorizontalAlignment = Enum.HorizontalAlignment.Center,
+			Padding = UDim.new(0, 6),
+			SortOrder = Enum.SortOrder.LayoutOrder,
+			VerticalAlignment = Enum.VerticalAlignment.Top,
 		},
 	}
 end

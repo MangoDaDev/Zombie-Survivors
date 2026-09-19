@@ -234,7 +234,8 @@ local function CreatePrompt(Name: string, ActionText: string, KeyCode: Enum.KeyC
 	local Prompt = Instance.new("ProximityPrompt")
 	Prompt.Name = Name; Prompt.ActionText = ActionText; Prompt.ObjectText = "Display"; Prompt.HoldDuration = 0
 	Prompt.KeyboardKeyCode = KeyCode; Prompt.GamepadKeyCode = GamepadKeyCode; Prompt.MaxActivationDistance = 10
-	Prompt.RequiresLineOfSight = false; Prompt.Exclusivity = Enum.ProximityPromptExclusivity.AlwaysShow; Prompt.UIOffset = Offset; Prompt.Parent = Base
+	-- Keep the nearest display's actions available without exposing matching prompts from adjacent displays.
+	Prompt.RequiresLineOfSight = false; Prompt.Exclusivity = Enum.ProximityPromptExclusivity.OnePerButton; Prompt.UIOffset = Offset; Prompt.Parent = Base
 	return Prompt
 end
 
