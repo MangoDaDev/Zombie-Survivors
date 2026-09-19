@@ -373,7 +373,12 @@ local function HandOffLocalReward(Model, Reveal)
 	if Silhouette then Silhouette:Destroy() end
 	Model.Name = `LocalRevealedReward_{Reveal.ActualItemInfo.Name}`
 	local DirtCount = math.max(1, math.round(Reveal.DirtCount or 1))
-	local FixingState = { Total = DirtCount, Remaining = DirtCount, Completed = false }
+	local FixingState = {
+		Total = DirtCount,
+		Remaining = DirtCount,
+		Completed = false,
+		RestorationSteps = Reveal.RestorationSteps,
+	}
 	RestorationVisuals.Apply(Model, Reveal.ActualItemInfo, FixingState)
 	local AuthoritativeModel = Reveal.AuthoritativeModel
 	local Prompt = AuthoritativeModel and AuthoritativeModel:FindFirstChild("PurchasePrompt", true)
@@ -494,7 +499,7 @@ function CrateController.CancelPredictedRevealsForCrate(Model)
 	for _, PredictionId in PredictionIds do CrateController.CancelPredictedReveal(PredictionId) end
 end
 
-function CrateController.StartReveal(_, RewardId, ActualItemId, GroundCFrame, CrateId, RevealingPlayer, PredictionId, AuthoritativeModel, DirtCount)
+function CrateController.StartReveal(_, RewardId, ActualItemId, GroundCFrame, CrateId, RevealingPlayer, PredictionId, AuthoritativeModel, DirtCount, RestorationSteps)
 	local Info = GetCrateInfo(CrateId)
 	local ActualItemInfo = GetItemInfo(ActualItemId)
 	if type(RewardId) ~= "string" or not Info or not ActualItemInfo or typeof(GroundCFrame) ~= "CFrame"
@@ -506,6 +511,7 @@ function CrateController.StartReveal(_, RewardId, ActualItemId, GroundCFrame, Cr
 		Reveal.ActualItemInfo = ActualItemInfo
 		Reveal.AuthoritativeModel = AuthoritativeModel
 		Reveal.DirtCount = DirtCount
+		Reveal.RestorationSteps = if type(RestorationSteps) == "table" then RestorationSteps else nil
 		Reveal.GroundCFrame = GroundCFrame
 		Reveal.RewardId = RewardId
 		Reveals[RewardId] = Reveal
@@ -518,6 +524,7 @@ function CrateController.StartReveal(_, RewardId, ActualItemId, GroundCFrame, Cr
 		GroundCFrame = GroundCFrame,
 		Info = Info,
 		DirtCount = DirtCount,
+		RestorationSteps = if type(RestorationSteps) == "table" then RestorationSteps else nil,
 		MinimumDuration = GetMinimumRevealDuration(Info),
 		Model = nil,
 		RevealingPlayer = RevealingPlayer,

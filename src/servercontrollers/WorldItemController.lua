@@ -4,6 +4,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerStorage = game:GetService("ServerStorage")
 local Workspace = game:GetService("Workspace")
 
+local AnalyticsController = require(ServerStorage.Controllers.AnalyticsController)
 local CarryController = require(ServerStorage.Controllers.CarryController)
 local FormatNumber = require(ReplicatedStorage.Modules.Math.FormatNumber)
 local GuidanceController = require(ServerStorage.Controllers.GuidanceController)
@@ -26,6 +27,7 @@ type WorldItemState = {
 	MoveConnection: RBXScriptConnection?,
 	Ownership: CarryController.OwnershipState,
 	PromptConnection: RBXScriptConnection?,
+	RestorationSteps: { string }?,
 	SafeCFrame: CFrame,
 }
 
@@ -108,13 +110,14 @@ local function PurchaseWorldItem(State: WorldItemState, Player: Player)
 
 	local Ownership = if IsOwner then table.clone(State.Ownership) else GetEscalatedOwnership(State, Player)
 	-- Keep ownership and price server-authoritative; a drop alone never transfers or escalates either value.
-	if not CarryController.StartCarrying(Player, State.ItemId, State.DirtCount, Ownership) then
+	if not CarryController.StartCarrying(Player, State.ItemId, State.DirtCount, Ownership, State.RestorationSteps) then
 		State.Locked = false
 		PurchaseLocks[Player] = nil
 		return
 	end
 	if not IsOwner then
 		DataService:set(Player, "Cash", Cash - PurchasePrice)
+		AnalyticsController.TrackItemPurchased(Player, State.ItemId, "WorldItem")
 	end
 	PurchaseLocks[Player] = nil
 	RemoveWorldItem(State)
@@ -146,7 +149,13 @@ local function CreateDroppedItem(Player: Player, DropData, DropCFrame: CFrame): 
 	Model.Parent = WorldItemFolder
 	local SafeCFrame = SetModelOnGround(Model, GroundCFrame)
 	local DirtCount = if type(DropData.DirtCount) == "number" then math.max(1, math.round(DropData.DirtCount)) else 1
-	local FixingState = { Total = DirtCount, Remaining = DirtCount, Completed = false }
+	local RestorationSteps = if type(DropData.RestorationSteps) == "table" then table.clone(DropData.RestorationSteps) else nil
+	local FixingState = {
+		Total = DirtCount,
+		Remaining = DirtCount,
+		Completed = false,
+		RestorationSteps = RestorationSteps,
+	}
 	RestorationVisuals.Apply(Model, ItemInfo, FixingState)
 	local DisplayInfo = table.clone(ItemInfo)
 	DisplayInfo.Price = Ownership.CurrentPrice
@@ -170,6 +179,7 @@ local function CreateDroppedItem(Player: Player, DropData, DropCFrame: CFrame): 
 		Locked = false,
 		Model = Model,
 		Ownership = table.clone(Ownership),
+		RestorationSteps = RestorationSteps,
 		SafeCFrame = SafeCFrame,
 	}
 	WorldItems[Model] = State

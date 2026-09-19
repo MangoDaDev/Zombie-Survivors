@@ -14,7 +14,7 @@ local Create = Vide.create
 local Source = Vide.source
 
 local ALERT_WIDTH = 420
-local ALERT_HEIGHT = 48
+local ALERT_HEIGHT = 28
 local ALERT_TWEEN_INFO = TweenInfo.new(0.16, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
 
 return function()

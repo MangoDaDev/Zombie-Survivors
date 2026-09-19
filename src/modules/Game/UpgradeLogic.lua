@@ -87,11 +87,23 @@ end
 
 UpgradeLogic.IsAffordable = UpgradeLogic.CanPurchaseUpgrade
 
+function UpgradeLogic.GetAvailableUpgrades(Ownership): { any }
+	local AvailableUpgrades = {}
+
+	for _, Upgrade in UpgradeConfig.Upgrades do
+		if Upgrade.Purchasable ~= false and UpgradeLogic.GetState(Ownership, Upgrade) == "Available" then
+			table.insert(AvailableUpgrades, Upgrade)
+		end
+	end
+
+	return AvailableUpgrades
+end
+
 function UpgradeLogic.GetAffordableUpgrades(Ownership, Cash): { any }
 	local AffordableUpgrades = {}
 
-	for _, Upgrade in UpgradeConfig.Upgrades do
-		if UpgradeLogic.CanPurchaseUpgrade(Ownership, Upgrade, Cash) then
+	for _, Upgrade in UpgradeLogic.GetAvailableUpgrades(Ownership) do
+		if type(Cash) == "number" and Cash >= Upgrade.Cost then
 			table.insert(AffordableUpgrades, Upgrade)
 		end
 	end

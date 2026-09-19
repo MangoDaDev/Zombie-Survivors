@@ -3,6 +3,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerStorage = game:GetService("ServerStorage")
 local Workspace = game:GetService("Workspace")
 
+local AnalyticsController = require(ServerStorage.Controllers.AnalyticsController)
 local GuidanceController = require(ServerStorage.Controllers.GuidanceController)
 local ItemsInfo = require(ReplicatedStorage.Modules.Game.ItemsInfo)
 local ItemInfoBillboard = require(ReplicatedStorage.Modules.UI.ItemInfoBillboard)
@@ -139,6 +140,7 @@ local function SellDisplayedItem(Player: Player, DisplayState: DisplayState)
 	local ItemInfo = ItemId and GetItemInfo(ItemId)
 	if not ItemInfo or not ClearDisplay(Player, DisplayState) then return end
 	DataService:update(Player, "Cash", function(Cash) return (if type(Cash) == "number" then Cash else 0) + ItemInfo.SaleValue end)
+	AnalyticsController.TrackItemSold(Player, ItemId, DisplayState.levelNumber, ItemInfo.SaleValue)
 	GuidanceController.Advance(Player, "EarnMoney")
 	Sounds.Play("Kaching", DisplayState.itemCFrame, SFX_MAX_DISTANCE)
 end
@@ -166,6 +168,7 @@ local function PlaceEquippedItem(Player: Player, Assignment: MuseumAssignment, D
 	Displays[tostring(DisplayState.index)] = ItemId
 	DataService:set(Player, "Displays", Displays)
 	DataService:arrayRemove(Player, "Inventory", InventoryPosition)
+	AnalyticsController.TrackItemDisplayed(Player, ItemId, DisplayState.index, DisplayState.levelNumber)
 	Tool:Destroy(); GuidanceController.Advance(Player, "DisplayItem"); Sounds.Play("Equip", DisplayState.itemCFrame, SFX_MAX_DISTANCE)
 end
 

@@ -6,6 +6,7 @@ local ServerStorage = game:GetService("ServerStorage")
 local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 
+local AnalyticsController = require(ServerStorage.Controllers.AnalyticsController)
 local CarryController = require(ServerStorage.Controllers.CarryController)
 local CrateInfo = require(ReplicatedStorage.Modules.Game.CrateInfo)
 local DirtRenderer = require(ReplicatedStorage.Modules.Game.DirtRenderer)
@@ -58,6 +59,18 @@ local function IsRecoveryEligible(Player: Player, Info): boolean
 end
 
 local function GetRewardItemInfo(Player: Player, Info, Luck: number)
+	if DataService:get(Player, "SpongeToasterRewardPending") == true then
+		local TutorialReward = CrateInfo.SpongeTutorialReward
+		local ToasterInfo = GetItemInfo(TutorialReward.ItemId)
+		if ToasterInfo then
+			DataService:set(Player, "SpongeToasterRewardPending", false)
+			local GuaranteedDropCount = DataService:get(Player, "GuaranteedDropCount")
+			if type(GuaranteedDropCount) == "number" and GuaranteedDropCount < TutorialReward.GuaranteedDropCount then
+				DataService:set(Player, "GuaranteedDropCount", TutorialReward.GuaranteedDropCount)
+			end
+			return ToasterInfo, false, table.clone(TutorialReward.RestorationSteps)
+		end
+	end
 	-- A cash-poor player with no owned items always has a modest common-crate recovery loop.
 	if IsRecoveryEligible(Player, Info) then return GetItemInfo(EconomyConfig.RecoveryItemId), true end
 	local GuaranteedDropCount = DataService:get(Player, "GuaranteedDropCount")
@@ -225,19 +238,20 @@ local function PurchaseReward(RewardId, Player)
 	if Cash < ItemInfo.Price then SendPurchaseFeedback(Player, "NotEnoughCash", ItemInfo.Name, ItemInfo.Price - Cash); return end
 	if (RootPart.Position - Reward.Model:GetPivot().Position).Magnitude > Reward.Info.PurchaseDistance then return end
 	Reward.Purchased = true
-	if not CarryController.StartCarrying(Player, Reward.ItemId, Reward.DirtCount) then
+	if not CarryController.StartCarrying(Player, Reward.ItemId, Reward.DirtCount, nil, Reward.RestorationSteps) then
 		Reward.Purchased = false
 		SendPurchaseFeedback(Player, "Unavailable", ItemInfo.Name)
 		return
 	end
 	DataService:set(Player, "Cash", Cash - ItemInfo.Price)
+	AnalyticsController.TrackItemPurchased(Player, Reward.ItemId, "Crate", Reward.AnalyticsSessionId)
 	SendPurchaseFeedback(Player, "Success", ItemInfo.Name, ItemInfo.Price)
 	RemoveReward(RewardId, "Purchased", Player)
 end
 
-local function CreateReward(State, Player: Player, PredictionId)
+local function CreateReward(State, Player: Player, PredictionId, AnalyticsSessionId)
 	local Info = State.Info
-	local ItemInfo, IsRecovery = GetRewardItemInfo(Player, Info, State.Luck)
+	local ItemInfo, IsRecovery, RestorationSteps = GetRewardItemInfo(Player, Info, State.Luck)
 	if not ItemInfo then return end
 	local Template = ReplicatedStorage.Assets.Models.Items:FindFirstChild(ItemInfo.AssetName)
 	if not Template or not Template:IsA("Model") then return end
@@ -247,7 +261,12 @@ local function CreateReward(State, Player: Player, PredictionId)
 	Model.PrimaryPart = Box
 	Model.Name = `CrateReward_{ItemInfo.Name}`
 	local DirtCount = DirtRenderer.GetSuggestedCount(Template)
-	local FixingState = { Total = DirtCount, Remaining = DirtCount, Completed = false }
+	local FixingState = {
+		Total = DirtCount,
+		Remaining = DirtCount,
+		Completed = false,
+		RestorationSteps = RestorationSteps,
+	}
 	local GroundCFrame = State.GroundCFrame
 	SetModelOnGround(Model, GroundCFrame)
 	-- Apply restoration damage before hiding the reward so no pristine frame can reveal the item.
@@ -287,6 +306,8 @@ local function CreateReward(State, Player: Player, PredictionId)
 		ExpiresAt = Workspace:GetServerTimeNow() + RevealDuration + Info.RevealFadeTime + ItemInteractionConfig.WorldItemDespawnDuration,
 		Purchased = false,
 		IsRecovery = IsRecovery,
+		AnalyticsSessionId = AnalyticsSessionId,
+		RestorationSteps = RestorationSteps,
 		RevealTransparencies = RevealTransparencies,
 	}
 	Rewards[RewardId] = Reward
@@ -303,7 +324,7 @@ local function CreateReward(State, Player: Player, PredictionId)
 			Prompt.Enabled = Workspace:GetServerTimeNow() >= Reward.AvailableAt
 		end
 	end)
-	Network:fireAll("StartReveal", RewardId, ItemInfo.Id, GroundCFrame, Info.Id, Player, PredictionId, Model, DirtCount)
+	Network:fireAll("StartReveal", RewardId, ItemInfo.Id, GroundCFrame, Info.Id, Player, PredictionId, Model, DirtCount, RestorationSteps)
 	task.delay(RevealDuration, function()
 		if Rewards[RewardId] ~= Reward then return end
 		for _, Part in Model:GetDescendants() do
@@ -321,6 +342,7 @@ local function CreateReward(State, Player: Player, PredictionId)
 			Reward.FixingState = nil
 			Reward.CountdownRow = ItemDespawnCountdown.Create(Billboard)
 			Prompt.Enabled = true
+			AnalyticsController.TrackItemRevealed(Player, ItemInfo.Id, Info, AnalyticsSessionId)
 		end)
 	end)
 end
@@ -343,8 +365,9 @@ end
 local function BreakCrate(State, Player: Player, PredictionId)
 	if Crates[State.Model] ~= State then return end
 	local BreakGeneration = ResetGeneration
+	local AnalyticsSessionId = AnalyticsController.TrackCrateBroken(Player, State.Model, State.Info)
 	Crates[State.Model] = nil
-	CreateReward(State, Player, PredictionId)
+	CreateReward(State, Player, PredictionId, AnalyticsSessionId)
 	State.Model:Destroy()
 	task.delay(State.Info.RespawnDelay, function()
 		if State.Info.Respawns ~= false and ResetGeneration == BreakGeneration then CrateController.Spawn(State.Info) end
@@ -355,6 +378,7 @@ function CrateController.DamageCrate(Player, Model, Damage, PredictionId): boole
 	local State = Crates[Model]
 	local RootPart = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
 	if not State or not RootPart or not RootPart:IsA("BasePart") or type(Damage) ~= "number" then return false end
+	AnalyticsController.TrackCrateDiscovered(Player, State.Model, State.Info)
 	State.Health = math.max(0, State.Health - math.clamp(Damage, 0, State.Info.Health))
 	Network:fireAll("UpdateCrateHealth", State.Model, State.Info.Id, State.Health, State.Info.Health)
 	if State.Health <= 0 then BreakCrate(State, Player, PredictionId) end

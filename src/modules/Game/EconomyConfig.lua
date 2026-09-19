@@ -4,12 +4,12 @@ local EconomyConfig = {
 	-- Scales restorable item purchase prices without changing restoration tool costs.
 	ItemPurchasePriceMultiplier = 0.5,
 	-- Scales restoration rewards and restored-item sale values without changing purchase prices.
-	ActiveIncomeMultiplier = 1.1,
+	ActiveIncomeMultiplier = 3,
 	-- Gives onboarding rarities extra active income, blended back to normal by Legendary.
 	OnboardingIncomeMultiplier = 2,
 	OnboardingIncomeBlendEndStage = 5,
 	-- Scales museum visitor payments only.
-	PassiveIncomeMultiplier = 0.9,
+	PassiveIncomeMultiplier = 1.5,
 	-- Values above 1 increase every upgrade price.
 	UpgradeCostMultiplier = 1,
 	-- Values above 1 steepen rarity prices and later-stage upgrade costs.
@@ -33,7 +33,7 @@ local EconomyConfig = {
 			ProgressionStage = 2,
 			RestorationTier = 2,
 			SourcePriceRange = { 60, 118 },
-			PriceRange = { 700, 2_200 },
+			PriceRange = { 800, 2_200 },
 			GuestPayRate = 0.018,
 		},
 		Rare = {
@@ -105,8 +105,7 @@ function EconomyConfig.GetOnboardingIncomeScale(Rarity: string): number
 	local ProgressionStage = EconomyConfig.GetRarity(Rarity).ProgressionStage
 	local BlendLength = math.max(EconomyConfig.OnboardingIncomeBlendEndStage - 1, 1)
 	local BlendAlpha = math.clamp((ProgressionStage - 1) / BlendLength, 0, 1)
-	return EconomyConfig.OnboardingIncomeMultiplier
-		+ (1 - EconomyConfig.OnboardingIncomeMultiplier) * BlendAlpha
+	return EconomyConfig.OnboardingIncomeMultiplier + (1 - EconomyConfig.OnboardingIncomeMultiplier) * BlendAlpha
 end
 
 function EconomyConfig.GetMinimumItemPrice(): number
@@ -132,11 +131,8 @@ function EconomyConfig.GetItemPrice(Rarity: string, DifficultyValue: number): nu
 	local Info = EconomyConfig.GetRarity(Rarity)
 	local SourceMinimum = Info.SourcePriceRange[1]
 	local SourceMaximum = Info.SourcePriceRange[2]
-	local DifficultyAlpha = math.clamp(
-		(DifficultyValue - SourceMinimum) / math.max(SourceMaximum - SourceMinimum, 1),
-		0,
-		1
-	)
+	local DifficultyAlpha =
+		math.clamp((DifficultyValue - SourceMinimum) / math.max(SourceMaximum - SourceMinimum, 1), 0, 1)
 	local PriceMinimum = Info.PriceRange[1]
 	local PriceMaximum = Info.PriceRange[2]
 	local BasePrice = PriceMinimum + (PriceMaximum - PriceMinimum) * DifficultyAlpha
@@ -172,7 +168,9 @@ function EconomyConfig.GetRestorationReward(Rarity: string, Price: number): numb
 end
 
 function EconomyConfig.GetUpgradeCost(BaseCost: number, ProgressionStage: number?): number
-	if BaseCost <= 0 then return 0 end
+	if BaseCost <= 0 then
+		return 0
+	end
 	local Stage = ProgressionStage or 1
 	local CostScale = EconomyConfig.UpgradeCostMultiplier
 		* GetLateGameScale(Stage)
@@ -198,8 +196,14 @@ function EconomyConfig.ValidateItems(ItemsInfo)
 	for _, ItemInfo in ItemsInfo do
 		local Info = EconomyConfig.Rarities[ItemInfo.Rarity]
 		assert(Info, `Unknown item rarity {tostring(ItemInfo.Rarity)}`)
-		assert(type(ItemInfo.Id) == "number" and not SeenIds[ItemInfo.Id], `Invalid or duplicate item id {tostring(ItemInfo.Id)}`)
-		assert(type(ItemInfo.ChanceWeight) == "number" and ItemInfo.ChanceWeight > 0, `Invalid chance weight for item {ItemInfo.Id}`)
+		assert(
+			type(ItemInfo.Id) == "number" and not SeenIds[ItemInfo.Id],
+			`Invalid or duplicate item id {tostring(ItemInfo.Id)}`
+		)
+		assert(
+			type(ItemInfo.ChanceWeight) == "number" and ItemInfo.ChanceWeight > 0,
+			`Invalid chance weight for item {ItemInfo.Id}`
+		)
 		assert(
 			type(ItemInfo.DifficultyValue) == "number"
 				and ItemInfo.DifficultyValue >= Info.SourcePriceRange[1]
@@ -211,15 +215,17 @@ function EconomyConfig.ValidateItems(ItemsInfo)
 end
 
 function EconomyConfig.Validate()
-	for _, Value in {
-		EconomyConfig.ProgressionSpeedMultiplier,
-		EconomyConfig.ItemPurchasePriceMultiplier,
-		EconomyConfig.ActiveIncomeMultiplier,
-		EconomyConfig.OnboardingIncomeMultiplier,
-		EconomyConfig.PassiveIncomeMultiplier,
-		EconomyConfig.UpgradeCostMultiplier,
-		EconomyConfig.LateGameCurveMultiplier,
-	} do
+	for _, Value in
+		{
+			EconomyConfig.ProgressionSpeedMultiplier,
+			EconomyConfig.ItemPurchasePriceMultiplier,
+			EconomyConfig.ActiveIncomeMultiplier,
+			EconomyConfig.OnboardingIncomeMultiplier,
+			EconomyConfig.PassiveIncomeMultiplier,
+			EconomyConfig.UpgradeCostMultiplier,
+			EconomyConfig.LateGameCurveMultiplier,
+		}
+	do
 		assert(type(Value) == "number" and Value > 0, "Economy multipliers must be positive")
 	end
 	assert(

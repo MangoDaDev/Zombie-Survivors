@@ -38,7 +38,7 @@ local BatInfo = {
 		DisplayName = "Stone Bat",
 		TemplateName = "Stone Bat",
 		Icon = "StoneBat",
-		CrateDamage = 12,
+		CrateDamage = 15,
 		SwingCooldown = 0.52,
 		Range = 7.25,
 	}),

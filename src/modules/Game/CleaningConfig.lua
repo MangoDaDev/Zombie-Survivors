@@ -14,6 +14,9 @@ local CleaningConfig = {
 	ItemCameraSmallItemMargin = 1.38,
 	ItemCameraSmallSize = 2.5,
 	ItemCameraLargeSize = 7,
+	ItemRadiusScaleStartSize = 7,
+	ItemRadiusScaleFullSize = 13,
+	ItemRadiusScaleMinimumMultiplier = 0.82,
 	ItemPresentationRotationDegrees = -8,
 	ItemSurfaceOffset = 0.03,
 	SprayVFXWidthScale = 1,
@@ -44,8 +47,9 @@ local CleaningConfig = {
 			RadiusScale = 0.08, StrengthPerSecond = 3.6, VFXWidthScale = 1, PositionResponsiveness = 22,
 		},
 		{
-			Id = "Sponge", DisplayName = "Sponge", TemplateName = "Sponge", VFXStartPartName = "Handle",
-			LoopSoundName = "SpongeLoop", RadiusScale = 0.055, StrengthPerSecond = 3.2, VFXWidthScale = 1,
+			Id = "Sponge", DisplayName = "Sponge", TemplateName = "Sponge", VFXFolderName = "Bubbles",
+			VFXName = "ParticleEmitter", VFXStartPartName = "Handle", LoopSoundName = "Bubble",
+			RadiusScale = 0.055, StrengthPerSecond = 3.2, VFXWidthScale = 1,
 			SurfaceRotationDegrees = Vector3.new(0, 90, 0), PositionResponsiveness = 30,
 		},
 		{
@@ -151,10 +155,12 @@ function CleaningConfig.GetStep(StepId: string)
 	end
 end
 
-function CleaningConfig.GetStepsForItem(ItemInfo): { any }
+function CleaningConfig.GetStepsForItem(ItemInfo, FixingState): { any }
 	local Steps = {}
 	local RestorationTier = if type(ItemInfo.RestorationTier) == "number" then ItemInfo.RestorationTier else 1
-	local ConfiguredSteps = if type(ItemInfo.RestorationSteps) == "table" then ItemInfo.RestorationSteps else nil
+	local ConfiguredSteps = if type(FixingState) == "table" and type(FixingState.RestorationSteps) == "table"
+		then FixingState.RestorationSteps
+		else if type(ItemInfo.RestorationSteps) == "table" then ItemInfo.RestorationSteps else nil
 	local Settings = if type(ItemInfo.RestorationSettings) == "table" then ItemInfo.RestorationSettings else {}
 	for _, StepInfo in CleaningConfig.Steps do
 		local IsRequired = if ConfiguredSteps then table.find(ConfiguredSteps, StepInfo.Id) ~= nil else RestorationTier >= StepInfo.MinimumRestorationTier

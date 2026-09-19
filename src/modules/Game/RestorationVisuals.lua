@@ -14,7 +14,7 @@ end
 
 function RestorationVisuals.Apply(Model: Model, ItemInfo, FixingState)
 	if type(FixingState) ~= "table" or FixingState.Completed == true then return end
-	local Steps = CleaningConfig.GetStepsForItem(ItemInfo)
+	local Steps = CleaningConfig.GetStepsForItem(ItemInfo, FixingState)
 	for _, Step in Steps do
 		if Step.Type == "Paint" then
 			local StepState = GetStepState(FixingState, Step.Id)

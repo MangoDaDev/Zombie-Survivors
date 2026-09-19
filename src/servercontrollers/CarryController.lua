@@ -3,6 +3,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerStorage = game:GetService("ServerStorage")
 
+local AnalyticsController = require(ServerStorage.Controllers.AnalyticsController)
 local ItemsInfo = require(ReplicatedStorage.Modules.Game.ItemsInfo)
 local CleaningConfig = require(ReplicatedStorage.Modules.Game.CleaningConfig)
 local DirtRenderer = require(ReplicatedStorage.Modules.Game.DirtRenderer)
@@ -32,6 +33,7 @@ type CarryState = {
 	DeathConnection: RBXScriptConnection?,
 	DirtCount: number,
 	Ownership: OwnershipState,
+	RestorationSteps: { string }?,
 	itemId: number,
 	model: Model?,
 	ModelConnection: RBXScriptConnection?,
@@ -313,6 +315,7 @@ local function deliverItem(player: Player)
 
 	StopCarrying(player)
 	tool.Parent = backpack
+	AnalyticsController.TrackItemBroughtToMuseum(player, state.itemId)
 	GuidanceController.Advance(player, "BringItemHome")
 	task.delay(0.1, function()
 		local character = player.Character
@@ -354,6 +357,7 @@ function CarryController.DropCarriedItem(Player: Player, UpdatePlayerState: bool
 		DirtCount = State.DirtCount,
 		ItemId = State.itemId,
 		Ownership = table.clone(State.Ownership),
+		RestorationSteps = if State.RestorationSteps then table.clone(State.RestorationSteps) else nil,
 	}
 	if DropHandler(Player, DropData, DropCFrame) ~= true then return false end
 
@@ -440,7 +444,7 @@ function CarryController.EquipCleaningTool(Player: Player, ToolId: string)
 	end
 end
 
-function CarryController.StartCarrying(player: Player, itemId: number, DirtCount: number?, Ownership: OwnershipState?): boolean
+function CarryController.StartCarrying(player: Player, itemId: number, DirtCount: number?, Ownership: OwnershipState?, RestorationSteps): boolean
 	local ItemInfo = getItemInfo(itemId)
 	if not CarryController.CanCarry(player) or not ItemInfo then
 		return false
@@ -448,15 +452,28 @@ function CarryController.StartCarrying(player: Player, itemId: number, DirtCount
 
 	local fixing = dataService:get(player, "Fixing") or {}
 	local ResolvedDirtCount = if type(DirtCount) == "number" then math.max(1, math.round(DirtCount)) else GetSuggestedDirtCount(itemId)
-	fixing[tostring(itemId)] = {
+	local ResolvedRestorationSteps
+	if type(RestorationSteps) == "table" then
+		ResolvedRestorationSteps = {}
+		for _, StepId in RestorationSteps do
+			if type(StepId) == "string" and CleaningConfig.GetStep(StepId) and not table.find(ResolvedRestorationSteps, StepId) then
+				table.insert(ResolvedRestorationSteps, StepId)
+			end
+		end
+		if #ResolvedRestorationSteps == 0 then ResolvedRestorationSteps = nil end
+	end
+	local FixingState = {
 		Total = ResolvedDirtCount,
 		Remaining = ResolvedDirtCount,
 		Completed = false,
 	}
+	if ResolvedRestorationSteps then FixingState.RestorationSteps = table.clone(ResolvedRestorationSteps) end
+	fixing[tostring(itemId)] = FixingState
 	dataService:set(player, "Fixing", fixing)
 
 	local state: CarryState = {
 		DirtCount = ResolvedDirtCount,
+		RestorationSteps = ResolvedRestorationSteps,
 		Ownership = {
 			BasePrice = ItemInfo.Price,
 			CurrentPrice = if Ownership and type(Ownership.CurrentPrice) == "number"

@@ -7,8 +7,6 @@ local ItemInteractionConfig = require(ReplicatedStorage.Modules.Game.ItemInterac
 local ItemInfoBillboardController = {}
 
 local ITEM_INFO_TAG = "ItemInfoBillboard"
-local CLOSE_DISTANCE = 35
-local MEDIUM_DISTANCE = ItemInteractionConfig.ItemBillboardMaxDistance
 local MAX_VISIBLE_BILLBOARDS = 4
 local OVERLAP_DISTANCE = 130
 local UPDATE_INTERVAL = 0.2
@@ -16,17 +14,9 @@ local UPDATE_INTERVAL = 0.2
 local UpdateConnection: RBXScriptConnection?
 local ElapsedTime = 0
 
-local function SetDisclosure(Billboard: BillboardGui, Disclosure: string)
-	Billboard.Enabled = Disclosure ~= "Hidden"
-	if not Billboard.Enabled then return end
-
-	local IsClose = Disclosure == "Close"
-	local GuestPay = Billboard:FindFirstChild("GuestPay")
-	local Price = Billboard:FindFirstChild("Price")
-	local FixIcons = Billboard:FindFirstChild("FixIcons")
-	if GuestPay and GuestPay:IsA("GuiObject") then GuestPay.Visible = IsClose end
-	if Price and Price:IsA("GuiObject") then Price.Visible = IsClose end
-	if FixIcons and FixIcons:IsA("GuiObject") then FixIcons.Visible = IsClose end
+local function SetVisible(Billboard: BillboardGui, IsVisible: boolean)
+	-- The complete item information panel shares one visibility decision and distance.
+	Billboard.Enabled = IsVisible
 end
 
 local function UpdateBillboards()
@@ -38,7 +28,7 @@ local function UpdateBillboards()
 		if not Billboard:IsA("BillboardGui") or not Billboard:IsDescendantOf(workspace) then continue end
 		local Adornee = Billboard.Adornee
 		if not Adornee or not Adornee:IsA("BasePart") then
-			SetDisclosure(Billboard, "Hidden")
+			SetVisible(Billboard, false)
 			continue
 		end
 		table.insert(BillboardDistances, {
@@ -54,23 +44,23 @@ local function UpdateBillboards()
 
 	local VisibleScreenPositions = {}
 	for Index, Entry in BillboardDistances do
-		local Disclosure = "Hidden"
-		if Index <= MAX_VISIBLE_BILLBOARDS and Entry.Distance <= MEDIUM_DISTANCE then
-			Disclosure = if Entry.Distance <= CLOSE_DISTANCE then "Close" else "Medium"
+		local IsVisible = false
+		if Index <= MAX_VISIBLE_BILLBOARDS and Entry.Distance <= ItemInteractionConfig.ItemBillboardMaxDistance then
+			IsVisible = true
 			local ScreenPosition, IsOnScreen = Camera:WorldToViewportPoint(Entry.WorldPosition)
 			if IsOnScreen then
 				for _, ExistingPosition in VisibleScreenPositions do
 					if (Vector2.new(ScreenPosition.X, ScreenPosition.Y) - ExistingPosition).Magnitude < OVERLAP_DISTANCE then
-						Disclosure = if Disclosure == "Close" then "Medium" else "Hidden"
+						IsVisible = false
 						break
 					end
 				end
-				if Disclosure ~= "Hidden" then
+				if IsVisible then
 					table.insert(VisibleScreenPositions, Vector2.new(ScreenPosition.X, ScreenPosition.Y))
 				end
 			end
 		end
-		SetDisclosure(Entry.Billboard, Disclosure)
+		SetVisible(Entry.Billboard, IsVisible)
 	end
 end
 

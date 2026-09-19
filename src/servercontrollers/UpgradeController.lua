@@ -2,6 +2,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerStorage = game:GetService("ServerStorage")
 
+local AnalyticsController = require(ServerStorage.Controllers.AnalyticsController)
 local GuidanceController = require(ServerStorage.Controllers.GuidanceController)
 local Networker = require(ReplicatedStorage.Packages.networker)
 local TutorialConfig = require(ReplicatedStorage.Modules.Game.TutorialConfig)
@@ -51,10 +52,16 @@ function UpgradeController.Purchase(_, Player: Player, UpgradeId: string)
 		PurchaseLocks[Player] = nil
 		return false, "Not enough cash"
 	end
+	local PreviousOwnership = table.clone(Ownership)
 	Ownership[UpgradeId] = true
 	DataService:set(Player, "Cash", Cash - Upgrade.Cost)
 	DataService:set(Player, "Upgrades", Ownership)
-	if UpgradeId == "UnlockSponge" then GuidanceController.Advance(Player, "BuySponge") end
+	AnalyticsController.TrackUpgradePurchased(Player, Upgrade, PreviousOwnership)
+	if UpgradeId == ONBOARDING_UPGRADE_ID then
+		-- The first reward after this unlock teaches the player how to scrub grease.
+		DataService:set(Player, "SpongeToasterRewardPending", true)
+		GuidanceController.Advance(Player, "BuySponge")
+	end
 	PurchaseLocks[Player] = nil
 	return true, "Purchased", Ownership
 end

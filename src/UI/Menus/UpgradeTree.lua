@@ -48,16 +48,23 @@ local function IsUpgradeVisibleDuringOnboarding(TutorialStep, UpgradeId: string)
 		or UpgradeId == ONBOARDING_UPGRADE_ID
 end
 
-local function GetPurchasableUpgrades(Ownership, Cash, TutorialStep): { any }
-	local PurchasableUpgrades = UpgradeLogic.GetAffordableUpgrades(Ownership, Cash)
-	if TutorialStep == TutorialConfig.CompleteStep then return PurchasableUpgrades end
+local function FilterOnboardingUpgrades(Upgrades, TutorialStep): { any }
+	if TutorialStep == TutorialConfig.CompleteStep then return Upgrades end
 
-	for Index = #PurchasableUpgrades, 1, -1 do
-		if PurchasableUpgrades[Index].Id ~= ONBOARDING_UPGRADE_ID then
-			table.remove(PurchasableUpgrades, Index)
+	for Index = #Upgrades, 1, -1 do
+		if Upgrades[Index].Id ~= ONBOARDING_UPGRADE_ID then
+			table.remove(Upgrades, Index)
 		end
 	end
-	return PurchasableUpgrades
+	return Upgrades
+end
+
+local function GetAvailableUpgrades(Ownership, TutorialStep): { any }
+	return FilterOnboardingUpgrades(UpgradeLogic.GetAvailableUpgrades(Ownership), TutorialStep)
+end
+
+local function GetPurchasableUpgrades(Ownership, Cash, TutorialStep): { any }
+	return FilterOnboardingUpgrades(UpgradeLogic.GetAffordableUpgrades(Ownership, Cash), TutorialStep)
 end
 
 local function ResolveUpgradeIcon(Upgrade): string
@@ -379,11 +386,11 @@ return function()
 	local DragDistance = 0
 	local DraggedLastInput = false
 	local OpenButtonNotification
-	local AffordableUpgradeIds = {}
-	for _, Upgrade in GetPurchasableUpgrades(Ownership(), Cash(), TutorialStep()) do
-		AffordableUpgradeIds[Upgrade.Id] = true
+	local KnownAvailableUpgradeIds = {}
+	for _, Upgrade in GetAvailableUpgrades(Ownership(), TutorialStep()) do
+		KnownAvailableUpgradeIds[Upgrade.Id] = true
 	end
-	local AffordableNotificationScheduled = false
+	local AvailabilityNotificationScheduled = false
 	local IsDestroyed = false
 
 	Effect(function()
@@ -400,26 +407,26 @@ return function()
 		end
 	end
 
-	local function UpdateAffordableNotification()
-		if AffordableNotificationScheduled then return end
-		AffordableNotificationScheduled = true
+	local function UpdateAvailabilityNotification()
+		if AvailabilityNotificationScheduled then return end
+		AvailabilityNotificationScheduled = true
 		task.defer(function()
-			AffordableNotificationScheduled = false
+			AvailabilityNotificationScheduled = false
 			if IsDestroyed then return end
 
-			local CurrentAffordableUpgradeIds = {}
-			local NewlyAffordableUpgrades = {}
-			for _, Upgrade in GetPurchasableUpgrades(Ownership(), Cash(), TutorialStep()) do
-				CurrentAffordableUpgradeIds[Upgrade.Id] = true
-				if not AffordableUpgradeIds[Upgrade.Id] then
-					table.insert(NewlyAffordableUpgrades, Upgrade)
+			local NewlyAvailableUpgrades = {}
+			for _, Upgrade in GetAvailableUpgrades(Ownership(), TutorialStep()) do
+				if not KnownAvailableUpgradeIds[Upgrade.Id] then
+					KnownAvailableUpgradeIds[Upgrade.Id] = true
+					table.insert(NewlyAvailableUpgrades, Upgrade)
 				end
 			end
-			AffordableUpgradeIds = CurrentAffordableUpgradeIds
 
-			-- A batch unlock is already represented by the upgrade button's count badge.
-			if #NewlyAffordableUpgrades == 1 then
-				NotificationManager.Notify("New Upgrade Ready", 4, UIStyle.Colors.Gold)
+			if #NewlyAvailableUpgrades > 0 then
+				local Message = if #NewlyAvailableUpgrades == 1
+					then `{NewlyAvailableUpgrades[1].Name} Available`
+					else `{#NewlyAvailableUpgrades} New Upgrades Available`
+				NotificationManager.Notify(Message, 4, UIStyle.Colors.Gold)
 			end
 		end)
 	end
@@ -521,17 +528,16 @@ return function()
 	local UpgradeConnection = DataService:getChangedSignal("Upgrades"):Connect(function(Value)
 		Ownership(UpgradeLogic.NormalizeOwnership(Value))
 		UpdateTutorialPulse()
-		UpdateAffordableNotification()
+		UpdateAvailabilityNotification()
 	end)
 	local CashConnection = DataService:getChangedSignal("Cash"):Connect(function(Value)
 		Cash(if type(Value) == "number" then Value else 0)
 		UpdateTutorialPulse()
-		UpdateAffordableNotification()
 	end)
 	local TutorialConnection = DataService:getChangedSignal("TutorialStep"):Connect(function(Value)
 		TutorialStep(Value)
 		UpdateTutorialPulse()
-		UpdateAffordableNotification()
+		UpdateAvailabilityNotification()
 	end)
 	local TutorialPulseConnection = TutorialPulseValue.Changed:Connect(TutorialPulse)
 	Cleanup(function()
@@ -563,6 +569,7 @@ return function()
 			if Success and type(NewOwnership) == "table" then
 				Ownership(NewOwnership)
 				UpdateTutorialPulse()
+				UpdateAvailabilityNotification()
 				LastPurchasedId(Upgrade.Id)
 				Sounds.Play("Buy", LocalPlayer.PlayerGui)
 				task.delay(0.14, function()

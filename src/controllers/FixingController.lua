@@ -35,6 +35,7 @@ local ToolStartAttachment: Attachment?
 local ToolEndAttachment: Attachment?
 local ToolEmitter: ParticleEmitter?
 local CreatedStartAttachment = false
+local CreatedToolEmitter = false
 local SmoothedToolPosition: Vector3?
 local SmoothedVisualToolCFrame: CFrame?
 local CurrentToolColor: Color3?
@@ -120,8 +121,22 @@ end
 
 local function GetToolRadiusScale(ToolInfo): number
 	local Ownership = DataService:get("Upgrades")
-	-- Radius is a fraction of viewport height, keeping the apparent footprint independent of item scale and camera distance.
-	return (ToolInfo.RadiusScale or CleaningConfig.BrushRadiusScale) * UpgradeLogic.GetToolRadiusMultiplier(Ownership, ToolInfo.Id)
+	local ItemRadiusMultiplier = 1
+	local Model = GetFixingItemModel()
+	local Box = Model and Model:FindFirstChild("BoundingBox")
+	if Box and Box:IsA("BasePart") then
+		local SizeAlpha = math.clamp(
+			(Box.Size.Magnitude - CleaningConfig.ItemRadiusScaleStartSize)
+				/ math.max(CleaningConfig.ItemRadiusScaleFullSize - CleaningConfig.ItemRadiusScaleStartSize, 0.01),
+			0,
+			1
+		)
+		ItemRadiusMultiplier = 1 + (CleaningConfig.ItemRadiusScaleMinimumMultiplier - 1) * SizeAlpha
+	end
+	-- Keep the radius viewport-relative across devices, with only a moderate taper for genuinely large item bounds.
+	return (ToolInfo.RadiusScale or CleaningConfig.BrushRadiusScale)
+		* UpgradeLogic.GetToolRadiusMultiplier(Ownership, ToolInfo.Id)
+		* ItemRadiusMultiplier
 end
 
 local function GetWorldToolRadius(Camera: Camera, ToolInfo, WorldPosition: Vector3): number
@@ -203,7 +218,11 @@ end
 
 StopToolEffects = function()
 	if ToolLoop then ToolLoop:Stop(); ToolLoop:Destroy(); ToolLoop = nil end
-	if ToolEmitter then ToolEmitter.Enabled = false; ToolEmitter = nil end
+	if ToolEmitter then
+		if CreatedToolEmitter then ToolEmitter:Destroy() else ToolEmitter.Enabled = false end
+		ToolEmitter = nil
+	end
+	CreatedToolEmitter = false
 	if ToolBeam then ToolBeam:Destroy(); ToolBeam = nil end
 	if ToolStartAttachment and CreatedStartAttachment then ToolStartAttachment:Destroy() end
 	ToolStartAttachment = nil
@@ -218,9 +237,9 @@ local function StartToolEffects(Tool: Tool, ToolInfo)
 	StopToolEffects()
 	local StartObject = Tool:FindFirstChild(ToolInfo.VFXStartPartName, true)
 	if not StartObject then return end
-	local BeamFolder = if type(ToolInfo.VFXFolderName) == "string" then ReplicatedStorage.Assets.VFX:FindFirstChild(ToolInfo.VFXFolderName) else nil
-	local BeamTemplate = if BeamFolder and type(ToolInfo.VFXName) == "string" then BeamFolder:FindFirstChild(ToolInfo.VFXName) else nil
-	if BeamTemplate and BeamTemplate:IsA("Beam") then
+	local VFXFolder = if type(ToolInfo.VFXFolderName) == "string" then ReplicatedStorage.Assets.VFX:FindFirstChild(ToolInfo.VFXFolderName) else nil
+	local VFXTemplate = if VFXFolder and type(ToolInfo.VFXName) == "string" then VFXFolder:FindFirstChild(ToolInfo.VFXName) else nil
+	if VFXTemplate and VFXTemplate:IsA("Beam") then
 		if StartObject:IsA("Attachment") then
 			ToolStartAttachment = StartObject
 		elseif StartObject:IsA("BasePart") then
@@ -242,14 +261,20 @@ local function StartToolEffects(Tool: Tool, ToolInfo)
 			ToolEndAttachment = Instance.new("Attachment")
 			ToolEndAttachment.Name = "ToolVFXEndAttachment"
 			ToolEndAttachment.Parent = ToolEndPart
-			ToolBeam = BeamTemplate:Clone()
+			ToolBeam = VFXTemplate:Clone()
 			ToolBeam.Attachment0 = ToolStartAttachment
 			ToolBeam.Attachment1 = ToolEndAttachment
 			ToolBeam.Enabled = false
 			ToolBeam.Parent = ToolStartAttachment.Parent
 		end
 	end
-	ToolEmitter = StartObject:FindFirstChildWhichIsA("ParticleEmitter", true)
+	if VFXTemplate and VFXTemplate:IsA("ParticleEmitter") then
+		ToolEmitter = VFXTemplate:Clone()
+		ToolEmitter.Enabled = true
+		ToolEmitter.Parent = StartObject
+		CreatedToolEmitter = true
+	end
+	if not ToolEmitter then ToolEmitter = StartObject:FindFirstChildWhichIsA("ParticleEmitter", true) end
 	if not ToolEmitter and StartObject.Parent then ToolEmitter = StartObject.Parent:FindFirstChildWhichIsA("ParticleEmitter", true) end
 	if ToolEmitter then ToolEmitter.Enabled = true end
 	local SoundTemplate = if type(ToolInfo.LoopSoundName) == "string" then Sounds.Get(ToolInfo.LoopSoundName) else nil

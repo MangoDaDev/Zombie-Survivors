@@ -3,6 +3,7 @@ local ReplicatedStorage = game:GetService "ReplicatedStorage"
 local ServerStorage = game:GetService "ServerStorage"
 local Workspace = game:GetService "Workspace"
 
+local AnalyticsController = require(ServerStorage.Controllers.AnalyticsController)
 local ItemsInfo = require(ReplicatedStorage.Modules.Game.ItemsInfo)
 local MuseumVisitor = require(ServerStorage.Classes.MuseumVisitor)
 local MuseumController = require(ServerStorage.Controllers.MuseumController)
@@ -375,6 +376,7 @@ local function runVisit(player: Player, token, levelNumber: number)
 					dataService:update(player, "Cash", function(cash)
 						return (if type(cash) == "number" then cash else 0) + itemInfo.GuestPay
 					end)
+					AnalyticsController.TrackFirstVisitorIncome(player, itemId, levelNumber, itemInfo.GuestPay)
 					GuidanceController.Advance(player, "EarnMoney")
 					visitor:ShowCash(itemInfo.GuestPay)
 				end

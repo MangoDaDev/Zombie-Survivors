@@ -62,9 +62,15 @@ local function createStatRow(image: string, value: number, position: UDim2, Valu
 end
 
 return function(itemInfo, adornee: BasePart, fixingState): BillboardGui
-	local existingBillboard = adornee:FindFirstChild("ItemInfo")
-	if existingBillboard then
-		existingBillboard:Destroy()
+	local ItemModel = adornee:FindFirstAncestorOfClass("Model")
+	local BillboardRoot = ItemModel or adornee
+	-- Keep every item's identity and value information in one shared BillboardGui.
+	for _, Descendant in BillboardRoot:GetDescendants() do
+		if Descendant:IsA("BillboardGui")
+			and (Descendant.Name == "ItemInfo" or CollectionService:HasTag(Descendant, ITEM_INFO_TAG))
+		then
+			Descendant:Destroy()
+		end
 	end
 
 	local billboard = Instance.new("BillboardGui")
@@ -73,7 +79,6 @@ return function(itemInfo, adornee: BasePart, fixingState): BillboardGui
 	billboard.AlwaysOnTop = true
 	billboard.MaxDistance = ItemInteractionConfig.ItemBillboardMaxDistance
 	billboard.Size = BILLBOARD_SIZE
-	local ItemModel = adornee:FindFirstAncestorOfClass("Model")
 	local ItemHeight = if ItemModel then ItemModel:GetExtentsSize().Y else adornee.Size.Y
 	billboard.StudsOffsetWorldSpace = Vector3.new(0, ItemHeight / 2 + BILLBOARD_HEIGHT_OFFSET + ItemHeight * BILLBOARD_HEIGHT_SCALE, 0)
 	billboard.Parent = adornee
@@ -118,7 +123,7 @@ return function(itemInfo, adornee: BasePart, fixingState): BillboardGui
 	local PriceRow = createStatRow(Images.Cash, DisplayValue, UDim2.fromScale(0, 0.73), nil, 0.18, 0.09)
 	PriceRow.Name = "Price"
 	PriceRow.Parent = billboard
-	local RequiredSteps = CleaningConfig.GetStepsForItem(itemInfo)
+	local RequiredSteps = CleaningConfig.GetStepsForItem(itemInfo, fixingState)
 	if fixingState and fixingState.Completed ~= true and #RequiredSteps > 0 and Images.FixIcons then
 		local fixRow = Instance.new("Frame")
 		fixRow.Name = "FixIcons"

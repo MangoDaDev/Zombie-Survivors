@@ -43,6 +43,11 @@ local CrateInfo = {
 		PartName = "PityDisplay",
 		PixelsPerStud = 16,
 	},
+	SpongeTutorialReward = {
+		ItemId = 6,
+		GuaranteedDropCount = 2,
+		RestorationSteps = { "Spray", "Sponge" },
+	},
 	NewPlayerDropSequence = { 1, 6, 5, 14 },
 	Crates = {
 		-- Keep higher-tier rewards gated behind the matching bat progression through sharply increasing durability.

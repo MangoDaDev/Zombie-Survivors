@@ -4,6 +4,7 @@ local RunService = game:GetService("RunService")
 local ServerStorage = game:GetService("ServerStorage")
 local TweenService = game:GetService("TweenService")
 
+local AnalyticsController = require(ServerStorage.Controllers.AnalyticsController)
 local CarryController = require(ServerStorage.Controllers.CarryController)
 local GuidanceController = require(ServerStorage.Controllers.GuidanceController)
 local CleaningConfig = require(ReplicatedStorage.Modules.Game.CleaningConfig)
@@ -89,7 +90,7 @@ local function CompleteRestorationState(Player, ItemId, ItemInfo, State)
 	State.Completed = true
 	if State.CompletionRewardClaimed == true then
 		SaveState(Player, ItemId, State)
-		return
+		return 0, false
 	end
 	State.CompletionRewardClaimed = true
 	SaveState(Player, ItemId, State)
@@ -97,6 +98,7 @@ local function CompleteRestorationState(Player, ItemId, ItemInfo, State)
 	DataService:update(Player, "Cash", function(Cash)
 		return (if type(Cash) == "number" then Cash else 0) + Reward
 	end)
+	return Reward, true
 end
 
 local function GetCleaningTool(Player, ToolId): Tool?
@@ -419,7 +421,7 @@ local function StartFixing(Player)
 		GuidanceController.Show(Player, "Ready To Display")
 		return
 	end
-	local Steps = CleaningConfig.GetStepsForItem(Info)
+	local Steps = CleaningConfig.GetStepsForItem(Info, State)
 	if #Steps == 0 then return end
 	local Model = Template:Clone()
 	local Box = Model:FindFirstChild("BoundingBox")
@@ -436,7 +438,8 @@ local function StartFixing(Player)
 	NormalizeState(State, Model, Steps)
 	local StepIndex = GetFirstIncompleteStep(State, Steps)
 	if not StepIndex then
-		CompleteRestorationState(Player, ItemId, Info, State)
+		local Reward, RewardCollected = CompleteRestorationState(Player, ItemId, Info, State)
+		AnalyticsController.TrackRestorationCompleted(Player, Info, Reward, RewardCollected)
 		Model:Destroy()
 		GuidanceController.Advance(Player, "CleanThis")
 		GuidanceController.Show(Player, "Ready To Display")
@@ -511,6 +514,7 @@ local function StartFixing(Player)
 	PrepareAllTargets(Session)
 	SaveState(Player, ItemId, State)
 	PrepareCurrentStep(Player, Session)
+	AnalyticsController.TrackRestorationStarted(Player, Info)
 	GuidanceController.Advance(Player, "StartCleaning")
 	if GetStepProgress(Session) >= CleaningConfig.AutoCompletionThreshold then task.defer(CompleteCurrentStep, Player, Session) end
 end
@@ -652,6 +656,7 @@ CompleteCurrentStep = function(Player, Session)
 	PlayerStateController.Set(Player, "CleaningProgress", 1)
 	PlayerStateController.Set(Player, "CleaningStepComplete", true)
 	Sounds.Play(Step.CompletionSoundName, Session.RootPart, CONFIG.FeedbackSoundMaxDistance)
+	AnalyticsController.TrackRestorationStepCompleted(Player, Session.ItemInfo, Step)
 	if GetFirstIncompleteStep(Session.State, Session.Steps) then
 		Session.TransitionId += 1
 		local TransitionId = Session.TransitionId
@@ -671,7 +676,8 @@ CompleteCurrentStep = function(Player, Session)
 		end)
 		return
 	end
-	CompleteRestorationState(Player, Session.ItemId, Session.ItemInfo, Session.State)
+	local Reward, RewardCollected = CompleteRestorationState(Player, Session.ItemId, Session.ItemInfo, Session.State)
+	AnalyticsController.TrackRestorationCompleted(Player, Session.ItemInfo, Reward, RewardCollected)
 	PlayerStateController.Set(Player, "CleaningRestorationComplete", true)
 	GuidanceController.Advance(Player, "CleanThis")
 	GuidanceController.Show(Player, "Ready To Display")
