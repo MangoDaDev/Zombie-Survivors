@@ -191,6 +191,12 @@ local function UpdateFixPrompt()
 		and (type(State) ~= "table" or State.Completed ~= true)
 end
 
+local function HideForeignFixPrompt(Descendant: Instance)
+	if not Descendant:IsA("ProximityPrompt") or Descendant.Name ~= "FixItemPrompt" then return end
+	-- Only the owner should see the interaction prompt on their fixing table.
+	if not Descendant:FindFirstAncestor(`Museum_{LocalPlayer.UserId}`) then Descendant.Enabled = false end
+end
+
 local function WatchCharacter(Character: Model)
 	for _, Connection in CharacterConnections do Connection:Disconnect() end
 	CharacterConnections = {
@@ -648,12 +654,8 @@ local function FinishRemainingTargets(ToolId: string)
 					Color = State.OriginalAppearance.Color,
 					Transparency = State.OriginalAppearance.Transparency,
 				}):Play()
-			elseif Step.Type == "Bent" and State.RestoredCFrame then
-				local Model = GetFixingItemModel()
-				local RestoredCFrame = if Model and State.RestoredRelativeCFrame
-					then Model:GetPivot() * State.RestoredRelativeCFrame
-					else State.RestoredCFrame
-				TweenService:Create(Target, TweenInfo.new(Duration * 0.65, Enum.EasingStyle.Back), { CFrame = RestoredCFrame }):Play()
+			elseif Step.Type == "Bent" then
+				-- Hammer transforms are server-owned; a local tween would fight fixing-table rotation replication.
 			else
 				TweenService:Create(Target, TweenInfo.new(Duration * 0.65, Enum.EasingStyle.Quad), { Transparency = 1 }):Play()
 			end
@@ -666,11 +668,8 @@ local function FinishRemainingTargets(ToolId: string)
 			State.Completed = true
 			if (Step.Type == "Paint" or Step.Type == "Polish") and State.OriginalAppearance then
 				PaintRenderer.ApplyAppearance(State.Part, State.OriginalAppearance)
-			elseif Step.Type == "Bent" and State.RestoredCFrame then
-				local Model = GetFixingItemModel()
-				State.Part.CFrame = if Model and State.RestoredRelativeCFrame
-					then Model:GetPivot() * State.RestoredRelativeCFrame
-					else State.RestoredCFrame
+			elseif Step.Type == "Bent" then
+				-- CompleteStep restores every Hammer target authoritatively on the server.
 			else
 				State.Part:Destroy()
 			end
@@ -711,7 +710,6 @@ local function PrepareLocalStep(ToolId: string): boolean
 
 	local Targets = {}
 	local OriginalAppearances = {}
-	local Template = ReplicatedStorage.Assets.Models.Items:FindFirstChild(ItemInfo.AssetName)
 	local SavedTargetCount = if Step.Type == "Bent"
 		then RuntimeState.Get(LocalPlayer, "CleaningStepTotal", 2)
 		else RuntimeState.Get(LocalPlayer, "CleaningStepRemaining", 2)
@@ -731,6 +729,7 @@ local function PrepareLocalStep(ToolId: string): boolean
 		end
 	elseif Step.Type == "Paint" or Step.Type == "Polish" then
 		Targets = PaintRenderer.GetPaintParts(Model)
+		local Template = ReplicatedStorage.Assets.Models.Items:FindFirstChild(ItemInfo.AssetName)
 		if Template and Template:IsA("Model") then
 			for _, Target in Targets do
 				local Appearance = PaintRenderer.GetOriginalAppearance(Model, Target, Template)
@@ -767,26 +766,10 @@ local function PrepareLocalStep(ToolId: string): boolean
 	local MaximumHealth = if Step.Type == "Dirt" then ItemInfo.DirtHP else Step.TargetHP
 	local SavedTargetHealth = RuntimeState.Get(LocalPlayer, "CleaningTargetHealth")
 	for Index, Target in Targets do
-		local BendRotation = Step.BendRotationDegrees or Vector3.new(28, -18, 12)
-		local DamageRotation = CFrame.Angles(math.rad(BendRotation.X), math.rad(BendRotation.Y), math.rad(BendRotation.Z))
 		local CurrentHealth = if Step.Type == "Bent" and type(SavedTargetHealth) == "table" and type(SavedTargetHealth[Index]) == "number"
 			then math.clamp(SavedTargetHealth[Index], 0, MaximumHealth)
 			else MaximumHealth
-		local RestoredCFrame
 		local StartCFrame = Target.CFrame
-		if Step.Type == "Bent" then
-			RestoredCFrame = if Template and Template:IsA("Model")
-				then RestorationTargetRenderer.GetRestoredCFrame(Model, Target, Template)
-				else nil
-			if not RestoredCFrame then
-				local RestoredAmount = 1 - CurrentHealth / math.max(MaximumHealth, 0.001)
-				local Axis, Angle = DamageRotation:ToAxisAngle()
-				local RemainingDamageRotation = CFrame.fromAxisAngle(Axis, Angle * (1 - RestoredAmount))
-				RestoredCFrame = Target.CFrame * RemainingDamageRotation:Inverse()
-			end
-			StartCFrame = RestoredCFrame * DamageRotation
-		end
-		local ModelPivot = Model:GetPivot()
 		table.insert(LocalTargetStates, {
 			Part = Target,
 			TargetIndex = Index,
@@ -795,9 +778,6 @@ local function PrepareLocalStep(ToolId: string): boolean
 			DamagedColor = Target.Color,
 			OriginalAppearance = OriginalAppearances[Target],
 			StartCFrame = StartCFrame,
-			RestoredCFrame = RestoredCFrame,
-			StartRelativeCFrame = if Step.Type == "Bent" then ModelPivot:ToObjectSpace(StartCFrame) else nil,
-			RestoredRelativeCFrame = if RestoredCFrame then ModelPivot:ToObjectSpace(RestoredCFrame) else nil,
 			BaseTransparency = Target.Transparency,
 			Completed = CurrentHealth <= 0,
 		})
@@ -936,15 +916,8 @@ local function ApplyToolLocally(ToolInfo, DeltaTime: number, AimPosition: Vector
 		elseif Step.Type == "Grease" or Step.Type == "LightDust" then
 			local BaseTransparency = State.BaseTransparency
 			Target.Transparency = BaseTransparency + (1 - BaseTransparency) * (1 - State.CurrentHealth / math.max(State.MaximumHealth, 0.001))
-		elseif Step.Type == "Bent" and State.RestoredCFrame then
-			local RestoredAmount = 1 - State.CurrentHealth / math.max(State.MaximumHealth, 0.001)
-			local Model = GetFixingItemModel()
-			if Model and State.StartRelativeCFrame and State.RestoredRelativeCFrame then
-				Target.CFrame = Model:GetPivot() * State.StartRelativeCFrame:Lerp(State.RestoredRelativeCFrame, RestoredAmount)
-			else
-				Target.CFrame = State.StartCFrame:Lerp(State.RestoredCFrame, RestoredAmount)
-			end
-			-- Persist every hammer hit on the authoritative model so later replication cannot restore an older bend.
+		elseif Step.Type == "Bent" then
+			-- Persist every hit; the server owns the part transform so rotation replication cannot overwrite it.
 			Network:fire("ReportHammerProgress", ToolInfo.Id, State.TargetIndex, State.CurrentHealth)
 		elseif Step.Type == "Metal" then
 			local RestoredAmount = 1 - State.CurrentHealth / math.max(State.MaximumHealth, 0.001)
@@ -970,11 +943,8 @@ local function ApplyToolLocally(ToolInfo, DeltaTime: number, AimPosition: Vector
 			CameraImpulse = math.max(CameraImpulse, CleaningConfig.CameraTargetImpulseDistance)
 			if Step.Type == "Dirt" or Step.Type == "Grease" or Step.Type == "LightDust" or Step.Type == "LooseDebris" or Step.Type == "Metal" then
 				Target:Destroy()
-			elseif Step.Type == "Bent" and State.RestoredCFrame then
-				local Model = GetFixingItemModel()
-				Target.CFrame = if Model and State.RestoredRelativeCFrame
-					then Model:GetPivot() * State.RestoredRelativeCFrame
-					else State.RestoredCFrame
+			elseif Step.Type == "Bent" then
+				-- The matching ReportHammerProgress call restores this target on the server.
 			elseif State.OriginalAppearance then
 				PaintRenderer.ApplyAppearance(Target, State.OriginalAppearance)
 			end
@@ -1162,6 +1132,8 @@ function FixingController.Init()
 	Network = Networker.client.new("FixingController", FixingController)
 	task.spawn(function()
 		local Museums = Workspace:WaitForChild("PlayerMuseums")
+		for _, Descendant in Museums:GetDescendants() do HideForeignFixPrompt(Descendant) end
+		Museums.DescendantAdded:Connect(HideForeignFixPrompt)
 		local Museum = Museums:WaitForChild(`Museum_{LocalPlayer.UserId}`)
 		FixPrompt = Museum:WaitForChild("Table"):WaitForChild("PromptPart"):WaitForChild("FixItemPrompt") :: ProximityPrompt
 		UpdateFixPrompt()

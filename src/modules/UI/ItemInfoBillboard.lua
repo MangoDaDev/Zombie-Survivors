@@ -29,8 +29,7 @@ local function createStatRow(
 	position: UDim2,
 	ValuePrefix: string?,
 	RowHeight: number?,
-	IconWidth: number?,
-	LabelText: string?
+	IconWidth: number?
 ): Frame
 	local row = Instance.new "Frame"
 	row.BackgroundTransparency = 1
@@ -59,8 +58,7 @@ local function createStatRow(
 	valueLabel.FontFace = COMIC_FONT
 	valueLabel.LayoutOrder = 2
 	valueLabel.Size = UDim2.fromScale(0, 1)
-	local ResolvedLabel = if LabelText then `{LabelText}: ` else ""
-	valueLabel.Text = `{ResolvedLabel}{ValuePrefix or ""}{FormatNumber(value) or "0"}`
+	valueLabel.Text = `{ValuePrefix or ""}{FormatNumber(value) or "0"}`
 	valueLabel.TextColor3 = Color3.fromRGB(72, 232, 91)
 	valueLabel.TextScaled = true
 	valueLabel.TextXAlignment = Enum.TextXAlignment.Left
@@ -127,8 +125,8 @@ return function(itemInfo, adornee: BasePart, fixingState): BillboardGui
 	local RarityTextGradient = rarityGradient:Clone()
 	RarityTextGradient.Parent = RarityLabel
 
-	local GuestPayRow =
-		createStatRow(Images.Binoculars, itemInfo.GuestPay, UDim2.fromScale(0, 0.5), "$", 0.24, 0.14, "")
+	-- Keep view cash as a bare currency amount such as "$5", without a label or colon.
+	local GuestPayRow = createStatRow(Images.Binoculars, itemInfo.GuestPay, UDim2.fromScale(0, 0.5), "$", 0.24, 0.14)
 	GuestPayRow.Name = "GuestPay"
 	GuestPayRow.Parent = billboard
 	local DisplayValue = if IsCleaningComplete then itemInfo.SaleValue else itemInfo.Price

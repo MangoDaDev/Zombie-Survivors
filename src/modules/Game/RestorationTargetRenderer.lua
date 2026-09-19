@@ -25,36 +25,9 @@ local function IsBentCandidate(Model: Model, Part: Instance): boolean
 	return true
 end
 
-local function GetCounterpart(Model: Model, Template: Model, Target: BasePart): BasePart?
-	local Path = {}
-	local Current: Instance = Target
-	while Current ~= Model do
-		local Parent = Current.Parent
-		if not Parent then return nil end
-		local Ordinal = 0
-		for _, Sibling in Parent:GetChildren() do
-			if Sibling.Name == Current.Name and Sibling.ClassName == Current.ClassName then
-				Ordinal += 1
-				if Sibling == Current then break end
-			end
-		end
-		table.insert(Path, 1, { ClassName = Current.ClassName, Name = Current.Name, Ordinal = Ordinal })
-		Current = Parent
-	end
-	Current = Template
-	for _, Segment in Path do
-		local Ordinal = 0
-		local Match
-		for _, Child in Current:GetChildren() do
-			if Child.Name == Segment.Name and Child.ClassName == Segment.ClassName then
-				Ordinal += 1
-				if Ordinal == Segment.Ordinal then Match = Child; break end
-			end
-		end
-		if not Match then return nil end
-		Current = Match
-	end
-	return if Current:IsA("BasePart") then Current else nil
+local function GetReferenceCFrame(Model: Model): CFrame
+	local Box = Model:FindFirstChild("BoundingBox")
+	return if Box and Box:IsA("BasePart") then Box.CFrame else Model:GetPivot()
 end
 
 function RestorationTargetRenderer.GetBentParts(Model: Model, Count: number?): { BasePart }
@@ -93,12 +66,6 @@ function RestorationTargetRenderer.GetBentTargets(Model: Model, Count: number?):
 	local Targets = {}
 	for Index = 1, math.min(Count or #Candidates, #Candidates) do table.insert(Targets, Candidates[Index]) end
 	return Targets
-end
-
-function RestorationTargetRenderer.GetRestoredCFrame(Model: Model, Target: BasePart, Template: Model): CFrame?
-	local TemplateTarget = GetCounterpart(Model, Template, Target)
-	if not TemplateTarget then return nil end
-	return Model:GetPivot() * Template:GetPivot():ToObjectSpace(TemplateTarget.CFrame)
 end
 
 local function GetSeed(Model: Model, Salt: number): number
@@ -177,20 +144,20 @@ function RestorationTargetRenderer.Add(Model: Model, Type: string, Count: number
 			table.sort(Targets, function(A, B) return A:GetFullName() < B:GetFullName() end)
 			while #Targets > Count do table.remove(Targets) end
 		end
+		local ReferenceCFrame = GetReferenceCFrame(Model)
 		for _, Part in Targets do
 			local RestoredCFrame = Part.CFrame
 			if Type == "Bent" then
 				local BendRotation = Step.BendRotationDegrees or Vector3.new(28, -18, 12)
 				Part.CFrame *= CFrame.Angles(math.rad(BendRotation.X), math.rad(BendRotation.Y), math.rad(BendRotation.Z))
 			end
-			local ModelPivot = Model:GetPivot()
 			States[Part] = {
 				CurrentHealth = HP,
 				MaximumHealth = HP,
 				RestoredCFrame = RestoredCFrame,
-				RestoredRelativeCFrame = ModelPivot:ToObjectSpace(RestoredCFrame),
+				RestoredRelativeCFrame = ReferenceCFrame:ToObjectSpace(RestoredCFrame),
 				StartCFrame = Part.CFrame,
-				StartRelativeCFrame = ModelPivot:ToObjectSpace(Part.CFrame),
+				StartRelativeCFrame = ReferenceCFrame:ToObjectSpace(Part.CFrame),
 				Type = Type,
 			}
 		end
@@ -200,17 +167,17 @@ function RestorationTargetRenderer.Add(Model: Model, Type: string, Count: number
 		local Targets = RestorationTargetRenderer.GetBentParts(Model, Count)
 		local BendRotation = Step.BendRotationDegrees or Vector3.new(28, -18, 12)
 		local DamageRotation = CFrame.Angles(math.rad(BendRotation.X), math.rad(BendRotation.Y), math.rad(BendRotation.Z))
-		local ModelPivot = Model:GetPivot()
+		local ReferenceCFrame = GetReferenceCFrame(Model)
 		for _, Part in Targets do
-			local RestoredRelativeCFrame = ModelPivot:ToObjectSpace(Part.CFrame)
+			local RestoredRelativeCFrame = ReferenceCFrame:ToObjectSpace(Part.CFrame)
 			Part.CFrame *= DamageRotation
 			States[Part] = {
 				CurrentHealth = HP,
 				MaximumHealth = HP,
-				RestoredCFrame = ModelPivot * RestoredRelativeCFrame,
+				RestoredCFrame = ReferenceCFrame * RestoredRelativeCFrame,
 				RestoredRelativeCFrame = RestoredRelativeCFrame,
 				StartCFrame = Part.CFrame,
-				StartRelativeCFrame = ModelPivot:ToObjectSpace(Part.CFrame),
+				StartRelativeCFrame = ReferenceCFrame:ToObjectSpace(Part.CFrame),
 				Type = Type,
 			}
 		end
@@ -287,7 +254,7 @@ function RestorationTargetRenderer.SetHealth(Model: Model, Target: BasePart, Cur
 	State.CurrentHealth = math.clamp(CurrentHealth, 0, State.MaximumHealth)
 	if State.RestoredRelativeCFrame and State.StartRelativeCFrame then
 		local RestoredAmount = 1 - State.CurrentHealth / math.max(State.MaximumHealth, 0.001)
-		Target.CFrame = Model:GetPivot() * State.StartRelativeCFrame:Lerp(State.RestoredRelativeCFrame, RestoredAmount)
+		Target.CFrame = GetReferenceCFrame(Model) * State.StartRelativeCFrame:Lerp(State.RestoredRelativeCFrame, RestoredAmount)
 	elseif State.RestoredCFrame and State.StartCFrame then
 		local RestoredAmount = 1 - State.CurrentHealth / math.max(State.MaximumHealth, 0.001)
 		Target.CFrame = State.StartCFrame:Lerp(State.RestoredCFrame, RestoredAmount)
@@ -300,7 +267,7 @@ function RestorationTargetRenderer.Restore(Model: Model, Target: BasePart)
 	if State.OriginalColor then
 		Target.Color = State.OriginalColor
 	elseif State.RestoredRelativeCFrame then
-		Target.CFrame = Model:GetPivot() * State.RestoredRelativeCFrame
+		Target.CFrame = GetReferenceCFrame(Model) * State.RestoredRelativeCFrame
 	elseif State.RestoredCFrame then
 		Target.CFrame = State.RestoredCFrame
 	end

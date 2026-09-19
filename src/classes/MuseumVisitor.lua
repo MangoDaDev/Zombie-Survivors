@@ -1,5 +1,6 @@
 local ReplicatedStorage = game:GetService "ReplicatedStorage"
 local RunService = game:GetService "RunService"
+local Players = game:GetService "Players"
 local TextChatService = game:GetService "TextChatService"
 local Workspace = game:GetService "Workspace"
 
@@ -17,25 +18,120 @@ local CLASS_INFO = {
 local FADE_DURATION = 0.8
 local CASH_EFFECT_DURATION = 1.2
 local COMIC_FONT = UIStyle.Font
-local TurnResponsiveness = 16
-local WalkCycleSpeed = 10
-local WalkSwingAngle = math.rad(28)
-local WalkBlendResponsiveness = 12
+local TURN_RESPONSIVENESS = 16
+local WALK_CYCLE_SPEED = 10
+local WALK_SWING_ANGLE = math.rad(28)
+local WALK_BLEND_RESPONSIVENESS = 12
+local PRIORITY_REFRESH_INTERVAL = 0.2
+local VISIBILITY_REFRESH_INTERVAL = 0.15
+local BACKGROUND_UPDATE_INTERVAL = 0.1
+local DISTANT_UPDATE_INTERVAL = 0.35
+local MAX_BACKGROUND_VISITORS = 12
+local MAX_BLEND_DELTA_TIME = 0.1
 
 local renderFolder: Folder?
 local RenderedVisitors = {}
 local RenderConnection: RBXScriptConnection?
+local PriorityOwnerUserId = Players.LocalPlayer.UserId
+local LastPriorityRefresh = 0
+local BackgroundVisitors = {}
 
 local MuseumVisitor = {}
 MuseumVisitor.__index = MuseumVisitor
+
+local function GetCurrentMovementCFrame(Visitor, Now: number): CFrame
+	local Model = Visitor.model
+	local Pivot = Model:GetPivot()
+	if Visitor.moveTarget == nil then
+		return Pivot
+	end
+
+	local MoveAlpha = math.clamp((Now - Visitor.moveStartedAt) / Visitor.moveDuration, 0, 1)
+	local Position = Visitor.moveStart.Position:Lerp(Visitor.moveTarget.Position, MoveAlpha)
+	local Rotation = if MoveAlpha < 1 then Visitor.moveRotation else Visitor.moveTarget.Rotation
+	return CFrame.new(Position) * Rotation
+end
+
+local function IsPointInsidePart(Point: Vector3, Part: BasePart): boolean
+	local LocalPoint = Part.CFrame:PointToObjectSpace(Point)
+	local HalfSize = Part.Size / 2
+	return math.abs(LocalPoint.X) <= HalfSize.X
+		and math.abs(LocalPoint.Y) <= HalfSize.Y
+		and math.abs(LocalPoint.Z) <= HalfSize.Z
+end
+
+local function GetViewedMuseumOwnerUserId(): number
+	local Character = Players.LocalPlayer.Character
+	local RootPart = Character and Character:FindFirstChild "HumanoidRootPart"
+	local PlayerMuseums = Workspace:FindFirstChild "PlayerMuseums"
+	if RootPart == nil or not RootPart:IsA("BasePart") or PlayerMuseums == nil then
+		return Players.LocalPlayer.UserId
+	end
+
+	for _, Museum in PlayerMuseums:GetChildren() do
+		local OwnerUserId = tonumber(string.match(Museum.Name, "^Museum_(%d+)$"))
+		if OwnerUserId and OwnerUserId ~= Players.LocalPlayer.UserId then
+			for _, Descendant in Museum:GetDescendants() do
+				if Descendant.Name == "MuseumArea"
+					and Descendant:IsA("BasePart")
+					and IsPointInsidePart(RootPart.Position, Descendant)
+				then
+					return OwnerUserId
+				end
+			end
+		end
+	end
+
+	return Players.LocalPlayer.UserId
+end
+
+local function RefreshPriorities(Now: number)
+	PriorityOwnerUserId = GetViewedMuseumOwnerUserId()
+	table.clear(BackgroundVisitors)
+
+	local Camera = Workspace.CurrentCamera
+	for Visitor in RenderedVisitors do
+		Visitor.isBackgroundPriority = false
+		if Visitor.OwnerUserId ~= PriorityOwnerUserId and Visitor.isVisible and Visitor.model and Camera then
+			table.insert(BackgroundVisitors, Visitor)
+		end
+	end
+
+	table.sort(BackgroundVisitors, function(First, Second)
+		return (First.model:GetPivot().Position - Camera.CFrame.Position).Magnitude
+			< (Second.model:GetPivot().Position - Camera.CFrame.Position).Magnitude
+	end)
+	for Index = 1, math.min(#BackgroundVisitors, MAX_BACKGROUND_VISITORS) do
+		BackgroundVisitors[Index].isBackgroundPriority = true
+	end
+	LastPriorityRefresh = Now
+end
 
 local function StartRenderLoop()
 	if RenderConnection then
 		return
 	end
-	RenderConnection = RunService.RenderStepped:Connect(function(DeltaTime)
+	RenderConnection = RunService.RenderStepped:Connect(function()
+		local Now = Workspace:GetServerTimeNow()
+		if Now - LastPriorityRefresh >= PRIORITY_REFRESH_INTERVAL then
+			RefreshPriorities(Now)
+		end
 		for Visitor in RenderedVisitors do
-			Visitor:Update(DeltaTime)
+			Visitor:RefreshVisibility(Now)
+			if not Visitor.isVisible then
+				continue
+			end
+
+			local UpdateInterval = 0
+			if Visitor.OwnerUserId ~= PriorityOwnerUserId then
+				UpdateInterval = if Visitor.isBackgroundPriority then BACKGROUND_UPDATE_INTERVAL else DISTANT_UPDATE_INTERVAL
+			end
+			if Now >= Visitor.nextVisualUpdateAt then
+				local DeltaTime = math.min(Now - Visitor.lastVisualUpdateAt, MAX_BLEND_DELTA_TIME)
+				Visitor.lastVisualUpdateAt = Now
+				Visitor.nextVisualUpdateAt = Now + UpdateInterval
+				Visitor:Update(DeltaTime)
+			end
 		end
 	end)
 end
@@ -188,6 +284,14 @@ function MuseumVisitor:Render()
 	self.walkJoints = GetWalkJoints(model)
 	self.walkBlend = 0
 	model:PivotTo((self.CurrentCFrame or self.SpawnCFrame) + self.feetOffset)
+	local BoundingCFrame, BoundingSize = model:GetBoundingBox()
+	self.boundingOffset = model:GetPivot():ToObjectSpace(BoundingCFrame)
+	self.boundingSize = BoundingSize
+	self.isVisible = true
+	self.isBackgroundPriority = false
+	self.lastVisibilityUpdate = 0
+	self.lastVisualUpdateAt = Workspace:GetServerTimeNow()
+	self.nextVisualUpdateAt = self.lastVisualUpdateAt
 
 	self.model = model
 	self.fadeInstances = getFadeInstances(model)
@@ -198,6 +302,37 @@ function MuseumVisitor:Render()
 	self.fadeDuration = FADE_DURATION
 	RenderedVisitors[self] = true
 	StartRenderLoop()
+end
+
+function MuseumVisitor:RefreshVisibility(Now: number)
+	if Now - self.lastVisibilityUpdate < VISIBILITY_REFRESH_INTERVAL then
+		return
+	end
+	self.lastVisibilityUpdate = Now
+
+	local Camera = Workspace.CurrentCamera
+	local Model = self.model
+	if Camera == nil or Model == nil then
+		self.isVisible = false
+		return
+	end
+
+	-- Visibility follows the authoritative timed route even while the rendered model is paused offscreen.
+	local BoundingCFrame = GetCurrentMovementCFrame(self, Now) * self.boundingOffset
+	local HalfSize = self.boundingSize / 2
+	for X = -1, 1, 2 do
+		for Y = -1, 1, 2 do
+			for Z = -1, 1, 2 do
+				local Corner = BoundingCFrame:PointToWorldSpace(Vector3.new(HalfSize.X * X, HalfSize.Y * Y, HalfSize.Z * Z))
+				local _, IsVisible = Camera:WorldToViewportPoint(Corner)
+				if IsVisible then
+					self.isVisible = true
+					return
+				end
+			end
+		end
+	end
+	self.isVisible = false
 end
 
 function MuseumVisitor:Update(DeltaTime: number)
@@ -212,7 +347,7 @@ function MuseumVisitor:Update(DeltaTime: number)
 		local MoveAlpha = math.clamp((now - self.moveStartedAt) / self.moveDuration, 0, 1)
 		local Position = self.moveStart.Position:Lerp(self.moveTarget.Position, MoveAlpha)
 		DesiredRotation = if MoveAlpha < 1 then self.moveRotation else self.moveTarget.Rotation
-		local RotationAlpha = 1 - math.exp(-TurnResponsiveness * DeltaTime)
+		local RotationAlpha = 1 - math.exp(-TURN_RESPONSIVENESS * DeltaTime)
 		local Rotation = model:GetPivot().Rotation:Lerp(DesiredRotation, RotationAlpha)
 		model:PivotTo(CFrame.new(Position) * Rotation)
 		if MoveAlpha >= 1 then
@@ -220,15 +355,15 @@ function MuseumVisitor:Update(DeltaTime: number)
 			self.moveTarget = nil
 		end
 	elseif DesiredRotation then
-		local RotationAlpha = 1 - math.exp(-TurnResponsiveness * DeltaTime)
+		local RotationAlpha = 1 - math.exp(-TURN_RESPONSIVENESS * DeltaTime)
 		local Pivot = model:GetPivot()
 		model:PivotTo(CFrame.new(Pivot.Position) * Pivot.Rotation:Lerp(DesiredRotation, RotationAlpha))
 	end
 
 	local WalkTarget = if self.moveTarget then 1 else 0
-	local WalkAlpha = 1 - math.exp(-WalkBlendResponsiveness * DeltaTime)
+	local WalkAlpha = 1 - math.exp(-WALK_BLEND_RESPONSIVENESS * DeltaTime)
 	self.walkBlend += (WalkTarget - self.walkBlend) * WalkAlpha
-	local WalkSwing = math.sin(now * WalkCycleSpeed) * WalkSwingAngle * self.walkBlend
+	local WalkSwing = math.sin(now * WALK_CYCLE_SPEED) * WALK_SWING_ANGLE * self.walkBlend
 	for JointName, Joint in self.walkJoints do
 		local Direction = if JointName == "LeftHip" or JointName == "RightShoulder" then 1 else -1
 		Joint.Transform = CFrame.Angles(WalkSwing * Direction, 0, 0)
@@ -250,7 +385,7 @@ function MuseumVisitor:MoveTo(targetCFrame: CFrame, duration: number)
 	if self.model == nil then
 		return
 	end
-	self.moveStart = self.model:GetPivot()
+	self.moveStart = GetCurrentMovementCFrame(self, Workspace:GetServerTimeNow())
 	self.moveTarget = targetCFrame + self.feetOffset
 	self.rotationTarget = nil
 	local MoveDirection = self.moveTarget.Position - self.moveStart.Position
@@ -267,6 +402,9 @@ function MuseumVisitor:MoveTo(targetCFrame: CFrame, duration: number)
 end
 
 function MuseumVisitor:ShowCash(amount: number)
+	if not self.isVisible then
+		return
+	end
 	local model = self.model
 	local rootPart = model and model:FindFirstChild "HumanoidRootPart"
 	if rootPart == nil or not rootPart:IsA "BasePart" then
@@ -315,6 +453,9 @@ function MuseumVisitor:ShowCash(amount: number)
 end
 
 function MuseumVisitor:Say(message: string)
+	if not self.isVisible then
+		return
+	end
 	local model = self.model
 	local head = model and model:FindFirstChild "Head"
 	if head and head:IsA "BasePart" and message ~= "" then

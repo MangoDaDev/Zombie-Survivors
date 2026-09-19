@@ -59,10 +59,6 @@ local function FilterOnboardingUpgrades(Upgrades, TutorialStep): { any }
 	return Upgrades
 end
 
-local function GetAvailableUpgrades(Ownership, TutorialStep): { any }
-	return FilterOnboardingUpgrades(UpgradeLogic.GetAvailableUpgrades(Ownership), TutorialStep)
-end
-
 local function GetPurchasableUpgrades(Ownership, Cash, TutorialStep): { any }
 	return FilterOnboardingUpgrades(UpgradeLogic.GetAffordableUpgrades(Ownership, Cash), TutorialStep)
 end
@@ -366,7 +362,8 @@ return function()
 	local OpenButtonScale = Spring(
 		Derive(function()
 			if IsOpenButtonPressed() then return 0.9 end
-			if IsOpenUpgradesStep() then return 1.04 + TutorialPulse() * 0.06 end
+			-- Give only the Open Upgrades step a noticeable, restrained scale pulse.
+			if IsOpenUpgradesStep() then return 1.12 + TutorialPulse() * 0.08 end
 			return if IsOpenButtonHovered() then 1.05 else 1
 		end),
 		0.12,
@@ -386,15 +383,17 @@ return function()
 	local DragDistance = 0
 	local DraggedLastInput = false
 	local IsPinching = false
+	local ActiveTouches: { [InputObject]: Vector2 } = {}
+	local PinchStartDistance = 0
 	local PinchStartZoom = UpgradeConfig.DefaultZoom
 	local LastPinchPosition: Vector2?
 	local OpenButtonNotification
-	-- Keep availability history for the session so repeated data signals never re-notify an existing unlock.
-	local KnownAvailableUpgradeIds = {}
-	for _, Upgrade in GetAvailableUpgrades(Ownership(), TutorialStep()) do
-		KnownAvailableUpgradeIds[Upgrade.Id] = true
+	-- Keep affordability history for the session so repeated data signals never re-notify an affordable upgrade.
+	local KnownAffordableUpgradeIds = {}
+	for _, Upgrade in GetPurchasableUpgrades(Ownership(), Cash(), TutorialStep()) do
+		KnownAffordableUpgradeIds[Upgrade.Id] = true
 	end
-	local AvailabilityNotificationScheduled = false
+	local AffordableNotificationScheduled = false
 	local IsDestroyed = false
 
 	Effect(function()
@@ -411,25 +410,25 @@ return function()
 		end
 	end
 
-	local function UpdateAvailabilityNotification()
-		if AvailabilityNotificationScheduled then return end
-		AvailabilityNotificationScheduled = true
+	local function UpdateAffordableNotification()
+		if AffordableNotificationScheduled then return end
+		AffordableNotificationScheduled = true
 		task.defer(function()
-			AvailabilityNotificationScheduled = false
+			AffordableNotificationScheduled = false
 			if IsDestroyed then return end
 
-			local NewlyAvailableUpgrades = {}
-			for _, Upgrade in GetAvailableUpgrades(Ownership(), TutorialStep()) do
-				if not KnownAvailableUpgradeIds[Upgrade.Id] then
-					KnownAvailableUpgradeIds[Upgrade.Id] = true
-					table.insert(NewlyAvailableUpgrades, Upgrade)
+			local NewlyAffordableUpgradeCount = 0
+			for _, Upgrade in GetPurchasableUpgrades(Ownership(), Cash(), TutorialStep()) do
+				if not KnownAffordableUpgradeIds[Upgrade.Id] then
+					KnownAffordableUpgradeIds[Upgrade.Id] = true
+					NewlyAffordableUpgradeCount += 1
 				end
 			end
 
-			if #NewlyAvailableUpgrades > 0 then
-				local Message = if #NewlyAvailableUpgrades == 1
-					then `{NewlyAvailableUpgrades[1].Name} Available`
-					else `{#NewlyAvailableUpgrades} New Upgrades Available`
+			if NewlyAffordableUpgradeCount > 0 then
+				local Message = if NewlyAffordableUpgradeCount == 1
+					then "New Upgrade Ready"
+					else `{NewlyAffordableUpgradeCount} New Upgrades Ready`
 				NotificationManager.Notify(Message, 4, UIStyle.Colors.Gold)
 			end
 		end)
@@ -485,36 +484,65 @@ return function()
 			and ScreenPosition.Y <= Maximum.Y
 	end
 
-	local TouchPinchConnection = UserInputService.TouchPinch:Connect(function(TouchPositions, Scale, _, State)
-		if not IsOpen() or #TouchPositions < 2 then return end
-		local PinchPosition = (TouchPositions[1] + TouchPositions[2]) / 2
-
-		if State == Enum.UserInputState.Begin then
-			if not IsInsideViewport(PinchPosition) then return end
-			IsPinching = true
-			PinchStartZoom = ZoomTarget()
-			LastPinchPosition = PinchPosition
-			DragInput = nil
-			LastDragPosition = nil
-			DraggedLastInput = true
-		elseif State == Enum.UserInputState.Change and IsPinching then
-			if LastPinchPosition then
-				local Delta = PinchPosition - LastPinchPosition
-				CameraTarget(ClampCamera(CameraTarget() - Delta / ZoomTarget()))
+	local function GetPinchTouches(): (Vector2?, Vector2?)
+		local FirstPosition
+		for _, Position in ActiveTouches do
+			if FirstPosition then
+				return FirstPosition, Position
 			end
-			LastPinchPosition = PinchPosition
-			SetZoom(PinchStartZoom * Scale, PinchPosition)
-		elseif IsPinching then
-			IsPinching = false
-			LastPinchPosition = nil
-			task.defer(function()
-				DraggedLastInput = false
-			end)
+			FirstPosition = Position
 		end
+		return nil, nil
+	end
+
+	local function EndPinch()
+		if not IsPinching then return end
+		IsPinching = false
+		PinchStartDistance = 0
+		LastPinchPosition = nil
+		task.defer(function()
+			DraggedLastInput = false
+		end)
+	end
+
+	local InputBeganConnection = UserInputService.InputBegan:Connect(function(Input)
+		if not IsOpen() or Input.UserInputType ~= Enum.UserInputType.Touch then return end
+		local Position = Vector2.new(Input.Position.X, Input.Position.Y)
+		if not IsInsideViewport(Position) then return end
+		ActiveTouches[Input] = Position
+
+		local FirstPosition, SecondPosition = GetPinchTouches()
+		if not FirstPosition or not SecondPosition then return end
+		IsPinching = true
+		PinchStartDistance = (SecondPosition - FirstPosition).Magnitude
+		PinchStartZoom = ZoomTarget()
+		LastPinchPosition = (FirstPosition + SecondPosition) / 2
+		DragInput = nil
+		LastDragPosition = nil
+		DraggedLastInput = true
 	end)
 
 	local InputChangedConnection = UserInputService.InputChanged:Connect(function(Input)
 		if not IsOpen() then
+			return
+		end
+		if Input.UserInputType == Enum.UserInputType.Touch and ActiveTouches[Input] then
+			ActiveTouches[Input] = Vector2.new(Input.Position.X, Input.Position.Y)
+			if IsPinching then
+				local FirstPosition, SecondPosition = GetPinchTouches()
+				if FirstPosition and SecondPosition then
+					local PinchPosition = (FirstPosition + SecondPosition) / 2
+					if LastPinchPosition then
+						local Delta = PinchPosition - LastPinchPosition
+						CameraTarget(ClampCamera(CameraTarget() - Delta / ZoomTarget()))
+					end
+					LastPinchPosition = PinchPosition
+					if PinchStartDistance > 0 then
+						local PinchScale = (SecondPosition - FirstPosition).Magnitude / PinchStartDistance
+						SetZoom(PinchStartZoom * PinchScale, PinchPosition)
+					end
+				end
+			end
 			return
 		end
 		if Input.UserInputType == Enum.UserInputType.MouseWheel and Viewport then
@@ -553,6 +581,10 @@ return function()
 		CameraTarget(ClampCamera(CameraTarget() - Delta / ZoomTarget()))
 	end)
 	local InputEndedConnection = UserInputService.InputEnded:Connect(function(Input)
+		if ActiveTouches[Input] then
+			ActiveTouches[Input] = nil
+			EndPinch()
+		end
 		if
 			DragInput
 			and (
@@ -571,23 +603,24 @@ return function()
 	local UpgradeConnection = DataService:getChangedSignal("Upgrades"):Connect(function(Value)
 		Ownership(UpgradeLogic.NormalizeOwnership(Value))
 		UpdateTutorialPulse()
-		UpdateAvailabilityNotification()
+		UpdateAffordableNotification()
 	end)
 	local CashConnection = DataService:getChangedSignal("Cash"):Connect(function(Value)
 		Cash(if type(Value) == "number" then Value else 0)
 		UpdateTutorialPulse()
+		UpdateAffordableNotification()
 	end)
 	local TutorialConnection = DataService:getChangedSignal("TutorialStep"):Connect(function(Value)
 		TutorialStep(Value)
 		UpdateTutorialPulse()
-		UpdateAvailabilityNotification()
+		UpdateAffordableNotification()
 	end)
 	local TutorialPulseConnection = TutorialPulseValue.Changed:Connect(TutorialPulse)
 	Cleanup(function()
 		IsDestroyed = true
+		InputBeganConnection:Disconnect()
 		InputChangedConnection:Disconnect()
 		InputEndedConnection:Disconnect()
-		TouchPinchConnection:Disconnect()
 		UpgradeConnection:Disconnect()
 		CashConnection:Disconnect()
 		TutorialConnection:Disconnect()
@@ -613,7 +646,7 @@ return function()
 			if Success and type(NewOwnership) == "table" then
 				Ownership(NewOwnership)
 				UpdateTutorialPulse()
-				UpdateAvailabilityNotification()
+				UpdateAffordableNotification()
 				LastPurchasedId(Upgrade.Id)
 				Sounds.Play("Buy", LocalPlayer.PlayerGui)
 				task.delay(0.14, function()
@@ -740,16 +773,14 @@ return function()
 			BackgroundColor3 = UIStyle.Colors.Blue,
 			BorderSizePixel = 0,
 			Position = UDim2.fromScale(0.018, 0.52),
-			Size = function()
-				local ButtonSize = 90 * OpenButtonScale()
-				return UDim2.fromOffset(ButtonSize, ButtonSize)
-			end,
+			Size = UDim2.fromOffset(90, 90),
 			ZIndex = 25,
 			Action(function(Instance)
 				OpenButtonNotification = Notification.new("AvailableUpgrades", Instance)
 				OpenButtonNotification:SetAmount(AffordableCount())
 			end),
 			Create "UICorner" { CornerRadius = UIStyle.CornerRadius },
+			Create "UIScale" { Scale = OpenButtonScale },
 			Create "UIStroke" {
 				Color = UIStyle.Colors.Ink,
 				Thickness = function()

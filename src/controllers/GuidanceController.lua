@@ -200,9 +200,10 @@ local function UpdateBeam(Target: Instance?)
 	GuidanceBeam.Parent = RootPart
 end
 
-local function SetGuidance(Text: string?, Target: Instance?)
+local function SetGuidance(Text: string?, Target: Instance?, Placement: string?)
 	RuntimeState.Set(LocalPlayer, "GuidanceText", Text)
 	RuntimeState.Set(LocalPlayer, "GuidanceTarget", Target)
+	RuntimeState.Set(LocalPlayer, "GuidancePlacement", Placement)
 	if Highlight then
 		Highlight.Adornee = if Target and (Target:IsA "Model" or Target:IsA "BasePart") then Target else nil
 		Highlight.Enabled = Highlight.Adornee ~= nil
@@ -239,7 +240,11 @@ local function RefreshTutorial()
 			Text = `Use {ToolInfo.DisplayName}`
 		end
 	end
-	SetGuidance(Text, if Step then ResolveTarget(StepId) else nil)
+	SetGuidance(
+		Text,
+		if Step then ResolveTarget(StepId) else nil,
+		if StepId == "OpenUpgrades" then "Right" else nil
+	)
 end
 
 function GuidanceController.ShowLocal(Text: string, Target: Instance?, TargetKind: string?)

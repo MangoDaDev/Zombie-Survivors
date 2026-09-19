@@ -25,6 +25,8 @@
 ## Recurring Mistakes To Avoid
 
 - Do not guess Studio asset paths; inspect `ReplicatedStorage.Assets` and use exact existing names.
+- Keep runtime item-part transforms server-authoritative; do not locally write transforms that the rotating server model also owns.
+- Use an item's `BoundingBox` frame for persistent part-relative transforms; template and runtime model pivots may differ.
 - Before using `WaitForChild` in Studio tooling or validation code, verify the instance path and always provide a timeout so a wrong path cannot stall the task indefinitely. Try to avoid the function as everything is completely loaded in the MCP. However you can use it normally in runtime scripts.
 - Do not overscope simple tasks. Choose the right scope for a task.
 - Keep verification proportional to the change; for simple configuration or balance edits, use targeted source checks and compilation rather than broad Studio or DataModel validation unless runtime data is directly involved.

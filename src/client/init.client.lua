@@ -13,6 +13,7 @@ local modules_to_init = {
 	ReplicatedStorage.Controllers.CrateController,
 	ReplicatedStorage.Controllers.BatController,
 	ReplicatedStorage.Controllers.MuseumVisitorController,
+	ReplicatedStorage.Controllers.BaseMarkerController,
 	ReplicatedStorage.Controllers.ItemInfoBillboardController,
 	ReplicatedStorage.Controllers.TopbarController,
 	ReplicatedStorage.Controllers.AnalyticsController,

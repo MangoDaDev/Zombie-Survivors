@@ -171,6 +171,8 @@ end
 
 local function HitPlayer(Attacker: Player, TargetPlayer: Player, AttackerRoot: BasePart, Info, Now: number)
 	if Attacker == TargetPlayer or Now < (ProtectedUntil[TargetPlayer] or 0) then return end
+	-- Do not let repeated hits restart or extend an active ragdoll.
+	if StunStates[TargetPlayer] or PlayerStateController.Get(TargetPlayer, "IsPvpStunned", false) == true then return end
 	local AttackerCharacter = Attacker.Character
 	local TargetCharacter = TargetPlayer.Character
 	local TargetRoot = TargetCharacter and TargetCharacter:FindFirstChild("HumanoidRootPart")
@@ -188,7 +190,6 @@ local function HitPlayer(Attacker: Player, TargetPlayer: Player, AttackerRoot: B
 	ProtectedUntil[TargetPlayer] = Now + ItemInteractionConfig.PvpProtectionDuration
 	CarryController.DropCarriedItem(TargetPlayer)
 
-	ClearStun(TargetPlayer, true)
 	local State = {
 		AutoRotate = TargetHumanoid.AutoRotate,
 		Character = TargetCharacter,

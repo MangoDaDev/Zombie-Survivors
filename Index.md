@@ -7,7 +7,7 @@ Quick reference for the project's first-party Luau scripts. Generated Wally depe
 | Path | Name | Responsibility |
 | --- | --- | --- |
 | `src/classes/ConveyorItem.lua` | ConveyorItem | Renders replicated conveyor items, moves them along their path, and forwards purchase prompts through SharedClass. |
-| `src/classes/MuseumVisitor.lua` | MuseumVisitor | Renders grounded visitors through one shared frame loop with environment-only collision, responsive facing, procedural walking, fading, randomized clothing, welded hair, skin tones, dialogue, and cash feedback. |
+| `src/classes/MuseumVisitor.lua` | MuseumVisitor | Renders grounded visitors through one client-specific scheduler that prioritizes the museum being viewed, caps and throttles unrelated visible guests, pauses offscreen visual work using bounding-box corners, and preserves timed routes while handling facing, procedural walking, fading, appearance, dialogue, and cash feedback. |
 
 ## `src/client` - Client bootstrap
 
@@ -27,6 +27,7 @@ Quick reference for the project's first-party Luau scripts. Generated Wally depe
 | --- | --- | --- |
 | `src/controllers/CharacterController.lua` | CharacterController | Requests character spawning and manages local camera and respawn behavior. |
 | `src/controllers/BatController.lua` | BatController | Detects responsive crate and player bat targets, applies saved cooldown multipliers, predicts crate damage and lethal hits, immediately renders local debris/break feedback, and sends prediction IDs for server reconciliation. |
+| `src/controllers/BaseMarkerController.lua` | BaseMarkerController | Creates per-viewer museum base markers with each owner's profile picture, a prominent local “Your Base” label, and smaller display-name labels for other players. |
 | `src/controllers/ConveyorItemController.lua` | ConveyorItemController | Retains the inactive legacy ConveyorItem SharedClass renderer. |
 | `src/controllers/CrateController.lua` | CrateController | Renders reconciled crate health locally, starts predicted crate roulette immediately, gives each player a persisted 2.5-second first roll of 1.5x rare-or-better silhouettes, waits for its minimum duration and authoritative result, then hands off through a dirty local reward model so network latency cannot leave a reveal gap. |
 | `src/controllers/AmbientAudioController.lua` | AmbientAudioController | Shuffles and plays every track in the Music asset folder without repeats, preserves each Sound's authored volume, and smoothly ducks music for high-rarity reveals and restoration completion states. |
@@ -76,7 +77,7 @@ Quick reference for the project's first-party Luau scripts. Generated Wally depe
 | `src/modules/Game/PaintRenderer.lua` | PaintRenderer | Applies faded paint damage, stable unpainted polish brightening, and dull painted finishes while preserving each part's configured final appearance without cumulative color drift. |
 | `src/modules/Game/RarityInfo.lua` | RarityInfo | Centralizes Common through Secret colors, name gradients, reveal timing, intensity, pinwheel, vignette, flash, sparkle, particle, and reveal-audio tuning. |
 | `src/modules/Game/RestorationVisuals.lua` | RestorationVisuals | Applies every unfinished restoration layer and order-aware paint/polish color state consistently across rewards, carrying, inventory, and legacy item sources. |
-| `src/modules/Game/RestorationTargetRenderer.lua` | RestorationTargetRenderer | Creates and tracks visibly dense, capped, surface-distributed light-dust, loose-debris, and configuration-scaled embedded-metal targets plus stage-owned dull-finish targets, and deterministically misaligns at least half of each item's real visible geometry for Hammer repairs while preserving and reapplying exact model-relative per-hit restore transforms. |
+| `src/modules/Game/RestorationTargetRenderer.lua` | RestorationTargetRenderer | Creates and tracks visibly dense, capped, surface-distributed light-dust, loose-debris, and configuration-scaled embedded-metal targets plus stage-owned dull-finish targets, and deterministically misaligns at least half of each item's real visible geometry for Hammer repairs while preserving and reapplying exact BoundingBox-relative per-hit restore transforms. |
 | `src/modules/Game/SurfacePlacement.lua` | SurfacePlacement | Selects area-weighted item surfaces and uses bounded outward raycasts to return validated exterior positions and normals. |
 | `src/modules/Game/TutorialConfig.lua` | TutorialConfig | Defines the short ordered objectives used by the persistent guided tutorial. |
 | `src/modules/Game/UpgradeConfig.lua` | UpgradeConfig | Defines the deterministic upgrade graph, economy-scaled costs, tier-aligned restoration chain, capacity, tool stats, eleven bat tiers, cooldowns, cumulative tool costs, and graph/gating assertions. |
@@ -176,5 +177,5 @@ Quick reference for the project's first-party Luau scripts. Generated Wally depe
 | `src/UI/HUD/Notifications.lua` | Notifications | Stacks transient text-only alerts with compact enter/exit animation, optional colors, sound, scale-sized text strokes, and lifecycle cleanup. |
 | `src/UI/Effects/HoverExpand.lua` | HoverExpand | Provides the reusable hover scaling used by attention notification badges. |
 | `src/UI/Effects/Notification.lua` | Notification | Provides counted attention badges with periodic pulse, shake, color, hover, and lifecycle cleanup. |
-| `src/UI/Menus/UpgradeTree.lua` | UpgradeTree | Provides a responsive STUD-style upgrade panel and opener with Sponge-only onboarding visibility, dynamic blue/grey purchase-state hexagons, a live purchasable-upgrade count, one-time newly available upgrade alerts including batched unlocks, BatInfo-driven bat icons, drag panning, zoom, reveals, and purchasing. |
+| `src/UI/Menus/UpgradeTree.lua` | UpgradeTree | Provides a responsive STUD-style upgrade panel and opener with Sponge-only onboarding visibility, dynamic blue/grey purchase-state hexagons, a live purchasable-upgrade count, one-time newly affordable upgrade alerts including batched unlocks, BatInfo-driven bat icons, drag panning, zoom, reveals, and purchasing. |
 | `src/UI/UIOrigin.lua` | UIOrigin | Mounts the Vide application once into the local PlayerGui. |
