@@ -207,6 +207,11 @@ local function PrepareAllTargets(Session)
 			)
 		end
 	end
+	local PaintState = Session.State.Steps.SprayPaint
+	local PolishState = Session.State.Steps.Polisher
+	if PaintState and PaintState.Completed ~= true and PolishState and PolishState.Completed == true then
+		PaintRenderer.ApplyUnpaintedPolish(Session.Model)
+	end
 	for _, Step in Session.Steps do
 		local StepState = Session.State.Steps[Step.Id]
 		if Step.Type == "Grease" and StepState.Completed ~= true then
@@ -237,11 +242,27 @@ local function PrepareAllTargets(Session)
 		if Step.Type == "Dirt" or Step.Type == "Grease" or Step.Type == "Paint" or Step.Type == "Polish" then continue end
 		local StepState = Session.State.Steps[Step.Id]
 		if StepState.Completed == true then continue end
-		local Targets = RestorationTargetRenderer.Add(Session.Model, Step.Type, StepState.Remaining, Step.TargetHP, Step)
+		local TargetCount = if Step.Type == "Bent" and type(StepState.TargetHealth) == "table"
+			then StepState.Total
+			else StepState.Remaining
+		local Targets = RestorationTargetRenderer.Add(Session.Model, Step.Type, TargetCount, Step.TargetHP, Step)
 		Session.RestorationTargets[Step.Id] = Targets
-		local CompletedCount = math.max(0, StepState.Total - StepState.Remaining)
-		StepState.Total = CompletedCount + #Targets
-		StepState.Remaining = #Targets
+		if Step.Type == "Bent" and type(StepState.TargetHealth) == "table" then
+			for Index, Target in Targets do
+				local CurrentHealth = StepState.TargetHealth[Index]
+				if type(CurrentHealth) == "number" then RestorationTargetRenderer.SetHealth(Session.Model, Target, CurrentHealth) end
+			end
+			StepState.Total = #Targets
+			local Remaining = 0
+			for Index = 1, #Targets do
+				if (StepState.TargetHealth[Index] or 0) > 0 then Remaining += 1 end
+			end
+			StepState.Remaining = Remaining
+		else
+			local CompletedCount = math.max(0, StepState.Total - StepState.Remaining)
+			StepState.Total = CompletedCount + #Targets
+			StepState.Remaining = #Targets
+		end
 	end
 end
 
@@ -253,7 +274,9 @@ end
 
 local function PrepareCurrentPolishTargets(Session, Step, StepState)
 	if Step.Type ~= "Polish" or Session.RestorationTargets[Step.Id] then return end
-	local Targets = RestorationTargetRenderer.Add(Session.Model, Step.Type, StepState.Remaining, Step.TargetHP, Step)
+	local PaintState = Session.State.Steps.SprayPaint
+	local PaintCompleted = not PaintState or PaintState.Completed == true
+	local Targets = RestorationTargetRenderer.Add(Session.Model, Step.Type, StepState.Remaining, Step.TargetHP, Step, PaintCompleted)
 	Session.RestorationTargets[Step.Id] = Targets
 	local CompletedCount = math.max(0, StepState.Total - StepState.Remaining)
 	StepState.Total = CompletedCount + #Targets
@@ -270,7 +293,8 @@ local function ClearCurrentTargets(Session)
 		Session.Grease:Destroy()
 		Session.Grease = nil
 	elseif Step.Type == "Paint" and Session.PaintTargets then
-		PaintRenderer.Clear(Session.PaintTargets)
+		local PolishState = Session.State.Steps.Polisher
+		PaintRenderer.Clear(Session.PaintTargets, PolishState and PolishState.Completed ~= true)
 		Session.PaintTargets = nil
 	elseif Session.RestorationTargets and Session.RestorationTargets[Step.Id] then
 		for _, Target in Session.RestorationTargets[Step.Id] do
@@ -284,6 +308,10 @@ local function ClearCurrentTargets(Session)
 				Target:Destroy()
 			end
 		end
+		if Step.Type == "Polish" then
+			local PaintState = Session.State.Steps.SprayPaint
+			if PaintState and PaintState.Completed ~= true then PaintRenderer.ApplyUnpaintedPolish(Session.Model) end
+		end
 		Session.RestorationTargets[Step.Id] = nil
 	end
 end
@@ -294,12 +322,17 @@ local function PrepareCurrentStep(Player, Session)
 	if not Step or not StepState then return end
 	-- Completed Hammer work must remain aligned through every later stage.
 	RestoreCompletedBentTargets(Session)
-	-- Prepare the dull finish before equipping the Polisher; input only improves it.
+	-- Painted colors begin dull; unpainted colors keep their current look and polish slightly cleaner.
 	PrepareCurrentPolishTargets(Session, Step, StepState)
+	local PaintState = Session.State.Steps.SprayPaint
+	PlayerStateController.Set(Player, "CleaningPaintCompleted", not PaintState or PaintState.Completed == true)
+	local PolishState = Session.State.Steps.Polisher
+	PlayerStateController.Set(Player, "CleaningPolishCompleted", not PolishState or PolishState.Completed == true)
 	Session.LastProgress = -1
 	PlayerStateController.Set(Player, "CleaningStepName", Step.DisplayName)
 	PlayerStateController.Set(Player, "CleaningStepTotal", StepState.Total)
 	PlayerStateController.Set(Player, "CleaningStepRemaining", StepState.Remaining)
+	PlayerStateController.Set(Player, "CleaningTargetHealth", if Step.Type == "Bent" then StepState.TargetHealth else nil)
 	PlayerStateController.Set(Player, "CleaningStepToolId", Step.ToolId)
 	PlayerStateController.Set(Player, "CleaningStepComplete", StepState.Completed == true)
 	UpdateProgress(Player, Session, true)
@@ -331,7 +364,10 @@ local function ClearSession(Player)
 	PlayerStateController.Set(Player, "CleaningItemId", nil)
 	PlayerStateController.Set(Player, "CleaningStepTotal", nil)
 	PlayerStateController.Set(Player, "CleaningStepRemaining", nil)
+	PlayerStateController.Set(Player, "CleaningTargetHealth", nil)
 	PlayerStateController.Set(Player, "CleaningRestorationComplete", nil)
+	PlayerStateController.Set(Player, "CleaningPaintCompleted", nil)
+	PlayerStateController.Set(Player, "CleaningPolishCompleted", nil)
 	CarryController.SetFixingMode(Player, false)
 	if Session.Prompt and Session.Prompt.Parent then Session.Prompt.Enabled = true end
 end
@@ -349,7 +385,7 @@ local function NormalizeState(State, Model, Steps)
 			then DirtTotal
 			elseif Step.Type == "Grease" then GreaseRenderer.GetSuggestedCount(Model)
 			elseif Step.Type == "Paint" then PaintRenderer.GetSuggestedCount(Model)
-			else RestorationTargetRenderer.GetSuggestedCount(Model, Step.Type)
+			else RestorationTargetRenderer.GetSuggestedCount(Model, Step.Type, Step)
 		if type(Existing) ~= "table" then
 			Existing = {
 				Total = Total,
@@ -366,6 +402,26 @@ local function NormalizeState(State, Model, Steps)
 		if type(Existing.Total) ~= "number" or Existing.Total < 1 then Existing.Total = Total end
 		if type(Existing.Remaining) ~= "number" then Existing.Remaining = Existing.Total end
 		Existing.Remaining = math.clamp(math.round(Existing.Remaining), 0, Existing.Total)
+		if Step.Type == "Bent" then
+			local SavedHealth = if type(Existing.TargetHealth) == "table" then Existing.TargetHealth else {}
+			local TargetHealth = {}
+			local HasStableTargetHealth = #SavedHealth == Existing.Total
+			for Index = 1, Existing.Total do
+				local CurrentHealth = SavedHealth[Index]
+				if Existing.Completed == true then
+					CurrentHealth = 0
+				elseif not HasStableTargetHealth then
+					CurrentHealth = if Index <= Existing.Remaining then Step.TargetHP else 0
+				end
+				table.insert(TargetHealth, if type(CurrentHealth) == "number" then math.clamp(CurrentHealth, 0, Step.TargetHP) else Step.TargetHP)
+			end
+			local Remaining = 0
+			for _, CurrentHealth in TargetHealth do
+				if CurrentHealth > 0 then Remaining += 1 end
+			end
+			Existing.TargetHealth = TargetHealth
+			Existing.Remaining = Remaining
+		end
 		Existing.Completed = Existing.Completed == true or Existing.Remaining <= 0
 		if Step.Type == "Dirt" then DirtState = Existing end
 	end
@@ -650,9 +706,11 @@ CompleteCurrentStep = function(Player, Session)
 	local StepState = GetStepState(Session)
 	StepState.Remaining = 0
 	StepState.Completed = true
+	if Step.Type == "Bent" then StepState.TargetHealth = nil end
 	if Step.Type == "Dirt" then Session.State.Remaining = 0 end
 	ClearCurrentTargets(Session)
 	SaveState(Player, Session.ItemId, Session.State)
+	if Step.Type == "Bent" then PlayerStateController.Set(Player, "CleaningTargetHealth", nil) end
 	PlayerStateController.Set(Player, "CleaningProgress", 1)
 	PlayerStateController.Set(Player, "CleaningStepComplete", true)
 	Sounds.Play(Step.CompletionSoundName, Session.RootPart, CONFIG.FeedbackSoundMaxDistance)
@@ -731,12 +789,47 @@ function FixingController.ReportProgress(_, Player, ToolId, Remaining)
 		or Remaining ~= Remaining
 		or math.abs(Remaining) == math.huge
 	then return end
+	-- Hammer target health owns both its remaining count and transform; count-only progress would discard partial hits.
+	if Step.Type == "Bent" then return end
 	local ResolvedRemaining = math.clamp(math.round(Remaining), 0, StepState.Remaining)
 	if ResolvedRemaining == StepState.Remaining then return end
 	StepState.Remaining = ResolvedRemaining
 	if Step.Type == "Dirt" then Session.State.Remaining = ResolvedRemaining end
 	PlayerStateController.Set(Player, "CleaningStepRemaining", ResolvedRemaining)
 	SaveState(Player, Session.ItemId, Session.State)
+end
+
+function FixingController.ReportHammerProgress(_, Player, ToolId, TargetIndex, CurrentHealth)
+	local Session = Sessions[Player]
+	local Step = Session and Session.Steps[Session.StepIndex]
+	local StepState = Session and GetStepState(Session)
+	local Tool = Step and GetCleaningTool(Player, Step.ToolId)
+	if not Session or Session.Completing or not Session.IsUsingTool or not Step or Step.Type ~= "Bent"
+		or not StepState or Step.ToolId ~= ToolId or not Tool or Tool.Parent ~= Player.Character
+		or not IsToolUnlocked(Player, ToolId) or type(TargetIndex) ~= "number" or TargetIndex % 1 ~= 0
+		or type(CurrentHealth) ~= "number" or CurrentHealth ~= CurrentHealth or math.abs(CurrentHealth) == math.huge
+	then return end
+	local Targets = Session.RestorationTargets[Step.Id]
+	local Target = Targets and Targets[TargetIndex]
+	if not Target or not Target.Parent then return end
+	local PreviousHealth, MaximumHealth = RestorationTargetRenderer.GetHealth(Target)
+	if PreviousHealth <= 0 or MaximumHealth <= 0 then return end
+	local ResolvedHealth = math.clamp(CurrentHealth, math.max(PreviousHealth - 1, 0), PreviousHealth)
+	if ResolvedHealth >= PreviousHealth then return end
+	RestorationTargetRenderer.SetHealth(Session.Model, Target, ResolvedHealth)
+	local TargetHealth = {}
+	local Remaining = 0
+	for _, CurrentTarget in Targets do
+		local Health = RestorationTargetRenderer.GetHealth(CurrentTarget)
+		table.insert(TargetHealth, Health)
+		if Health > 0 then Remaining += 1 end
+	end
+	StepState.TargetHealth = TargetHealth
+	StepState.Remaining = Remaining
+	PlayerStateController.Set(Player, "CleaningStepRemaining", StepState.Remaining)
+	PlayerStateController.Set(Player, "CleaningTargetHealth", StepState.TargetHealth)
+	SaveState(Player, Session.ItemId, Session.State)
+	UpdateProgress(Player, Session, false)
 end
 
 function FixingController.CompleteStep(_, Player, ToolId)
@@ -792,6 +885,7 @@ function FixingController.Init()
 		FixingController.SelectTool,
 		FixingController.StartUsingTool,
 		FixingController.ReportProgress,
+		FixingController.ReportHammerProgress,
 		FixingController.CompleteStep,
 		FixingController.StopUsingTool,
 		FixingController.Exit,

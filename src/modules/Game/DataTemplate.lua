@@ -4,6 +4,7 @@ local EconomyConfig = require(script.Parent.EconomyConfig)
 return {
 	Cash = EconomyConfig.StartingCash,
 	GuaranteedDropCount = 0,
+	HasRolledCrate = false,
 	SpongeToasterRewardPending = false,
 	Analytics = {
 		OnboardingHighestStep = 0,

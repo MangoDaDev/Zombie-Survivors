@@ -385,7 +385,11 @@ return function()
 	local LastDragPosition: Vector2?
 	local DragDistance = 0
 	local DraggedLastInput = false
+	local IsPinching = false
+	local PinchStartZoom = UpgradeConfig.DefaultZoom
+	local LastPinchPosition: Vector2?
 	local OpenButtonNotification
+	-- Keep availability history for the session so repeated data signals never re-notify an existing unlock.
 	local KnownAvailableUpgradeIds = {}
 	for _, Upgrade in GetAvailableUpgrades(Ownership(), TutorialStep()) do
 		KnownAvailableUpgradeIds[Upgrade.Id] = true
@@ -436,6 +440,7 @@ return function()
 	local function BeginDrag(Input: InputObject)
 		if
 			not IsOpen()
+			or IsPinching
 			or (
 				Input.UserInputType ~= Enum.UserInputType.MouseButton1
 				and Input.UserInputType ~= Enum.UserInputType.Touch
@@ -469,6 +474,44 @@ return function()
 		CameraTarget(ClampCamera(CurrentCamera))
 		ZoomTarget(NewZoom)
 	end
+
+	local function IsInsideViewport(ScreenPosition: Vector2): boolean
+		if not Viewport then return false end
+		local Minimum = Viewport.AbsolutePosition
+		local Maximum = Minimum + Viewport.AbsoluteSize
+		return ScreenPosition.X >= Minimum.X
+			and ScreenPosition.Y >= Minimum.Y
+			and ScreenPosition.X <= Maximum.X
+			and ScreenPosition.Y <= Maximum.Y
+	end
+
+	local TouchPinchConnection = UserInputService.TouchPinch:Connect(function(TouchPositions, Scale, _, State)
+		if not IsOpen() or #TouchPositions < 2 then return end
+		local PinchPosition = (TouchPositions[1] + TouchPositions[2]) / 2
+
+		if State == Enum.UserInputState.Begin then
+			if not IsInsideViewport(PinchPosition) then return end
+			IsPinching = true
+			PinchStartZoom = ZoomTarget()
+			LastPinchPosition = PinchPosition
+			DragInput = nil
+			LastDragPosition = nil
+			DraggedLastInput = true
+		elseif State == Enum.UserInputState.Change and IsPinching then
+			if LastPinchPosition then
+				local Delta = PinchPosition - LastPinchPosition
+				CameraTarget(ClampCamera(CameraTarget() - Delta / ZoomTarget()))
+			end
+			LastPinchPosition = PinchPosition
+			SetZoom(PinchStartZoom * Scale, PinchPosition)
+		elseif IsPinching then
+			IsPinching = false
+			LastPinchPosition = nil
+			task.defer(function()
+				DraggedLastInput = false
+			end)
+		end
+	end)
 
 	local InputChangedConnection = UserInputService.InputChanged:Connect(function(Input)
 		if not IsOpen() then
@@ -544,6 +587,7 @@ return function()
 		IsDestroyed = true
 		InputChangedConnection:Disconnect()
 		InputEndedConnection:Disconnect()
+		TouchPinchConnection:Disconnect()
 		UpgradeConnection:Disconnect()
 		CashConnection:Disconnect()
 		TutorialConnection:Disconnect()

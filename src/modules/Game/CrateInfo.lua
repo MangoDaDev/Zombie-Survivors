@@ -14,6 +14,11 @@ local SharedCrateInfo = {
 	PreviewSwitchCount = 18,
 	PreviewStartDelay = 0.01,
 	PreviewEndDelay = 0.06,
+	-- Keep the player's first roll suspenseful and preview only exciting rare-or-better silhouettes.
+	FirstRollPreviewSwitchCount = 28,
+	FirstRollPreviewStartDelay = 0.07,
+	FirstRollPreviewEndDelay = 0.13,
+	FirstRollPreviewScale = 1.5,
 	RevealFadeTime = 0.11,
 	PurchaseDistance = 13,
 	RevealTickSoundName = "ItemRevealTick",

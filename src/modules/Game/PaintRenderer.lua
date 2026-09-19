@@ -1,5 +1,6 @@
 local PaintRenderer = {}
 local PaintStates = setmetatable({}, { __mode = "k" })
+local ConfiguredAppearances = setmetatable({}, { __mode = "k" })
 local ExcludedRestorationFolders = {
 	BentComponents = true,
 	Dirt = true,
@@ -28,6 +29,19 @@ local function CaptureAppearance(Part: BasePart)
 		Reflectance = Part.Reflectance,
 		Transparency = Part.Transparency,
 	}
+end
+
+local function GetCleanerColor(Color: Color3): Color3
+	return Color:Lerp(Color3.new(1, 1, 1), 0.12)
+end
+
+function PaintRenderer.GetDullColor(Color: Color3): Color3
+	local Hue, Saturation, Value = Color:ToHSV()
+	return Color3.fromHSV(Hue, Saturation * 0.7, Value * 0.82)
+end
+
+function PaintRenderer.GetCleanerColor(Color: Color3): Color3
+	return GetCleanerColor(Color)
 end
 
 function PaintRenderer.ApplyAppearance(Part: BasePart, Appearance)
@@ -90,8 +104,28 @@ end
 function PaintRenderer.GetOriginalAppearance(Model: Model, Part: BasePart, Template: Model?)
 	local State = PaintStates[Part]
 	if State then return State.OriginalAppearance end
+	local ConfiguredAppearance = ConfiguredAppearances[Part]
+	if ConfiguredAppearance then return ConfiguredAppearance end
 	local TemplatePart = Template and GetCounterpart(Model, Template, Part)
 	return if TemplatePart then CaptureAppearance(TemplatePart) else nil
+end
+
+function PaintRenderer.GetUnpaintedColor(Part: BasePart): Color3
+	local State = PaintStates[Part]
+	return if State then State.UnpolishedColor or State.DamagedColor else Part.Color
+end
+
+function PaintRenderer.ApplyUnpaintedPolish(Model: Model)
+	for _, Part in PaintRenderer.GetPaintParts(Model) do
+		local State = PaintStates[Part]
+		local UnpolishedColor = if State then State.UnpolishedColor or State.DamagedColor else Part.Color
+		local PolishedColor = GetCleanerColor(UnpolishedColor)
+		if State then
+			State.UnpolishedColor = UnpolishedColor
+			State.DamagedColor = PolishedColor
+		end
+		Part.Color = PolishedColor
+	end
 end
 
 function PaintRenderer.GetSuggestedCount(Model: Model): number
@@ -106,6 +140,7 @@ function PaintRenderer.Add(Model: Model, Count: number, HP: number, DirtColor: C
 		if Index <= Count then
 			local ExistingState = PaintStates[Part]
 			local OriginalAppearance = if ExistingState then ExistingState.OriginalAppearance else CaptureAppearance(Part)
+			ConfiguredAppearances[Part] = ConfiguredAppearances[Part] or OriginalAppearance
 			local OriginalColor = OriginalAppearance.Color
 			local DirtAmount = RandomGenerator:NextNumber(MinimumAmount, MaximumAmount)
 			local Hue, Saturation, Value = OriginalColor:ToHSV()
@@ -121,6 +156,7 @@ function PaintRenderer.Add(Model: Model, Count: number, HP: number, DirtColor: C
 				DamagedColor = DamagedColor,
 				MaximumHealth = HP,
 				OriginalAppearance = OriginalAppearance,
+				UnpolishedColor = DamagedColor,
 			}
 			Part.Color = DamagedColor
 			table.insert(Targets, Part)
@@ -154,11 +190,14 @@ function PaintRenderer.GetHealth(Part: BasePart): (number, number)
 	return State.CurrentHealth, State.MaximumHealth
 end
 
-function PaintRenderer.Clear(Targets: { BasePart })
+function PaintRenderer.Clear(Targets: { BasePart }, KeepDull: boolean?)
 	for _, Part in Targets do
 		if Part.Parent then
 			local State = PaintStates[Part]
-			if State then PaintRenderer.ApplyAppearance(Part, State.OriginalAppearance) end
+			if State then
+				PaintRenderer.ApplyAppearance(Part, State.OriginalAppearance)
+				if KeepDull == true then Part.Color = PaintRenderer.GetDullColor(State.OriginalAppearance.Color) end
+			end
 			PaintStates[Part] = nil
 		end
 	end

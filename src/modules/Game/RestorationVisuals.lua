@@ -27,15 +27,26 @@ function RestorationVisuals.Apply(Model: Model, ItemInfo, FixingState)
 	for _, Step in Steps do
 		if Step.Type == "Dirt" or Step.Type == "Grease" or Step.Type == "Paint" then continue end
 		local StepState = GetStepState(FixingState, Step.Id)
-		if StepState and StepState.Completed == true then continue end
 		if Step.Type == "Polish" then
 			local PaintState = GetStepState(FixingState, "SprayPaint")
-			if PaintState and PaintState.Completed ~= true then continue end
+			if PaintState and PaintState.Completed ~= true then
+				if StepState and StepState.Completed == true then PaintRenderer.ApplyUnpaintedPolish(Model) end
+				continue
+			end
 		end
-		local Count = if StepState and type(StepState.Remaining) == "number"
+		if StepState and StepState.Completed == true then continue end
+		local Count = if Step.Type == "Bent" and StepState and type(StepState.TargetHealth) == "table" and type(StepState.Total) == "number"
+			then StepState.Total
+			else if StepState and type(StepState.Remaining) == "number"
 			then StepState.Remaining
-			else RestorationTargetRenderer.GetSuggestedCount(Model, Step.Type)
-		RestorationTargetRenderer.Add(Model, Step.Type, Count, Step.TargetHP, Step)
+			else RestorationTargetRenderer.GetSuggestedCount(Model, Step.Type, Step)
+		local Targets = RestorationTargetRenderer.Add(Model, Step.Type, Count, Step.TargetHP, Step, true)
+		if Step.Type == "Bent" and StepState and type(StepState.TargetHealth) == "table" then
+			for Index, Target in Targets do
+				local CurrentHealth = StepState.TargetHealth[Index]
+				if type(CurrentHealth) == "number" then RestorationTargetRenderer.SetHealth(Model, Target, CurrentHealth) end
+			end
+		end
 	end
 	for _, Step in Steps do
 		if Step.Type == "Grease" then

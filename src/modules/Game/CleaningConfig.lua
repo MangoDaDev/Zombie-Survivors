@@ -34,6 +34,9 @@ local CleaningConfig = {
 	SpongeScrubDistance = 0.12,
 	SpongeScrubSideDistance = 0.035,
 	SpongeScrubFrequency = 9,
+	SpongeBubbleMinimumInterval = 0.2,
+	SpongeBubbleMaximumInterval = 0.65,
+	SpongeBubbleTargetsForMaximumRate = 5,
 	HammerStrikeLiftDistance = 0.48,
 	HammerContactProgress = 0.42,
 	HammerRaisedAngleDegrees = 42,
@@ -58,7 +61,8 @@ local CleaningConfig = {
 			SurfaceRotationDegrees = Vector3.new(0, 90, 0),
 		},
 		{
-			Id = "Hairdryer", DisplayName = "Hairdryer", TemplateName = "Hairdryer", VFXStartPartName = "Handle",
+			Id = "Hairdryer", DisplayName = "Hairdryer", TemplateName = "Hairdryer", VFXFolderName = "Hairdryer",
+			VFXName = "Main", VFXStartPartName = "Handle",
 			LoopSoundName = "Wind", LoopSoundVolume = 0.55, RadiusScale = 0.1, StrengthPerSecond = 3.8,
 			PositionResponsiveness = 24, AirflowRange = 8, AirflowConeDegrees = 24, BlowSpeed = 8,
 		},
@@ -132,7 +136,10 @@ local CleaningConfig = {
 		},
 		{
 			Id = "Magnet", MinimumRestorationTier = 6, Type = "Metal", IconName = "Metal",
-			DisplayName = "Extracting Metal", ToolId = "Magnet", TargetHP = 3, CompletionSoundName = "MagnetUnequip",
+			DisplayName = "Extracting Metal", ToolId = "Magnet", TargetHP = 3,
+			-- Keep Magnet work substantial without treating every item part as magnetic.
+			TargetDensity = 1.4, MinimumTargets = 4, MaximumTargets = 24,
+			CompletionSoundName = "MagnetUnequip",
 		},
 	},
 	FullCompletion = {

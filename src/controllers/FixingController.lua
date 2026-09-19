@@ -34,6 +34,7 @@ local ToolEndPart: Part?
 local ToolStartAttachment: Attachment?
 local ToolEndAttachment: Attachment?
 local ToolEmitter: ParticleEmitter?
+local ToolVFXAttachment: Attachment?
 local CreatedStartAttachment = false
 local CreatedToolEmitter = false
 local SmoothedToolPosition: Vector3?
@@ -62,6 +63,7 @@ local LastReportedRemaining = 0
 local LastProgressReport = 0
 local CompletionRequested = false
 local LastDirtFeedback = 0
+local LastSpongeBubbleSound = -math.huge
 local HammerStrikeStartedAt: number?
 local HammerStrikeApplied = false
 local HammerStrikeAimPosition: Vector3?
@@ -74,6 +76,7 @@ local CameraImpulse = 0
 local CameraPush = 0
 local LastCleanPosition: Vector3?
 local ActiveTouchInput: InputObject?
+local ActiveItemRadiusMultiplier = 1
 
 local CAMERA_BINDING_NAME = "CleaningCameraAndArm"
 local CAMERA_SETUP_TIMEOUT = 10
@@ -119,24 +122,22 @@ local function GetEquippedCleaningTool(): (Tool?, any?)
 	return nil, nil
 end
 
+local function GetItemRadiusMultiplier(ItemSize: Vector3): number
+	local SizeAlpha = math.clamp(
+		(ItemSize.Magnitude - CleaningConfig.ItemRadiusScaleStartSize)
+			/ math.max(CleaningConfig.ItemRadiusScaleFullSize - CleaningConfig.ItemRadiusScaleStartSize, 0.01),
+		0,
+		1
+	)
+	return 1 + (CleaningConfig.ItemRadiusScaleMinimumMultiplier - 1) * SizeAlpha
+end
+
 local function GetToolRadiusScale(ToolInfo): number
 	local Ownership = DataService:get("Upgrades")
-	local ItemRadiusMultiplier = 1
-	local Model = GetFixingItemModel()
-	local Box = Model and Model:FindFirstChild("BoundingBox")
-	if Box and Box:IsA("BasePart") then
-		local SizeAlpha = math.clamp(
-			(Box.Size.Magnitude - CleaningConfig.ItemRadiusScaleStartSize)
-				/ math.max(CleaningConfig.ItemRadiusScaleFullSize - CleaningConfig.ItemRadiusScaleStartSize, 0.01),
-			0,
-			1
-		)
-		ItemRadiusMultiplier = 1 + (CleaningConfig.ItemRadiusScaleMinimumMultiplier - 1) * SizeAlpha
-	end
 	-- Keep the radius viewport-relative across devices, with only a moderate taper for genuinely large item bounds.
 	return (ToolInfo.RadiusScale or CleaningConfig.BrushRadiusScale)
 		* UpgradeLogic.GetToolRadiusMultiplier(Ownership, ToolInfo.Id)
-		* ItemRadiusMultiplier
+		* ActiveItemRadiusMultiplier
 end
 
 local function GetWorldToolRadius(Camera: Camera, ToolInfo, WorldPosition: Vector3): number
@@ -223,6 +224,7 @@ StopToolEffects = function()
 		ToolEmitter = nil
 	end
 	CreatedToolEmitter = false
+	if ToolVFXAttachment then ToolVFXAttachment:Destroy(); ToolVFXAttachment = nil end
 	if ToolBeam then ToolBeam:Destroy(); ToolBeam = nil end
 	if ToolStartAttachment and CreatedStartAttachment then ToolStartAttachment:Destroy() end
 	ToolStartAttachment = nil
@@ -274,17 +276,27 @@ local function StartToolEffects(Tool: Tool, ToolInfo)
 		ToolEmitter.Parent = StartObject
 		CreatedToolEmitter = true
 	end
-	if not ToolEmitter then ToolEmitter = StartObject:FindFirstChildWhichIsA("ParticleEmitter", true) end
-	if not ToolEmitter and StartObject.Parent then ToolEmitter = StartObject.Parent:FindFirstChildWhichIsA("ParticleEmitter", true) end
+	-- The authored hairdryer wind is a directional attachment containing several emitters.
+	if VFXTemplate and VFXTemplate:IsA("Attachment") and StartObject:IsA("BasePart") then
+		ToolVFXAttachment = VFXTemplate:Clone()
+		ToolVFXAttachment.Name = "ToolVFXAttachment"
+		ToolVFXAttachment.Parent = StartObject
+		for _, Descendant in ToolVFXAttachment:GetDescendants() do
+			if Descendant:IsA("ParticleEmitter") then Descendant.Enabled = true end
+		end
+	end
+	if not ToolEmitter and not ToolVFXAttachment then ToolEmitter = StartObject:FindFirstChildWhichIsA("ParticleEmitter", true) end
+	if not ToolEmitter and not ToolVFXAttachment and StartObject.Parent then ToolEmitter = StartObject.Parent:FindFirstChildWhichIsA("ParticleEmitter", true) end
 	if ToolEmitter then ToolEmitter.Enabled = true end
 	local SoundTemplate = if type(ToolInfo.LoopSoundName) == "string" then Sounds.Get(ToolInfo.LoopSoundName) else nil
 	if SoundTemplate then
 		ToolLoop = SoundTemplate:Clone()
-		ToolLoop.Looped = true
+		ToolLoop.Looped = ToolInfo.Id ~= "Sponge"
 		if type(ToolInfo.LoopSoundVolume) == "number" then ToolLoop.Volume = ToolInfo.LoopSoundVolume end
 		ToolLoop.RollOffMaxDistance = TOOL_SOUND_MAX_DISTANCE
 		ToolLoop.Parent = if StartObject:IsA("Attachment") then StartObject.Parent else StartObject
-		ToolLoop:Play()
+		-- Sponge bubbles are contact-timed below; one reusable Sound prevents scrub overlap.
+		if ToolInfo.Id ~= "Sponge" then ToolLoop:Play() end
 	end
 end
 
@@ -311,6 +323,7 @@ local function Restore(Instant: boolean?)
 	BaseCameraCFrame = nil
 	CameraImpulse = 0
 	CameraPush = 0
+	ActiveItemRadiusMultiplier = 1
 	local function FinishRestore()
 		if RestoreId ~= CameraEntryId then return end
 		for Part, Transparency in HiddenParts do if Part.Parent then Part.LocalTransparencyModifier = Transparency end end
@@ -509,6 +522,7 @@ local function EnterFixingView()
 		end
 
 		DisablePlayerControls()
+		ActiveItemRadiusMultiplier = GetItemRadiusMultiplier(Box.Size)
 		OriginalFieldOfView = Camera.FieldOfView
 		OriginalCameraType = Camera.CameraType
 		OriginalCameraCFrame = Camera.CFrame
@@ -571,6 +585,26 @@ local function GetAimPosition(): (Vector3?, BasePart?, Vector3?)
 	local Result = Workspace:Raycast(Ray.Origin, Ray.Direction * RayLength, Parameters)
 	if not Result then return nil, nil, nil end
 	return Result.Position, if Result.Instance:IsA("BasePart") then Result.Instance else nil, Result.Normal
+end
+
+local function GetAirflowDirection(AimPosition: Vector3, Origin: Vector3): Vector3?
+	local Offset = AimPosition - Origin
+	return if Offset.Magnitude > 0.01 then Offset.Unit else nil
+end
+
+local function UpdateDirectionalToolEffects(AimPosition: Vector3?)
+	if not AimPosition or not ToolVFXAttachment then return end
+	local Parent = ToolVFXAttachment.Parent
+	if not Parent or not Parent:IsA("BasePart") then return end
+	local Origin = ToolVFXAttachment.WorldPosition
+	local Up = GetAirflowDirection(AimPosition, Origin)
+	if not Up then return end
+	local Camera = Workspace.CurrentCamera
+	local Right = Camera.CFrame.RightVector - Up * Camera.CFrame.RightVector:Dot(Up)
+	if Right.Magnitude < 0.01 then Right = Camera.CFrame.UpVector - Up * Camera.CFrame.UpVector:Dot(Up) end
+	Right = Right.Unit
+	local Back = Right:Cross(Up).Unit
+	ToolVFXAttachment.CFrame = Parent.CFrame:ToObjectSpace(CFrame.fromMatrix(Origin, Right, Up, Back))
 end
 
 local function GetItemInfo(ItemId: number)
@@ -677,7 +711,10 @@ local function PrepareLocalStep(ToolId: string): boolean
 
 	local Targets = {}
 	local OriginalAppearances = {}
-	local SavedTargetCount = RuntimeState.Get(LocalPlayer, "CleaningStepRemaining", 2)
+	local Template = ReplicatedStorage.Assets.Models.Items:FindFirstChild(ItemInfo.AssetName)
+	local SavedTargetCount = if Step.Type == "Bent"
+		then RuntimeState.Get(LocalPlayer, "CleaningStepTotal", 2)
+		else RuntimeState.Get(LocalPlayer, "CleaningStepRemaining", 2)
 	if Step.Type == "Dirt" then
 		local Dirt = Model:FindFirstChild("Dirt")
 		if Dirt then
@@ -694,21 +731,27 @@ local function PrepareLocalStep(ToolId: string): boolean
 		end
 	elseif Step.Type == "Paint" or Step.Type == "Polish" then
 		Targets = PaintRenderer.GetPaintParts(Model)
-		local Template = ReplicatedStorage.Assets.Models.Items:FindFirstChild(ItemInfo.AssetName)
 		if Template and Template:IsA("Model") then
 			for _, Target in Targets do
-				OriginalAppearances[Target] = PaintRenderer.GetOriginalAppearance(Model, Target, Template)
+				local Appearance = PaintRenderer.GetOriginalAppearance(Model, Target, Template)
+				if Step.Type == "Paint" and RuntimeState.Get(LocalPlayer, "CleaningPolishCompleted") ~= true and Appearance then
+					Appearance = table.clone(Appearance)
+					Appearance.Color = PaintRenderer.GetDullColor(Appearance.Color)
+				elseif Step.Type == "Polish" and RuntimeState.Get(LocalPlayer, "CleaningPaintCompleted") ~= true then
+					Appearance = {
+						BrickColor = Target.BrickColor,
+						Color = PaintRenderer.GetCleanerColor(Target.Color),
+						Material = Target.Material,
+						MaterialVariant = Target.MaterialVariant,
+						Reflectance = Target.Reflectance,
+						Transparency = Target.Transparency,
+					}
+				end
+				OriginalAppearances[Target] = Appearance
 			end
 		end
 	elseif Step.Type == "Bent" then
-		local AuthoredFolder = Model:FindFirstChild("BentComponents")
-		if AuthoredFolder then
-			for _, Target in AuthoredFolder:GetChildren() do
-				if Target:IsA("BasePart") then table.insert(Targets, Target) end
-			end
-		else
-			Targets = RestorationTargetRenderer.GetBentParts(Model, SavedTargetCount)
-		end
+		Targets = RestorationTargetRenderer.GetBentTargets(Model, SavedTargetCount)
 	else
 		local FolderName = if Step.Type == "Bent" and Model:FindFirstChild("BentComponents")
 			then "BentComponents"
@@ -722,25 +765,41 @@ local function PrepareLocalStep(ToolId: string): boolean
 	end
 
 	local MaximumHealth = if Step.Type == "Dirt" then ItemInfo.DirtHP else Step.TargetHP
-	for _, Target in Targets do
+	local SavedTargetHealth = RuntimeState.Get(LocalPlayer, "CleaningTargetHealth")
+	for Index, Target in Targets do
 		local BendRotation = Step.BendRotationDegrees or Vector3.new(28, -18, 12)
 		local DamageRotation = CFrame.Angles(math.rad(BendRotation.X), math.rad(BendRotation.Y), math.rad(BendRotation.Z))
-		local RestoredCFrame = if Step.Type == "Bent"
-			then Target.CFrame * DamageRotation:Inverse()
-			else nil
+		local CurrentHealth = if Step.Type == "Bent" and type(SavedTargetHealth) == "table" and type(SavedTargetHealth[Index]) == "number"
+			then math.clamp(SavedTargetHealth[Index], 0, MaximumHealth)
+			else MaximumHealth
+		local RestoredCFrame
+		local StartCFrame = Target.CFrame
+		if Step.Type == "Bent" then
+			RestoredCFrame = if Template and Template:IsA("Model")
+				then RestorationTargetRenderer.GetRestoredCFrame(Model, Target, Template)
+				else nil
+			if not RestoredCFrame then
+				local RestoredAmount = 1 - CurrentHealth / math.max(MaximumHealth, 0.001)
+				local Axis, Angle = DamageRotation:ToAxisAngle()
+				local RemainingDamageRotation = CFrame.fromAxisAngle(Axis, Angle * (1 - RestoredAmount))
+				RestoredCFrame = Target.CFrame * RemainingDamageRotation:Inverse()
+			end
+			StartCFrame = RestoredCFrame * DamageRotation
+		end
 		local ModelPivot = Model:GetPivot()
 		table.insert(LocalTargetStates, {
 			Part = Target,
-			CurrentHealth = MaximumHealth,
+			TargetIndex = Index,
+			CurrentHealth = CurrentHealth,
 			MaximumHealth = MaximumHealth,
 			DamagedColor = Target.Color,
 			OriginalAppearance = OriginalAppearances[Target],
-			StartCFrame = Target.CFrame,
+			StartCFrame = StartCFrame,
 			RestoredCFrame = RestoredCFrame,
-			StartRelativeCFrame = if Step.Type == "Bent" then ModelPivot:ToObjectSpace(Target.CFrame) else nil,
+			StartRelativeCFrame = if Step.Type == "Bent" then ModelPivot:ToObjectSpace(StartCFrame) else nil,
 			RestoredRelativeCFrame = if RestoredCFrame then ModelPivot:ToObjectSpace(RestoredCFrame) else nil,
 			BaseTransparency = Target.Transparency,
-			Completed = false,
+			Completed = CurrentHealth <= 0,
 		})
 	end
 	LocalStepId = ToolId
@@ -815,6 +874,21 @@ local function GetProjectedDistanceToPart(AimPosition: Vector3, Part: BasePart):
 	return Vector2.new(HorizontalDistance, VerticalDistance).Magnitude / math.max(ViewHeight, 0.001)
 end
 
+local function UpdateSpongeBubbleSound(GreaseTargetCount: number)
+	if GreaseTargetCount <= 0 or not ToolLoop then return end
+	local MaximumRateTargetCount = math.max(CleaningConfig.SpongeBubbleTargetsForMaximumRate, 1)
+	local GreaseAmount = math.clamp((GreaseTargetCount - 1) / math.max(MaximumRateTargetCount - 1, 1), 0, 1)
+	local Interval = CleaningConfig.SpongeBubbleMaximumInterval
+		+ (CleaningConfig.SpongeBubbleMinimumInterval - CleaningConfig.SpongeBubbleMaximumInterval) * GreaseAmount
+	Interval = math.max(Interval, CleaningConfig.SpongeBubbleMinimumInterval)
+	local Now = os.clock()
+	if Now - LastSpongeBubbleSound < Interval then return end
+
+	LastSpongeBubbleSound = Now
+	ToolLoop.TimePosition = 0
+	ToolLoop:Play()
+end
+
 local function ApplyToolLocally(ToolInfo, DeltaTime: number, AimPosition: Vector3?)
 	-- Cleaning interaction is intentionally client-authoritative so brush feedback never waits on network latency.
 	if LocalStepId ~= ToolInfo.Id and not PrepareLocalStep(ToolInfo.Id) then return end
@@ -827,6 +901,7 @@ local function ApplyToolLocally(ToolInfo, DeltaTime: number, AimPosition: Vector
 	local RadiusScale = GetToolRadiusScale(ToolInfo)
 	local ProgressChanged = false
 	local AppliedToTarget = false
+	local GreaseTargetCount = 0
 	local NearestTargetState
 	local NearestTargetDistance = math.huge
 	if Step.Type == "Bent" and AimPosition then
@@ -848,6 +923,7 @@ local function ApplyToolLocally(ToolInfo, DeltaTime: number, AimPosition: Vector
 		-- A hammer strike affects the nearest valid damaged part inside its full tool radius.
 		if Step.Type == "Bent" and State ~= NearestTargetState then continue end
 		AppliedToTarget = true
+		if Step.Type == "Grease" then GreaseTargetCount += 1 end
 
 		local PreviousHealth = State.CurrentHealth
 		State.CurrentHealth = math.max(0, PreviousHealth - Damage)
@@ -868,6 +944,8 @@ local function ApplyToolLocally(ToolInfo, DeltaTime: number, AimPosition: Vector
 			else
 				Target.CFrame = State.StartCFrame:Lerp(State.RestoredCFrame, RestoredAmount)
 			end
+			-- Persist every hammer hit on the authoritative model so later replication cannot restore an older bend.
+			Network:fire("ReportHammerProgress", ToolInfo.Id, State.TargetIndex, State.CurrentHealth)
 		elseif Step.Type == "Metal" then
 			local RestoredAmount = 1 - State.CurrentHealth / math.max(State.MaximumHealth, 0.001)
 			local ToolPosition = if SmoothedVisualToolCFrame then SmoothedVisualToolCFrame.Position else Workspace.CurrentCamera.CFrame.Position
@@ -876,8 +954,8 @@ local function ApplyToolLocally(ToolInfo, DeltaTime: number, AimPosition: Vector
 			Target.CFrame = State.StartCFrame + Direction * (ToolInfo.PullDistance or 1.4) * ResistanceCurve
 		elseif Step.Type == "LooseDebris" then
 			local ToolPosition = if SmoothedVisualToolCFrame then SmoothedVisualToolCFrame.Position else Workspace.CurrentCamera.CFrame.Position
-			local Direction = (Target.Position - ToolPosition).Unit
-			Target.CFrame += Direction * (ToolInfo.BlowSpeed or 8) * DeltaTime
+			local Direction = GetAirflowDirection(AimPosition, ToolPosition)
+			if Direction then Target.CFrame += Direction * (ToolInfo.BlowSpeed or 8) * DeltaTime end
 			Target.Transparency = math.clamp(Target.Transparency + DeltaTime * 0.9, 0, 1)
 		elseif State.OriginalAppearance then
 			local RestoredAmount = 1 - State.CurrentHealth / math.max(State.MaximumHealth, 0.001)
@@ -902,6 +980,7 @@ local function ApplyToolLocally(ToolInfo, DeltaTime: number, AimPosition: Vector
 			end
 		end
 	end
+	if Step.Type == "Grease" then UpdateSpongeBubbleSound(GreaseTargetCount) end
 	if AppliedToTarget and Step.Type == "Bent" then
 		local Model = GetFixingItemModel()
 		if Model then Sounds.Play(ToolInfo.ImpactSoundName, Model.PrimaryPart or Model, TOOL_SOUND_MAX_DISTANCE) end
@@ -1166,6 +1245,7 @@ function FixingController.Init()
 		elseif ToolBeam then
 			ToolBeam.Enabled = false
 		end
+		UpdateDirectionalToolEffects(AimPosition)
 		if ToolInfo.Id == "Hammer" then
 			if not HammerStrikeStartedAt and AimPosition and SurfaceNormal then StartHammerStrike(AimPosition, SurfaceNormal) end
 		else

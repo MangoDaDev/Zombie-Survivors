@@ -6,6 +6,7 @@ local Workspace = game:GetService("Workspace")
 
 local CrateInfo = require(ReplicatedStorage.Modules.Game.CrateInfo)
 local CrateRuntime = require(ReplicatedStorage.Modules.Game.CrateRuntime)
+local DataService = require(ReplicatedStorage.Packages.dataservice).client
 local GuidanceController = require(ReplicatedStorage.Controllers.GuidanceController)
 local ItemsInfo = require(ReplicatedStorage.Modules.Game.ItemsInfo)
 local FormatNumber = require(ReplicatedStorage.Modules.Math.FormatNumber)
@@ -25,6 +26,19 @@ local HealthVisibilityIds = setmetatable({}, { __mode = "k" })
 local ScreenEffectId = 0
 local RandomGenerator = Random.new()
 local LocalPlayer = Players.LocalPlayer
+local FirstRollPreviewItems = {}
+
+local FirstRollPreviewRarities = {
+	Rare = true,
+	Epic = true,
+	Legendary = true,
+	Mythic = true,
+	Secret = true,
+}
+
+for _, ItemInfo in ItemsInfo do
+	if FirstRollPreviewRarities[ItemInfo.Rarity] then table.insert(FirstRollPreviewItems, ItemInfo) end
+end
 
 local PinwheelTemplates = {
 	Common = "Common",
@@ -130,7 +144,7 @@ local function SetModelOnGround(Model, GroundCFrame)
 	Model:PivotTo(Model:GetPivot() + Vector3.new(0, GroundCFrame.Position.Y - BottomY, 0))
 end
 
-local function CreatePreview(ItemInfo, GroundCFrame, Parent): Model?
+local function CreatePreview(ItemInfo, GroundCFrame, Parent, Scale: number?): Model?
 	local Template = ReplicatedStorage.Assets.Models.Items:FindFirstChild(ItemInfo.AssetName)
 	if not Template or not Template:IsA("Model") then return nil end
 	local Model = Template:Clone()
@@ -143,6 +157,7 @@ local function CreatePreview(ItemInfo, GroundCFrame, Parent): Model?
 			Part.CanTouch = false
 		end
 	end
+	Model:ScaleTo(Scale or 1)
 	SetModelOnGround(Model, GroundCFrame)
 	Model.Parent = Parent
 	local Silhouette = Instance.new("Highlight")
@@ -156,16 +171,17 @@ local function CreatePreview(ItemInfo, GroundCFrame, Parent): Model?
 	return Model
 end
 
-local function PulseModel(Model, Duration)
+local function PulseModel(Model, Duration, Scale: number?)
+	local BaseScale = Scale or 1
 	local ScaleValue = Instance.new("NumberValue")
-	ScaleValue.Value = 0.9
+	ScaleValue.Value = BaseScale * 0.9
 	local Connection = ScaleValue.Changed:Connect(function(Value)
 		if Model.Parent then Model:ScaleTo(Value) end
 	end)
 	TweenService:Create(
 		ScaleValue,
 		TweenInfo.new(math.max(Duration * 0.8, 0.04), Enum.EasingStyle.Back, Enum.EasingDirection.Out),
-		{ Value = 1.08 }
+		{ Value = BaseScale * 1.08 }
 	):Play()
 	task.delay(Duration, function()
 		Connection:Disconnect()
@@ -173,12 +189,12 @@ local function PulseModel(Model, Duration)
 	end)
 end
 
-local function PlayTick(Info, Model, Index)
+local function PlayTick(Info, Model, Index, SwitchCount: number?)
 	local Parent = Model.PrimaryPart or Model:FindFirstChildWhichIsA("BasePart")
 	if not Parent then return end
 	local Sound = Sounds.Play(Info.RevealTickSoundName, Parent, 70)
 	if Sound then
-		local Alpha = Index / Info.PreviewSwitchCount
+		local Alpha = Index / (SwitchCount or Info.PreviewSwitchCount)
 		Sound.PlaybackSpeed = 0.9 + Alpha * 0.45
 		Sound.Volume *= 0.65 + Alpha * 0.35
 	end
@@ -331,13 +347,21 @@ local function CreateRarityEffect(Model: Model, Rarity: string)
 	Debris:AddItem(Anchor, Duration + MaximumLifetime + 0.25)
 end
 
-local function GetMinimumRevealDuration(Info): number
+local function GetMinimumRevealDuration(Info, IsFirstRoll: boolean?): number
+	local SwitchCount = if IsFirstRoll then Info.FirstRollPreviewSwitchCount else Info.PreviewSwitchCount
+	local StartDelay = if IsFirstRoll then Info.FirstRollPreviewStartDelay else Info.PreviewStartDelay
+	local EndDelay = if IsFirstRoll then Info.FirstRollPreviewEndDelay else Info.PreviewEndDelay
 	local Duration = 0
-	for Index = 1, Info.PreviewSwitchCount do
-		local Alpha = if Info.PreviewSwitchCount > 1 then (Index - 1) / (Info.PreviewSwitchCount - 1) else 1
-		Duration += Info.PreviewStartDelay + (Info.PreviewEndDelay - Info.PreviewStartDelay) * Alpha * Alpha
+	for Index = 1, SwitchCount do
+		local Alpha = if SwitchCount > 1 then (Index - 1) / (SwitchCount - 1) else 1
+		Duration += StartDelay + (EndDelay - StartDelay) * Alpha * Alpha
 	end
 	return Duration
+end
+
+local function GetFirstRollPreviewItem()
+	if #FirstRollPreviewItems == 0 then return nil end
+	return FirstRollPreviewItems[RandomGenerator:NextInteger(1, #FirstRollPreviewItems)]
 end
 
 local function PlayBreakSound(GroundCFrame, Info)
@@ -410,14 +434,20 @@ local function RunReveal(Reveal)
 			if Reveal.Model then Reveal.Model:Destroy() end
 			local MinimumFinished = os.clock() - Reveal.StartedAt >= Reveal.MinimumDuration
 			local IsFinalPreview = Reveal.ActualItemInfo ~= nil and MinimumFinished
+			local IsFirstRollPreview = Reveal.IsFirstRoll and not IsFinalPreview
 			local PreviewInfo = if IsFinalPreview
 				then Reveal.ActualItemInfo
+				elseif IsFirstRollPreview then GetFirstRollPreviewItem()
 				else CrateInfo.GetRandomItem(ItemsInfo, Reveal.Info, RandomGenerator)
-			Reveal.Model = PreviewInfo and CreatePreview(PreviewInfo, Reveal.GroundCFrame, RevealFolder) or nil
-			local DelayIndex = math.min(Index, Reveal.Info.PreviewSwitchCount)
-			local Alpha = if Reveal.Info.PreviewSwitchCount > 1 then (DelayIndex - 1) / (Reveal.Info.PreviewSwitchCount - 1) else 1
-			local Delay = Reveal.Info.PreviewStartDelay + (Reveal.Info.PreviewEndDelay - Reveal.Info.PreviewStartDelay) * Alpha * Alpha
-			if Reveal.Model then PulseModel(Reveal.Model, Delay); PlayTick(Reveal.Info, Reveal.Model, DelayIndex) end
+			local PreviewScale = if IsFirstRollPreview then Reveal.Info.FirstRollPreviewScale else 1
+			Reveal.Model = PreviewInfo and CreatePreview(PreviewInfo, Reveal.GroundCFrame, RevealFolder, PreviewScale) or nil
+			local SwitchCount = if IsFirstRollPreview then Reveal.Info.FirstRollPreviewSwitchCount else Reveal.Info.PreviewSwitchCount
+			local StartDelay = if IsFirstRollPreview then Reveal.Info.FirstRollPreviewStartDelay else Reveal.Info.PreviewStartDelay
+			local EndDelay = if IsFirstRollPreview then Reveal.Info.FirstRollPreviewEndDelay else Reveal.Info.PreviewEndDelay
+			local DelayIndex = math.min(Index, SwitchCount)
+			local Alpha = if SwitchCount > 1 then (DelayIndex - 1) / (SwitchCount - 1) else 1
+			local Delay = StartDelay + (EndDelay - StartDelay) * Alpha * Alpha
+			if Reveal.Model then PulseModel(Reveal.Model, Delay, PreviewScale); PlayTick(Reveal.Info, Reveal.Model, DelayIndex, SwitchCount) end
 			task.wait(Delay)
 			if IsFinalPreview then break end
 		end
@@ -446,6 +476,7 @@ end
 function CrateController.BeginPredictedReveal(PredictionId, Model, CrateId)
 	local Info = GetCrateInfo(CrateId)
 	if type(PredictionId) ~= "string" or typeof(Model) ~= "Instance" or not Model:IsA("Model") or not Info then return end
+	local IsFirstRoll = DataService:get("HasRolledCrate") ~= true and DataService:get("GuaranteedDropCount") == 0
 	local BoundingCFrame, BoundingSize = Model:GetBoundingBox()
 	local Pivot = Model:GetPivot()
 	local GroundCFrame = CFrame.new(Pivot.X, BoundingCFrame.Position.Y - BoundingSize.Y / 2, Pivot.Z) * Pivot.Rotation
@@ -456,7 +487,8 @@ function CrateController.BeginPredictedReveal(PredictionId, Model, CrateId)
 		CrateParts = {},
 		GroundCFrame = GroundCFrame,
 		Info = Info,
-		MinimumDuration = GetMinimumRevealDuration(Info),
+		IsFirstRoll = IsFirstRoll,
+		MinimumDuration = GetMinimumRevealDuration(Info, IsFirstRoll),
 		Model = nil,
 		RevealingPlayer = LocalPlayer,
 		StartedAt = os.clock(),
@@ -499,7 +531,7 @@ function CrateController.CancelPredictedRevealsForCrate(Model)
 	for _, PredictionId in PredictionIds do CrateController.CancelPredictedReveal(PredictionId) end
 end
 
-function CrateController.StartReveal(_, RewardId, ActualItemId, GroundCFrame, CrateId, RevealingPlayer, PredictionId, AuthoritativeModel, DirtCount, RestorationSteps)
+function CrateController.StartReveal(_, RewardId, ActualItemId, GroundCFrame, CrateId, RevealingPlayer, PredictionId, AuthoritativeModel, DirtCount, RestorationSteps, IsFirstRoll)
 	local Info = GetCrateInfo(CrateId)
 	local ActualItemInfo = GetItemInfo(ActualItemId)
 	if type(RewardId) ~= "string" or not Info or not ActualItemInfo or typeof(GroundCFrame) ~= "CFrame"
@@ -513,6 +545,8 @@ function CrateController.StartReveal(_, RewardId, ActualItemId, GroundCFrame, Cr
 		Reveal.DirtCount = DirtCount
 		Reveal.RestorationSteps = if type(RestorationSteps) == "table" then RestorationSteps else nil
 		Reveal.GroundCFrame = GroundCFrame
+		Reveal.IsFirstRoll = IsFirstRoll == true
+		Reveal.MinimumDuration = GetMinimumRevealDuration(Info, Reveal.IsFirstRoll)
 		Reveal.RewardId = RewardId
 		Reveals[RewardId] = Reveal
 		return
@@ -523,9 +557,10 @@ function CrateController.StartReveal(_, RewardId, ActualItemId, GroundCFrame, Cr
 		Cancelled = false,
 		GroundCFrame = GroundCFrame,
 		Info = Info,
+		IsFirstRoll = IsFirstRoll == true,
 		DirtCount = DirtCount,
 		RestorationSteps = if type(RestorationSteps) == "table" then RestorationSteps else nil,
-		MinimumDuration = GetMinimumRevealDuration(Info),
+		MinimumDuration = GetMinimumRevealDuration(Info, IsFirstRoll == true),
 		Model = nil,
 		RevealingPlayer = RevealingPlayer,
 		RewardId = RewardId,

@@ -1,5 +1,5 @@
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local CollectionService = game:GetService("CollectionService")
+local ReplicatedStorage = game:GetService "ReplicatedStorage"
+local CollectionService = game:GetService "CollectionService"
 
 local FormatNumber = require(ReplicatedStorage.Modules.Math.FormatNumber)
 local Images = require(ReplicatedStorage.Modules.UI.Images)
@@ -15,7 +15,7 @@ local COMIC_FONT = UIStyle.Font
 local ITEM_INFO_TAG = "ItemInfoBillboard"
 
 local function addStroke(label: TextLabel)
-	local stroke = Instance.new("UIStroke")
+	local stroke = Instance.new "UIStroke"
 	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual
 	stroke.Color = Color3.new(0, 0, 0)
 	stroke.StrokeSizingMode = Enum.StrokeSizingMode.ScaledSize
@@ -23,13 +23,21 @@ local function addStroke(label: TextLabel)
 	stroke.Parent = label
 end
 
-local function createStatRow(image: string, value: number, position: UDim2, ValuePrefix: string?, RowHeight: number?, IconWidth: number?): Frame
-	local row = Instance.new("Frame")
+local function createStatRow(
+	image: string,
+	value: number,
+	position: UDim2,
+	ValuePrefix: string?,
+	RowHeight: number?,
+	IconWidth: number?,
+	LabelText: string?
+): Frame
+	local row = Instance.new "Frame"
 	row.BackgroundTransparency = 1
 	row.Position = position
 	row.Size = UDim2.fromScale(1, RowHeight or 0.28)
 
-	local layout = Instance.new("UIListLayout")
+	local layout = Instance.new "UIListLayout"
 	layout.FillDirection = Enum.FillDirection.Horizontal
 	layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 	layout.Padding = UDim.new(0.02, 0)
@@ -37,7 +45,7 @@ local function createStatRow(image: string, value: number, position: UDim2, Valu
 	layout.VerticalAlignment = Enum.VerticalAlignment.Center
 	layout.Parent = row
 
-	local icon = Instance.new("ImageLabel")
+	local icon = Instance.new "ImageLabel"
 	icon.BackgroundTransparency = 1
 	icon.Image = image
 	icon.LayoutOrder = 1
@@ -45,13 +53,14 @@ local function createStatRow(image: string, value: number, position: UDim2, Valu
 	icon.Size = UDim2.fromScale(IconWidth or 0.1, 0.8)
 	icon.Parent = row
 
-	local valueLabel = Instance.new("TextLabel")
+	local valueLabel = Instance.new "TextLabel"
 	valueLabel.AutomaticSize = Enum.AutomaticSize.X
 	valueLabel.BackgroundTransparency = 1
 	valueLabel.FontFace = COMIC_FONT
 	valueLabel.LayoutOrder = 2
 	valueLabel.Size = UDim2.fromScale(0, 1)
-	valueLabel.Text = `{ValuePrefix or ""}{FormatNumber(value) or "0"}`
+	local ResolvedLabel = if LabelText then `{LabelText}: ` else ""
+	valueLabel.Text = `{ResolvedLabel}{ValuePrefix or ""}{FormatNumber(value) or "0"}`
 	valueLabel.TextColor3 = Color3.fromRGB(72, 232, 91)
 	valueLabel.TextScaled = true
 	valueLabel.TextXAlignment = Enum.TextXAlignment.Left
@@ -62,28 +71,30 @@ local function createStatRow(image: string, value: number, position: UDim2, Valu
 end
 
 return function(itemInfo, adornee: BasePart, fixingState): BillboardGui
-	local ItemModel = adornee:FindFirstAncestorOfClass("Model")
+	local ItemModel = adornee:FindFirstAncestorOfClass "Model"
 	local BillboardRoot = ItemModel or adornee
 	-- Keep every item's identity and value information in one shared BillboardGui.
 	for _, Descendant in BillboardRoot:GetDescendants() do
-		if Descendant:IsA("BillboardGui")
+		if
+			Descendant:IsA "BillboardGui"
 			and (Descendant.Name == "ItemInfo" or CollectionService:HasTag(Descendant, ITEM_INFO_TAG))
 		then
 			Descendant:Destroy()
 		end
 	end
 
-	local billboard = Instance.new("BillboardGui")
+	local billboard = Instance.new "BillboardGui"
 	billboard.Name = "ItemInfo"
 	billboard.Adornee = adornee
 	billboard.AlwaysOnTop = true
 	billboard.MaxDistance = ItemInteractionConfig.ItemBillboardMaxDistance
 	billboard.Size = BILLBOARD_SIZE
 	local ItemHeight = if ItemModel then ItemModel:GetExtentsSize().Y else adornee.Size.Y
-	billboard.StudsOffsetWorldSpace = Vector3.new(0, ItemHeight / 2 + BILLBOARD_HEIGHT_OFFSET + ItemHeight * BILLBOARD_HEIGHT_SCALE, 0)
+	billboard.StudsOffsetWorldSpace =
+		Vector3.new(0, ItemHeight / 2 + BILLBOARD_HEIGHT_OFFSET + ItemHeight * BILLBOARD_HEIGHT_SCALE, 0)
 	billboard.Parent = adornee
 
-	local nameLabel = Instance.new("TextLabel")
+	local nameLabel = Instance.new "TextLabel"
 	nameLabel.Name = "ItemName"
 	nameLabel.BackgroundTransparency = 1
 	nameLabel.FontFace = COMIC_FONT
@@ -97,12 +108,12 @@ return function(itemInfo, adornee: BasePart, fixingState): BillboardGui
 	nameLabel.TextWrapped = true
 	nameLabel.Parent = billboard
 	addStroke(nameLabel)
-	local rarityGradient = Instance.new("UIGradient")
+	local rarityGradient = Instance.new "UIGradient"
 	rarityGradient.Name = "RarityGradient"
 	rarityGradient.Color = RarityInfo.Get(itemInfo.Rarity).Gradient
 	rarityGradient.Parent = nameLabel
 
-	local RarityLabel = Instance.new("TextLabel")
+	local RarityLabel = Instance.new "TextLabel"
 	RarityLabel.Name = "Rarity"
 	RarityLabel.BackgroundTransparency = 1
 	RarityLabel.FontFace = COMIC_FONT
@@ -116,7 +127,8 @@ return function(itemInfo, adornee: BasePart, fixingState): BillboardGui
 	local RarityTextGradient = rarityGradient:Clone()
 	RarityTextGradient.Parent = RarityLabel
 
-	local GuestPayRow = createStatRow(Images.Binoculars, itemInfo.GuestPay, UDim2.fromScale(0, 0.5), "$", 0.24, 0.14)
+	local GuestPayRow =
+		createStatRow(Images.Binoculars, itemInfo.GuestPay, UDim2.fromScale(0, 0.5), "$", 0.24, 0.14, "")
 	GuestPayRow.Name = "GuestPay"
 	GuestPayRow.Parent = billboard
 	local DisplayValue = if IsCleaningComplete then itemInfo.SaleValue else itemInfo.Price
@@ -125,13 +137,13 @@ return function(itemInfo, adornee: BasePart, fixingState): BillboardGui
 	PriceRow.Parent = billboard
 	local RequiredSteps = CleaningConfig.GetStepsForItem(itemInfo, fixingState)
 	if fixingState and fixingState.Completed ~= true and #RequiredSteps > 0 and Images.FixIcons then
-		local fixRow = Instance.new("Frame")
+		local fixRow = Instance.new "Frame"
 		fixRow.Name = "FixIcons"
 		fixRow.BackgroundTransparency = 1
 		fixRow.Position = UDim2.fromScale(0, 0.88)
 		fixRow.Size = UDim2.fromScale(1, 0.12)
 		fixRow.Parent = billboard
-		local layout = Instance.new("UIListLayout")
+		local layout = Instance.new "UIListLayout"
 		layout.FillDirection = Enum.FillDirection.Horizontal
 		layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 		layout.VerticalAlignment = Enum.VerticalAlignment.Center
@@ -140,7 +152,7 @@ return function(itemInfo, adornee: BasePart, fixingState): BillboardGui
 			local StepState = type(fixingState.Steps) == "table" and fixingState.Steps[Step.Id] or nil
 			local IconImage = Images.FixIcons[Step.IconName]
 			if IconImage and (type(StepState) ~= "table" or StepState.Completed ~= true) then
-				local FixIcon = Instance.new("ImageLabel")
+				local FixIcon = Instance.new "ImageLabel"
 				FixIcon.Name = Step.IconName
 				FixIcon.BackgroundTransparency = 1
 				FixIcon.Image = IconImage

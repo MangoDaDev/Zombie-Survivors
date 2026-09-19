@@ -87,11 +87,14 @@ local function GetRewardItemInfo(Player: Player, Info, Luck: number)
 	return CrateInfo.GetRandomItem(ItemsInfo, Info, RandomGenerator, Luck), false
 end
 
-local function GetRevealDuration(Info): number
+local function GetRevealDuration(Info, IsFirstRoll: boolean?): number
+	local SwitchCount = if IsFirstRoll then Info.FirstRollPreviewSwitchCount else Info.PreviewSwitchCount
+	local StartDelay = if IsFirstRoll then Info.FirstRollPreviewStartDelay else Info.PreviewStartDelay
+	local EndDelay = if IsFirstRoll then Info.FirstRollPreviewEndDelay else Info.PreviewEndDelay
 	local Duration = 0
-	for Index = 1, Info.PreviewSwitchCount do
-		local Alpha = if Info.PreviewSwitchCount > 1 then (Index - 1) / (Info.PreviewSwitchCount - 1) else 1
-		Duration += Info.PreviewStartDelay + (Info.PreviewEndDelay - Info.PreviewStartDelay) * Alpha * Alpha
+	for Index = 1, SwitchCount do
+		local Alpha = if SwitchCount > 1 then (Index - 1) / (SwitchCount - 1) else 1
+		Duration += StartDelay + (EndDelay - StartDelay) * Alpha * Alpha
 	end
 	return Duration
 end
@@ -251,6 +254,8 @@ end
 
 local function CreateReward(State, Player: Player, PredictionId, AnalyticsSessionId)
 	local Info = State.Info
+	local HasRolledCrate = DataService:get(Player, "HasRolledCrate") == true
+	local IsFirstRoll = not HasRolledCrate and DataService:get(Player, "GuaranteedDropCount") == 0
 	local ItemInfo, IsRecovery, RestorationSteps = GetRewardItemInfo(Player, Info, State.Luck)
 	if not ItemInfo then return end
 	local Template = ReplicatedStorage.Assets.Models.Items:FindFirstChild(ItemInfo.AssetName)
@@ -293,7 +298,9 @@ local function CreateReward(State, Player: Player, PredictionId, AnalyticsSessio
 	Prompt.Enabled = false
 	Prompt.Parent = Box
 	local RewardId = HttpService:GenerateGUID(false)
-	local RevealDuration = GetRevealDuration(Info)
+	local RevealDuration = GetRevealDuration(Info, IsFirstRoll)
+	-- Persist this before broadcasting so only the player's first crate uses the extended rare preview roll.
+	if not HasRolledCrate then DataService:set(Player, "HasRolledCrate", true) end
 	local Reward = {
 		Id = RewardId,
 		Info = Info,
@@ -324,7 +331,7 @@ local function CreateReward(State, Player: Player, PredictionId, AnalyticsSessio
 			Prompt.Enabled = Workspace:GetServerTimeNow() >= Reward.AvailableAt
 		end
 	end)
-	Network:fireAll("StartReveal", RewardId, ItemInfo.Id, GroundCFrame, Info.Id, Player, PredictionId, Model, DirtCount, RestorationSteps)
+	Network:fireAll("StartReveal", RewardId, ItemInfo.Id, GroundCFrame, Info.Id, Player, PredictionId, Model, DirtCount, RestorationSteps, IsFirstRoll)
 	task.delay(RevealDuration, function()
 		if Rewards[RewardId] ~= Reward then return end
 		for _, Part in Model:GetDescendants() do
