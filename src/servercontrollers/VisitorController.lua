@@ -10,6 +10,7 @@ local MuseumController = require(ServerStorage.Controllers.MuseumController)
 local MuseumConfig = require(ReplicatedStorage.Modules.Game.MuseumConfig)
 local UpgradeLogic = require(ReplicatedStorage.Modules.Game.UpgradeLogic)
 local GuidanceController = require(ServerStorage.Controllers.GuidanceController)
+local Networker = require(ReplicatedStorage.Packages.networker)
 
 local CONFIG = {
 	InitialSpawnDelay = 2,
@@ -172,24 +173,26 @@ local dataService
 local visitTokens: { [Player]: {} } = {}
 local activeVisitors: { [Player]: { [any]: number } } = {}
 local DisplayReservations: { [Player]: { [any]: number } } = {}
+local ActiveCounts: { [Player]: { [number]: number } } = {}
+local VisitorsPerDisplay: { [Player]: number } = {}
+local UpgradeConnections: { [Player]: RBXScriptConnection } = {}
+local LevelRuntime: { [Player]: { [number]: any } } = {}
+local ReadyPlayers: { [Player]: boolean } = {}
+local SubscribersByOwner: { [Player]: { [Player]: boolean } } = {}
+local ViewedOwnerByPlayer: { [Player]: Player } = {}
+local LastViewRequestAt: { [Player]: number } = {}
+local ItemsById = {}
+local ShirtChoices = {}
+local PantsChoices = {}
+local HairChoices = {}
+local Network
 
 local function getItemInfo(itemId: number)
-	for _, itemInfo in ItemsInfo do
-		if itemInfo.Id == itemId then
-			return itemInfo
-		end
-	end
-	return nil
+	return ItemsById[itemId]
 end
 
-local function getRandomChildOfClass(folder: Instance, className: string)
-	local choices = {}
-	for _, child in folder:GetChildren() do
-		if child:IsA(className) then
-			table.insert(choices, child)
-		end
-	end
-	return if #choices > 0 then choices[math.random(1, #choices)] else nil
+local function GetRandomChoice(Choices)
+	return if #Choices > 0 then Choices[math.random(1, #Choices)] else nil
 end
 
 local function getLargestFloor(museum: Model): BasePart?
@@ -227,18 +230,37 @@ local function getInspectionCFrame(viewPart: BasePart, itemCFrame: BasePart): CF
 	return CFrame.lookAt(standPosition, lookPosition)
 end
 
-local function GetGroundedCFrame(Museum: Model, TargetCFrame: CFrame): CFrame
-	local RaycastParameters = RaycastParams.new()
-	RaycastParameters.FilterType = Enum.RaycastFilterType.Include
-	RaycastParameters.FilterDescendantsInstances = { Museum }
-	RaycastParameters.RespectCanCollide = true
-
+local function GetGroundedCFrame(RaycastParameters: RaycastParams, TargetCFrame: CFrame): CFrame
 	local RayOrigin = TargetCFrame.Position + Vector3.new(0, 4, 0)
 	local RayResult = Workspace:Raycast(RayOrigin, Vector3.new(0, -12, 0), RaycastParameters)
 	if RayResult == nil then
 		return TargetCFrame
 	end
 	return CFrame.new(RayResult.Position) * TargetCFrame.Rotation
+end
+
+local function GetLevelRuntime(Player: Player, LevelNumber: number)
+	local PlayerRuntime = LevelRuntime[Player]
+	if not PlayerRuntime then return nil end
+	local Cached = PlayerRuntime[LevelNumber]
+	local Level = MuseumController.GetLevel(Player, LevelNumber)
+	if Cached and Cached.Level == Level and Level and Level.Parent then return Cached end
+	if not Level then return nil end
+	local SpawnPart = Level:FindFirstChild("SpawnCFrame")
+	local Floor = getLargestFloor(Level)
+	if not SpawnPart or not SpawnPart:IsA("BasePart") or not Floor then return nil end
+	local RaycastParameters = RaycastParams.new()
+	RaycastParameters.FilterType = Enum.RaycastFilterType.Include
+	RaycastParameters.FilterDescendantsInstances = { Level }
+	RaycastParameters.RespectCanCollide = true
+	Cached = {
+		Level = Level,
+		Floor = Floor,
+		RaycastParameters = RaycastParameters,
+		SpawnCFrame = GetGroundedCFrame(RaycastParameters, SpawnPart.CFrame),
+	}
+	PlayerRuntime[LevelNumber] = Cached
+	return Cached
 end
 
 local function getRandomMessage(messages: { string }, previousMessage: string?): string
@@ -261,15 +283,68 @@ local function isVisitActive(player: Player, token, visitor): boolean
 		and ActiveForPlayer[visitor] ~= nil
 end
 
+local function IsPointInsidePart(Point: Vector3, Part: BasePart): boolean
+	local LocalPoint = Part.CFrame:PointToObjectSpace(Point)
+	local HalfSize = Part.Size / 2
+	return math.abs(LocalPoint.X) <= HalfSize.X and math.abs(LocalPoint.Y) <= HalfSize.Y and math.abs(LocalPoint.Z) <= HalfSize.Z
+end
+
+local function CanObserve(Subscriber: Player, Owner: Player): boolean
+	if Subscriber == Owner then return true end
+	local Character = Subscriber.Character
+	local RootPart = Character and Character:FindFirstChild("HumanoidRootPart")
+	if not RootPart or not RootPart:IsA("BasePart") then return false end
+	for _, MuseumArea in MuseumController.GetMuseumAreas(Owner) do
+		if MuseumArea.Parent and IsPointInsidePart(RootPart.Position, MuseumArea) then return true end
+	end
+	return false
+end
+
+local function SendOwnerSnapshot(Subscriber: Player, Owner: Player)
+	local Visitors = activeVisitors[Owner]
+	if not Visitors or not Network then return end
+	for Visitor in Visitors do Network:fire(Subscriber, "CreateVisitor", Visitor:GetSnapshot()) end
+end
+
+local function AddSubscriber(Subscriber: Player, Owner: Player)
+	if not ReadyPlayers[Subscriber] or not CanObserve(Subscriber, Owner) then return end
+	local Subscribers = SubscribersByOwner[Owner]
+	if not Subscribers then Subscribers = {}; SubscribersByOwner[Owner] = Subscribers end
+	if Subscribers[Subscriber] then return end
+	Subscribers[Subscriber] = true
+	SendOwnerSnapshot(Subscriber, Owner)
+end
+
+local function RemoveSubscriber(Subscriber: Player, Owner: Player)
+	local Subscribers = SubscribersByOwner[Owner]
+	if not Subscribers or not Subscribers[Subscriber] then return end
+	Subscribers[Subscriber] = nil
+	if Network and Subscriber.Parent == Players then Network:fire(Subscriber, "ClearOwner", Owner.UserId) end
+end
+
+local function BroadcastVisitor(Visitor, Method: string, ...)
+	local Owner = Visitor.OwnerPlayer
+	local Subscribers = Owner and SubscribersByOwner[Owner]
+	if not Subscribers or not Network then return end
+	for Subscriber in Subscribers do
+		if Subscriber.Parent ~= Players or not ReadyPlayers[Subscriber] or not CanObserve(Subscriber, Owner) then
+			Subscribers[Subscriber] = nil
+			if Subscriber.Parent == Players then Network:fire(Subscriber, "ClearOwner", Owner.UserId) end
+		else
+			Network:fire(Subscriber, Method, ...)
+		end
+	end
+end
+
 local function GetAvailableDisplays(Player: Player, LevelNumber: number): { any }
 	local AvailableDisplays = {}
 	local Reservations = DisplayReservations[Player]
 	if not Reservations then
 		return AvailableDisplays
 	end
-	local VisitorsPerDisplay = UpgradeLogic.GetVisitorsPerDisplay(dataService:get(Player, "Upgrades"))
+	local VisitorLimit = VisitorsPerDisplay[Player] or UpgradeLogic.GetVisitorsPerDisplay(dataService:get(Player, "Upgrades"))
 	for _, DisplayState in MuseumController.GetOccupiedDisplays(Player, LevelNumber) do
-		if (Reservations[DisplayState] or 0) < VisitorsPerDisplay then
+		if (Reservations[DisplayState] or 0) < VisitorLimit then
 			table.insert(AvailableDisplays, DisplayState)
 		end
 	end
@@ -278,9 +353,9 @@ end
 
 local function GetActiveVisitorLimit(Player: Player, LevelNumber: number): number
 	local OccupiedDisplayCount = #MuseumController.GetOccupiedDisplays(Player, LevelNumber)
-	local VisitorsPerDisplay = UpgradeLogic.GetVisitorsPerDisplay(dataService:get(Player, "Upgrades"))
+	local VisitorLimit = VisitorsPerDisplay[Player] or UpgradeLogic.GetVisitorsPerDisplay(dataService:get(Player, "Upgrades"))
 	-- Each level's visitor population is based only on the items displayed on that level.
-	return OccupiedDisplayCount * VisitorsPerDisplay
+	return OccupiedDisplayCount * VisitorLimit
 end
 
 local function ReserveDisplay(Player: Player, DisplayState): boolean
@@ -288,9 +363,9 @@ local function ReserveDisplay(Player: Player, DisplayState): boolean
 	if not Reservations then
 		return false
 	end
-	local VisitorsPerDisplay = UpgradeLogic.GetVisitorsPerDisplay(dataService:get(Player, "Upgrades"))
+	local VisitorLimit = VisitorsPerDisplay[Player] or UpgradeLogic.GetVisitorsPerDisplay(dataService:get(Player, "Upgrades"))
 	local CurrentCount = Reservations[DisplayState] or 0
-	if CurrentCount >= VisitorsPerDisplay then
+	if CurrentCount >= VisitorLimit then
 		return false
 	end
 	Reservations[DisplayState] = CurrentCount + 1
@@ -311,31 +386,33 @@ local function runVisit(player: Player, token, levelNumber: number)
 		return
 	end
 
-	local level = MuseumController.GetLevel(player, levelNumber)
-	if not level then return end
-	local spawnPart = level:FindFirstChild("SpawnCFrame")
-	local floor = getLargestFloor(level)
-	if spawnPart == nil or not spawnPart:IsA "BasePart" or floor == nil then
-		return
-	end
-
-	local npcAssets = ReplicatedStorage.Assets.Models.NPCS
-	local spawnCFrame = GetGroundedCFrame(level, spawnPart.CFrame)
-	local visitor = MuseumVisitor.new {
+	local Runtime = GetLevelRuntime(player, levelNumber)
+	if not Runtime then return end
+	local level = Runtime.Level
+	local floor = Runtime.Floor
+	local RaycastParameters = Runtime.RaycastParameters
+	local spawnCFrame = Runtime.SpawnCFrame
+	local ShirtTemplate = GetRandomChoice(ShirtChoices)
+	local PantsTemplate = GetRandomChoice(PantsChoices)
+	local HairTemplate = GetRandomChoice(HairChoices)
+	local visitor = MuseumVisitor.new({
+		OwnerPlayer = player,
 		OwnerUserId = player.UserId,
 		SpawnCFrame = spawnCFrame,
 		CurrentCFrame = spawnCFrame,
-		ShirtTemplate = getRandomChildOfClass(npcAssets.Shirts, "Shirt"),
-		PantsTemplate = getRandomChildOfClass(npcAssets.Pants, "Pants"),
-		HairTemplate = getRandomChildOfClass(npcAssets.Hair, "Accessory"),
+		ShirtTemplate = ShirtTemplate,
+		PantsTemplate = PantsTemplate,
+		HairTemplate = HairTemplate,
 		SkinColor = SKIN_COLORS[math.random(1, #SKIN_COLORS)],
-	}
+	}, BroadcastVisitor)
 	local ActiveForPlayer = activeVisitors[player]
 	if ActiveForPlayer == nil or visitTokens[player] ~= token then
 		visitor:Destroy()
 		return
 	end
 	ActiveForPlayer[visitor] = levelNumber
+	ActiveCounts[player][levelNumber] = (ActiveCounts[player][levelNumber] or 0) + 1
+	visitor:StartReplication()
 
 	local currentCFrame = spawnCFrame
 	local lastMessage: string?
@@ -368,7 +445,7 @@ local function runVisit(player: Player, token, levelNumber: number)
 			local itemId = displayState.itemId
 			local itemInfo = itemId and getItemInfo(itemId)
 			local InspectionCFrame =
-				GetGroundedCFrame(level, getInspectionCFrame(displayState.viewPart, displayState.itemCFrame))
+				GetGroundedCFrame(RaycastParameters, getInspectionCFrame(displayState.viewPart, displayState.itemCFrame))
 			if itemInfo and moveTo(InspectionCFrame) then
 				maybeSay(INSPECTION_MESSAGES, CONFIG.InspectMessageChance)
 				task.wait(math.random(CONFIG.InspectDurationMin, CONFIG.InspectDurationMax))
@@ -383,7 +460,7 @@ local function runVisit(player: Player, token, levelNumber: number)
 			end
 			ReleaseDisplay(player, displayState)
 		else
-			local WanderCFrame = GetGroundedCFrame(level, getWanderCFrame(floor, spawnCFrame.Position.Y))
+			local WanderCFrame = GetGroundedCFrame(RaycastParameters, getWanderCFrame(floor, spawnCFrame.Position.Y))
 			if not moveTo(WanderCFrame) then
 				return
 			end
@@ -401,6 +478,7 @@ local function runVisit(player: Player, token, levelNumber: number)
 	end
 	if isVisitActive(player, token, visitor) then
 		activeVisitors[player][visitor] = nil
+		ActiveCounts[player][levelNumber] = math.max((ActiveCounts[player][levelNumber] or 1) - 1, 0)
 		visitor:Destroy()
 	end
 end
@@ -409,22 +487,56 @@ function VisitorController.SetDataService(service)
 	dataService = service
 end
 
+function VisitorController.Ready(_, Player: Player)
+	if ReadyPlayers[Player] or Player.Parent ~= Players then return end
+	ReadyPlayers[Player] = true
+	AddSubscriber(Player, Player)
+end
+
+function VisitorController.SetViewedMuseum(_, Player: Player, OwnerUserId)
+	if not ReadyPlayers[Player] or type(OwnerUserId) ~= "number" or OwnerUserId % 1 ~= 0 then return end
+	local Now = os.clock()
+	if Now - (LastViewRequestAt[Player] or 0) < 0.1 then return end
+	LastViewRequestAt[Player] = Now
+	local Owner = Players:GetPlayerByUserId(OwnerUserId)
+	if not Owner or not CanObserve(Player, Owner) then return end
+	local PreviousOwner = ViewedOwnerByPlayer[Player]
+	if PreviousOwner == Owner then return end
+	if PreviousOwner and PreviousOwner ~= Player then RemoveSubscriber(Player, PreviousOwner) end
+	ViewedOwnerByPlayer[Player] = if Owner ~= Player then Owner else nil
+	if Owner ~= Player then AddSubscriber(Player, Owner) end
+end
+
+function VisitorController.Init()
+	for _, ItemInfo in ItemsInfo do ItemsById[ItemInfo.Id] = ItemInfo end
+	local Assets = ReplicatedStorage.Assets.Models.NPCS
+	for _, Child in Assets.Shirts:GetChildren() do if Child:IsA("Shirt") then table.insert(ShirtChoices, Child) end end
+	for _, Child in Assets.Pants:GetChildren() do if Child:IsA("Pants") then table.insert(PantsChoices, Child) end end
+	for _, Child in Assets.Hair:GetChildren() do if Child:IsA("Accessory") then table.insert(HairChoices, Child) end end
+	Network = Networker.server.new("MuseumVisitorController", VisitorController, {
+		VisitorController.Ready,
+		VisitorController.SetViewedMuseum,
+	})
+end
+
 function VisitorController.OnPlayerAdded(player: Player)
 	local token = {}
 	visitTokens[player] = token
 	activeVisitors[player] = {}
 	DisplayReservations[player] = {}
+	ActiveCounts[player] = {}
+	LevelRuntime[player] = {}
+	SubscribersByOwner[player] = {}
+	VisitorsPerDisplay[player] = UpgradeLogic.GetVisitorsPerDisplay(dataService:get(player, "Upgrades"))
+	UpgradeConnections[player] = dataService:getChangedSignal(player, "Upgrades"):Connect(function()
+		VisitorsPerDisplay[player] = UpgradeLogic.GetVisitorsPerDisplay(dataService:get(player, "Upgrades"))
+	end)
+	if ReadyPlayers[player] then AddSubscriber(player, player) end
 	task.spawn(function()
 		task.wait(CONFIG.InitialSpawnDelay)
 		while player.Parent == Players and visitTokens[player] == token do
-			local ActiveForPlayer = activeVisitors[player]
 			for LevelNumber = 1, #MuseumConfig.Levels do
-				local ActiveCount = 0
-				if ActiveForPlayer then
-					for _, VisitorLevelNumber in ActiveForPlayer do
-						if VisitorLevelNumber == LevelNumber then ActiveCount += 1 end
-					end
-				end
+				local ActiveCount = ActiveCounts[player] and (ActiveCounts[player][LevelNumber] or 0) or 0
 				if ActiveCount < GetActiveVisitorLimit(player, LevelNumber) then
 					task.spawn(runVisit, player, token, LevelNumber)
 				end
@@ -439,11 +551,29 @@ function VisitorController.OnPlayerRemoving(player: Player)
 	local Visitors = activeVisitors[player]
 	activeVisitors[player] = nil
 	DisplayReservations[player] = nil
+	ActiveCounts[player] = nil
+	VisitorsPerDisplay[player] = nil
+	LevelRuntime[player] = nil
+	ReadyPlayers[player] = nil
+	LastViewRequestAt[player] = nil
+	local UpgradeConnection = UpgradeConnections[player]
+	if UpgradeConnection then UpgradeConnection:Disconnect(); UpgradeConnections[player] = nil end
+	local ViewedOwner = ViewedOwnerByPlayer[player]
+	if ViewedOwner then RemoveSubscriber(player, ViewedOwner) end
+	ViewedOwnerByPlayer[player] = nil
+	for Owner, Subscribers in SubscribersByOwner do Subscribers[player] = nil end
 	if Visitors then
 		for Visitor in Visitors do
 			Visitor:Destroy()
 		end
 	end
+	local Subscribers = SubscribersByOwner[player]
+	if Subscribers and Network then
+		for Subscriber in Subscribers do
+			if Subscriber ~= player and Subscriber.Parent == Players then Network:fire(Subscriber, "ClearOwner", player.UserId) end
+		end
+	end
+	SubscribersByOwner[player] = nil
 end
 
 return VisitorController

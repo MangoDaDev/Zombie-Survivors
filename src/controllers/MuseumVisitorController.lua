@@ -15,10 +15,14 @@ function MuseumVisitorController.CreateVisitor(_, Data)
 	if type(Data) ~= "table" or type(Data.UniqueId) ~= "string" or type(Data.OwnerUserId) ~= "number" then return end
 	local ExistingVisitor = Visitors[Data.UniqueId]
 	if ExistingVisitor then ExistingVisitor:Destroy() end
+	local MoveTarget = Data.MoveTarget
+	local MoveDuration = Data.MoveDuration
+	Data.MoveTarget = nil
+	Data.MoveDuration = nil
 	local Visitor = MuseumVisitor.new(Data)
 	Visitors[Data.UniqueId] = Visitor
-	if typeof(Data.MoveTarget) == "CFrame" and type(Data.MoveDuration) == "number" then
-		Visitor:MoveTo(Data.MoveTarget, Data.MoveDuration)
+	if typeof(MoveTarget) == "CFrame" and type(MoveDuration) == "number" then
+		Visitor:MoveTo(MoveTarget, MoveDuration)
 	end
 end
 

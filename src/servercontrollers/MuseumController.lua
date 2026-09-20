@@ -32,7 +32,9 @@ type DisplayState = {
 
 type MuseumAssignment = {
 	museum: Model, position: BasePart, levels: { [number]: Model },
-	displays: { [number]: DisplayState }, base: Model?, roof: Model?, UpgradeConnection: RBXScriptConnection?,
+	displays: { [number]: DisplayState }, occupiedDisplays: { DisplayState },
+	occupiedDisplaysByLevel: { [number]: { DisplayState } }, museumAreas: { BasePart },
+	base: Model?, roof: Model?, UpgradeConnection: RBXScriptConnection?,
 }
 
 local MuseumController = {}
@@ -106,6 +108,13 @@ local function SetDisplayItem(Player: Player, DisplayState: DisplayState, ItemId
 	local ItemModel = CreateDisplayedItem(Player, DisplayState, ItemId)
 	if not ItemModel then return false end
 	DisplayState.itemId = ItemId; DisplayState.itemModel = ItemModel; UpdateDisplayPrompts(DisplayState)
+	local Assignment = Assignments[Player]
+	if Assignment then
+		table.insert(Assignment.occupiedDisplays, DisplayState)
+		local LevelDisplays = Assignment.occupiedDisplaysByLevel[DisplayState.levelNumber]
+		if not LevelDisplays then LevelDisplays = {}; Assignment.occupiedDisplaysByLevel[DisplayState.levelNumber] = LevelDisplays end
+		table.insert(LevelDisplays, DisplayState)
+	end
 	return true
 end
 
@@ -124,6 +133,14 @@ local function ClearDisplay(Player: Player, DisplayState: DisplayState): number?
 	local ItemId = DisplayState.itemId
 	if not ItemId then return nil end
 	DisplayState.itemId = nil
+	local Assignment = Assignments[Player]
+	if Assignment then
+		local OccupiedIndex = table.find(Assignment.occupiedDisplays, DisplayState)
+		if OccupiedIndex then table.remove(Assignment.occupiedDisplays, OccupiedIndex) end
+		local LevelDisplays = Assignment.occupiedDisplaysByLevel[DisplayState.levelNumber]
+		local LevelIndex = LevelDisplays and table.find(LevelDisplays, DisplayState)
+		if LevelDisplays and LevelIndex then table.remove(LevelDisplays, LevelIndex) end
+	end
 	if DisplayState.itemModel then DisplayState.itemModel:Destroy(); DisplayState.itemModel = nil end
 	UpdateDisplayPrompts(DisplayState)
 	local Displays = CopyDisplays(DataService:get(Player, "Displays"))
@@ -218,6 +235,9 @@ local function CreateLevel(Assignment: MuseumAssignment, LevelNumber: number): M
 	MoveModelToMarker(Level, "CFramePart", TargetCFrame)
 	Level.Parent = Assignment.museum
 	Assignment.levels[LevelNumber] = Level
+	for _, Descendant in Level:GetDescendants() do
+		if Descendant.Name == "MuseumArea" and Descendant:IsA("BasePart") then table.insert(Assignment.museumAreas, Descendant) end
+	end
 	return Level
 end
 
@@ -317,8 +337,11 @@ function MuseumController.GetLevel(Player: Player, LevelNumber: number): Model?
 end
 function MuseumController.GetMuseumArea(Player: Player): BasePart?
 	local Assignment = Assignments[Player]
-	local Area = Assignment and Assignment.levels[1] and Assignment.levels[1]:FindFirstChild("MuseumArea")
-	return if Area and Area:IsA("BasePart") then Area else nil
+	return Assignment and Assignment.museumAreas[1] or nil
+end
+function MuseumController.GetMuseumAreas(Player: Player): { BasePart }
+	local Assignment = Assignments[Player]
+	return if Assignment then Assignment.museumAreas else {}
 end
 function MuseumController.TeleportPlayerToMuseum(Player: Player): boolean
 	local Assignment = Assignments[Player]
@@ -328,10 +351,9 @@ function MuseumController.TeleportPlayerToMuseum(Player: Player): boolean
 	return TeleportPlayer(Character, SpawnCFrame)
 end
 function MuseumController.GetOccupiedDisplays(Player: Player, LevelNumber: number?): { DisplayState }
-	local Result = {}
 	local Assignment = Assignments[Player]
-	if Assignment then for _, DisplayState in Assignment.displays do if (LevelNumber == nil or DisplayState.levelNumber == LevelNumber) and DisplayState.Unlocked and DisplayState.itemId and DisplayState.itemModel then table.insert(Result, DisplayState) end end end
-	return Result
+	if not Assignment then return {} end
+	return if LevelNumber == nil then Assignment.occupiedDisplays else Assignment.occupiedDisplaysByLevel[LevelNumber] or {}
 end
 function MuseumController.ConfirmSale(_, Player: Player, SlotId, ItemId)
 	if type(SlotId) ~= "number" or SlotId % 1 ~= 0 or type(ItemId) ~= "number" or ItemId % 1 ~= 0 then return end
@@ -359,7 +381,10 @@ function MuseumController.OnPlayerAdded(Player: Player)
 	local Position = GetAvailablePosition()
 	if not Position then warn(`MuseumController could not assign a museum to {Player.Name}: no positions are available`); return end
 	local Museum = Instance.new("Model"); Museum.Name = `Museum_{Player.UserId}`; Museum.Parent = PlayerMuseums
-	local Assignment: MuseumAssignment = { museum = Museum, position = Position, levels = {}, displays = {}, base = nil, roof = nil, UpgradeConnection = nil }
+	local Assignment: MuseumAssignment = {
+		museum = Museum, position = Position, levels = {}, displays = {}, occupiedDisplays = {},
+		occupiedDisplaysByLevel = {}, museumAreas = {}, base = nil, roof = nil, UpgradeConnection = nil,
+	}
 	OccupiedPositions[Position] = Player; Assignments[Player] = Assignment
 	RefreshMuseum(Player)
 	Assignment.UpgradeConnection = DataService:getChangedSignal(Player, "Upgrades"):Connect(function() RefreshMuseum(Player) end)

@@ -7,7 +7,7 @@ Quick reference for the project's first-party Luau scripts. Generated Wally depe
 | Path | Name | Responsibility |
 | --- | --- | --- |
 | `src/classes/ConveyorItem.lua` | ConveyorItem | Renders replicated conveyor items, moves them along their path, and forwards purchase prompts through SharedClass. |
-| `src/classes/MuseumVisitor.lua` | MuseumVisitor | Renders grounded visitors through one client-specific scheduler that prioritizes the museum being viewed, caps and throttles unrelated visible guests, pauses offscreen visual work using bounding-box corners, and preserves timed routes while handling facing, procedural walking, fading, appearance, dialogue, and cash feedback. |
+| `src/classes/MuseumVisitor.lua` | MuseumVisitor | Tracks timed guest routes through one client scheduler, caches museum areas, materializes only viewed or potentially visible guests, builds and pools minimal R6 render rigs while preserving authored body attachments, reapplies clothing, skin colour, and attachment-aligned accessories on reuse, and handles visibility, walking, fading, dialogue, and cash feedback. |
 
 ## `src/client` - Client bootstrap
 
@@ -34,7 +34,7 @@ Quick reference for the project's first-party Luau scripts. Generated Wally depe
 | `src/controllers/FixingController.lua` | FixingController | Owns smoothly blended fixing cameras that fit each item's full rotating bounds with size-dependent margins, safe character-relative exit blending, device-consistent viewport-relative cleaning/fixing columns with a moderate large-item bounds taper projected through the active item's full depth, immediate misaligned-part Hammer highlights, delayed fading hints on remaining restoration targets, grease-responsive rate-limited sponge audio, directional authored hairdryer airflow and debris motion, client-authoritative radius-assisted Hammer targeting with deterministic per-hit alignment and monotonic presentation progress, 85%-threshold assisted cleanup, responsive cleaning damage, contact-timed click/hold Hammer strikes, presentation feedback, Fix prompts, avatar hiding, and responsive surface tool/fake-arm viewmodels driven by world-near weighted and temporally stabilized surface normals. |
 | `src/controllers/GuidanceController.lua` | GuidanceController | Resolves authoritative tutorial or contextual objectives, manages their local highlight, directional beam, and objective text, and immediately clears completed interface guidance. |
 | `src/controllers/InventoryController.lua` | InventoryController | Controls Satchel visibility, displays native Tool texture icons, requests carried-item drops, keeps the bat in the first slot, and sends validated inventory ordering to the server. |
-| `src/controllers/MuseumVisitorController.lua` | MuseumVisitorController | Registers the client MuseumVisitor SharedClass renderer. |
+| `src/controllers/MuseumVisitorController.lua` | MuseumVisitorController | Receives interest-scoped guest snapshots and commands through Networker, owns logical client guests, reports viewed-museum changes, and clears unsubscribed museum populations. |
 | `src/controllers/MuseumController.lua` | MuseumController | Opens the shared confirmation component for server-requested display sales and returns confirmed sale requests. |
 | `src/controllers/TopbarController.lua` | TopbarController | Creates the invite and group TopbarPlus buttons. |
 
@@ -141,7 +141,7 @@ Quick reference for the project's first-party Luau scripts. Generated Wally depe
 | Path | Name | Responsibility |
 | --- | --- | --- |
 | `src/serverclasses/ConveyorItem.lua` | ConveyorItem | Owns authoritative conveyor item state, purchase requests, lifetime, and replication. |
-| `src/serverclasses/MuseumVisitor.lua` | MuseumVisitor | Replicates authoritative visitor movement, dialogue, payment effects, fading, and destruction commands. |
+| `src/serverclasses/MuseumVisitor.lua` | MuseumVisitor | Tracks authoritative timed visitor routes and emits snapshot-friendly movement, dialogue, payment, fading, and destruction commands through the visitor controller's interest replicator. |
 
 ## `src/servercontrollers` - Server controllers
 
@@ -157,8 +157,8 @@ Quick reference for the project's first-party Luau scripts. Generated Wally depe
 | `src/controllers/DataController.lua` | DataController | Receives server chat-command feedback and displays it through the shared notification system. |
 | `src/servercontrollers/FixingController.lua` | FixingController | Owns fixing sessions, BoundingBox-centered tabletop placement and fixing rotation, saved completed-target progress, stage-timed damage preparation, persistent completed Hammer alignment, complete missing-tool guidance, massless inventory handoff plus pose-preserving velocity-cleared character release, equipped-tool validation, and sequenced rarity-scaled completion reveals. |
 | `src/servercontrollers/GuidanceController.lua` | GuidanceController | Persists and advances tutorial objectives, assigns and reset-safely replaces each new player's nearest common crate, and sends contextual guidance. |
-| `src/servercontrollers/MuseumController.lua` | MuseumController | Builds the museum base once, builds purchased levels and globally numbered displays separately, spawns the fixing table and movable roof, and handles placement, removal, server-validated confirmed selling, tutorial milestones, and level-aware visitor-facing exhibits. |
-| `src/servercontrollers/VisitorController.lua` | VisitorController | Independently targets visitors per museum level from that level's occupied exhibit count times the player's guests-per-display upgrade, keeps routes on their spawn level, schedules payments, advances the first-income objective, and reserves exhibit viewing capacity. |
+| `src/servercontrollers/MuseumController.lua` | MuseumController | Builds museums, maintains cached occupied-display and museum-area indexes, and handles placement, removal, server-validated confirmed selling, tutorial milestones, and level-aware visitor-facing exhibits. |
+| `src/servercontrollers/VisitorController.lua` | VisitorController | Runs cached level-specific guest populations and rewards, reserves exhibit capacity, and replicates movement-aware snapshots and commands only to each owner and server-validated players currently viewing that museum. |
 | `src/servercontrollers/WorldItemController.lua` | WorldItemController | Owns dropped world items, free owner retrieval, locked contested purchases, capped 1.5× price escalation, movement correction, interaction-paused despawn countdowns, and cleanup. |
 | `src/servercontrollers/UpgradeController.lua` | UpgradeController | Enforces Sponge-only onboarding purchases, validates normal prerequisites and affordability, deducts cash, queues the forced Dirt-and-Grease Toaster reward, advances the guided tool unlock, normalizes ownership, and persists purchases. |
 

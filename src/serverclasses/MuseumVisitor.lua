@@ -19,8 +19,11 @@ function MuseumVisitor.new(Data, Replicator)
 	Self.UniqueId = HttpService:GenerateGUID(false)
 	Self.Replicator = Replicator
 	Self.CurrentCFrame = Self.CurrentCFrame or Self.SpawnCFrame
-	Self:Replicate("CreateVisitor", Self:GetSnapshot())
 	return Self
+end
+
+function MuseumVisitor:StartReplication()
+	self:Replicate("CreateVisitor", self:GetSnapshot())
 end
 
 function MuseumVisitor:Replicate(Method: string, ...)
@@ -34,9 +37,9 @@ function MuseumVisitor:GetSnapshot()
 		OwnerUserId = self.OwnerUserId,
 		SpawnCFrame = self.SpawnCFrame,
 		CurrentCFrame = GetCurrentCFrame(self, Now),
-		ShirtName = self.ShirtName,
-		PantsName = self.PantsName,
-		HairName = self.HairName,
+		ShirtTemplate = self.ShirtTemplate,
+		PantsTemplate = self.PantsTemplate,
+		HairTemplate = self.HairTemplate,
 		SkinColor = self.SkinColor,
 	}
 	if self.MoveTarget then

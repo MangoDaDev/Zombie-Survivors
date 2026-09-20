@@ -54,25 +54,61 @@ end
 
 local function GetFeetOffset(Model: Model): Vector3
 	local RootPart = Model:FindFirstChild("HumanoidRootPart")
-	local Humanoid = Model:FindFirstChildOfClass("Humanoid")
-	if RootPart and RootPart:IsA("BasePart") and Humanoid then
-		return Vector3.new(0, Humanoid.HipHeight + RootPart.Size.Y / 2, 0)
-	end
 	local BoundingCFrame, BoundingSize = Model:GetBoundingBox()
-	local Pivot = Model:GetPivot()
-	return Vector3.new(0, Pivot.Position.Y - (BoundingCFrame.Position.Y - BoundingSize.Y / 2), 0)
+	local ReferenceY = if RootPart and RootPart:IsA("BasePart") then RootPart.Position.Y else Model:GetPivot().Position.Y
+	return Vector3.new(0, ReferenceY - (BoundingCFrame.Position.Y - BoundingSize.Y / 2), 0)
 end
 
-local function GetWalkJoints(Model: Model): { [string]: Motor6D }
+local function EnsureMotor(Model: Model, Name: string, Part0Name: string, Part1Name: string, C0: CFrame, C1: CFrame)
+	local ExistingMotor = Model:FindFirstChild(Name, true)
+	if ExistingMotor and ExistingMotor:IsA("Motor6D") then return ExistingMotor end
+	local Part0 = Model:FindFirstChild(Part0Name)
+	local Part1 = Model:FindFirstChild(Part1Name)
+	if not Part0 or not Part0:IsA("BasePart") or not Part1 or not Part1:IsA("BasePart") then return nil end
+	local Motor = Instance.new("Motor6D")
+	Motor.Name = Name
+	Motor.Part0 = Part0
+	Motor.Part1 = Part1
+	Motor.C0 = C0
+	Motor.C1 = C1
+	Motor.Parent = Part0
+	return Motor
+end
+
+local function EnsureR6Joints(Model: Model)
+	local Humanoid = Model:FindFirstChildOfClass("Humanoid")
+	if not Humanoid or Humanoid.RigType ~= Enum.HumanoidRigType.R6 then return end
+	local RootRotation = CFrame.Angles(-math.pi / 2, 0, math.pi)
+	local LeftRotation = CFrame.Angles(0, -math.pi / 2, 0)
+	local RightRotation = CFrame.Angles(0, math.pi / 2, 0)
+	EnsureMotor(Model, "RootJoint", "HumanoidRootPart", "Torso", RootRotation, RootRotation)
+	EnsureMotor(Model, "Neck", "Torso", "Head", CFrame.new(0, 1, 0) * RootRotation, CFrame.new(0, -0.5, 0) * RootRotation)
+	EnsureMotor(Model, "Left Shoulder", "Torso", "Left Arm", CFrame.new(-1, 0.5, 0) * LeftRotation, CFrame.new(0.5, 0.5, 0) * LeftRotation)
+	EnsureMotor(Model, "Right Shoulder", "Torso", "Right Arm", CFrame.new(1, 0.5, 0) * RightRotation, CFrame.new(-0.5, 0.5, 0) * RightRotation)
+	EnsureMotor(Model, "Left Hip", "Torso", "Left Leg", CFrame.new(-1, -1, 0) * LeftRotation, CFrame.new(-0.5, 1, 0) * LeftRotation)
+	EnsureMotor(Model, "Right Hip", "Torso", "Right Leg", CFrame.new(1, -1, 0) * RightRotation, CFrame.new(0.5, 1, 0) * RightRotation)
+end
+
+local function GetWalkJoints(Model: Model)
 	local Joints = {}
-	for _, JointName in { "LeftHip", "RightHip", "LeftShoulder", "RightShoulder" } do
-		local Joint = Model:FindFirstChild(JointName, true)
-		if Joint and Joint:IsA("Motor6D") then Joints[JointName] = Joint end
+	for _, JointInfo in {
+		{ Names = { "Left Hip", "LeftHip" }, Direction = -1 },
+		{ Names = { "Right Hip", "RightHip" }, Direction = -1 },
+		{ Names = { "Left Shoulder", "LeftShoulder" }, Direction = 1 },
+		{ Names = { "Right Shoulder", "RightShoulder" }, Direction = 1 },
+	} do
+		for _, JointName in JointInfo.Names do
+			local Joint = Model:FindFirstChild(JointName, true)
+			if Joint and Joint:IsA("Motor6D") then
+				table.insert(Joints, { Joint = Joint, Direction = JointInfo.Direction })
+				break
+			end
+		end
 	end
 	return Joints
 end
 
-local function PrepareModel(Model: Model)
+local function PrepareModel(Model: Instance)
 	for _, Descendant in Model:GetDescendants() do
 		if Descendant:IsA("BasePart") then
 			Descendant.CollisionGroup = CollisionGroups.NPCCharacters
@@ -87,18 +123,6 @@ local function PrepareModel(Model: Model)
 	if RootPart and RootPart:IsA("BasePart") then RootPart.Anchored = true end
 end
 
-local function GetRequiredAccessoryAttachments()
-	local RequiredAttachments = {}
-	local HairFolder = ReplicatedStorage.Assets.Models.NPCS:FindFirstChild("Hair")
-	if not HairFolder then return RequiredAttachments end
-	for _, Accessory in HairFolder:GetChildren() do
-		local Handle = Accessory:FindFirstChild("Handle")
-		local Attachment = Handle and Handle:FindFirstChildOfClass("Attachment")
-		if Attachment then RequiredAttachments[Attachment.Name] = true end
-	end
-	return RequiredAttachments
-end
-
 local function GetRenderTemplate(): Model?
 	if RenderTemplate then return RenderTemplate end
 	local Source = ReplicatedStorage.Assets.Models.NPCS:FindFirstChild("NPC")
@@ -107,13 +131,21 @@ local function GetRenderTemplate(): Model?
 		return nil
 	end
 	local Template = Source:Clone()
-	local RequiredAttachments = GetRequiredAccessoryAttachments()
+	EnsureR6Joints(Template)
+	local Humanoid = Template:FindFirstChildOfClass("Humanoid")
+	if Humanoid then
+		-- Guest overhead names must stay hidden; dialogue is shown through chat bubbles instead.
+		Humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
+		Humanoid.NameDisplayDistance = 0
+		Humanoid.HealthDisplayDistance = 0
+	end
+	local RootPart = Template:FindFirstChild("HumanoidRootPart")
+	if RootPart and RootPart:IsA("BasePart") then Template.PrimaryPart = RootPart end
 	local Descendants = Template:GetDescendants()
 	for Index = #Descendants, 1, -1 do
 		local Descendant = Descendants[Index]
-		if Descendant:IsA("Sound") or Descendant:IsA("Animator") or Descendant:IsA("ValueBase")
-			or (Descendant:IsA("Attachment") and not RequiredAttachments[Descendant.Name])
-		then
+		-- Preserve the authored R6 body attachments so every accessory can use its exact matching frame.
+		if Descendant:IsA("Sound") or Descendant:IsA("Animator") or Descendant:IsA("ValueBase") then
 			Descendant:Destroy()
 		end
 	end
@@ -142,22 +174,41 @@ end
 local function AttachAccessory(Model: Model, AccessoryTemplate: Accessory)
 	local Accessory = AccessoryTemplate:Clone()
 	local Handle = Accessory:FindFirstChild("Handle")
-	local AccessoryAttachment = Handle and Handle:FindFirstChildOfClass("Attachment")
-	local CharacterAttachment = AccessoryAttachment and Model:FindFirstChild(AccessoryAttachment.Name, true)
-	if not Handle or not Handle:IsA("BasePart") or not AccessoryAttachment or not CharacterAttachment then
+	if not Handle or not Handle:IsA("BasePart") then
 		Accessory:Destroy()
 		return
 	end
-	local CharacterPart = CharacterAttachment.Parent
-	if not CharacterPart or not CharacterPart:IsA("BasePart") then Accessory:Destroy(); return end
+	local AccessoryAttachment
+	local CharacterAttachment
+	for _, Child in Handle:GetChildren() do
+		if Child:IsA("Attachment") then
+			AccessoryAttachment = AccessoryAttachment or Child
+			local MatchingAttachment = Model:FindFirstChild(Child.Name, true)
+			if MatchingAttachment and MatchingAttachment:IsA("Attachment") then
+				AccessoryAttachment = Child
+				CharacterAttachment = MatchingAttachment
+				break
+			end
+		end
+	end
+	local CharacterPart = CharacterAttachment and CharacterAttachment.Parent
+	local AccessoryCFrame = AccessoryAttachment and AccessoryAttachment.CFrame
+	local CharacterCFrame = CharacterAttachment and CharacterAttachment.CFrame
+	if not CharacterPart or not CharacterPart:IsA("BasePart") or not AccessoryCFrame or not CharacterCFrame then
+		local Head = Model:FindFirstChild("Head")
+		if not Head or not Head:IsA("BasePart") then Accessory:Destroy(); return end
+		CharacterPart = Head
+		AccessoryCFrame = Accessory.AttachmentPoint
+		CharacterCFrame = CFrame.new(0, Head.Size.Y / 2, 0)
+	end
 	Accessory.Parent = Model
-	Handle.CFrame = CharacterPart.CFrame * CharacterAttachment.CFrame * AccessoryAttachment.CFrame:Inverse()
+	Handle.CFrame = CharacterPart.CFrame * CharacterCFrame * AccessoryCFrame:Inverse()
 	local Weld = Instance.new("Weld")
 	Weld.Name = "AccessoryWeld"
 	Weld.Part0 = Handle
 	Weld.Part1 = CharacterPart
-	Weld.C0 = AccessoryAttachment.CFrame
-	Weld.C1 = CharacterAttachment.CFrame
+	Weld.C0 = AccessoryCFrame
+	Weld.C1 = CharacterCFrame
 	Weld.Parent = Handle
 	for _, Descendant in Accessory:GetDescendants() do
 		if Descendant:IsA("TouchTransmitter") or Descendant:IsA("Configuration") or Descendant:IsA("ValueBase") then
@@ -169,10 +220,9 @@ end
 
 local function ApplyAppearance(Model: Model, Visitor)
 	RemoveAppearance(Model)
-	local Assets = ReplicatedStorage.Assets.Models.NPCS
-	local ShirtTemplate = type(Visitor.ShirtName) == "string" and Assets.Shirts:FindFirstChild(Visitor.ShirtName)
-	local PantsTemplate = type(Visitor.PantsName) == "string" and Assets.Pants:FindFirstChild(Visitor.PantsName)
-	local HairTemplate = type(Visitor.HairName) == "string" and Assets.Hair:FindFirstChild(Visitor.HairName)
+	local ShirtTemplate = Visitor.ShirtTemplate
+	local PantsTemplate = Visitor.PantsTemplate
+	local HairTemplate = Visitor.HairTemplate
 	if ShirtTemplate and ShirtTemplate:IsA("Shirt") then ShirtTemplate:Clone().Parent = Model end
 	if PantsTemplate and PantsTemplate:IsA("Pants") then PantsTemplate:Clone().Parent = Model end
 	if HairTemplate and HairTemplate:IsA("Accessory") then AttachAccessory(Model, HairTemplate) end
@@ -222,7 +272,12 @@ local function ReleaseModel(Visitor)
 	for _, FadeInfo in Visitor.FadeInstances or {} do
 		if FadeInfo.Instance.Parent then FadeInfo.Instance.Transparency = FadeInfo.Transparency end
 	end
-	for _, Joint in Visitor.WalkJoints or {} do Joint.Transform = CFrame.identity end
+	for _, WalkJoint in Visitor.WalkJoints or {} do WalkJoint.Joint.Transform = CFrame.identity end
+	for Connection in Visitor.EffectConnections or {} do Connection:Disconnect() end
+	if Visitor.EffectConnections then table.clear(Visitor.EffectConnections) end
+	for _, Descendant in Model:GetDescendants() do
+		if Descendant.Name == "CashEffect" and Descendant:IsA("BillboardGui") then Descendant:Destroy() end
+	end
 	RemoveAppearance(Model)
 	Model.Parent = nil
 	Model.Name = "PooledMuseumVisitor"
@@ -312,6 +367,15 @@ local function IsPotentiallyVisible(Visitor, Camera: Camera, Now: number): (bool
 	return Visible, DistanceSquared
 end
 
+local function AddBackgroundPriorityCandidate(Visitor, DistanceSquared: number)
+	local InsertIndex = #BackgroundVisitors + 1
+	for Index, Candidate in BackgroundVisitors do
+		if DistanceSquared < Candidate.DistanceSquared then InsertIndex = Index; break end
+	end
+	table.insert(BackgroundVisitors, InsertIndex, { Visitor = Visitor, DistanceSquared = DistanceSquared })
+	if #BackgroundVisitors > MAX_BACKGROUND_VISITORS then table.remove(BackgroundVisitors) end
+end
+
 local function RefreshPriorities(Now: number)
 	local ViewedOwnerUserId = GetViewedMuseumOwnerUserId()
 	if ViewedOwnerUserId ~= PriorityOwnerUserId then
@@ -327,7 +391,7 @@ local function RefreshPriorities(Now: number)
 			local IsVisible, DistanceSquared = IsPotentiallyVisible(Visitor, Camera, Now)
 			if IsVisible then
 				Visitor.LastPotentiallyVisibleAt = Now
-				table.insert(BackgroundVisitors, { Visitor = Visitor, DistanceSquared = DistanceSquared })
+				AddBackgroundPriorityCandidate(Visitor, DistanceSquared)
 				ShouldRender = true
 			elseif Visitor.LastPotentiallyVisibleAt and Now - Visitor.LastPotentiallyVisibleAt < BACKGROUND_RELEASE_DELAY then
 				ShouldRender = true
@@ -335,8 +399,7 @@ local function RefreshPriorities(Now: number)
 		end
 		if ShouldRender and not Visitor.Model then AcquireModel(Visitor) elseif not ShouldRender and Visitor.Model then ReleaseModel(Visitor) end
 	end
-	table.sort(BackgroundVisitors, function(First, Second) return First.DistanceSquared < Second.DistanceSquared end)
-	for Index = 1, math.min(#BackgroundVisitors, MAX_BACKGROUND_VISITORS) do
+	for Index = 1, #BackgroundVisitors do
 		BackgroundVisitors[Index].Visitor.IsBackgroundPriority = true
 	end
 	LastPriorityRefresh = Now
@@ -364,7 +427,7 @@ local function StartRenderLoop()
 end
 
 local function StopRenderLoopIfEmpty()
-	if next(TrackedVisitors) or not RenderConnection then return end
+	if ViewedOwnerChangedHandler or next(TrackedVisitors) or not RenderConnection then return end
 	RenderConnection:Disconnect()
 	RenderConnection = nil
 end
@@ -384,6 +447,7 @@ function MuseumVisitor.new(Data)
 	Self.NextVisibilityUpdateAt = 0
 	Self.LastVisualUpdateAt = Self.FadeStartedAt
 	Self.NextVisualUpdateAt = Self.LastVisualUpdateAt
+	Self.EffectConnections = {}
 	TrackedVisitors[Self] = true
 	StartRenderLoop()
 	return Self
@@ -433,9 +497,9 @@ function MuseumVisitor:Update(DeltaTime: number, Now: number)
 	local WalkAlpha = 1 - math.exp(-WALK_BLEND_RESPONSIVENESS * DeltaTime)
 	self.WalkBlend += (WalkTarget - self.WalkBlend) * WalkAlpha
 	local WalkSwing = math.sin(Now * WALK_CYCLE_SPEED) * WALK_SWING_ANGLE * self.WalkBlend
-	for JointName, Joint in self.WalkJoints do
-		local Direction = if JointName == "LeftHip" or JointName == "RightShoulder" then 1 else -1
-		Joint.Transform = CFrame.Angles(WalkSwing * Direction, 0, 0)
+	for _, WalkJoint in self.WalkJoints do
+		-- Standard R6 motors swing forward on local Z; local X makes the limbs move sideways like a floss dance.
+		WalkJoint.Joint.Transform = CFrame.Angles(0, 0, WalkSwing * WalkJoint.Direction)
 	end
 	if self.FadeTargetAlpha ~= nil then
 		local Alpha = math.clamp((Now - self.FadeStartedAt) / self.FadeDuration, 0, 1)
@@ -492,8 +556,13 @@ function MuseumVisitor:ShowCash(Amount: number)
 		Billboard.StudsOffsetWorldSpace = Vector3.new(0, 3.5 + Alpha * 2, 0)
 		Label.TextTransparency = Alpha
 		Stroke.Transparency = Alpha
-		if Alpha >= 1 then Connection:Disconnect(); Billboard:Destroy() end
+		if Alpha >= 1 then
+			Connection:Disconnect()
+			self.EffectConnections[Connection] = nil
+			Billboard:Destroy()
+		end
 	end)
+	self.EffectConnections[Connection] = true
 	Sounds.Play("CoinJingle", RootPart)
 	Sounds.Play("Coin", RootPart)
 end
@@ -519,6 +588,7 @@ end
 
 function MuseumVisitor.SetViewedOwnerChangedHandler(Handler)
 	ViewedOwnerChangedHandler = Handler
+	StartRenderLoop()
 end
 
 SetupMuseumAreaCache()
