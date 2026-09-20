@@ -403,34 +403,55 @@ local function DetectTargets(Tool, Info, SwingTime)
 	return #Targets
 end
 
-local function PlaySwingAnimation(Tool, Info, SwingCooldown)
+local function GetRightGrip(Tool, Handle)
+	local Character = Tool.Parent
+	if not Character or not Character:IsA("Model") then return nil end
+	for _, Descendant in Character:GetDescendants() do
+		if
+			Descendant.Name == "RightGrip"
+			and (Descendant:IsA("Motor6D") or Descendant:IsA("Weld"))
+			and Descendant.Part1 == Handle
+		then
+			return Descendant
+		end
+	end
+end
+
+local function PlaySwingAnimation(Tool, Info, SwingCooldown, UseGripJoint): boolean
 	local Handle = Tool:FindFirstChild "Handle"
 	if not Handle or not Handle:IsA "BasePart" then
-		return
+		return false
 	end
-	local OriginalGrip = Tool.Grip
+	local GripJoint = if UseGripJoint then GetRightGrip(Tool, Handle) else nil
+	if UseGripJoint and not GripJoint then return false end
+	local GripTarget = GripJoint or Tool
+	local GripProperty = if GripJoint then "C1" else "Grip"
+	local OriginalGrip = GripTarget[GripProperty]
+	local SwingGrip = OriginalGrip * CFrame.Angles(
+		math.rad(Info.SwingRotationDegrees.X),
+		math.rad(Info.SwingRotationDegrees.Y),
+		math.rad(Info.SwingRotationDegrees.Z)
+	)
 	local Trail = Handle:FindFirstChildOfClass "Trail"
 	if Trail then
 		Trail.Enabled = true
 	end
 	Sounds.Play(Info.SwingSoundName, Handle, 70)
-	TweenService:Create(Tool, TweenInfo.new(Info.ImpactDelay, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
-		Grip = OriginalGrip * CFrame.Angles(
-			math.rad(Info.SwingRotationDegrees.X),
-			math.rad(Info.SwingRotationDegrees.Y),
-			math.rad(Info.SwingRotationDegrees.Z)
-		),
-	}):Play()
+	TweenService:Create(
+		GripTarget,
+		TweenInfo.new(Info.ImpactDelay, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+		{ [GripProperty] = SwingGrip }
+	):Play()
 	task.delay(Info.ImpactDelay, function()
-		if not Tool.Parent then return end
+		if not Tool.Parent or not GripTarget.Parent then return end
 		TweenService:Create(
-			Tool,
+			GripTarget,
 			TweenInfo.new(
 				math.max(SwingCooldown - Info.ImpactDelay, 0.05),
 				Enum.EasingStyle.Back,
 				Enum.EasingDirection.Out
 			),
-			{ Grip = OriginalGrip }
+			{ [GripProperty] = OriginalGrip }
 		):Play()
 	end)
 	task.delay(SwingCooldown, function()
@@ -438,6 +459,7 @@ local function PlaySwingAnimation(Tool, Info, SwingCooldown)
 			Trail.Enabled = false
 		end
 	end)
+	return true
 end
 
 local function Swing(Tool, Info)
@@ -458,7 +480,7 @@ local function Swing(Tool, Info)
 	-- Resolve local crate hits immediately; animation timing must never delay break prediction or roulette.
 	local SwingTime = Workspace:GetServerTimeNow()
 	local TargetCount = DetectTargets(Tool, Info, SwingTime)
-	PlaySwingAnimation(Tool, Info, SwingCooldown)
+	PlaySwingAnimation(Tool, Info, SwingCooldown, false)
 	task.delay(Info.ImpactDelay, function()
 		-- Retry once at the visual impact frame only when the immediate scan found nothing.
 		if TargetCount == 0 and Tool.Parent == LocalPlayer.Character then
@@ -583,13 +605,26 @@ function BatController.PlaySwing(_, Player, BatId, SwingCooldown)
 	end
 	local Character = Player.Character
 	if not Character then return end
-	for _, Child in Character:GetChildren() do
-		local ChildInfo = ToolResolver.GetBatInfo(Child)
-		if ChildInfo and ChildInfo.Id == BatId then
-			PlaySwingAnimation(Child, Info, SwingCooldown)
-			return
+	local Finished = false
+	local Connection
+	local function TryPlay()
+		if Finished or Player.Character ~= Character then return end
+		for _, Child in Character:GetChildren() do
+			local ChildInfo = ToolResolver.GetBatInfo(Child)
+			if ChildInfo and ChildInfo.Id == BatId and PlaySwingAnimation(Child, Info, SwingCooldown, true) then
+				Finished = true
+				if Connection then Connection:Disconnect() end
+				return
+			end
 		end
 	end
+	TryPlay()
+	if Finished then return end
+	-- The swing event may beat the replicated Tool or RightGrip hierarchy to an observing client.
+	Connection = Character.DescendantAdded:Connect(TryPlay)
+	task.delay(1, function()
+		if Connection and Connection.Connected then Connection:Disconnect() end
+	end)
 end
 
 function BatController.OnCharacterAdded(Character)

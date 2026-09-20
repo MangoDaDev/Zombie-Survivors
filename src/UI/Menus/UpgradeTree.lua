@@ -42,19 +42,15 @@ local StateColors = {
 -- node placement, grouping, and spacing instead.
 local TreeCanvasSize = UpgradeConfig.CameraBounds * 2 + Vector2.one * UpgradeConfig.NodeSize * 2
 
-local function AllowsNormalOnboardingUpgrades(TutorialStep): boolean
-	return TutorialStep == "BuySoftBrush" or TutorialStep == "FindDustItem"
-end
-
 local function IsUpgradeVisibleDuringOnboarding(TutorialStep, UpgradeId: string): boolean
+	-- Show the owned starting node for context, while Sponge remains the only visible tutorial purchase.
 	return TutorialStep == TutorialConfig.CompleteStep
-		or AllowsNormalOnboardingUpgrades(TutorialStep)
 		or UpgradeId == ONBOARDING_START_ID
 		or UpgradeId == ONBOARDING_UPGRADE_ID
 end
 
 local function FilterOnboardingUpgrades(Upgrades, TutorialStep): { any }
-	if TutorialStep == TutorialConfig.CompleteStep or AllowsNormalOnboardingUpgrades(TutorialStep) then return Upgrades end
+	if TutorialStep == TutorialConfig.CompleteStep then return Upgrades end
 
 	for Index = #Upgrades, 1, -1 do
 		if Upgrades[Index].Id ~= ONBOARDING_UPGRADE_ID then
@@ -72,7 +68,6 @@ local function IsUpgradeButtonVisible(TutorialStep): boolean
 	-- Keep upgrades hidden until the tutorial explicitly introduces them.
 	return TutorialStep == "OpenUpgrades"
 		or TutorialStep == "BuySponge"
-		or AllowsNormalOnboardingUpgrades(TutorialStep)
 		or TutorialStep == TutorialConfig.CompleteStep
 end
 
@@ -827,7 +822,8 @@ return function()
 			BackgroundColor3 = UIStyle.Colors.Blue,
 			BorderSizePixel = 0,
 			Position = UDim2.fromScale(0.018, 0.52),
-			Size = UDim2.fromOffset(90, 90),
+			-- Keep the upgrade button primarily scale-based and square across screen sizes.
+			Size = UDim2.new(0.06, 24, 0.105, 24),
 			Visible = function()
 				return IsUpgradeButtonVisible(TutorialStep())
 			end,
@@ -836,6 +832,7 @@ return function()
 				OpenButtonNotification = Notification.new("AvailableUpgrades", Instance)
 				OpenButtonNotification:SetAmount(AffordableCount())
 			end),
+			Create "UIAspectRatioConstraint" { AspectRatio = 1 },
 			Create "UICorner" { CornerRadius = UIStyle.CornerRadius },
 			Create "UIScale" { Scale = OpenButtonScale },
 			Create "UIStroke" {

@@ -1,5 +1,7 @@
 FOLLOW THIS UI STYLE: **"STUD" UI STYLE**
 
+When using a UIAspectRatioConstraint, keep meaningful nonzero responsive Size values on both axes unless a zero axis is explicitly required.
+
 local function WhiteRectangularButtonExample()
 	return
     create "Frame" {

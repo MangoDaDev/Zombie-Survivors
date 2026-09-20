@@ -13,11 +13,11 @@ local DataService
 local Network
 local TutorialCrates: { [Player]: Model } = {}
 local CompletedTutorialCrates: { [Player]: boolean } = {}
-local TutorialCrateSteps: { [Player]: string } = {}
 local ONBOARDING = TutorialConfig.Onboarding
 
 local function CopyOnboarding(Value)
 	local Progress = if type(Value) == "table" then table.clone(Value) else {}
+	Progress.DiscreteProgressionActive = Progress.DiscreteProgressionActive == true
 	Progress.DirtGreaseItemReceived = Progress.DirtGreaseItemReceived == true
 	Progress.DirtGreaseItemDisplayed = Progress.DirtGreaseItemDisplayed == true
 	Progress.SoftBrushFundingGranted = Progress.SoftBrushFundingGranted == true
@@ -26,18 +26,8 @@ local function CopyOnboarding(Value)
 	return Progress
 end
 
-local function SetTutorialStep(Player: Player, StepId: string)
-	if DataService:get(Player, "TutorialStep") ~= StepId then
-		DataService:set(Player, "TutorialStep", StepId)
-	end
-end
-
 local function HasSoftBrush(Player: Player): boolean
 	return UpgradeLogic.IsToolUnlocked(DataService:get(Player, "Upgrades"), "SoftBrush")
-end
-
-local function IsCrateGuidanceStep(StepId: string): boolean
-	return StepId == "PickUpItem" or StepId == "FindDirtGreaseItem" or StepId == "FindDustItem"
 end
 
 local function HasRestorationSteps(State, RequiredSteps): boolean
@@ -68,17 +58,10 @@ local function FindClosestCommonCrate(Player: Player): Model?
 end
 
 local function GetTutorialCrateForPlayer(Player: Player): Model?
-	local TutorialStep = DataService:get(Player, "TutorialStep")
-	if not IsCrateGuidanceStep(TutorialStep) then
+	if DataService:get(Player, "TutorialStep") ~= "PickUpItem" then
 		TutorialCrates[Player] = nil
 		CompletedTutorialCrates[Player] = nil
-		TutorialCrateSteps[Player] = nil
 		return nil
-	end
-	if TutorialCrateSteps[Player] ~= TutorialStep then
-		TutorialCrates[Player] = nil
-		CompletedTutorialCrates[Player] = nil
-		TutorialCrateSteps[Player] = TutorialStep
 	end
 	if CompletedTutorialCrates[Player] then return nil end
 
@@ -87,18 +70,6 @@ local function GetTutorialCrateForPlayer(Player: Player): Model?
 	Crate = FindClosestCommonCrate(Player)
 	TutorialCrates[Player] = Crate
 	return Crate
-end
-
-local function RefreshOnboardingStep(Player: Player)
-	if DataService:get(Player, "TutorialStep") == TutorialConfig.CompleteStep then return end
-	local Progress = CopyOnboarding(DataService:get(Player, "Onboarding"))
-	if Progress.DustItemReceived then
-		SetTutorialStep(Player, TutorialConfig.CompleteStep)
-	elseif Progress.DirtGreaseItemDisplayed then
-		SetTutorialStep(Player, if HasSoftBrush(Player) then "FindDustItem" else "BuySoftBrush")
-	elseif Progress.DirtGreaseItemReceived then
-		SetTutorialStep(Player, "RestoreDirtGreaseItem")
-	end
 end
 
 function GuidanceController.Advance(Player: Player, ExpectedStep: string)
@@ -117,11 +88,15 @@ function GuidanceController.OpenedUpgrades(_, Player: Player)
 	if UpgradeLogic.IsToolUnlocked(DataService:get(Player, "Upgrades"), "Sponge") then
 		GuidanceController.Advance(Player, "BuySponge")
 	end
-	RefreshOnboardingStep(Player)
 end
 
 function GuidanceController.GetOnboardingReward(Player: Player)
-	if DataService:get(Player, "TutorialStep") == TutorialConfig.CompleteStep then return nil end
+	local Progress = CopyOnboarding(DataService:get(Player, "Onboarding"))
+	if DataService:get(Player, "TutorialStep") == TutorialConfig.CompleteStep
+		and not Progress.DiscreteProgressionActive
+	then
+		return nil
+	end
 	local GuaranteedDropCount = DataService:get(Player, "GuaranteedDropCount")
 	GuaranteedDropCount = if type(GuaranteedDropCount) == "number" then math.max(0, math.floor(GuaranteedDropCount)) else 0
 	local GuaranteedReward = CrateInfo.NewPlayerDropSequence[GuaranteedDropCount + 1]
@@ -129,7 +104,6 @@ function GuidanceController.GetOnboardingReward(Player: Player)
 		return GuaranteedReward, "Guaranteed", GuaranteedDropCount + 1
 	end
 
-	local Progress = CopyOnboarding(DataService:get(Player, "Onboarding"))
 	if not Progress.DirtGreaseItemReceived then
 		-- This remains forced until it is actually purchased, so it is always the third received item.
 		return {
@@ -170,6 +144,9 @@ end
 
 function GuidanceController.MarkOnboardingRewardReceived(Player: Player, RewardKind: string?, GuaranteedIndex: number?)
 	if RewardKind == "Guaranteed" and type(GuaranteedIndex) == "number" then
+		local Progress = CopyOnboarding(DataService:get(Player, "Onboarding"))
+		Progress.DiscreteProgressionActive = true
+		DataService:set(Player, "Onboarding", Progress)
 		local CurrentCount = DataService:get(Player, "GuaranteedDropCount")
 		if type(CurrentCount) == "number" and CurrentCount == GuaranteedIndex - 1 then
 			DataService:set(Player, "GuaranteedDropCount", GuaranteedIndex)
@@ -178,14 +155,13 @@ function GuidanceController.MarkOnboardingRewardReceived(Player: Player, RewardK
 	end
 	if RewardKind ~= "DirtGrease" and RewardKind ~= "Dust" then return end
 	local Progress = CopyOnboarding(DataService:get(Player, "Onboarding"))
+	Progress.DiscreteProgressionActive = true
 	if RewardKind == "DirtGrease" then
 		Progress.DirtGreaseItemReceived = true
 		DataService:set(Player, "GuaranteedDropCount", math.max(DataService:get(Player, "GuaranteedDropCount") or 0, 3))
-		SetTutorialStep(Player, "RestoreDirtGreaseItem")
 	else
 		Progress.DustItemReceived = true
 		DataService:set(Player, "GuaranteedDropCount", math.max(DataService:get(Player, "GuaranteedDropCount") or 0, 4))
-		SetTutorialStep(Player, TutorialConfig.CompleteStep)
 	end
 	DataService:set(Player, "Onboarding", Progress)
 end
@@ -203,7 +179,6 @@ function GuidanceController.MarkOnboardingItemDisplayed(Player: Player, ItemId: 
 		Progress.SoftBrushFundingGranted = true
 	end
 	DataService:set(Player, "Onboarding", Progress)
-	RefreshOnboardingStep(Player)
 end
 
 function GuidanceController.RefreshUpgradeRequirement(Player: Player)
@@ -212,7 +187,6 @@ function GuidanceController.RefreshUpgradeRequirement(Player: Player)
 	then
 		GuidanceController.Advance(Player, "BuySponge")
 	end
-	RefreshOnboardingStep(Player)
 end
 
 function GuidanceController.GetTutorialCrate(_, Player: Player): Model?
@@ -230,7 +204,7 @@ end
 
 function GuidanceController.ResetTutorialCrates()
 	for _, Player in Players:GetPlayers() do
-		if not IsCrateGuidanceStep(DataService:get(Player, "TutorialStep")) then continue end
+		if DataService:get(Player, "TutorialStep") ~= "PickUpItem" then continue end
 		TutorialCrates[Player] = nil
 		CompletedTutorialCrates[Player] = nil
 	end
@@ -249,6 +223,11 @@ end
 
 function GuidanceController.OnPlayerAdded(Player: Player)
 	local Progress = CopyOnboarding(DataService:get(Player, "Onboarding"))
+	local TutorialStep = DataService:get(Player, "TutorialStep")
+	local WasVisibleExtensionStep = TutorialStep == "FindDirtGreaseItem"
+		or TutorialStep == "RestoreDirtGreaseItem"
+		or TutorialStep == "BuySoftBrush"
+		or TutorialStep == "FindDustItem"
 	local Fixing = DataService:get(Player, "Fixing")
 	if type(Fixing) == "table" then
 		Progress.DirtGreaseItemReceived = Progress.DirtGreaseItemReceived
@@ -256,9 +235,17 @@ function GuidanceController.OnPlayerAdded(Player: Player)
 		Progress.DustItemReceived = Progress.DustItemReceived
 			or HasRestorationSteps(Fixing[tostring(ONBOARDING.DustItemId)], ONBOARDING.DustRestorationSteps)
 	end
-	DataService:set(Player, "Onboarding", Progress)
+	Progress.DiscreteProgressionActive = Progress.DiscreteProgressionActive
+		or WasVisibleExtensionStep
+		or Progress.DirtGreaseItemReceived
+		or Progress.DustItemReceived
 	local GuaranteedDropCount = DataService:get(Player, "GuaranteedDropCount")
 	GuaranteedDropCount = if type(GuaranteedDropCount) == "number" then GuaranteedDropCount else 0
+	-- Profiles caught between the opening rewards and Sponge continue silently after this migration.
+	Progress.DiscreteProgressionActive = Progress.DiscreteProgressionActive
+		or (GuaranteedDropCount > 0 and GuaranteedDropCount < 3)
+	DataService:set(Player, "Onboarding", Progress)
+	if WasVisibleExtensionStep then DataService:set(Player, "TutorialStep", TutorialConfig.CompleteStep) end
 	local ReconciledDropCount = if Progress.DustItemReceived then math.max(GuaranteedDropCount, 4)
 		elseif Progress.DirtGreaseItemReceived then math.max(GuaranteedDropCount, 3)
 		else GuaranteedDropCount
@@ -278,7 +265,6 @@ end
 function GuidanceController.OnPlayerRemoving(Player: Player)
 	TutorialCrates[Player] = nil
 	CompletedTutorialCrates[Player] = nil
-	TutorialCrateSteps[Player] = nil
 end
 
 return GuidanceController

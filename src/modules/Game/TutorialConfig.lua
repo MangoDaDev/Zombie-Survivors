@@ -44,22 +44,6 @@ local TutorialConfig = {
 		},
 		BuySponge = {
 			Text = "Buy Sponge",
-			Next = "FindDirtGreaseItem",
-		},
-		FindDirtGreaseItem = {
-			Text = "Find Another Item",
-			Next = "RestoreDirtGreaseItem",
-		},
-		RestoreDirtGreaseItem = {
-			Text = "Restore And Display It",
-			Next = "BuySoftBrush",
-		},
-		BuySoftBrush = {
-			Text = "Buy Soft Brush",
-			Next = "FindDustItem",
-		},
-		FindDustItem = {
-			Text = "Find A Dusty Item",
 			Next = "Complete",
 		},
 	},

@@ -6,6 +6,7 @@ return {
 	GuaranteedDropCount = 0,
 	HasRolledCrate = false,
 	Onboarding = {
+		DiscreteProgressionActive = false,
 		DirtGreaseItemReceived = false,
 		DirtGreaseItemDisplayed = false,
 		SoftBrushFundingGranted = false,

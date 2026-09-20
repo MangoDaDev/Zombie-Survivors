@@ -216,6 +216,10 @@ local function PurchaseReward(RewardId, Player)
 	local ItemInfo = GetItemInfo(Reward.ItemId)
 	if not ItemInfo then return end
 	if Reward.Purchased then SendPurchaseFeedback(Player, "PurchasedByAnother", ItemInfo.Name); return end
+	if Reward.OnboardingRewardKind and Reward.Owner ~= Player then
+		SendPurchaseFeedback(Player, "Unavailable", ItemInfo.Name)
+		return
+	end
 	if Workspace:GetServerTimeNow() < Reward.AvailableAt then SendPurchaseFeedback(Player, "NotReady", ItemInfo.Name); return end
 	if PlayerStateController.Get(Player, "IsFixing", false) == true then SendPurchaseFeedback(Player, "Fixing", ItemInfo.Name); return end
 	if PlayerStateController.Get(Player, "IsCarryingItem", false) == true then SendPurchaseFeedback(Player, "AlreadyCarrying", ItemInfo.Name); return end

@@ -28,7 +28,9 @@
 - Do not guess Studio asset paths; inspect `ReplicatedStorage.Assets` and use exact existing names.
 - Use an item's `BoundingBox` frame for persistent part-relative transforms; template and runtime model pivots may differ.
 - Before using `WaitForChild` in Studio tooling or validation code, verify the instance path and always provide a timeout so a wrong path cannot stall the task indefinitely. Try to avoid the function as everything is completely loaded in the MCP. However you can use it normally in runtime scripts.
-- Do not overscope simple tasks. Choose the right scope for a task.
+- Do not overscope simple tasks. Choose the right scope for a task. Make sure to think about the scope and send it so that the user can see and stop if needed.
+- Do not modify adjacent systems or existing behavior unless the user explicitly asks for it or the requested change cannot work without it; keep fixes correctly scoped. However if it is better to change it then do it.
+- Treat discreet or background progression as non-blocking: do not add visible objectives, UI gates, or forced actions unless the user explicitly requests them.
 - Keep verification proportional to the change; for simple configuration or balance edits, use targeted source checks and compilation rather than broad Studio or DataModel validation unless runtime data is directly involved.
 - When reacting to a replicated parent, wait for required descendants or listen for them; replication does not guarantee the full hierarchy arrives atomically.
 - Do not create raw remotes for normal gameplay or duplicate the legacy `SharedClass` replication pattern.
@@ -52,3 +54,4 @@ Dont do unnesscecary assert
 If studio is in play mode, don't stop it unless it is needed to do the request.
 ONLY IF IT APPLIES TO ALL SYSTEMS IN THE GAME write something in THIS Agents.md. 
 Dont put stuff that is too niche in Agents.md. You can put it in/create an Agents.md or a script in the niche if needed but not in this one.
+Put UI-specific development rules in `src/UI/AGENTSCREATINGUI.md`, not in this root `AGENTS.md`.

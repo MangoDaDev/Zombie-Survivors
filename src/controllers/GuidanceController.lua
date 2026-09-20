@@ -61,7 +61,7 @@ local function GetNearestModel(Folder: Instance?, IsAllowed): Model?
 	return Closest
 end
 
-local function GetOnboardingCrateTarget(StepId: string): Model?
+local function GetStarterTarget(): Model?
 	local Cash = DataService:get "Cash" or 0
 	local Reward = GetNearestModel(Workspace:FindFirstChild "CrateRewards", function(Model)
 		local ItemName = string.match(Model.Name, "^CrateReward_(.+)$")
@@ -69,7 +69,6 @@ local function GetOnboardingCrateTarget(StepId: string): Model?
 		if not ItemInfo or ItemInfo.Price > Cash then
 			return false
 		end
-		if StepId ~= "PickUpItem" then return true end
 		local Steps = CleaningConfig.GetStepsForItem(ItemInfo)
 		return #Steps == 1 and Steps[1].Id == "Spray"
 	end)
@@ -121,8 +120,8 @@ local function ResolveTarget(StepId: string, TargetKind: string?): Instance?
 			return GetUpgradeTarget(UpgradeId)
 		end
 	end
-	if StepId == "PickUpItem" or StepId == "FindDirtGreaseItem" or StepId == "FindDustItem" then
-		return GetOnboardingCrateTarget(StepId)
+	if StepId == "PickUpItem" then
+		return GetStarterTarget()
 	end
 	local Museum = GetMuseum()
 	if StepId == "BringItemHome" or StepId == "StartCleaning" then
@@ -138,11 +137,6 @@ local function ResolveTarget(StepId: string, TargetKind: string?): Instance?
 		return GetGuiTarget "OpenButton"
 	elseif StepId == "BuySponge" then
 		return GetUpgradeTarget "UnlockSponge"
-	elseif StepId == "RestoreDirtGreaseItem" then
-		return Museum
-			and (Museum:FindFirstChild(`FixingItem_{LocalPlayer.UserId}`) or GetDisplay(false) or Museum:FindFirstChild("PromptPart", true))
-	elseif StepId == "BuySoftBrush" then
-		return GetUpgradeTarget "UnlockSoftBrush"
 	end
 end
 
@@ -338,7 +332,7 @@ function GuidanceController.Init()
 		if type(StepId) ~= "string" or not TutorialConfig.GetStep(StepId) then
 			return
 		end
-		local IsNewReward = (StepId == "PickUpItem" or StepId == "FindDirtGreaseItem" or StepId == "FindDustItem")
+		local IsNewReward = StepId == "PickUpItem"
 			and Descendant:IsA "Model"
 			and Descendant.Parent
 			and Descendant.Parent.Name == "CrateRewards"
