@@ -1,6 +1,5 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 
 local CleaningConfig = require(ReplicatedStorage.Modules.Game.CleaningConfig)
@@ -24,7 +23,6 @@ return function()
 	local ProgressTarget = Source(RuntimeState.Get(LocalPlayer, "CleaningProgress", 0))
 	local Progress = Spring(ProgressTarget, 0.16, 0.85)
 	local CursorPosition = Source(UserInputService:GetMouseLocation())
-	local ActiveTouchInput: InputObject?
 	local Connections = {
 		RuntimeState.GetChangedSignal(LocalPlayer, "IsFixing"):Connect(function(Value)
 			IsFixing(Value == true)
@@ -46,21 +44,6 @@ return function()
 		end),
 		RuntimeState.GetChangedSignal(LocalPlayer, "CleaningCursorPosition"):Connect(function(Value)
 			if typeof(Value) == "Vector2" then CursorPosition(Value) end
-		end),
-		UserInputService.InputBegan:Connect(function(Input)
-			if Input.UserInputType ~= Enum.UserInputType.Touch then return end
-			ActiveTouchInput = Input
-			CursorPosition(Vector2.new(Input.Position.X, Input.Position.Y))
-		end),
-		UserInputService.InputChanged:Connect(function(Input)
-			if Input ~= ActiveTouchInput then return end
-			CursorPosition(Vector2.new(Input.Position.X, Input.Position.Y))
-		end),
-		UserInputService.InputEnded:Connect(function(Input)
-			if Input == ActiveTouchInput then ActiveTouchInput = nil end
-		end),
-		RunService.RenderStepped:Connect(function()
-			if not ActiveTouchInput then CursorPosition(UserInputService:GetMouseLocation()) end
 		end),
 	}
 	Cleanup(function()

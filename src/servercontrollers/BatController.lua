@@ -290,8 +290,8 @@ function BatController.Swing(_, Player, Targets, BatId, SwingTime)
 				local Direction = Visitor:GetCurrentCFrame().Position - RootPart.Position
 				local FlatDirection = Vector3.new(Direction.X, 0, Direction.Z)
 				if FlatDirection.Magnitude <= 0.01 then FlatDirection = RootPart.CFrame.LookVector end
-				local Knockback = FlatDirection.Unit * ItemInteractionConfig.BatKnockbackSpeed
-					+ Vector3.new(0, ItemInteractionConfig.BatKnockbackUpwardSpeed, 0)
+				local Knockback = FlatDirection.Unit * ItemInteractionConfig.GuestBatKnockbackSpeed
+					+ Vector3.new(0, ItemInteractionConfig.GuestBatKnockbackUpwardSpeed, 0)
 				VisitorController.HitVisitor(Player, Visitor, Knockback)
 			end
 			continue

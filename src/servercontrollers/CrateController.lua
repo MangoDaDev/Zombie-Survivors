@@ -58,31 +58,20 @@ local function IsRecoveryEligible(Player: Player, Info): boolean
 end
 
 local function GetRewardItemInfo(Player: Player, Info, Luck: number)
-	if DataService:get(Player, "SpongeToasterRewardPending") == true then
-		local TutorialReward = CrateInfo.SpongeTutorialReward
-		local ToasterInfo = GetItemInfo(TutorialReward.ItemId)
-		if ToasterInfo then
-			DataService:set(Player, "SpongeToasterRewardPending", false)
-			local GuaranteedDropCount = DataService:get(Player, "GuaranteedDropCount")
-			if type(GuaranteedDropCount) == "number" and GuaranteedDropCount < TutorialReward.GuaranteedDropCount then
-				DataService:set(Player, "GuaranteedDropCount", TutorialReward.GuaranteedDropCount)
-			end
-			return ToasterInfo, false, table.clone(TutorialReward.RestorationSteps)
-		end
-	end
-	-- A cash-poor player with no owned items always has a modest common-crate recovery loop.
-	if IsRecoveryEligible(Player, Info) then return GetItemInfo(EconomyConfig.RecoveryItemId), true end
 	local GuaranteedDropCount = DataService:get(Player, "GuaranteedDropCount")
 	local IsNewPlayer = GuaranteedDropCount ~= 0
 		or DataService:get(Player, "TutorialStep") == TutorialConfig.InitialStep
 	if type(GuaranteedDropCount) == "number" and IsNewPlayer then
-		local GuaranteedItemId = CrateInfo.NewPlayerDropSequence[GuaranteedDropCount + 1]
-		local GuaranteedItemInfo = GuaranteedItemId and GetItemInfo(GuaranteedItemId)
+		local GuaranteedReward = CrateInfo.NewPlayerDropSequence[GuaranteedDropCount + 1]
+		local GuaranteedItemInfo = GuaranteedReward and GetItemInfo(GuaranteedReward.ItemId)
 		if GuaranteedItemInfo then
 			DataService:set(Player, "GuaranteedDropCount", GuaranteedDropCount + 1)
-			return GuaranteedItemInfo, false
+			local RestorationSteps = GuaranteedReward.RestorationSteps
+			return GuaranteedItemInfo, false, if RestorationSteps then table.clone(RestorationSteps) else nil
 		end
 	end
+	-- A cash-poor player with no owned items always has a modest common-crate recovery loop.
+	if IsRecoveryEligible(Player, Info) then return GetItemInfo(EconomyConfig.RecoveryItemId), true end
 	return CrateInfo.GetRandomItem(ItemsInfo, Info, RandomGenerator, Luck), false
 end
 

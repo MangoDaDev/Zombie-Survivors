@@ -37,7 +37,7 @@
 - Do not repair the intentionally missing local Rojo/Rokit target or run automated playtests without an explicit request.
 - When a recurring mistake is discovered and fixed, add one short preventive rule here without expanding this file into documentation.
 * If the user explicitly says **not** to do something, leave a clear code comment so future agents do not reintroduce it.
-* Leave short comments for important user-requested behavior so future agents stay on task. Update them if the user later changes the requirement.
+* When implementing a user-requested invariant, leave a short code comment beside its authoritative logic or configuration so future agents preserve it. Update the comment if the requirement changes.
 * **DO NOT use screen capture, screenshots, or similar visual inspection tools. They do not work for this project.**
 Do not change anything unrelated to the user's request.
 When debugging replicated interactions, trace which side writes each value every frame and remove competing writers before adding synchronization.

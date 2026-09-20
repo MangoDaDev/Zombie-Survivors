@@ -134,8 +134,19 @@ local function GetEquippedCleaningTool(): (Tool?, any?)
 end
 
 local function GetItemRadiusMultiplier(ItemSize: Vector3): number
+	local ItemMagnitude = ItemSize.Magnitude
+	if ItemMagnitude < CleaningConfig.ItemRadiusScaleStartSize then
+		local SmallSizeAlpha = math.clamp(
+			(ItemMagnitude - CleaningConfig.ItemRadiusScaleSmallSize)
+				/ math.max(CleaningConfig.ItemRadiusScaleStartSize - CleaningConfig.ItemRadiusScaleSmallSize, 0.01),
+			0,
+			1
+		)
+		return CleaningConfig.ItemRadiusScaleMaximumMultiplier
+			+ (1 - CleaningConfig.ItemRadiusScaleMaximumMultiplier) * SmallSizeAlpha
+	end
 	local SizeAlpha = math.clamp(
-		(ItemSize.Magnitude - CleaningConfig.ItemRadiusScaleStartSize)
+		(ItemMagnitude - CleaningConfig.ItemRadiusScaleStartSize)
 			/ math.max(CleaningConfig.ItemRadiusScaleFullSize - CleaningConfig.ItemRadiusScaleStartSize, 0.01),
 		0,
 		1
@@ -409,7 +420,12 @@ end
 
 local function GetCursorPosition(): Vector2
 	-- Keep cleaning input in raw screen space so it matches the IgnoreGuiInset HUD.
-	if ActiveTouchInput then return Vector2.new(ActiveTouchInput.Position.X, ActiveTouchInput.Position.Y) end
+	if ActiveTouchInput then
+		local TouchPosition = Vector2.new(ActiveTouchInput.Position.X, ActiveTouchInput.Position.Y)
+		local TouchOffset = Workspace.CurrentCamera.ViewportSize.Y * CleaningConfig.MobileTouchAimOffsetScale
+		-- Keep the mobile fixing radius and its actual hit area visible above the player's finger.
+		return Vector2.new(TouchPosition.X, math.max(TouchPosition.Y - TouchOffset, 0))
+	end
 	return UserInputService:GetMouseLocation()
 end
 

@@ -1,9 +1,15 @@
+local Players = game:GetService "Players"
 local ReplicatedStorage = game:GetService "ReplicatedStorage"
 local Vide = require(ReplicatedStorage.Packages.vide)
+local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
 local UIStyle = require(ReplicatedStorage.Modules.UI.UIStyle)
 
 local create, derive, effect = Vide.create, Vide.derive, Vide.effect
 local read, source, spring = Vide.read, Vide.source, Vide.spring
+
+local LocalPlayer = Players.LocalPlayer
+local BLACK = Color3.new(0, 0, 0)
+local DARK_TINT_ALPHA = 0.18
 
 type Reactive<T> = T | (() -> T)
 export type Props = {
@@ -22,6 +28,12 @@ return function(props: Props)
 	local hovered, pressed = source(false), source(false)
 	local enabled = derive(function()
 		return readOr(props.Enabled, true)
+	end)
+	local buttonColor = derive(function()
+		return readOr(props.BackgroundColor3, UIStyle.Colors.Blue)
+	end)
+	local tintedBlack = derive(function()
+		return BLACK:Lerp(buttonColor(), DARK_TINT_ALPHA)
 	end)
 	local scale = spring(
 		derive(function()
@@ -46,7 +58,7 @@ return function(props: Props)
 	return create "Frame" {
 		Name = "Button",
 		BackgroundColor3 = function()
-			return if enabled() then UIStyle.Colors.InkSoft else UIStyle.Colors.Ink
+			return if enabled() then tintedBlack() else BLACK:Lerp(buttonColor(), 0.08)
 		end,
 		BackgroundTransparency = function()
 			return if enabled() then 0 else 0.45
@@ -59,15 +71,18 @@ return function(props: Props)
 		create "UICorner" { CornerRadius = UIStyle.CornerRadius },
 		create "UIStroke" {
 			ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-			Color = UIStyle.Colors.Ink,
+			-- Keep the silhouette crisp even though the other dark details inherit the button color.
+			Color = BLACK,
 			Thickness = UIStyle.OutlineThickness,
-			Transparency = 0.08,
 		},
 		create "UIScale" { Scale = scale },
 		create "Frame" {
 			Name = "Content",
 			BackgroundColor3 = function()
-				return readOr(props.BackgroundColor3, UIStyle.Colors.Blue)
+				local Color = buttonColor()
+				if not enabled() then return Color:Lerp(UIStyle.Colors.Ink, 0.45) end
+				if pressed() then return Color:Lerp(tintedBlack(), 0.08) end
+				return if hovered() then Color:Lerp(UIStyle.Colors.Paper, 0.08) else Color
 			end,
 			BorderSizePixel = 0,
 			Size = UDim2.new(1, 0, 0.88, 0),
@@ -101,7 +116,7 @@ return function(props: Props)
 			TextScaled = true,
 			ZIndex = 3,
 			create "UIStroke" {
-				Color = UIStyle.Colors.Ink,
+				Color = tintedBlack,
 				StrokeSizingMode = Enum.StrokeSizingMode.ScaledSize,
 				Thickness = 0.055,
 			},
@@ -119,6 +134,7 @@ return function(props: Props)
 			MouseEnter = function()
 				if enabled() and not hovered() then
 					hovered(true)
+					Sounds.Play("HoverStart", LocalPlayer.PlayerGui)
 				end
 			end,
 			MouseLeave = function()
@@ -147,6 +163,7 @@ return function(props: Props)
 			Activated = function()
 				pressed(false)
 				if enabled() and props.OnActivated then
+					Sounds.Play("Click", LocalPlayer.PlayerGui)
 					props.OnActivated()
 				end
 			end,

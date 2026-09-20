@@ -47,12 +47,13 @@ local CrateInfo = {
 		PartName = "PityDisplay",
 		PixelsPerStud = 16,
 	},
-	SpongeTutorialReward = {
-		ItemId = 6,
-		GuaranteedDropCount = 2,
-		RestorationSteps = { "Spray", "Sponge" },
+	NewPlayerDropSequence = {
+		{ ItemId = 1 },
+		-- IMPORTANT: The player's second item must stay a forced Toaster with both dirt and grease.
+		{ ItemId = 6, RestorationSteps = { "Spray", "Sponge" } },
+		{ ItemId = 5 },
+		{ ItemId = 14 },
 	},
-	NewPlayerDropSequence = { 1, 6, 5, 14 },
 	Crates = {
 		-- Every crate keeps a nonzero chance for every rarity; better crates improve weighting and value per durability.
 		CreateCrate({

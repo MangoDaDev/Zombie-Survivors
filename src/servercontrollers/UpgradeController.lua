@@ -58,8 +58,6 @@ function UpgradeController.Purchase(_, Player: Player, UpgradeId: string)
 	DataService:set(Player, "Upgrades", Ownership)
 	AnalyticsController.TrackUpgradePurchased(Player, Upgrade, PreviousOwnership)
 	if UpgradeId == ONBOARDING_UPGRADE_ID then
-		-- The first reward after this unlock teaches the player how to scrub grease.
-		DataService:set(Player, "SpongeToasterRewardPending", true)
 		GuidanceController.Advance(Player, "BuySponge")
 	end
 	PurchaseLocks[Player] = nil

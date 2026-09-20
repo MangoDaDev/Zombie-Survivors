@@ -1,6 +1,6 @@
 local ItemInteractionConfig = {
 	WorldItemDespawnDuration = 60,
-	ItemBillboardMaxDistance = 150,
+	ItemBillboardMaxDistance = 500,
 	WorldItemTimerUpdateInterval = 0.1,
 	CarryWalkSpeedPenalty = 3,
 	DropForwardDistance = 4,
@@ -10,6 +10,9 @@ local ItemInteractionConfig = {
 	MaximumPurchasePriceMultiplier = 3,
 	BatKnockbackSpeed = 55,
 	BatKnockbackUpwardSpeed = 20,
+	-- Guest hits should launch them dramatically before they disappear.
+	GuestBatKnockbackSpeed = 110,
+	GuestBatKnockbackUpwardSpeed = 42,
 	MaximumKnockbackSpeed = 70,
 	RagdollDuration = 1.1,
 	RagdollRecoveryProtectionDuration = 1,

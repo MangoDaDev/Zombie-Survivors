@@ -2,7 +2,7 @@ local EconomyConfig = {
 	-- Values above 1 increase every active and passive payout while reducing upgrade costs.
 	ProgressionSpeedMultiplier = 1.12,
 	-- Scales restorable item purchase prices without changing restoration tool costs.
-	ItemPurchasePriceMultiplier = 1,
+	ItemPurchasePriceMultiplier = 0.5,
 	-- Scales restoration rewards and restored-item sale values without changing purchase prices.
 	ActiveIncomeMultiplier = 3,
 	-- Gives onboarding rarities extra active income, blended back to normal by Legendary.
@@ -15,7 +15,7 @@ local EconomyConfig = {
 	-- Values above 1 steepen rarity prices and later-stage upgrade costs.
 	LateGameCurveMultiplier = 1,
 
-	StartingCash = 900,
+	StartingCash = 600,
 	-- Restoration is a small completion bonus; selling and guests remain the primary income sources.
 	MinimumRestorationReward = 15,
 	RestorationRewardRate = 0.05,

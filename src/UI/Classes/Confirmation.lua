@@ -31,7 +31,6 @@ function Confirmation.Component()
 		local Callback = ConfirmCallback
 		ConfirmCallback = nil
 		IsVisible(false)
-		Sounds.Play("Click", LocalPlayer.PlayerGui)
 		if IsConfirmed and Callback then Callback() end
 	end
 

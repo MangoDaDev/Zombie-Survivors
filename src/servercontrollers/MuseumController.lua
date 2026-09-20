@@ -53,6 +53,20 @@ local function GetItemInfo(ItemId: number)
 	return nil
 end
 
+local function GetCompletedFixingState(Player: Player, ItemId: number)
+	local Fixing = DataService:get(Player, "Fixing")
+	local FixingKey = tostring(ItemId)
+	local ExistingState = type(Fixing) == "table" and Fixing[FixingKey] or nil
+	if type(ExistingState) == "table" and ExistingState.Completed == true then return ExistingState end
+	local CompletedState = if type(ExistingState) == "table" then table.clone(ExistingState) else {}
+	CompletedState.Completed = true
+	CompletedState.CompletionRewardClaimed = true
+	local UpdatedFixing = if type(Fixing) == "table" then table.clone(Fixing) else {}
+	UpdatedFixing[FixingKey] = CompletedState
+	DataService:set(Player, "Fixing", UpdatedFixing)
+	return CompletedState
+end
+
 local function GetAvailablePosition(): BasePart?
 	for _, Position in Positions do if OccupiedPositions[Position] == nil then return Position end end
 	return nil
@@ -90,8 +104,8 @@ local function CreateDisplayedItem(Player: Player, DisplayState: DisplayState, I
 	end
 	ItemModel:PivotTo(DisplayState.itemCFrame.CFrame * CFrame.new(0, BoundingBox.Size.Y / 2, 0))
 	ItemModel.Parent = DisplayState.model
-	local Fixing = DataService:get(Player, "Fixing") or {}
-	ItemInfoBillboard(ItemInfo, BoundingBox, Fixing[tostring(ItemId)])
+	-- Reaching a display proves the item was restored; keep stale shared item-type state from hiding its name after rejoining.
+	ItemInfoBillboard(ItemInfo, BoundingBox, GetCompletedFixingState(Player, ItemId))
 	return ItemModel
 end
 
@@ -152,6 +166,8 @@ end
 local function TakeDisplayedItem(Player: Player, DisplayState: DisplayState)
 	local ItemId = ClearDisplay(Player, DisplayState)
 	if not ItemId then return end
+	-- Preserve the completed state when a displayed item returns to inventory so it can be placed again.
+	GetCompletedFixingState(Player, ItemId)
 	DataService:arrayInsert(Player, "Inventory", ItemId)
 	if InventoryRefreshHandler then InventoryRefreshHandler(Player) end
 end
