@@ -12,6 +12,7 @@ local ItemInteractionConfig = {
 	BatKnockbackUpwardSpeed = 20,
 	MaximumKnockbackSpeed = 70,
 	RagdollDuration = 1.1,
+	RagdollRecoveryProtectionDuration = 1,
 	PvpHitCooldown = 0.8,
 	PvpProtectionDuration = 2.5,
 	PvpMaximumHitDistance = 10,

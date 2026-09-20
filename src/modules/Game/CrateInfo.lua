@@ -1,4 +1,5 @@
 local GaussianRandom = require(script.Parent.Parent.Math.GaussianRandom)
+local GetRandomFromWeightedTable = require(script.Parent.Parent.Math.GetRandomFromWeightedTable)
 
 local SharedCrateInfo = {
 	TemplateFolderName = "Crates",
@@ -230,35 +231,27 @@ end
 
 function CrateInfo.GetRandomItem(ItemsInfo, Info, RandomGenerator: Random?, Luck: number?)
 	local Generator = RandomGenerator or DefaultRandom
-	local Chances = CrateInfo.GetNormalizedRarityChances(Info, Luck)
-	local Roll = Generator:NextNumber()
-	local SelectedRarity = "Common"
+	local RarityEntries = {}
 	for _, Rarity in RarityOrder do
-		local Chance = Chances[Rarity] or 0
-		if Chance > 0 then SelectedRarity = Rarity end
-		Roll -= Chance
-		if Roll <= 0 then
-			SelectedRarity = Rarity
-			break
+		local ChanceWeight = Info and Info.RarityChances and Info.RarityChances[Rarity]
+		if type(ChanceWeight) == "number" and ChanceWeight > 0 then
+			table.insert(RarityEntries, {
+				Rarity = Rarity,
+				ChanceWeight = ChanceWeight,
+			})
 		end
 	end
+	-- Crate size luck uses the shared weighted-table curve so rare outcomes receive the intended boost.
+	local RarityEntry = GetRandomFromWeightedTable.GetRandomFromWeightedTable(RarityEntries, "ChanceWeight", Generator, Luck)
+	if not RarityEntry then return nil end
 
 	local Candidates = {}
-	local TotalWeight = 0
 	for _, ItemInfo in ItemsInfo do
-		if ItemInfo.Rarity == SelectedRarity and type(ItemInfo.ChanceWeight) == "number" and ItemInfo.ChanceWeight > 0 then
+		if ItemInfo.Rarity == RarityEntry.Rarity and type(ItemInfo.ChanceWeight) == "number" and ItemInfo.ChanceWeight > 0 then
 			table.insert(Candidates, ItemInfo)
-			TotalWeight += ItemInfo.ChanceWeight
 		end
 	end
-	if TotalWeight <= 0 then return nil end
-
-	local ItemRoll = Generator:NextNumber(0, TotalWeight)
-	for _, ItemInfo in Candidates do
-		ItemRoll -= ItemInfo.ChanceWeight
-		if ItemRoll <= 0 then return ItemInfo end
-	end
-	return Candidates[#Candidates]
+	return GetRandomFromWeightedTable.GetRandomFromWeightedTable(Candidates, "ChanceWeight", Generator)
 end
 
 function CrateInfo.Validate()

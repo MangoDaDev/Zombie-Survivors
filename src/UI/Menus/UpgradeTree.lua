@@ -63,6 +63,13 @@ local function GetPurchasableUpgrades(Ownership, Cash, TutorialStep): { any }
 	return FilterOnboardingUpgrades(UpgradeLogic.GetAffordableUpgrades(Ownership, Cash), TutorialStep)
 end
 
+local function IsUpgradeButtonVisible(TutorialStep): boolean
+	-- Keep upgrades hidden until the tutorial explicitly introduces them.
+	return TutorialStep == "OpenUpgrades"
+		or TutorialStep == "BuySponge"
+		or TutorialStep == TutorialConfig.CompleteStep
+end
+
 local function ResolveUpgradeIcon(Upgrade): string
 	-- Upgrade nodes use their configured icon key, including every bat tier.
 	return Images[Upgrade.Icon] or Images.Upgrade
@@ -774,6 +781,9 @@ return function()
 			BorderSizePixel = 0,
 			Position = UDim2.fromScale(0.018, 0.52),
 			Size = UDim2.fromOffset(90, 90),
+			Visible = function()
+				return IsUpgradeButtonVisible(TutorialStep())
+			end,
 			ZIndex = 25,
 			Action(function(Instance)
 				OpenButtonNotification = Notification.new("AvailableUpgrades", Instance)

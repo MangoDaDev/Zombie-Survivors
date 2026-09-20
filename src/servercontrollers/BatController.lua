@@ -136,6 +136,11 @@ local function ClearStun(Player: Player, RestoreCharacter: boolean, UpdatePlayer
 	if not State then return end
 	StunStates[Player] = nil
 	if not RestoreCharacter or Player.Character ~= State.Character then return end
+	-- Keep the player protected briefly after getting back up from a ragdoll.
+	ProtectedUntil[Player] = math.max(
+		ProtectedUntil[Player] or 0,
+		Workspace:GetServerTimeNow() + ItemInteractionConfig.RagdollRecoveryProtectionDuration
+	)
 	if State.Humanoid.Parent and State.Humanoid.Health > 0 then
 		State.Humanoid.PlatformStand = State.PlatformStand
 		State.Humanoid.AutoRotate = State.AutoRotate
