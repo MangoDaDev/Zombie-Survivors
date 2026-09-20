@@ -30,6 +30,12 @@ local function GetReferenceCFrame(Model: Model): CFrame
 	return if Box and Box:IsA("BasePart") then Box.CFrame else Model:GetPivot()
 end
 
+local function GetTargetState(Target: BasePart, Type: string?)
+	local State = States[Target]
+	while State and Type and State.Type ~= Type do State = State.PreviousState end
+	return State
+end
+
 function RestorationTargetRenderer.GetBentParts(Model: Model, Count: number?): { BasePart }
 	local Box = Model:FindFirstChild("BoundingBox")
 	local Center = if Box and Box:IsA("BasePart") then Box.Position else Model:GetPivot().Position
@@ -128,6 +134,8 @@ function RestorationTargetRenderer.Add(Model: Model, Type: string, Count: number
 				MaximumHealth = HP,
 				OriginalColor = PolishedColor,
 				DullColor = StartColor,
+				-- Preserve later-stage state so polishing cannot discard Hammer alignment transforms.
+				PreviousState = States[Part],
 				Type = Type,
 			}
 		end
@@ -239,17 +247,17 @@ function RestorationTargetRenderer.Add(Model: Model, Type: string, Count: number
 	return Targets
 end
 
-function RestorationTargetRenderer.GetHealth(Target: BasePart): (number, number)
-	local State = States[Target]
+function RestorationTargetRenderer.GetHealth(Target: BasePart, Type: string?): (number, number)
+	local State = GetTargetState(Target, Type)
 	return if State then State.CurrentHealth else 0, if State then State.MaximumHealth else 1
 end
 
-function RestorationTargetRenderer.GetState(Target: BasePart)
-	return States[Target]
+function RestorationTargetRenderer.GetState(Target: BasePart, Type: string?)
+	return GetTargetState(Target, Type)
 end
 
-function RestorationTargetRenderer.ApplyCurrentTransform(Model: Model, Target: BasePart)
-	local State = States[Target]
+function RestorationTargetRenderer.ApplyCurrentTransform(Model: Model, Target: BasePart, Type: string?)
+	local State = GetTargetState(Target, Type)
 	if not State or not Target.Parent then return end
 	if State.RestoredRelativeCFrame and State.StartRelativeCFrame then
 		local RestoredAmount = 1 - State.CurrentHealth / math.max(State.MaximumHealth, 0.001)
@@ -265,24 +273,25 @@ function RestorationTargetRenderer.ApplyCurrentTransform(Model: Model, Target: B
 	end
 end
 
-function RestorationTargetRenderer.SetHealth(Model: Model, Target: BasePart, CurrentHealth: number)
-	local State = States[Target]
+function RestorationTargetRenderer.SetHealth(Model: Model, Target: BasePart, CurrentHealth: number, Type: string?)
+	local State = GetTargetState(Target, Type)
 	if not State or not Target.Parent then return end
 	State.CurrentHealth = math.clamp(CurrentHealth, 0, State.MaximumHealth)
-	RestorationTargetRenderer.ApplyCurrentTransform(Model, Target)
+	RestorationTargetRenderer.ApplyCurrentTransform(Model, Target, Type)
 end
 
-function RestorationTargetRenderer.Restore(Model: Model, Target: BasePart)
-	local State = States[Target]
+function RestorationTargetRenderer.Restore(Model: Model, Target: BasePart, Type: string?)
+	local State = GetTargetState(Target, Type)
 	if not State or not Target.Parent then return end
 	if State.OriginalColor then
 		Target.Color = State.OriginalColor
+		if States[Target] == State then States[Target] = State.PreviousState end
 	elseif State.RestoredRelativeCFrame then
 		State.CurrentHealth = 0
-		RestorationTargetRenderer.ApplyCurrentTransform(Model, Target)
+		RestorationTargetRenderer.ApplyCurrentTransform(Model, Target, Type)
 	elseif State.RestoredCFrame then
 		State.CurrentHealth = 0
-		RestorationTargetRenderer.ApplyCurrentTransform(Model, Target)
+		RestorationTargetRenderer.ApplyCurrentTransform(Model, Target, Type)
 	end
 end
 

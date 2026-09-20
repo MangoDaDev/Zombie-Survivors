@@ -405,6 +405,8 @@ function CarryController.SetFixingMode(player: Player, enabled: boolean, Initial
 					Tool:AddTag("satchelSlot")
 					for _, Descendant in Tool:GetDescendants() do
 						if Descendant:IsA("BasePart") then
+							-- Studio tool templates may be anchored; equipping one must never anchor or move the character assembly.
+							Descendant.Anchored = false
 							Descendant.Transparency = 1
 							Descendant.CanCollide = false
 							Descendant.CanQuery = false

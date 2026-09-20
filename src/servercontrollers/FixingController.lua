@@ -169,7 +169,7 @@ local function GetTargetHP(Target, Step): number
 	elseif Step.Type == "Grease" then
 		return GreaseRenderer.GetHealth(Target)
 	elseif Step.Type ~= "Dirt" then
-		return RestorationTargetRenderer.GetHealth(Target)
+		return RestorationTargetRenderer.GetHealth(Target, Step.Type)
 	end
 
 	return DirtRenderer.GetHealth(Target)
@@ -183,7 +183,7 @@ local function GetTargetMaxHP(Target, Step): number
 	elseif Step.Type == "Grease" then
 		_, MaximumHealth = GreaseRenderer.GetHealth(Target)
 	elseif Step.Type ~= "Dirt" then
-		_, MaximumHealth = RestorationTargetRenderer.GetHealth(Target)
+		_, MaximumHealth = RestorationTargetRenderer.GetHealth(Target, Step.Type)
 	else
 		_, MaximumHealth = DirtRenderer.GetHealth(Target)
 	end
@@ -283,7 +283,7 @@ end
 
 local function RestoreCompletedBentTargets(Session)
 	for _, Target in Session.RestoredBentTargets do
-		RestorationTargetRenderer.Restore(Session.Model, Target)
+		RestorationTargetRenderer.Restore(Session.Model, Target, "Bent")
 	end
 end
 
@@ -315,10 +315,10 @@ local function ClearCurrentTargets(Session)
 		for _, Target in Session.RestorationTargets[Step.Id] do
 			if not Target.Parent then continue end
 			if Step.Type == "Bent" then
-				RestorationTargetRenderer.Restore(Session.Model, Target)
+				RestorationTargetRenderer.Restore(Session.Model, Target, Step.Type)
 				table.insert(Session.RestoredBentTargets, Target)
 			elseif Step.Type == "Polish" then
-				RestorationTargetRenderer.Restore(Session.Model, Target)
+				RestorationTargetRenderer.Restore(Session.Model, Target, Step.Type)
 			elseif Step.Type == "LightDust" or Step.Type == "LooseDebris" or Step.Type == "Metal" then
 				Target:Destroy()
 			end
@@ -523,6 +523,8 @@ local function StartFixing(Player)
 	local RootWasAnchored = RootPart.Anchored
 	local Humanoid = Player.Character and Player.Character:FindFirstChildOfClass("Humanoid")
 	if not Humanoid then Model:Destroy(); return end
+	-- Save the release pose before equipping restoration tools can alter the character assembly.
+	local RootCFrame = RootPart.CFrame
 	local HumanoidAutoRotate = Humanoid.AutoRotate
 	local HumanoidWalkSpeed = Humanoid.WalkSpeed
 	local HumanoidJumpPower = Humanoid.JumpPower
@@ -544,7 +546,7 @@ local function StartFixing(Player)
 		Steps = Steps,
 		Model = Model,
 		RootPart = RootPart,
-		RootCFrame = RootPart.CFrame,
+		RootCFrame = RootCFrame,
 		RootWasAnchored = RootWasAnchored,
 		Humanoid = Humanoid,
 		HumanoidAutoRotate = HumanoidAutoRotate,

@@ -21,11 +21,11 @@
 - Manage dependencies through `wally.toml`; never edit generated packages, lockfiles, place files, or build output manually.
 - Clean up connections, tasks, temporary instances, and cached state. Avoid polling, repeated scans, duplicate systems, and per-object frame loops.
 - Update `Index.md` when scripts or system responsibilities are added, removed, renamed, moved, or materially changed.
+- Server authority is not needed for everything. Be reasonable with what you use server authority with. It should still be used to counter hackers though.
 
 ## Recurring Mistakes To Avoid
 
 - Do not guess Studio asset paths; inspect `ReplicatedStorage.Assets` and use exact existing names.
-- Keep client-owned interaction simulation on the client; limit server checks to required ownership and completion boundaries.
 - Use an item's `BoundingBox` frame for persistent part-relative transforms; template and runtime model pivots may differ.
 - Before using `WaitForChild` in Studio tooling or validation code, verify the instance path and always provide a timeout so a wrong path cannot stall the task indefinitely. Try to avoid the function as everything is completely loaded in the MCP. However you can use it normally in runtime scripts.
 - Do not overscope simple tasks. Choose the right scope for a task.
