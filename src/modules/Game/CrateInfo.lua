@@ -1,5 +1,6 @@
 local GaussianRandom = require(script.Parent.Parent.Math.GaussianRandom)
 local GetRandomFromWeightedTable = require(script.Parent.Parent.Math.GetRandomFromWeightedTable)
+local EconomyConfig = require(script.Parent.EconomyConfig)
 
 local SharedCrateInfo = {
 	TemplateFolderName = "Crates",
@@ -25,7 +26,7 @@ local SharedCrateInfo = {
 	RevealCompleteSoundName = "ItemRevealComplete",
 }
 
-local RarityOrder = { "Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythic", "Secret" }
+local RarityOrder = EconomyConfig.RarityOrder
 local DefaultRandom = Random.new()
 
 local function CreateCrate(Info)
@@ -222,7 +223,8 @@ function CrateInfo.GetNormalizedRarityChances(Info, Luck: number?): { [string]: 
 	for Stage, Rarity in RarityOrder do
 		local Chance = Info and Info.RarityChances and Info.RarityChances[Rarity]
 		if type(Chance) == "number" and Chance > 0 then
-			local AdjustedChance = Chance * LuckMultiplier ^ (Stage - 1)
+			local AdjustedChance = EconomyConfig.GetRarityChanceWeight(Rarity, Chance)
+				* LuckMultiplier ^ (Stage - 1)
 			Chances[Rarity] = AdjustedChance
 			Total += AdjustedChance
 		end
@@ -246,7 +248,7 @@ function CrateInfo.GetRandomItem(ItemsInfo, Info, RandomGenerator: Random?, Luck
 		if type(ChanceWeight) == "number" and ChanceWeight > 0 then
 			table.insert(RarityEntries, {
 				Rarity = Rarity,
-				ChanceWeight = ChanceWeight,
+				ChanceWeight = EconomyConfig.GetRarityChanceWeight(Rarity, ChanceWeight),
 			})
 		end
 	end

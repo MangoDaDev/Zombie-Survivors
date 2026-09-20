@@ -21,7 +21,9 @@ return {
 		FirstVisitorIncomeEarned = false,
 	},
 	Inventory = {},
+	InventoryKeys = {},
 	Displays = {},
+	DisplayItemKeys = {},
 	Fixing = {},
 	TutorialStep = TutorialConfig.InitialStep,
 	Upgrades = {

@@ -5,6 +5,8 @@ local Workspace = game:GetService("Workspace")
 
 local AnalyticsController = require(ServerStorage.Controllers.AnalyticsController)
 local GuidanceController = require(ServerStorage.Controllers.GuidanceController)
+local GenerateUniqueId = require(ReplicatedStorage.Modules.Core.GenerateUniqueId)
+local InventoryItemKey = require(ReplicatedStorage.Modules.Game.InventoryItemKey)
 local ItemsInfo = require(ReplicatedStorage.Modules.Game.ItemsInfo)
 local ItemInfoBillboard = require(ReplicatedStorage.Modules.UI.ItemInfoBillboard)
 local MuseumConfig = require(ReplicatedStorage.Modules.Game.MuseumConfig)
@@ -27,7 +29,7 @@ local SALE_CONFIRMATION_LIFETIME = 15
 type DisplayState = {
 	index: number, model: Model, itemCFrame: BasePart, viewPart: BasePart,
 	prompt: ProximityPrompt, takePrompt: ProximityPrompt, sellPrompt: ProximityPrompt,
-	levelNumber: number, Unlocked: boolean, itemId: number?, itemModel: Model?, Connections: { RBXScriptConnection },
+	levelNumber: number, Unlocked: boolean, itemId: number?, itemKey: string?, itemModel: Model?, Connections: { RBXScriptConnection },
 }
 
 type MuseumAssignment = {
@@ -53,16 +55,23 @@ local function GetItemInfo(ItemId: number)
 	return nil
 end
 
-local function GetCompletedFixingState(Player: Player, ItemId: number)
+local function GetCompletedFixingState(Player: Player, ItemKey: string, ItemId: number)
 	local Fixing = DataService:get(Player, "Fixing")
-	local FixingKey = tostring(ItemId)
-	local ExistingState = type(Fixing) == "table" and Fixing[FixingKey] or nil
-	if type(ExistingState) == "table" and ExistingState.Completed == true then return ExistingState end
+	local ExistingState = type(Fixing) == "table" and Fixing[ItemKey] or nil
+	if type(ExistingState) ~= "table" and type(Fixing) == "table" then ExistingState = Fixing[tostring(ItemId)] end
+	if type(ExistingState) == "table" and ExistingState.Completed == true then
+		if Fixing[ItemKey] == nil then
+			local UpdatedFixing = table.clone(Fixing)
+			UpdatedFixing[ItemKey] = ExistingState
+			DataService:set(Player, "Fixing", UpdatedFixing)
+		end
+		return ExistingState
+	end
 	local CompletedState = if type(ExistingState) == "table" then table.clone(ExistingState) else {}
 	CompletedState.Completed = true
 	CompletedState.CompletionRewardClaimed = true
 	local UpdatedFixing = if type(Fixing) == "table" then table.clone(Fixing) else {}
-	UpdatedFixing[FixingKey] = CompletedState
+	UpdatedFixing[ItemKey] = CompletedState
 	DataService:set(Player, "Fixing", UpdatedFixing)
 	return CompletedState
 end
@@ -88,7 +97,7 @@ local function TeleportCharacterToMuseum(Player: Player, Character: Model)
 	if SpawnCFrame and SpawnCFrame:IsA("BasePart") then TeleportPlayer(Character, SpawnCFrame) end
 end
 
-local function CreateDisplayedItem(Player: Player, DisplayState: DisplayState, ItemId: number): Model?
+local function CreateDisplayedItem(Player: Player, DisplayState: DisplayState, ItemId: number, ItemKey: string): Model?
 	local ItemInfo = GetItemInfo(ItemId)
 	local Template = ItemInfo and ReplicatedStorage.Assets.Models.Items:FindFirstChild(ItemInfo.AssetName)
 	if not Template or not Template:IsA("Model") then return nil end
@@ -104,8 +113,7 @@ local function CreateDisplayedItem(Player: Player, DisplayState: DisplayState, I
 	end
 	ItemModel:PivotTo(DisplayState.itemCFrame.CFrame * CFrame.new(0, BoundingBox.Size.Y / 2, 0))
 	ItemModel.Parent = DisplayState.model
-	-- Reaching a display proves the item was restored; keep stale shared item-type state from hiding its name after rejoining.
-	ItemInfoBillboard(ItemInfo, BoundingBox, GetCompletedFixingState(Player, ItemId))
+	ItemInfoBillboard(ItemInfo, BoundingBox, GetCompletedFixingState(Player, ItemKey, ItemId))
 	return ItemModel
 end
 
@@ -117,11 +125,11 @@ local function UpdateDisplayPrompts(DisplayState: DisplayState)
 	DisplayState.sellPrompt.Enabled = DisplayState.itemId ~= nil
 end
 
-local function SetDisplayItem(Player: Player, DisplayState: DisplayState, ItemId: number): boolean
+local function SetDisplayItem(Player: Player, DisplayState: DisplayState, ItemId: number, ItemKey: string): boolean
 	if not DisplayState.Unlocked or DisplayState.itemId ~= nil or not GetItemInfo(ItemId) then return false end
-	local ItemModel = CreateDisplayedItem(Player, DisplayState, ItemId)
+	local ItemModel = CreateDisplayedItem(Player, DisplayState, ItemId, ItemKey)
 	if not ItemModel then return false end
-	DisplayState.itemId = ItemId; DisplayState.itemModel = ItemModel; UpdateDisplayPrompts(DisplayState)
+	DisplayState.itemId = ItemId; DisplayState.itemKey = ItemKey; DisplayState.itemModel = ItemModel; UpdateDisplayPrompts(DisplayState)
 	local Assignment = Assignments[Player]
 	if Assignment then
 		table.insert(Assignment.occupiedDisplays, DisplayState)
@@ -130,6 +138,17 @@ local function SetDisplayItem(Player: Player, DisplayState: DisplayState, ItemId
 		table.insert(LevelDisplays, DisplayState)
 	end
 	return true
+end
+
+local function CopyDisplayItemKeys(DisplayItemKeys): { [string]: string }
+	local Result = {}
+	if type(DisplayItemKeys) == "table" then
+		for Key, ItemKey in DisplayItemKeys do
+			local SlotId = tonumber(Key)
+			if SlotId and SlotId % 1 == 0 and type(ItemKey) == "string" and ItemKey ~= "" then Result[tostring(SlotId)] = ItemKey end
+		end
+	end
+	return Result
 end
 
 CopyDisplays = function(Displays): { [string]: number }
@@ -143,10 +162,12 @@ CopyDisplays = function(Displays): { [string]: number }
 	return Result
 end
 
-local function ClearDisplay(Player: Player, DisplayState: DisplayState): number?
+local function ClearDisplay(Player: Player, DisplayState: DisplayState): (number?, string?)
 	local ItemId = DisplayState.itemId
 	if not ItemId then return nil end
+	local ItemKey = DisplayState.itemKey
 	DisplayState.itemId = nil
+	DisplayState.itemKey = nil
 	local Assignment = Assignments[Player]
 	if Assignment then
 		local OccupiedIndex = table.find(Assignment.occupiedDisplays, DisplayState)
@@ -160,22 +181,32 @@ local function ClearDisplay(Player: Player, DisplayState: DisplayState): number?
 	local Displays = CopyDisplays(DataService:get(Player, "Displays"))
 	Displays[tostring(DisplayState.index)] = nil
 	DataService:set(Player, "Displays", Displays)
-	return ItemId
+	local DisplayItemKeys = CopyDisplayItemKeys(DataService:get(Player, "DisplayItemKeys"))
+	DisplayItemKeys[tostring(DisplayState.index)] = nil
+	DataService:set(Player, "DisplayItemKeys", DisplayItemKeys)
+	return ItemId, ItemKey
 end
 
 local function TakeDisplayedItem(Player: Player, DisplayState: DisplayState)
-	local ItemId = ClearDisplay(Player, DisplayState)
-	if not ItemId then return end
+	local ItemId, ItemKey = ClearDisplay(Player, DisplayState)
+	if not ItemId or not ItemKey then return end
 	-- Preserve the completed state when a displayed item returns to inventory so it can be placed again.
-	GetCompletedFixingState(Player, ItemId)
+	GetCompletedFixingState(Player, ItemKey, ItemId)
 	DataService:arrayInsert(Player, "Inventory", ItemId)
+	DataService:arrayInsert(Player, "InventoryKeys", ItemKey)
 	if InventoryRefreshHandler then InventoryRefreshHandler(Player) end
 end
 
 local function SellDisplayedItem(Player: Player, DisplayState: DisplayState)
 	local ItemId = DisplayState.itemId
+	local ItemKey = DisplayState.itemKey
 	local ItemInfo = ItemId and GetItemInfo(ItemId)
 	if not ItemInfo or not ClearDisplay(Player, DisplayState) then return end
+	if ItemKey then
+		local Fixing = DataService:get(Player, "Fixing") or {}
+		Fixing[ItemKey] = nil
+		DataService:set(Player, "Fixing", Fixing)
+	end
 	DataService:update(Player, "Cash", function(Cash) return (if type(Cash) == "number" then Cash else 0) + ItemInfo.SaleValue end)
 	AnalyticsController.TrackItemSold(Player, ItemId, DisplayState.levelNumber, ItemInfo.SaleValue)
 	GuidanceController.Advance(Player, "EarnMoney")
@@ -201,24 +232,30 @@ local function PlaceEquippedItem(Player: Player, Assignment: MuseumAssignment, D
 	local Character = Player.Character
 	local Tool
 	local ItemId
+	local ItemKey
 	for _, Child in if Character then Character:GetChildren() else {} do
 		local ItemInfo = ToolResolver.GetItemInfo(Child)
-		if ItemInfo and Child:HasTag("satchelSlot") then Tool = Child; ItemId = ItemInfo.Id; break end
+		if ItemInfo and Child:HasTag("satchelSlot") then Tool = Child; ItemId = ItemInfo.Id; ItemKey = InventoryItemKey.Get(Child); break end
 	end
-	if not Tool or type(ItemId) ~= "number" or not GetItemInfo(ItemId) then GuidanceController.Show(Player, "Equip Fixed Item"); return end
+	if not Tool or type(ItemId) ~= "number" or not ItemKey or not GetItemInfo(ItemId) then GuidanceController.Show(Player, "Equip Fixed Item"); return end
 	local Inventory = DataService:get(Player, "Inventory")
 	if type(Inventory) ~= "table" then return end
-	local InventoryPosition = table.find(Inventory, ItemId)
+	local InventoryKeys = DataService:get(Player, "InventoryKeys")
+	local InventoryPosition = type(InventoryKeys) == "table" and table.find(InventoryKeys, ItemKey) or nil
 	local Fixing = DataService:get(Player, "Fixing") or {}
-	local FixingState = Fixing[tostring(ItemId)]
+	local FixingState = Fixing[ItemKey]
 	if not FixingState or FixingState.Completed ~= true then
 		GuidanceController.Show(Player, "Finish Cleaning", Assignment.museum:FindFirstChild("PromptPart", true)); return
 	end
-	if not InventoryPosition or not SetDisplayItem(Player, DisplayState, ItemId) then return end
+	if not InventoryPosition or Inventory[InventoryPosition] ~= ItemId or not SetDisplayItem(Player, DisplayState, ItemId, ItemKey) then return end
 	local Displays = CopyDisplays(DataService:get(Player, "Displays"))
 	Displays[tostring(DisplayState.index)] = ItemId
 	DataService:set(Player, "Displays", Displays)
+	local DisplayItemKeys = CopyDisplayItemKeys(DataService:get(Player, "DisplayItemKeys"))
+	DisplayItemKeys[tostring(DisplayState.index)] = ItemKey
+	DataService:set(Player, "DisplayItemKeys", DisplayItemKeys)
 	DataService:arrayRemove(Player, "Inventory", InventoryPosition)
+	DataService:arrayRemove(Player, "InventoryKeys", InventoryPosition)
 	AnalyticsController.TrackItemDisplayed(Player, ItemId, DisplayState.index, DisplayState.levelNumber)
 	GuidanceController.MarkOnboardingItemDisplayed(Player, ItemId)
 	Tool:Destroy(); GuidanceController.Advance(Player, "DisplayItem"); Sounds.Play("Equip", DisplayState.itemCFrame, SFX_MAX_DISTANCE)
@@ -297,7 +334,7 @@ local function CreatePrompt(Name: string, ActionText: string, KeyCode: Enum.KeyC
 	return Prompt
 end
 
-local function CreateDisplay(Player: Player, Assignment: MuseumAssignment, SlotId: number, LevelNumber: number, Level: Model, Marker: BasePart, SavedDisplays)
+local function CreateDisplay(Player: Player, Assignment: MuseumAssignment, SlotId: number, LevelNumber: number, Level: Model, Marker: BasePart, SavedDisplays, SavedDisplayItemKeys)
 	if Assignment.displays[SlotId] then return end
 	local Display = DisplayTemplate:Clone()
 	Display.Name = `Display_{SlotId}`
@@ -314,14 +351,18 @@ local function CreateDisplay(Player: Player, Assignment: MuseumAssignment, SlotI
 	local SellPrompt = CreatePrompt("SellItemPrompt", "Sell Item", Enum.KeyCode.F, Enum.KeyCode.ButtonY, Vector2.new(85, -45), Base)
 	TakePrompt.Enabled = false; SellPrompt.Enabled = false
 	local DisplayState: DisplayState = { index = SlotId, model = Display, itemCFrame = ItemCFrame, viewPart = ViewPart, prompt = Prompt,
-		takePrompt = TakePrompt, sellPrompt = SellPrompt, levelNumber = LevelNumber, Unlocked = true, itemId = nil, itemModel = nil, Connections = {} }
+		takePrompt = TakePrompt, sellPrompt = SellPrompt, levelNumber = LevelNumber, Unlocked = true, itemId = nil, itemKey = nil, itemModel = nil, Connections = {} }
 	Assignment.displays[SlotId] = DisplayState
 	UpdateDisplayPrompts(DisplayState)
 	table.insert(DisplayState.Connections, Prompt.Triggered:Connect(function(TriggeringPlayer) if TriggeringPlayer == Player then PlaceEquippedItem(Player, Assignment, DisplayState) end end))
 	table.insert(DisplayState.Connections, TakePrompt.Triggered:Connect(function(TriggeringPlayer) if TriggeringPlayer == Player then TakeDisplayedItem(Player, DisplayState) end end))
 	table.insert(DisplayState.Connections, SellPrompt.Triggered:Connect(function(TriggeringPlayer) if TriggeringPlayer == Player then RequestSaleConfirmation(Player, Assignment, DisplayState) end end))
 	local SavedItemId = SavedDisplays[tostring(SlotId)]
-	if type(SavedItemId) == "number" then SetDisplayItem(Player, DisplayState, SavedItemId) end
+	if type(SavedItemId) == "number" then
+		local SavedItemKey = SavedDisplayItemKeys[tostring(SlotId)] or GenerateUniqueId()
+		SavedDisplayItemKeys[tostring(SlotId)] = SavedItemKey
+		SetDisplayItem(Player, DisplayState, SavedItemId, SavedItemKey)
+	end
 end
 
 local function RefreshMuseum(Player: Player)
@@ -330,6 +371,7 @@ local function RefreshMuseum(Player: Player)
 	local DisplayLimit = math.min(UpgradeLogic.GetDisplayLimit(DataService:get(Player, "Upgrades")), MuseumConfig.GetMaximumDisplayCount())
 	local LevelCount = MuseumConfig.GetLevelCount(DisplayLimit)
 	local SavedDisplays = CopyDisplays(DataService:get(Player, "Displays"))
+	local SavedDisplayItemKeys = CopyDisplayItemKeys(DataService:get(Player, "DisplayItemKeys"))
 	CreateBase(Assignment)
 	for LevelNumber = 1, LevelCount do
 		local Level = CreateLevel(Assignment, LevelNumber)
@@ -338,11 +380,12 @@ local function RefreshMuseum(Player: Player)
 		for LocalIndex = 1, MuseumConfig.GetDisplayCount(LevelNumber, DisplayLimit) do
 			local Marker = Markers[LocalIndex]
 			if not Marker then warn(`Museum level {LevelNumber} is missing display marker {LocalIndex}`); break end
-			CreateDisplay(Player, Assignment, LevelInfo.StartSlot + LocalIndex - 1, LevelNumber, Level, Marker, SavedDisplays)
+			CreateDisplay(Player, Assignment, LevelInfo.StartSlot + LocalIndex - 1, LevelNumber, Level, Marker, SavedDisplays, SavedDisplayItemKeys)
 		end
 	end
 	CreateTable(Assignment)
 	PositionRoof(Assignment, LevelCount)
+	DataService:set(Player, "DisplayItemKeys", SavedDisplayItemKeys)
 end
 
 function MuseumController.SetDataService(Service) DataService = Service end

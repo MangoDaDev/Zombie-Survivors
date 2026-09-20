@@ -10,10 +10,16 @@ local EconomyConfig = {
 	OnboardingIncomeBlendEndStage = 8,
 	-- Scales museum visitor payments only.
 	PassiveIncomeMultiplier = 1,
-	-- Values above 1 increase wawevery upgrade price.
+	-- Values above 1 increase every upgrade price.
 	UpgradeCostMultiplier = 0.95,
 	-- Values above 1 steepen rarity prices and later-stage upgrade costs.
-	LateGameCurveMultiplier = 1,
+	LateGameCurveMultiplier = 1.05,
+	-- Smoothly adjusts rarity weights after Rare without disturbing early-game drops.
+	-- EndMultiplier is reached at Secret; Exponent controls how late the curve accelerates.
+	LateGameRarityCurveStartStage = 3,
+	LateGameRarityCurveEndStage = 7,
+	LateGameRarityCurveEndMultiplier = 0.9,
+	LateGameRarityCurveExponent = 2,
 
 	StartingCash = 600,
 	-- Restoration is a small completion bonus; selling and guests remain the primary income sources.
@@ -107,6 +113,19 @@ end
 
 function EconomyConfig.GetRarity(Rarity: string)
 	return EconomyConfig.Rarities[Rarity] or EconomyConfig.Rarities.Common
+end
+
+function EconomyConfig.GetRarityChanceWeight(Rarity: string, BaseChanceWeight: number): number
+	local ProgressionStage = EconomyConfig.GetRarity(Rarity).ProgressionStage
+	-- Preserve this smooth curve so economy tuning does not introduce visible jumps between rarities.
+	local CurveLength = EconomyConfig.LateGameRarityCurveEndStage - EconomyConfig.LateGameRarityCurveStartStage
+	local CurveAlpha = math.clamp(
+		(ProgressionStage - EconomyConfig.LateGameRarityCurveStartStage) / CurveLength,
+		0,
+		1
+	) ^ EconomyConfig.LateGameRarityCurveExponent
+	local WeightMultiplier = 1 + (EconomyConfig.LateGameRarityCurveEndMultiplier - 1) * CurveAlpha
+	return BaseChanceWeight * WeightMultiplier
 end
 
 function EconomyConfig.GetOnboardingIncomeScale(Rarity: string): number
@@ -233,6 +252,8 @@ function EconomyConfig.Validate()
 			EconomyConfig.PassiveIncomeMultiplier,
 			EconomyConfig.UpgradeCostMultiplier,
 			EconomyConfig.LateGameCurveMultiplier,
+			EconomyConfig.LateGameRarityCurveEndMultiplier,
+			EconomyConfig.LateGameRarityCurveExponent,
 		}
 	do
 		assert(type(Value) == "number" and Value > 0, "Economy multipliers must be positive")
@@ -241,6 +262,16 @@ function EconomyConfig.Validate()
 		type(EconomyConfig.OnboardingIncomeBlendEndStage) == "number"
 			and EconomyConfig.OnboardingIncomeBlendEndStage >= 2,
 		"Onboarding income blend end stage must be at least 2"
+	)
+	assert(
+		type(EconomyConfig.LateGameRarityCurveStartStage) == "number"
+			and EconomyConfig.LateGameRarityCurveStartStage % 1 == 0
+			and EconomyConfig.LateGameRarityCurveStartStage >= 1
+			and type(EconomyConfig.LateGameRarityCurveEndStage) == "number"
+			and EconomyConfig.LateGameRarityCurveEndStage % 1 == 0
+			and EconomyConfig.LateGameRarityCurveEndStage > EconomyConfig.LateGameRarityCurveStartStage
+			and EconomyConfig.LateGameRarityCurveEndStage <= #EconomyConfig.RarityOrder,
+		"Late-game rarity curve stages must identify an increasing configured rarity range"
 	)
 
 	local PreviousPrice = 0

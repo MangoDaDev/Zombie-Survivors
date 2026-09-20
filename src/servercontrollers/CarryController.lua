@@ -10,6 +10,7 @@ local CleaningConfig = require(ReplicatedStorage.Modules.Game.CleaningConfig)
 local DirtRenderer = require(ReplicatedStorage.Modules.Game.DirtRenderer)
 local ItemInfoBillboard = require(ReplicatedStorage.Modules.UI.ItemInfoBillboard)
 local ItemInteractionConfig = require(ReplicatedStorage.Modules.Game.ItemInteractionConfig)
+local InventoryItemKey = require(ReplicatedStorage.Modules.Game.InventoryItemKey)
 local RestorationVisuals = require(ReplicatedStorage.Modules.Game.RestorationVisuals)
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
 local UpgradeLogic = require(ReplicatedStorage.Modules.Game.UpgradeLogic)
@@ -36,6 +37,7 @@ type CarryState = {
 	DirtCount: number,
 	Ownership: OwnershipState,
 	RestorationSteps: { string }?,
+	ItemKey: string,
 	itemId: number,
 	model: Model?,
 	ModelConnection: RBXScriptConnection?,
@@ -76,7 +78,7 @@ local function ApplyCarryMovement(Player: Player)
 	local Humanoid = Player.Character and Player.Character:FindFirstChildOfClass("Humanoid")
 	if not Humanoid then return end
 	local State = {
-		AppliedWalkSpeed = math.max(0, Humanoid.WalkSpeed - ItemInteractionConfig.CarryWalkSpeedPenalty),
+		AppliedWalkSpeed = math.max(0, Humanoid.WalkSpeed * ItemInteractionConfig.CarryWalkSpeedMultiplier),
 		BaseWalkSpeed = Humanoid.WalkSpeed,
 		Humanoid = Humanoid,
 		Updating = false,
@@ -85,7 +87,7 @@ local function ApplyCarryMovement(Player: Player)
 		if State.Updating or MovementStates[Player] ~= State then return end
 		if math.abs(Humanoid.WalkSpeed - State.AppliedWalkSpeed) < 0.001 then return end
 		State.BaseWalkSpeed = Humanoid.WalkSpeed
-		State.AppliedWalkSpeed = math.max(0, State.BaseWalkSpeed - ItemInteractionConfig.CarryWalkSpeedPenalty)
+		State.AppliedWalkSpeed = math.max(0, State.BaseWalkSpeed * ItemInteractionConfig.CarryWalkSpeedMultiplier)
 		State.Updating = true
 		Humanoid.WalkSpeed = State.AppliedWalkSpeed
 		State.Updating = false
@@ -169,7 +171,7 @@ local function attachCarriedModel(player: Player, state: CarryState): boolean
 			* CFrame.Angles(0, math.rad(180), 0)
 	)
 	local fixing = dataService:get(player, "Fixing") or {}
-	local fixingState = fixing[tostring(state.itemId)]
+	local fixingState = fixing[state.ItemKey]
 	-- Generate every restoration layer before the weld pass so dust and debris move with the carried item.
 	RestorationVisuals.Apply(model, itemInfo, fixingState)
 	prepareParts(model, boundingBox)
@@ -215,7 +217,7 @@ StopCarrying = function(Player: Player, UpdatePlayerState: boolean?): number?
 	return State.itemId
 end
 
-local function createTool(player: Player, itemId: number): Tool?
+local function createTool(player: Player, itemId: number, itemKey: string): Tool?
 	local itemInfo = getItemInfo(itemId)
 	local template = itemInfo and ReplicatedStorage.Assets.Models.Items:FindFirstChild(itemInfo.AssetName)
 	if template == nil or not template:IsA("Model") then
@@ -230,7 +232,7 @@ local function createTool(player: Player, itemId: number): Tool?
 	end
 
 	local fixing = dataService:get(player, "Fixing") or {}
-	local fixingState = fixing[tostring(itemId)]
+	local fixingState = fixing[itemKey]
 	local tool = Instance.new("Tool")
 	tool.Name = if CleaningConfig.IsCleaningComplete(fixingState) then itemInfo.Name else "???"
 	tool.CanBeDropped = false
@@ -238,6 +240,7 @@ local function createTool(player: Player, itemId: number): Tool?
 	tool.Grip = tool.Grip * CFrame.Angles(0, math.rad(180), 0)
 	tool:AddTag("satchelSlot")
 	tool:AddTag(`Item_{itemInfo.Id}`)
+	InventoryItemKey.Set(tool, itemKey)
 
 	handle.Name = "Handle"
 	handle.Transparency = 1
@@ -251,6 +254,39 @@ local function createTool(player: Player, itemId: number): Tool?
 	return tool
 end
 
+local function EnsureInventoryKeys(Player: Player, Inventory): { string }
+	local ExistingKeys = dataService:get(Player, "InventoryKeys")
+	local InventoryKeys = {}
+	local UsedKeys = {}
+	local Fixing = dataService:get(Player, "Fixing") or {}
+	local LegacyStatesUsed = {}
+	local KeysChanged = type(ExistingKeys) ~= "table" or #ExistingKeys ~= #Inventory
+	local FixingChanged = false
+	for Position, ItemId in Inventory do
+		local ItemKey = type(ExistingKeys) == "table" and ExistingKeys[Position] or nil
+		if type(ItemKey) ~= "string" or ItemKey == "" or UsedKeys[ItemKey] then
+			ItemKey = HttpService:GenerateGUID(false)
+			KeysChanged = true
+		end
+		InventoryKeys[Position] = ItemKey
+		UsedKeys[ItemKey] = true
+		if type(ItemId) == "number" and type(Fixing[ItemKey]) == "table" then
+			LegacyStatesUsed[ItemId] = true
+		elseif Fixing[ItemKey] == nil and type(ItemId) == "number" then
+			local LegacyKey = tostring(ItemId)
+			local LegacyState = Fixing[LegacyKey]
+			if type(LegacyState) == "table" and not LegacyStatesUsed[ItemId] then
+				Fixing[ItemKey] = LegacyState
+				LegacyStatesUsed[ItemId] = true
+				FixingChanged = true
+			end
+		end
+	end
+	if KeysChanged then dataService:set(Player, "InventoryKeys", InventoryKeys) end
+	if FixingChanged then dataService:set(Player, "Fixing", Fixing) end
+	return InventoryKeys
+end
+
 local function removeManagedTools(container: Instance)
 	for _, child in container:GetChildren() do
 		if child:IsA("Tool") and (ToolResolver.GetItemInfo(child) or ToolResolver.GetCleaningToolInfo(child)) then
@@ -261,7 +297,10 @@ end
 
 local function restoreInventory(player: Player, character: Model)
 	local backpack = player:FindFirstChildOfClass("Backpack") or player:WaitForChild("Backpack", 5)
-	if backpack == nil or player.Parent ~= Players or player.Character ~= character then
+	-- A delayed character inventory rebuild must never replace the cleaning tools for an active fixing session.
+	if backpack == nil or player.Parent ~= Players or player.Character ~= character
+		or PlayerStateController.Get(player, "IsFixing", false) == true
+	then
 		return
 	end
 
@@ -272,20 +311,22 @@ local function restoreInventory(player: Player, character: Model)
 	if type(inventory) ~= "table" then
 		return
 	end
+	local InventoryKeys = EnsureInventoryKeys(player, inventory)
 	local fixing = dataService:get(player, "Fixing") or {}
 	local fixingChanged = false
-	for _, itemId in inventory do
-		if type(itemId) == "number" and fixing[tostring(itemId)] == nil then
+	for Position, itemId in inventory do
+		local ItemKey = InventoryKeys[Position]
+		if type(itemId) == "number" and fixing[ItemKey] == nil then
 			local DirtCount = GetSuggestedDirtCount(itemId)
-			fixing[tostring(itemId)] = { Total = DirtCount, Remaining = DirtCount, Completed = false }
+			fixing[ItemKey] = { Total = DirtCount, Remaining = DirtCount, Completed = false }
 			fixingChanged = true
 		end
 	end
 	if fixingChanged then dataService:set(player, "Fixing", fixing) end
 
-	for _, itemId in inventory do
+	for Position, itemId in inventory do
 		if type(itemId) == "number" then
-			local tool = createTool(player, itemId)
+			local tool = createTool(player, itemId, InventoryKeys[Position])
 			if tool then
 				tool.Parent = backpack
 			end
@@ -308,11 +349,12 @@ local function deliverItem(player: Player)
 		return
 	end
 
-	local tool = createTool(player, state.itemId)
+	local tool = createTool(player, state.itemId, state.ItemKey)
 	if tool == nil then
 		return
 	end
 	dataService:arrayInsert(player, "Inventory", state.itemId)
+	dataService:arrayInsert(player, "InventoryKeys", state.ItemKey)
 
 	StopCarrying(player)
 	tool.Parent = backpack
@@ -337,6 +379,7 @@ function CarryController.MoveCarriedItemToInventory(player: Player): number?
 	local state = carryStates[player]
 	if state == nil then return nil end
 	dataService:arrayInsert(player, "Inventory", state.itemId)
+	dataService:arrayInsert(player, "InventoryKeys", state.ItemKey)
 	return StopCarrying(player)
 end
 
@@ -371,12 +414,12 @@ function CarryController.RequestDrop(_, Player: Player)
 	return CarryController.DropCarriedItem(Player)
 end
 
-function CarryController.GetEquippedItemId(player: Player): number?
+function CarryController.GetEquippedItem(player: Player): (number?, string?)
 	local Character = player.Character
 	if not Character then return nil end
 	for _, Tool in Character:GetChildren() do
 		local ItemInfo = ToolResolver.GetItemInfo(Tool)
-		if ItemInfo and Tool:HasTag("satchelSlot") then return ItemInfo.Id end
+		if ItemInfo and Tool:HasTag("satchelSlot") then return ItemInfo.Id, InventoryItemKey.Get(Tool) end
 	end
 	return nil
 end
@@ -466,18 +509,23 @@ function CarryController.StartCarrying(player: Player, itemId: number, DirtCount
 		end
 		if #ResolvedRestorationSteps == 0 then ResolvedRestorationSteps = nil end
 	end
+	local ResolvedOwnershipId = if Ownership and type(Ownership.OwnershipId) == "string" and Ownership.OwnershipId ~= ""
+		then Ownership.OwnershipId
+		else HttpService:GenerateGUID(false)
 	local FixingState = {
 		Total = ResolvedDirtCount,
 		Remaining = ResolvedDirtCount,
 		Completed = false,
 	}
 	if ResolvedRestorationSteps then FixingState.RestorationSteps = table.clone(ResolvedRestorationSteps) end
-	fixing[tostring(itemId)] = FixingState
+	-- Restoration state belongs to this physical copy, not every copy with the same catalog item id.
+	fixing[ResolvedOwnershipId] = FixingState
 	dataService:set(player, "Fixing", fixing)
 
 	local state: CarryState = {
 		DirtCount = ResolvedDirtCount,
 		RestorationSteps = ResolvedRestorationSteps,
+		ItemKey = ResolvedOwnershipId,
 		Ownership = {
 			BasePrice = ItemInfo.Price,
 			CurrentPrice = if Ownership and type(Ownership.CurrentPrice) == "number"
@@ -488,9 +536,7 @@ function CarryController.StartCarrying(player: Player, itemId: number, DirtCount
 				)
 				else ItemInfo.Price,
 			OwnerUserId = player.UserId,
-			OwnershipId = if Ownership and type(Ownership.OwnershipId) == "string" and Ownership.OwnershipId ~= ""
-				then Ownership.OwnershipId
-				else HttpService:GenerateGUID(false),
+			OwnershipId = ResolvedOwnershipId,
 			TransferCount = if Ownership and type(Ownership.TransferCount) == "number"
 				then math.max(0, math.floor(Ownership.TransferCount))
 				else 0,
@@ -540,48 +586,31 @@ function CarryController.SetDataService(service)
 	dataService = service
 end
 
-function CarryController.SaveInventoryOrder(_, player: Player, itemIds)
-	if player.Parent ~= Players or type(itemIds) ~= "table" then
+function CarryController.SaveInventoryOrder(_, player: Player, ItemKeys)
+	-- Slot removal events race with fixing-mode replication, so reject their reorder requests authoritatively.
+	if player.Parent ~= Players or PlayerStateController.Get(player, "IsFixing", false) == true or type(ItemKeys) ~= "table" then
 		return
 	end
 
 	local currentInventory = dataService:get(player, "Inventory")
-	if type(currentInventory) ~= "table" or #itemIds ~= #currentInventory then
+	if type(currentInventory) ~= "table" or #ItemKeys ~= #currentInventory then
 		return
 	end
-
-	for key in itemIds do
-		if type(key) ~= "number" or key % 1 ~= 0 or key < 1 or key > #itemIds then
-			return
-		end
+	local CurrentKeys = EnsureInventoryKeys(player, currentInventory)
+	local ItemsByKey = {}
+	for Position, ItemKey in CurrentKeys do ItemsByKey[ItemKey] = currentInventory[Position] end
+	local OrderedInventory = table.create(#ItemKeys)
+	local OrderedKeys = table.create(#ItemKeys)
+	local SeenKeys = {}
+	for Position, ItemKey in ItemKeys do
+		local ItemId = type(ItemKey) == "string" and ItemsByKey[ItemKey] or nil
+		if not ItemId or SeenKeys[ItemKey] then return end
+		SeenKeys[ItemKey] = true
+		OrderedInventory[Position] = ItemId
+		OrderedKeys[Position] = ItemKey
 	end
-
-	local currentCounts = {}
-	for _, itemId in currentInventory do
-		if type(itemId) ~= "number" or getItemInfo(itemId) == nil then
-			return
-		end
-		currentCounts[itemId] = (currentCounts[itemId] or 0) + 1
-	end
-
-	local orderedInventory = table.create(#itemIds)
-	local requestedCounts = {}
-	for position = 1, #itemIds do
-		local itemId = itemIds[position]
-		if type(itemId) ~= "number" or itemId % 1 ~= 0 or getItemInfo(itemId) == nil then
-			return
-		end
-		orderedInventory[position] = itemId
-		requestedCounts[itemId] = (requestedCounts[itemId] or 0) + 1
-	end
-
-	for itemId, count in currentCounts do
-		if requestedCounts[itemId] ~= count then
-			return
-		end
-	end
-
-	dataService:set(player, "Inventory", orderedInventory)
+	dataService:set(player, "Inventory", OrderedInventory)
+	dataService:set(player, "InventoryKeys", OrderedKeys)
 end
 
 function CarryController.Init()

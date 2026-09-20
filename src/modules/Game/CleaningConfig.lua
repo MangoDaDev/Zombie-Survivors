@@ -86,7 +86,10 @@ local CleaningConfig = {
 			Id = "Hairdryer", DisplayName = "Hairdryer", TemplateName = "Hairdryer", VFXFolderName = "Hairdryer",
 			VFXName = "Main", VFXStartPartName = "Handle",
 			LoopSoundName = "Wind", LoopSoundVolume = 0.55, RadiusScale = 0.1, StrengthPerSecond = 3.8,
-			PositionResponsiveness = 24, AirflowRange = 8, AirflowConeDegrees = 24, BlowSpeed = 8,
+			-- Keep hairdryer airflow roughly 50% denser and larger, with enough lifetime and speed to clear the item visibly.
+			PositionResponsiveness = 24, AirflowRange = 10, AirflowConeDegrees = 24, BlowSpeed = 12,
+			BlowResponsiveness = 12, VFXRateScale = 1.5, VFXSizeScale = 1.5, VFXLifetimeScale = 2.2,
+			VFXSpeedScale = 1.25, VFXDragScale = 0.4, VFXSpreadScale = 1.15,
 		},
 		{
 			Id = "SprayPaint", DisplayName = "Spray Paint", TemplateName = "SprayPaint", VFXFolderName = "SprayPaint",
@@ -108,7 +111,8 @@ local CleaningConfig = {
 		{
 			Id = "Magnet", DisplayName = "Magnet", TemplateName = "Magnet", VFXStartPartName = "Magnet",
 			LoopSoundName = "MagnetEquip", RadiusScale = 0.07, StrengthPerSecond = 2.6, PositionResponsiveness = 26,
-			PullDistance = 1.4,
+			PullDistance = 1.8, PullCurveExponent = 1.8, PullMinimumResponsiveness = 5,
+			PullMaximumResponsiveness = 34, PullWobbleDistance = 0.05,
 		},
 	},
 	Steps = {
@@ -160,8 +164,8 @@ local CleaningConfig = {
 		{
 			Id = "Magnet", MinimumRestorationTier = 6, Type = "Metal", IconName = "Metal",
 			DisplayName = "Extracting Metal", ToolId = "Magnet", TargetHP = 3,
-			-- Keep Magnet work substantial without treating every item part as magnetic.
-			TargetDensity = 1.4, MinimumTargets = 4, MaximumTargets = 24,
+			-- Keep Magnet particles roughly 50% denser without treating every item part as magnetic.
+			TargetDensity = 2.1, MinimumTargets = 6, MaximumTargets = 36,
 			CompletionSoundName = "MagnetUnequip",
 		},
 	},

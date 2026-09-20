@@ -2,7 +2,8 @@ local ItemInteractionConfig = {
 	WorldItemDespawnDuration = 60,
 	ItemBillboardMaxDistance = 500,
 	WorldItemTimerUpdateInterval = 0.1,
-	CarryWalkSpeedPenalty = 3,
+	-- Carrying temporarily reduces the player's current normal WalkSpeed by 20%.
+	CarryWalkSpeedMultiplier = 0.8,
 	DropForwardDistance = 4,
 	DroppedItemPurchaseDistance = 10,
 	UnexpectedMoveDistance = 8,

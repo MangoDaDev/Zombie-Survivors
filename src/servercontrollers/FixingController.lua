@@ -112,20 +112,20 @@ local function ShowToolRequirements(Player, MissingToolSteps)
 	)
 end
 
-local function SaveState(Player, ItemId, State)
+local function SaveState(Player, ItemKey, State)
 	local Fixing = DataService:get(Player, "Fixing") or {}
-	Fixing[tostring(ItemId)] = State
+	Fixing[ItemKey] = State
 	DataService:set(Player, "Fixing", Fixing)
 end
 
-local function CompleteRestorationState(Player, ItemId, ItemInfo, State)
+local function CompleteRestorationState(Player, ItemKey, ItemInfo, State)
 	State.Completed = true
 	if State.CompletionRewardClaimed == true then
-		SaveState(Player, ItemId, State)
+		SaveState(Player, ItemKey, State)
 		return 0, false
 	end
 	State.CompletionRewardClaimed = true
-	SaveState(Player, ItemId, State)
+	SaveState(Player, ItemKey, State)
 	local Reward = EconomyConfig.GetRestorationReward(ItemInfo.Rarity, ItemInfo.Price)
 	DataService:update(Player, "Cash", function(Cash)
 		return (if type(Cash) == "number" then Cash else 0) + Reward
@@ -358,7 +358,7 @@ end
 local function ClearSession(Player)
 	local Session = Sessions[Player]
 	if not Session then return end
-	SaveState(Player, Session.ItemId, Session.State)
+	SaveState(Player, Session.ItemKey, Session.State)
 	if Session.Connection then Session.Connection:Disconnect() end
 	if Session.CharacterConnection then Session.CharacterConnection:Disconnect() end
 	if Session.HumanoidDiedConnection then Session.HumanoidDiedConnection:Disconnect() end
@@ -464,24 +464,26 @@ end
 
 local function StartFixing(Player)
 	if Sessions[Player] then return end
-	local ItemId = CarryController.GetEquippedItemId(Player)
+	local ItemId, ItemKey = CarryController.GetEquippedItem(Player)
 	local Info = ItemId and GetInfo(ItemId)
 	local Museum = MuseumController.GetMuseum(Player)
 	local TableModel = Museum and Museum:FindFirstChild("Table")
 	local PromptPart = TableModel and TableModel:FindFirstChild("PromptPart")
 	local Prompt = PromptPart and PromptPart:FindFirstChild("FixItemPrompt")
-	if not ItemId or not Info then
+	if not ItemId or not ItemKey or not Info then
 		GuidanceController.Show(Player, "Equip An Item")
 		return
 	end
 	if not PromptPart or not PromptPart:IsA("BasePart") then return end
 	local RootPart = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
 	local Inventory = DataService:get(Player, "Inventory")
-	if not RootPart or not RootPart:IsA("BasePart") or (RootPart.Position - PromptPart.Position).Magnitude > 13 or type(Inventory) ~= "table" or table.find(Inventory, ItemId) == nil then return end
+	local InventoryKeys = DataService:get(Player, "InventoryKeys")
+	local InventoryPosition = type(InventoryKeys) == "table" and table.find(InventoryKeys, ItemKey) or nil
+	if not RootPart or not RootPart:IsA("BasePart") or (RootPart.Position - PromptPart.Position).Magnitude > 13 or type(Inventory) ~= "table" or not InventoryPosition or Inventory[InventoryPosition] ~= ItemId then return end
 	local Template = ReplicatedStorage.Assets.Models.Items:FindFirstChild(Info.AssetName)
 	if not Template or not Template:IsA("Model") then return end
 	local Fixing = DataService:get(Player, "Fixing") or {}
-	local State = Fixing[tostring(ItemId)] or { Completed = false }
+	local State = Fixing[ItemKey] or { Completed = false }
 	if State.Completed == true then
 		GuidanceController.Show(Player, "Ready To Display")
 		return
@@ -503,7 +505,7 @@ local function StartFixing(Player)
 	NormalizeState(State, Model, Steps)
 	local StepIndex = GetFirstIncompleteStep(State, Steps)
 	if not StepIndex then
-		local Reward, RewardCollected = CompleteRestorationState(Player, ItemId, Info, State)
+		local Reward, RewardCollected = CompleteRestorationState(Player, ItemKey, Info, State)
 		AnalyticsController.TrackRestorationCompleted(Player, Info, Reward, RewardCollected)
 		Model:Destroy()
 		GuidanceController.Advance(Player, "CleanThis")
@@ -543,6 +545,7 @@ local function StartFixing(Player)
 	CarryController.SetFixingMode(Player, true, Steps[StepIndex].ToolId)
 	local Session = {
 		ItemId = ItemId,
+		ItemKey = ItemKey,
 		ItemInfo = Info,
 		State = State,
 		Steps = Steps,
@@ -591,7 +594,7 @@ local function StartFixing(Player)
 	Sessions[Player] = Session
 	if Session.Prompt then Session.Prompt.Enabled = false end
 	PrepareAllTargets(Session)
-	SaveState(Player, ItemId, State)
+	SaveState(Player, ItemKey, State)
 	PrepareCurrentStep(Player, Session)
 	AnalyticsController.TrackRestorationStarted(Player, Info)
 	GuidanceController.Advance(Player, "StartCleaning")
@@ -731,7 +734,7 @@ CompleteCurrentStep = function(Player, Session)
 	StepState.Completed = true
 	if Step.Type == "Dirt" then Session.State.Remaining = 0 end
 	ClearCurrentTargets(Session)
-	SaveState(Player, Session.ItemId, Session.State)
+	SaveState(Player, Session.ItemKey, Session.State)
 	PlayerStateController.Set(Player, "CleaningProgress", 1)
 	PlayerStateController.Set(Player, "CleaningStepComplete", true)
 	Sounds.Play(Step.CompletionSoundName, Session.RootPart, CONFIG.FeedbackSoundMaxDistance)
@@ -755,7 +758,7 @@ CompleteCurrentStep = function(Player, Session)
 		end)
 		return
 	end
-	local Reward, RewardCollected = CompleteRestorationState(Player, Session.ItemId, Session.ItemInfo, Session.State)
+	local Reward, RewardCollected = CompleteRestorationState(Player, Session.ItemKey, Session.ItemInfo, Session.State)
 	AnalyticsController.TrackRestorationCompleted(Player, Session.ItemInfo, Reward, RewardCollected)
 	PlayerStateController.Set(Player, "CleaningRestorationComplete", true)
 	GuidanceController.Advance(Player, "CleanThis")
@@ -816,7 +819,7 @@ function FixingController.ReportProgress(_, Player, ToolId, Remaining)
 	StepState.Remaining = ResolvedRemaining
 	if Step.Type == "Dirt" then Session.State.Remaining = ResolvedRemaining end
 	PlayerStateController.Set(Player, "CleaningStepRemaining", ResolvedRemaining)
-	SaveState(Player, Session.ItemId, Session.State)
+	SaveState(Player, Session.ItemKey, Session.State)
 end
 
 function FixingController.CompleteStep(_, Player, ToolId)

@@ -104,13 +104,13 @@ function RestorationTargetRenderer.GetSuggestedCount(Model: Model, Type: string,
 	-- Keep hairdryer debris numerous and readable enough for the airflow direction to register clearly.
 	local Density = if Type == "LightDust"
 		then 7.4
-		elseif Type == "LooseDebris" then 7.2
+		elseif Type == "LooseDebris" then 10.8
 		elseif Type == "Metal" and Step then Step.TargetDensity or 0.55
 		else 0.55
 	local Minimum = if Type == "Metal" and Step then Step.MinimumTargets or 1 else 1
 	local Maximum = if Type == "LightDust"
 		then 120
-		elseif Type == "LooseDebris" then 128
+		elseif Type == "LooseDebris" then 192
 		elseif Type == "Metal" and Step then Step.MaximumTargets or 8
 		else 8
 	return math.clamp(math.round(math.sqrt(TotalArea) * Density), Minimum, Maximum)
@@ -219,15 +219,17 @@ function RestorationTargetRenderer.Add(Model: Model, Type: string, Count: number
 			Target.Color = Step.PatchColor
 			Target.Transparency = Step.PatchTransparency
 		elseif Type == "LooseDebris" then
-			local Size = Generator:NextNumber(0.14, 0.3)
+			-- Hairdryer debris stays readable in motion at roughly 50% above the original size.
+			local Size = Generator:NextNumber(0.21, 0.45)
 			Target.Shape = Enum.PartType.Ball
 			Target.Size = Vector3.one * Size
 			Target.Color = Color3.fromRGB(112, 103, 91)
 			Target.Transparency = 0.12
 		else
-			local Size = Generator:NextNumber(0.12, 0.22)
+			-- Magnet fragments use the same restrained 50% size lift as the debris effect.
+			local Size = Generator:NextNumber(0.18, 0.33)
 			Target.Shape = Enum.PartType.Cylinder
-			Target.Size = Vector3.new(Generator:NextNumber(0.35, 0.62), Size, Size)
+			Target.Size = Vector3.new(Generator:NextNumber(0.525, 0.93), Size, Size)
 			Target.Color = Color3.fromRGB(92, 99, 108)
 			Target.Material = Enum.Material.Metal
 		end

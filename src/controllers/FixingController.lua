@@ -1,4 +1,5 @@
 local ContextActionService = game:GetService("ContextActionService")
+local Debris = game:GetService("Debris")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -16,6 +17,7 @@ local RuntimeState = require(ReplicatedStorage.Modules.Game.RuntimeState)
 local RestorationTargetRenderer = require(ReplicatedStorage.Modules.Game.RestorationTargetRenderer)
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
 local ToolResolver = require(ReplicatedStorage.Modules.Game.ToolResolver)
+local InventoryItemKey = require(ReplicatedStorage.Modules.Game.InventoryItemKey)
 local UpgradeLogic = require(ReplicatedStorage.Modules.Game.UpgradeLogic)
 
 local LocalPlayer = Players.LocalPlayer
@@ -94,6 +96,30 @@ local CAMERA_SETUP_TIMEOUT = 10
 local DISABLE_CONTROLS_ACTION_NAME = "DisableFixingControls"
 local DISABLE_CONTROLS_PRIORITY = Enum.ContextActionPriority.High.Value
 local TOOL_SOUND_MAX_DISTANCE = 50
+
+local function ScaleNumberSequence(Sequence: NumberSequence, Scale: number): NumberSequence
+	local Keypoints = {}
+	for _, Keypoint in Sequence.Keypoints do
+		table.insert(Keypoints, NumberSequenceKeypoint.new(Keypoint.Time, Keypoint.Value * Scale, Keypoint.Envelope * Scale))
+	end
+	return NumberSequence.new(Keypoints)
+end
+
+local function ConfigureToolEmitter(Emitter: ParticleEmitter, ToolInfo)
+	if type(ToolInfo.VFXRateScale) == "number" then Emitter.Rate *= ToolInfo.VFXRateScale end
+	if type(ToolInfo.VFXSizeScale) == "number" then Emitter.Size = ScaleNumberSequence(Emitter.Size, ToolInfo.VFXSizeScale) end
+	if type(ToolInfo.VFXLifetimeScale) == "number" then
+		Emitter.Lifetime = NumberRange.new(
+			Emitter.Lifetime.Min * ToolInfo.VFXLifetimeScale,
+			Emitter.Lifetime.Max * ToolInfo.VFXLifetimeScale
+		)
+	end
+	if type(ToolInfo.VFXSpeedScale) == "number" then
+		Emitter.Speed = NumberRange.new(Emitter.Speed.Min * ToolInfo.VFXSpeedScale, Emitter.Speed.Max * ToolInfo.VFXSpeedScale)
+	end
+	if type(ToolInfo.VFXDragScale) == "number" then Emitter.Drag *= ToolInfo.VFXDragScale end
+	if type(ToolInfo.VFXSpreadScale) == "number" then Emitter.SpreadAngle *= ToolInfo.VFXSpreadScale end
+end
 
 local function SinkPlayerAction(): Enum.ContextActionResult
 	return Enum.ContextActionResult.Sink
@@ -214,8 +240,9 @@ local function UpdateFixPrompt()
 	local Tool = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Tool")
 	local ItemInfo = ToolResolver.GetItemInfo(Tool)
 	local ItemId = ItemInfo and ItemInfo.Id
+	local ItemKey = InventoryItemKey.Get(Tool)
 	local Fixing = DataService:get("Fixing") or {}
-	local State = if type(ItemId) == "number" then Fixing[tostring(ItemId)] else nil
+	local State = if ItemKey then Fixing[ItemKey] else nil
 	FixPrompt.Enabled = RuntimeState.Get(LocalPlayer, "IsFixing", false) ~= true
 		and type(ItemId) == "number"
 		and (type(State) ~= "table" or State.Completed ~= true)
@@ -318,12 +345,18 @@ local function StartToolEffects(Tool: Tool, ToolInfo)
 		ToolVFXAttachment.Name = "ToolVFXAttachment"
 		ToolVFXAttachment.Parent = StartObject
 		for _, Descendant in ToolVFXAttachment:GetDescendants() do
-			if Descendant:IsA("ParticleEmitter") then Descendant.Enabled = true end
+			if Descendant:IsA("ParticleEmitter") then
+				ConfigureToolEmitter(Descendant, ToolInfo)
+				Descendant.Enabled = true
+			end
 		end
 	end
 	if not ToolEmitter and not ToolVFXAttachment then ToolEmitter = StartObject:FindFirstChildWhichIsA("ParticleEmitter", true) end
 	if not ToolEmitter and not ToolVFXAttachment and StartObject.Parent then ToolEmitter = StartObject.Parent:FindFirstChildWhichIsA("ParticleEmitter", true) end
-	if ToolEmitter then ToolEmitter.Enabled = true end
+	if ToolEmitter then
+		ConfigureToolEmitter(ToolEmitter, ToolInfo)
+		ToolEmitter.Enabled = true
+	end
 	local SoundTemplate = if type(ToolInfo.LoopSoundName) == "string" then Sounds.Get(ToolInfo.LoopSoundName) else nil
 	if SoundTemplate then
 		ToolLoop = SoundTemplate:Clone()
@@ -770,6 +803,117 @@ local function SetHintAwareTransparency(Target: BasePart, Transparency: number)
 	end
 end
 
+local function EnsureMagnetTrail(Target: BasePart): Trail
+	local ExistingTrail = Target:FindFirstChild("MagnetPullTrail")
+	if ExistingTrail and ExistingTrail:IsA("Trail") then return ExistingTrail end
+	local HalfLength = math.max(Target.Size.Magnitude * 0.16, 0.025)
+	local FrontAttachment = Instance.new("Attachment")
+	FrontAttachment.Name = "MagnetTrailFront"
+	FrontAttachment.Position = Vector3.new(0, HalfLength, 0)
+	FrontAttachment.Parent = Target
+	local BackAttachment = Instance.new("Attachment")
+	BackAttachment.Name = "MagnetTrailBack"
+	BackAttachment.Position = Vector3.new(0, -HalfLength, 0)
+	BackAttachment.Parent = Target
+	local Trail = Instance.new("Trail")
+	Trail.Name = "MagnetPullTrail"
+	Trail.Attachment0 = FrontAttachment
+	Trail.Attachment1 = BackAttachment
+	Trail.Color = ColorSequence.new(Target.Color:Lerp(Color3.new(1, 1, 1), 0.35), Target.Color)
+	Trail.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.3),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	Trail.Lifetime = 0.12
+	Trail.LightEmission = 0.55
+	Trail.MinLength = 0.02
+	Trail.WidthScale = NumberSequence.new(0.75, 0)
+	Trail.Parent = Target
+	return Trail
+end
+
+local function PlayMagnetAbsorption(Position: Vector3, Color: Color3, TargetSize: Vector3)
+	local Impact = Instance.new("Part")
+	Impact.Name = "MagnetAbsorption"
+	Impact.Anchored = true
+	Impact.CanCollide = false
+	Impact.CanQuery = false
+	Impact.CanTouch = false
+	Impact.CastShadow = false
+	Impact.Shape = Enum.PartType.Ball
+	Impact.Material = Enum.Material.Neon
+	Impact.Color = Color:Lerp(Color3.new(1, 1, 1), 0.45)
+	Impact.Size = Vector3.one * math.clamp(TargetSize.Magnitude * 0.35, 0.08, 0.24)
+	Impact.Position = Position
+	Impact.Parent = Workspace
+	TweenService:Create(Impact, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		Size = Impact.Size * 2.2,
+		Transparency = 1,
+	}):Play()
+	Debris:AddItem(Impact, 0.22)
+end
+
+local function AbsorbMagnetTarget(Target: BasePart)
+	RemoveTargetHighlight(Target, true)
+	local Visual = Target:Clone()
+	Target:Destroy()
+	Target = Visual
+	Target.CanQuery = false
+	Target.Parent = Workspace
+	local Trail = EnsureMagnetTrail(Target)
+	Trail.Lifetime = 0.16
+	local TargetSize = Target.Size
+	local ToolPosition = if SmoothedVisualToolCFrame then SmoothedVisualToolCFrame.Position else Workspace.CurrentCamera.CFrame.Position
+	local PullDirection = ToolPosition - Target.Position
+	local EndCFrame = CFrame.new(ToolPosition) * Target.CFrame.Rotation
+		* CFrame.Angles(math.rad(90), math.rad(140), math.rad(70))
+	local Tween = TweenService:Create(Target, TweenInfo.new(0.24, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {
+		CFrame = EndCFrame,
+		Size = Vector3.one * 0.035,
+		Transparency = 0.25,
+	})
+	Tween.Completed:Once(function()
+		if not Target.Parent then return end
+		PlayMagnetAbsorption(Target.Position, Target.Color, TargetSize)
+		Target:Destroy()
+	end)
+	if PullDirection.Magnitude > 0.01 then Target.CFrame += PullDirection.Unit * 0.03 end
+	Tween:Play()
+end
+
+local function LaunchHairdryerTarget(Target: BasePart, State, Direction: Vector3?)
+	RemoveTargetHighlight(Target, true)
+	local Visual = Target:Clone()
+	Target:Destroy()
+	Target = Visual
+	Target.CanQuery = false
+	Target.Parent = Workspace
+	local Camera = Workspace.CurrentCamera
+	local BaseDirection = Direction or Camera.CFrame.LookVector
+	local Phase = State.MotionPhase or 0
+	local Spread = Camera.CFrame.RightVector * math.sin(Phase) * 0.22
+		+ Camera.CFrame.UpVector * math.cos(Phase * 1.37) * 0.14
+	local FlightDirection = BaseDirection + Spread
+	if FlightDirection.Magnitude < 0.01 then FlightDirection = BaseDirection end
+	FlightDirection = FlightDirection.Unit
+	local Distance = 10 + (math.sin(Phase * 2.17) * 0.5 + 0.5) * 6
+	local Duration = 1.15 + (math.cos(Phase * 1.71) * 0.5 + 0.5) * 0.45
+	local EndPosition = Target.Position + FlightDirection * Distance - Vector3.yAxis * (1.2 + math.abs(math.sin(Phase)) * 1.4)
+	local EndCFrame = CFrame.new(EndPosition) * Target.CFrame.Rotation
+		* CFrame.Angles(Phase * 1.4, Phase * 2.1, Phase * 0.9)
+	TweenService:Create(Target, TweenInfo.new(Duration, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		CFrame = EndCFrame,
+	}):Play()
+	task.delay(Duration * 0.32, function()
+		if Target.Parent then
+			TweenService:Create(Target, TweenInfo.new(Duration * 0.68, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+				Transparency = 1,
+			}):Play()
+		end
+	end)
+	Debris:AddItem(Target, Duration + 0.1)
+end
+
 local function ResetLocalStep()
 	LocalTargetStates = {}
 	LocalStepId = nil
@@ -819,6 +963,8 @@ local function FinishRemainingTargets(ToolId: string)
 						Transform:Destroy()
 					end)
 					Tween:Play()
+				elseif Step.Type == "LooseDebris" or Step.Type == "Metal" then
+					-- Their completion motion is deliberately handled below so it remains visible after progress finishes.
 				else
 					TweenService:Create(Target, TweenInfo.new(Duration * 0.65, Enum.EasingStyle.Quad), { Transparency = 1 }):Play()
 				end
@@ -834,6 +980,12 @@ local function FinishRemainingTargets(ToolId: string)
 			elseif Step.Type == "Bent" then
 				State.CurrentHealth = 0
 				State.CurrentRelativeCFrame = State.RestoredRelativeCFrame
+			elseif Step.Type == "LooseDebris" then
+				State.CurrentHealth = 0
+				LaunchHairdryerTarget(State.Part, State, State.LastBlowDirection)
+			elseif Step.Type == "Metal" then
+				State.CurrentHealth = 0
+				AbsorbMagnetTarget(State.Part)
 			else
 				State.Part:Destroy()
 			end
@@ -935,7 +1087,7 @@ local function PrepareLocalStep(ToolId: string): boolean
 		then CFrame.Angles(math.rad(BendRotation.X), math.rad(BendRotation.Y), math.rad(BendRotation.Z))
 		else nil
 	-- Reverse the exact authored bend locally so every Hammer target has a reliable repair orientation.
-	for _, Target in Targets do
+	for TargetIndex, Target in Targets do
 		local CurrentHealth = MaximumHealth
 		local StartCFrame = Target.CFrame
 		local Box = if Step.Type == "Bent" then Model:FindFirstChild("BoundingBox") else nil
@@ -954,6 +1106,8 @@ local function PrepareLocalStep(ToolId: string): boolean
 			DamagedRelativeCFrame = CurrentRelativeCFrame,
 			RestoredRelativeCFrame = RestoredRelativeCFrame,
 			BaseTransparency = Target.Transparency,
+			MotionPhase = TargetIndex * 2.399963,
+			BlowVelocity = Vector3.zero,
 			Completed = CurrentHealth <= 0,
 		})
 	end
@@ -1202,15 +1356,45 @@ local function ApplyToolLocally(ToolInfo, DeltaTime: number, AimPosition: Vector
 		elseif Step.Type == "Metal" then
 			local RestoredAmount = 1 - State.CurrentHealth / math.max(State.MaximumHealth, 0.001)
 			local ToolPosition = if SmoothedVisualToolCFrame then SmoothedVisualToolCFrame.Position else Workspace.CurrentCamera.CFrame.Position
-			local Direction = (ToolPosition - State.StartCFrame.Position).Unit
-			local ResistanceCurve = RestoredAmount ^ 1.7
-			Target.CFrame = State.StartCFrame + Direction * (ToolInfo.PullDistance or 1.4) * ResistanceCurve
+			local ToolOffset = ToolPosition - State.StartCFrame.Position
+			if ToolOffset.Magnitude > 0.01 then
+				EnsureMagnetTrail(Target)
+				local PullProgress = RestoredAmount ^ (ToolInfo.PullCurveExponent or 1.8)
+				local PullDistance = math.min(ToolOffset.Magnitude, ToolInfo.PullDistance or 1.4)
+				local Camera = Workspace.CurrentCamera
+				local WobbleStrength = (ToolInfo.PullWobbleDistance or 0.05) * math.sin((State.MotionPhase or 0) + RestoredAmount * 9)
+					* (1 - RestoredAmount)
+				local DesiredPosition = State.StartCFrame.Position + ToolOffset.Unit * PullDistance * PullProgress
+					+ Camera.CFrame.RightVector * WobbleStrength
+				local MinimumResponsiveness = ToolInfo.PullMinimumResponsiveness or 5
+				local MaximumResponsiveness = ToolInfo.PullMaximumResponsiveness or 34
+				-- Preserve the accelerating attraction: pieces converge faster as they approach the magnet.
+				local Responsiveness = MinimumResponsiveness
+					+ (MaximumResponsiveness - MinimumResponsiveness) * RestoredAmount ^ 2
+				local Blend = 1 - math.exp(-Responsiveness * EffectDeltaTime)
+				local Position = Target.Position:Lerp(DesiredPosition, Blend)
+				Target.CFrame = Target.CFrame.Rotation + Position
+			end
 		elseif Step.Type == "LooseDebris" then
 			local ToolPosition = if SmoothedVisualToolCFrame then SmoothedVisualToolCFrame.Position else Workspace.CurrentCamera.CFrame.Position
 			local Direction = GetAirflowDirection(AimPosition, ToolPosition)
-			if Direction then Target.CFrame += Direction * (ToolInfo.BlowSpeed or 8) * EffectDeltaTime end
-			local CurrentTransparency = TargetHintTransparencies[Target] or Target.Transparency
-			SetHintAwareTransparency(Target, math.clamp(CurrentTransparency + EffectDeltaTime * 0.9, 0, 1))
+			if Direction then
+				local Camera = Workspace.CurrentCamera
+				local Phase = State.MotionPhase or 0
+				local SpreadDirection = Direction + Camera.CFrame.RightVector * math.sin(Phase) * 0.12
+					+ Camera.CFrame.UpVector * math.cos(Phase * 1.37) * 0.08
+				SpreadDirection = SpreadDirection.Unit
+				local SpeedVariation = 1.05 + (math.sin(Phase * 2.17) * 0.5 + 0.5) * 0.35
+				local DesiredVelocity = SpreadDirection * (ToolInfo.BlowSpeed or 8) * SpeedVariation
+				local VelocityBlend = 1 - math.exp(-(ToolInfo.BlowResponsiveness or 12) * EffectDeltaTime)
+				State.BlowVelocity = State.BlowVelocity:Lerp(DesiredVelocity, VelocityBlend)
+				State.LastBlowDirection = SpreadDirection
+				Target.CFrame = (Target.CFrame + State.BlowVelocity * EffectDeltaTime)
+					* CFrame.Angles(EffectDeltaTime * 4, EffectDeltaTime * (3 + math.sin(Phase)), EffectDeltaTime * 2)
+			end
+			local RestoredAmount = 1 - State.CurrentHealth / math.max(State.MaximumHealth, 0.001)
+			local BaseTransparency = State.BaseTransparency
+			SetHintAwareTransparency(Target, BaseTransparency + (1 - BaseTransparency) * RestoredAmount * 0.12)
 		elseif State.OriginalAppearance then
 			local RestoredAmount = 1 - State.CurrentHealth / math.max(State.MaximumHealth, 0.001)
 			Target.Color = State.DamagedColor:Lerp(State.OriginalAppearance.Color, RestoredAmount)
@@ -1222,7 +1406,11 @@ local function ApplyToolLocally(ToolInfo, DeltaTime: number, AimPosition: Vector
 			ProgressChanged = true
 			LastCleanPosition = Target.Position
 			CameraImpulse = math.max(CameraImpulse, CleaningConfig.CameraTargetImpulseDistance)
-			if Step.Type == "Dirt" or Step.Type == "Grease" or Step.Type == "LightDust" or Step.Type == "LooseDebris" or Step.Type == "Metal" then
+			if Step.Type == "LooseDebris" then
+				LaunchHairdryerTarget(Target, State, State.LastBlowDirection)
+			elseif Step.Type == "Metal" then
+				AbsorbMagnetTarget(Target)
+			elseif Step.Type == "Dirt" or Step.Type == "Grease" or Step.Type == "LightDust" then
 				Target:Destroy()
 			elseif Step.Type == "Bent" then
 				State.CurrentRelativeCFrame = State.RestoredRelativeCFrame
