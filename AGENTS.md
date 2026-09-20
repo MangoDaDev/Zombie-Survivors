@@ -25,7 +25,7 @@
 ## Recurring Mistakes To Avoid
 
 - Do not guess Studio asset paths; inspect `ReplicatedStorage.Assets` and use exact existing names.
-- Keep runtime item-part transforms server-authoritative; do not locally write transforms that the rotating server model also owns.
+- Keep client-owned interaction simulation on the client; limit server checks to required ownership and completion boundaries.
 - Use an item's `BoundingBox` frame for persistent part-relative transforms; template and runtime model pivots may differ.
 - Before using `WaitForChild` in Studio tooling or validation code, verify the instance path and always provide a timeout so a wrong path cannot stall the task indefinitely. Try to avoid the function as everything is completely loaded in the MCP. However you can use it normally in runtime scripts.
 - Do not overscope simple tasks. Choose the right scope for a task.
@@ -39,7 +39,7 @@
 * Leave short comments for important user-requested behavior so future agents stay on task. Update them if the user later changes the requirement.
 * **DO NOT use screen capture, screenshots, or similar visual inspection tools. They do not work for this project.**
 Do not change anything unrelated to the user's request.
-When client and server render the same mutable transform, use one authoritative captured target; do not independently reconstruct a second target from a template.
+When debugging replicated interactions, trace which side writes each value every frame and remove competing writers before adding synchronization.
 Keep the main App `ScreenGui.IgnoreGuiInset` enabled; clear the Roblox topbar with explicit dynamic safe offsets.
 Do not generate images unless EXPLICITLY asked to.
 If I correct you, immediately apply the correction to the current task instead of restarting from scratch.
@@ -49,3 +49,5 @@ Ask for any clarifications before beginning only if nesscecary
 * **DO NOT put game-specific logic, mechanics, behavior specifications, balancing rules, or feature requirements in `AGENTS.md`.** Put those requirements in the relevant scripts or modules instead. This `AGENTS.md` should only contain general development rules, coding standards, workflow instructions, architectural conventions, and best practices that apply across the project.
 Dont do unnesscecary assert
 If studio is in play mode, don't stop it unless it is needed to do the request.
+ONLY IF IT APPLIES TO ALL SYSTEMS IN THE GAME write something in THIS Agents.md. 
+Dont put stuff that is too niche in Agents.md. You can put it in/create an Agents.md or a script in the niche if needed but not in this one.

@@ -44,7 +44,8 @@ local function CreateMarker(Museum: Model)
 		Adornee = RoofMount,
 		AlwaysOnTop = true,
 		LightInfluence = 0,
-		MaxDistance = 0,
+		-- Base markers must remain visible from anywhere so players can locate their museum.
+		MaxDistance = math.huge,
 		Size = if IsLocalBase then LOCAL_SIZE else OTHER_SIZE,
 		StudsOffsetWorldSpace = if IsLocalBase then LOCAL_OFFSET else OTHER_OFFSET,
 	}, Museum) :: BillboardGui

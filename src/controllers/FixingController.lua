@@ -40,6 +40,7 @@ local CreatedToolEmitter = false
 local SmoothedToolPosition: Vector3?
 local SmoothedVisualToolCFrame: CFrame?
 local SmoothedFakeArmEndPosition: Vector3?
+local SmoothedSurfaceNormal: Vector3?
 local CurrentToolColor: Color3?
 local FakeArm: Part?
 local ViewmodelContainer: Folder?
@@ -57,12 +58,14 @@ local HideCharacterPart
 local ReportLocalProgress
 local ClearStepHighlights
 local UpdateStepHints
+local UpdateHammerPresentation
 local LocalTargetStates = {}
 local LocalStepCaches = {}
 local LocalStepId: string?
 local LocalStepTotal = 0
 local LocalStepRemaining = 0
 local TargetHighlights: { [BasePart]: Highlight } = {}
+local TargetHintTransparencies: { [BasePart]: number } = {}
 local HintStepId: string?
 local HintStepStartedAt = 0
 local HintStepGeneration = 0
@@ -138,6 +141,13 @@ local function GetItemRadiusMultiplier(ItemSize: Vector3): number
 		1
 	)
 	return 1 + (CleaningConfig.ItemRadiusScaleMinimumMultiplier - 1) * SizeAlpha
+end
+
+local function IsSurfaceContactTool(ToolInfo): boolean
+	return ToolInfo.Id == "Sponge"
+		or ToolInfo.Id == "SoftBrush"
+		or ToolInfo.Id == "Polisher"
+		or ToolInfo.Id == "Hammer"
 end
 
 local function GetToolRadiusScale(ToolInfo): number
@@ -328,6 +338,7 @@ local function Restore(Instant: boolean?)
 	ViewmodelPartOffsets = {}
 	SmoothedVisualToolCFrame = nil
 	SmoothedFakeArmEndPosition = nil
+	SmoothedSurfaceNormal = nil
 	FakeArm = nil
 	if CameraBound then RunService:UnbindFromRenderStep(CAMERA_BINDING_NAME); CameraBound = false end
 	local Camera = Workspace.CurrentCamera
@@ -436,6 +447,7 @@ local function DestroyViewmodelTool()
 	ViewmodelPartOffsets = {}
 	SmoothedVisualToolCFrame = nil
 	SmoothedFakeArmEndPosition = nil
+	SmoothedSurfaceNormal = nil
 end
 
 local function CreateViewmodelTool(SourceTool: Tool, ToolInfo)
@@ -625,27 +637,35 @@ local function GetAimPosition(ToolInfo): (Vector3?, BasePart?, Vector3?)
 		else 30
 	local Result = RaycastFixingItem(Camera, MousePosition, Parameters, RayLength)
 	if not Result then return nil, nil, nil end
-	if not ToolInfo then
+	if not ToolInfo or not IsSurfaceContactTool(ToolInfo) then
 		return Result.Position, if Result.Instance:IsA("BasePart") then Result.Instance else nil, Result.Normal
 	end
 
-	-- Uniform disk samples make every surface-contact tool settle against the area's average visible normal.
-	local Radius = GetToolRadiusScale(ToolInfo)
+	-- Average only genuinely nearby geometry so layered parts at different depths cannot shake the tool.
+	local ScreenRadius = GetToolRadiusScale(ToolInfo)
 		* Camera.ViewportSize.Y
 		* CleaningConfig.SurfaceNormalSampleRadiusMultiplier
-	local NormalSum = Result.Normal
-	local NormalCount = 1
+	local WorldRadius = GetWorldToolRadius(Camera, ToolInfo, Result.Position)
+		* CleaningConfig.SurfaceNormalSampleRadiusMultiplier
+	local NormalSum = Result.Normal * CleaningConfig.SurfaceNormalCenterWeight
+	local TotalWeight = CleaningConfig.SurfaceNormalCenterWeight
 	for SampleIndex = 1, CleaningConfig.SurfaceNormalSampleCount do
 		local RadiusAlpha = math.sqrt(SampleIndex / CleaningConfig.SurfaceNormalSampleCount)
 		local Angle = SampleIndex * CleaningConfig.SurfaceNormalSampleAngle
-		local SampleOffset = Vector2.new(math.cos(Angle), math.sin(Angle)) * Radius * RadiusAlpha
+		local SampleOffset = Vector2.new(math.cos(Angle), math.sin(Angle)) * ScreenRadius * RadiusAlpha
 		local SampleResult = RaycastFixingItem(Camera, MousePosition + SampleOffset, Parameters, RayLength)
 		if SampleResult then
-			NormalSum += SampleResult.Normal
-			NormalCount += 1
+			local Distance = (SampleResult.Position - Result.Position).Magnitude
+			if Distance <= WorldRadius then
+				local DistanceAlpha = Distance / math.max(WorldRadius, 0.001)
+				local Weight = CleaningConfig.SurfaceNormalMinimumSampleWeight
+					+ (1 - CleaningConfig.SurfaceNormalMinimumSampleWeight) * (1 - DistanceAlpha) ^ 2
+				NormalSum += SampleResult.Normal * Weight
+				TotalWeight += Weight
+			end
 		end
 	end
-	local AverageNormal = NormalSum / NormalCount
+	local AverageNormal = NormalSum / TotalWeight
 	if AverageNormal.Magnitude < 0.01 then AverageNormal = Result.Normal end
 	return Result.Position, if Result.Instance:IsA("BasePart") then Result.Instance else nil, AverageNormal.Unit
 end
@@ -678,8 +698,11 @@ end
 
 local function RemoveTargetHighlight(Target: BasePart, Instant: boolean?)
 	local Highlight = TargetHighlights[Target]
-	if not Highlight then return end
+	local Transparency = TargetHintTransparencies[Target]
 	TargetHighlights[Target] = nil
+	TargetHintTransparencies[Target] = nil
+	if Target.Parent and Transparency ~= nil then Target.Transparency = Transparency end
+	if not Highlight then return end
 	if Instant or not Highlight.Parent then
 		Highlight:Destroy()
 		return
@@ -702,6 +725,9 @@ end
 
 local function AddTargetHighlight(Target: BasePart)
 	if TargetHighlights[Target] or not Target.Parent then return end
+	-- Highlight does not reliably render over translucent targets, so preserve their live value and make hints opaque locally.
+	TargetHintTransparencies[Target] = Target.Transparency
+	Target.Transparency = 0
 	local Highlight = Instance.new("Highlight")
 	Highlight.Name = "RestorationHintHighlight"
 	Highlight.Adornee = Target
@@ -716,6 +742,15 @@ local function AddTargetHighlight(Target: BasePart)
 		FillTransparency = CleaningConfig.StepHintFillTransparency,
 		OutlineTransparency = CleaningConfig.StepHintOutlineTransparency,
 	}):Play()
+end
+
+local function SetHintAwareTransparency(Target: BasePart, Transparency: number)
+	if TargetHighlights[Target] then
+		TargetHintTransparencies[Target] = Transparency
+		Target.Transparency = 0
+	else
+		Target.Transparency = Transparency
+	end
 end
 
 local function ResetLocalStep()
@@ -748,17 +783,29 @@ local function FinishRemainingTargets(ToolId: string)
 		local Delay = (#RemainingStates > 1 and (Index - 1) / (#RemainingStates - 1) or 0) * Duration * 0.35
 			task.delay(Delay, function()
 				if not CompletionRequested or not Target.Parent then return end
-			if (Step.Type == "Paint" or Step.Type == "Polish") and State.OriginalAppearance then
-				TweenService:Create(Target, TweenInfo.new(Duration * 0.65, Enum.EasingStyle.Quad), {
-					Color = State.OriginalAppearance.Color,
-					Transparency = State.OriginalAppearance.Transparency,
-				}):Play()
-			elseif Step.Type == "Bent" then
-				-- Hammer transforms are server-owned; a local tween would fight fixing-table rotation replication.
-			else
-				TweenService:Create(Target, TweenInfo.new(Duration * 0.65, Enum.EasingStyle.Quad), { Transparency = 1 }):Play()
-			end
-		end)
+				if (Step.Type == "Paint" or Step.Type == "Polish") and State.OriginalAppearance then
+					TweenService:Create(Target, TweenInfo.new(Duration * 0.65, Enum.EasingStyle.Quad), {
+						Color = State.OriginalAppearance.Color,
+						Transparency = State.OriginalAppearance.Transparency,
+					}):Play()
+				elseif Step.Type == "Bent" and State.CurrentRelativeCFrame and State.RestoredRelativeCFrame then
+					local Transform = Instance.new("CFrameValue")
+					Transform.Value = State.CurrentRelativeCFrame
+					local Connection = Transform:GetPropertyChangedSignal("Value"):Connect(function()
+						if CompletionRequested and Target.Parent then State.CurrentRelativeCFrame = Transform.Value end
+					end)
+					local Tween = TweenService:Create(Transform, TweenInfo.new(Duration * 0.65, Enum.EasingStyle.Quad), {
+						Value = State.RestoredRelativeCFrame,
+					})
+					Tween.Completed:Once(function()
+						Connection:Disconnect()
+						Transform:Destroy()
+					end)
+					Tween:Play()
+				else
+					TweenService:Create(Target, TweenInfo.new(Duration * 0.65, Enum.EasingStyle.Quad), { Transparency = 1 }):Play()
+				end
+			end)
 	end
 	task.delay(Duration, function()
 		if not CompletionRequested or LocalStepId ~= ToolId then return end
@@ -768,11 +815,13 @@ local function FinishRemainingTargets(ToolId: string)
 			if (Step.Type == "Paint" or Step.Type == "Polish") and State.OriginalAppearance then
 				PaintRenderer.ApplyAppearance(State.Part, State.OriginalAppearance)
 			elseif Step.Type == "Bent" then
-				-- CompleteStep restores every Hammer target authoritatively on the server.
+				State.CurrentHealth = 0
+				State.CurrentRelativeCFrame = State.RestoredRelativeCFrame
 			else
 				State.Part:Destroy()
 			end
 		end
+		if Step.Type == "Bent" then UpdateHammerPresentation() end
 		LocalStepRemaining = 0
 		RuntimeState.Set(LocalPlayer, "CleaningProgress", 1)
 		ReportLocalProgress(true)
@@ -811,9 +860,7 @@ local function PrepareLocalStep(ToolId: string): boolean
 
 	local Targets = {}
 	local OriginalAppearances = {}
-	local SavedTargetCount = if Step.Type == "Bent"
-		then RuntimeState.Get(LocalPlayer, "CleaningStepTotal", 2)
-		else RuntimeState.Get(LocalPlayer, "CleaningStepRemaining", 2)
+	local SavedTargetCount = RuntimeState.Get(LocalPlayer, "CleaningStepRemaining", 2)
 	if Step.Type == "Dirt" then
 		local Dirt = Model:FindFirstChild("Dirt")
 		if Dirt then
@@ -864,31 +911,30 @@ local function PrepareLocalStep(ToolId: string): boolean
 	end
 
 	local MaximumHealth = if Step.Type == "Dirt" then ItemInfo.DirtHP else Step.TargetHP
-	local SavedTargetHealth = RuntimeState.Get(LocalPlayer, "CleaningTargetHealth")
-	local SavedTargetTransforms = RuntimeState.Get(LocalPlayer, "CleaningTargetTransforms")
-	for Index, Target in Targets do
-		local CurrentHealth = if Step.Type == "Bent" and type(SavedTargetHealth) == "table" and type(SavedTargetHealth[Index]) == "number"
-			then math.clamp(SavedTargetHealth[Index], 0, MaximumHealth)
-			else MaximumHealth
+	local BendRotation = if Step.Type == "Bent"
+		then Step.BendRotationDegrees or Vector3.new(28, -18, 12)
+		else nil
+	local DamageRotation = if BendRotation
+		then CFrame.Angles(math.rad(BendRotation.X), math.rad(BendRotation.Y), math.rad(BendRotation.Z))
+		else nil
+	-- Reverse the exact authored bend locally so every Hammer target has a reliable repair orientation.
+	for _, Target in Targets do
+		local CurrentHealth = MaximumHealth
 		local StartCFrame = Target.CFrame
-		local TargetTransforms = if Step.Type == "Bent" and type(SavedTargetTransforms) == "table"
-			then SavedTargetTransforms[Index]
-			else nil
-		local DamagedRelativeCFrame = if type(TargetTransforms) == "table" and typeof(TargetTransforms.Damaged) == "CFrame"
-			then TargetTransforms.Damaged
-			else nil
-		local RestoredRelativeCFrame = if type(TargetTransforms) == "table" and typeof(TargetTransforms.Restored) == "CFrame"
-			then TargetTransforms.Restored
+		local Box = if Step.Type == "Bent" then Model:FindFirstChild("BoundingBox") else nil
+		local CurrentRelativeCFrame = if Box and Box:IsA("BasePart") then Box.CFrame:ToObjectSpace(Target.CFrame) else nil
+		local RestoredRelativeCFrame = if Box and Box:IsA("BasePart") and DamageRotation
+			then Box.CFrame:ToObjectSpace(Target.CFrame * DamageRotation:Inverse())
 			else nil
 		table.insert(LocalTargetStates, {
 			Part = Target,
-			TargetIndex = Index,
 			CurrentHealth = CurrentHealth,
 			MaximumHealth = MaximumHealth,
 			DamagedColor = Target.Color,
 			OriginalAppearance = OriginalAppearances[Target],
 			StartCFrame = StartCFrame,
-			DamagedRelativeCFrame = DamagedRelativeCFrame,
+			CurrentRelativeCFrame = CurrentRelativeCFrame,
+			DamagedRelativeCFrame = CurrentRelativeCFrame,
 			RestoredRelativeCFrame = RestoredRelativeCFrame,
 			BaseTransparency = Target.Transparency,
 			Completed = CurrentHealth <= 0,
@@ -995,7 +1041,7 @@ local function GetLocalProgress(): number
 	return math.clamp((LocalStepTotal - LocalStepRemaining + PartialProgress) / math.max(LocalStepTotal, 1), 0, 1)
 end
 
-local function UpdateHammerPresentation()
+UpdateHammerPresentation = function()
 	if LocalStepId ~= "Hammer"
 		or RuntimeState.Get(LocalPlayer, "CleaningStepToolId") ~= "Hammer"
 		or RuntimeState.Get(LocalPlayer, "CleaningStepComplete", false) == true
@@ -1004,13 +1050,13 @@ local function UpdateHammerPresentation()
 	local Box = Model and Model:FindFirstChild("BoundingBox")
 	if not Model or not Box or not Box:IsA("BasePart") then return end
 	for _, State in LocalTargetStates do
-		if not State.Part.Parent or not State.DamagedRelativeCFrame or not State.RestoredRelativeCFrame then continue end
-		local RestoredAmount = 1 - math.clamp(State.CurrentHealth / math.max(State.MaximumHealth, 0.001), 0, 1)
-		State.Part.CFrame = Box.CFrame * State.DamagedRelativeCFrame:Lerp(State.RestoredRelativeCFrame, RestoredAmount)
+		if State.Part.Parent and State.CurrentRelativeCFrame then
+			State.Part.CFrame = Box.CFrame * State.CurrentRelativeCFrame
+		end
 	end
 	local LocalProgress = GetLocalProgress()
 	local DisplayedProgress = RuntimeState.Get(LocalPlayer, "CleaningProgress", 0)
-	-- Authoritative acknowledgements can arrive behind the predicted hit; never render Hammer progress backwards.
+	-- Hammer progress is client-owned and monotonic for the duration of the active step.
 	if type(DisplayedProgress) ~= "number" or DisplayedProgress < LocalProgress then
 		RuntimeState.Set(LocalPlayer, "CleaningProgress", LocalProgress)
 	end
@@ -1054,7 +1100,7 @@ local function UpdateSpongeBubbleSound(GreaseTargetCount: number)
 end
 
 local function ApplyToolLocally(ToolInfo, DeltaTime: number, AimPosition: Vector3?)
-	-- Cleaning interaction is intentionally client-authoritative so brush feedback never waits on network latency.
+	-- Restoration interaction is intentionally client-authoritative so feedback never waits on network latency.
 	if LocalStepId ~= ToolInfo.Id and not PrepareLocalStep(ToolInfo.Id) then return end
 	local Step = CleaningConfig.GetStep(ToolInfo.Id)
 	if not Step or CompletionRequested then return end
@@ -1088,10 +1134,17 @@ local function ApplyToolLocally(ToolInfo, DeltaTime: number, AimPosition: Vector
 		if Step.Type == "Bent" and State ~= NearestTargetState then continue end
 		AppliedToTarget = true
 		if Step.Type == "Grease" then GreaseTargetCount += 1 end
-
 		local PreviousHealth = State.CurrentHealth
 		State.CurrentHealth = math.max(0, PreviousHealth - Damage)
-		if Step.Type == "Dirt" then
+		if Step.Type == "Bent" and State.DamagedRelativeCFrame and State.RestoredRelativeCFrame then
+			local RestoredAmount = 1 - State.CurrentHealth / math.max(State.MaximumHealth, 0.001)
+			State.CurrentRelativeCFrame = if State.CurrentHealth <= 0
+				then State.RestoredRelativeCFrame
+				else State.DamagedRelativeCFrame:Lerp(State.RestoredRelativeCFrame, RestoredAmount)
+			local Model = GetFixingItemModel()
+			local Box = Model and Model:FindFirstChild("BoundingBox")
+			if Box and Box:IsA("BasePart") then Target.CFrame = Box.CFrame * State.CurrentRelativeCFrame end
+		elseif Step.Type == "Dirt" then
 			local Now = os.clock()
 			if Now - (State.LastFeedback or 0) >= 0.16 then
 				State.LastFeedback = Now
@@ -1099,11 +1152,10 @@ local function ApplyToolLocally(ToolInfo, DeltaTime: number, AimPosition: Vector
 			end
 		elseif Step.Type == "Grease" or Step.Type == "LightDust" then
 			local BaseTransparency = State.BaseTransparency
-			Target.Transparency = BaseTransparency + (1 - BaseTransparency) * (1 - State.CurrentHealth / math.max(State.MaximumHealth, 0.001))
-		elseif Step.Type == "Bent" then
-			-- Render the exact BoundingBox-relative target immediately; the server persists the same transform.
-			UpdateHammerPresentation()
-			Network:fire("ReportHammerProgress", ToolInfo.Id, State.TargetIndex, State.CurrentHealth)
+			SetHintAwareTransparency(
+				Target,
+				BaseTransparency + (1 - BaseTransparency) * (1 - State.CurrentHealth / math.max(State.MaximumHealth, 0.001))
+			)
 		elseif Step.Type == "Metal" then
 			local RestoredAmount = 1 - State.CurrentHealth / math.max(State.MaximumHealth, 0.001)
 			local ToolPosition = if SmoothedVisualToolCFrame then SmoothedVisualToolCFrame.Position else Workspace.CurrentCamera.CFrame.Position
@@ -1114,7 +1166,8 @@ local function ApplyToolLocally(ToolInfo, DeltaTime: number, AimPosition: Vector
 			local ToolPosition = if SmoothedVisualToolCFrame then SmoothedVisualToolCFrame.Position else Workspace.CurrentCamera.CFrame.Position
 			local Direction = GetAirflowDirection(AimPosition, ToolPosition)
 			if Direction then Target.CFrame += Direction * (ToolInfo.BlowSpeed or 8) * DeltaTime end
-			Target.Transparency = math.clamp(Target.Transparency + DeltaTime * 0.9, 0, 1)
+			local CurrentTransparency = TargetHintTransparencies[Target] or Target.Transparency
+			SetHintAwareTransparency(Target, math.clamp(CurrentTransparency + DeltaTime * 0.9, 0, 1))
 		elseif State.OriginalAppearance then
 			local RestoredAmount = 1 - State.CurrentHealth / math.max(State.MaximumHealth, 0.001)
 			Target.Color = State.DamagedColor:Lerp(State.OriginalAppearance.Color, RestoredAmount)
@@ -1129,7 +1182,7 @@ local function ApplyToolLocally(ToolInfo, DeltaTime: number, AimPosition: Vector
 			if Step.Type == "Dirt" or Step.Type == "Grease" or Step.Type == "LightDust" or Step.Type == "LooseDebris" or Step.Type == "Metal" then
 				Target:Destroy()
 			elseif Step.Type == "Bent" then
-				-- The matching ReportHammerProgress call restores this target on the server.
+				State.CurrentRelativeCFrame = State.RestoredRelativeCFrame
 			elseif State.OriginalAppearance then
 				PaintRenderer.ApplyAppearance(Target, State.OriginalAppearance)
 			end
@@ -1203,9 +1256,21 @@ local function GetDesiredToolCFrame(ToolInfo): CFrame
 	local ToolPosition = GetScreenWorldPosition(Camera, ScreenPosition, CleaningConfig.ToolCameraDepth)
 	local TargetPosition = Camera.CFrame:PointToWorldSpace(Vector3.new(0, 0, -10))
 	local CursorRotation = CleaningConfig.ToolCursorRotationDegrees
-	return CFrame.lookAt(ToolPosition, TargetPosition, Camera.CFrame.UpVector)
+	local DesiredCFrame = CFrame.lookAt(ToolPosition, TargetPosition, Camera.CFrame.UpVector)
 		* CFrame.Angles(math.rad(RotationDegrees.X), math.rad(RotationDegrees.Y), math.rad(RotationDegrees.Z))
 		* CFrame.Angles(math.rad(-CursorDirection.Y * CursorRotation.X), math.rad(CursorDirection.X * CursorRotation.Y), 0)
+	return DesiredCFrame * CFrame.new(ToolInfo.IdlePositionOffset or Vector3.zero)
+end
+
+local function GetSmoothedSurfaceNormal(SurfaceNormal: Vector3, DeltaTime: number): Vector3
+	if not SmoothedSurfaceNormal then
+		SmoothedSurfaceNormal = SurfaceNormal.Unit
+		return SmoothedSurfaceNormal
+	end
+	local Blend = 1 - math.exp(-CleaningConfig.SurfaceNormalResponsiveness * DeltaTime)
+	local BlendedNormal = SmoothedSurfaceNormal:Lerp(SurfaceNormal.Unit, Blend)
+	SmoothedSurfaceNormal = if BlendedNormal.Magnitude > 0.01 then BlendedNormal.Unit else SurfaceNormal.Unit
+	return SmoothedSurfaceNormal
 end
 
 local function GetSpongeUseCFrame(AimPosition: Vector3, SurfaceNormal: Vector3): CFrame
@@ -1276,7 +1341,8 @@ UpdateVisualTool = function(DeltaTime)
 	if ToolInfo.Id == "Hammer" and HammerStrikeStartedAt and HammerStrikeAimPosition and HammerStrikeSurfaceNormal then
 		local StrikeDuration = math.max(ToolInfo.StrikeInterval or 0.28, 0.01)
 		local StrikeProgress = math.clamp((os.clock() - HammerStrikeStartedAt) / StrikeDuration, 0, 1)
-		DesiredCFrame = GetHammerUseCFrame(HammerStrikeAimPosition, HammerStrikeSurfaceNormal, StrikeProgress)
+		local SurfaceNormal = GetSmoothedSurfaceNormal(HammerStrikeSurfaceNormal, DeltaTime)
+		DesiredCFrame = GetHammerUseCFrame(HammerStrikeAimPosition, SurfaceNormal, StrikeProgress)
 		Responsiveness = ToolInfo.PositionResponsiveness or CleaningConfig.ToolPositionResponsiveness
 		IsFollowingSurface = true
 		if not HammerStrikeApplied and StrikeProgress >= CleaningConfig.HammerContactProgress then
@@ -1296,11 +1362,12 @@ UpdateVisualTool = function(DeltaTime)
 	if UsingTool and (ToolInfo.Id == "Sponge" or ToolInfo.Id == "SoftBrush" or ToolInfo.Id == "Polisher") then
 		local AimPosition, _, SurfaceNormal = GetAimPosition(ToolInfo)
 		if AimPosition and SurfaceNormal then
-			DesiredCFrame = GetSpongeUseCFrame(AimPosition, SurfaceNormal)
+			DesiredCFrame = GetSpongeUseCFrame(AimPosition, GetSmoothedSurfaceNormal(SurfaceNormal, DeltaTime))
 			Responsiveness = CleaningConfig.SpongeSurfaceResponsiveness
 			IsFollowingSurface = true
 		end
 	end
+	if not IsFollowingSurface then SmoothedSurfaceNormal = nil end
 	if IsFollowingSurface then RotationResponsiveness = CleaningConfig.ToolSurfaceRotationResponsiveness end
 	local PositionBlend = 1 - math.exp(-Responsiveness * DeltaTime)
 	local RotationBlend = 1 - math.exp(-RotationResponsiveness * DeltaTime)

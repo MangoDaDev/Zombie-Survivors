@@ -22,11 +22,14 @@ local CleaningConfig = {
 	SprayVFXWidthScale = 1,
 	SprayEndpointResponsiveness = 24,
 	ToolPositionResponsiveness = 24,
-	-- Surface positions stay responsive while normal-driven rotation eases across sharp edges.
-	ToolSurfaceRotationResponsiveness = 2,
+	-- The tool follows a stable local normal quickly; spatial and temporal normal averaging removes edge snaps.
+	ToolSurfaceRotationResponsiveness = 18,
+	SurfaceNormalResponsiveness = 10,
 	SurfaceNormalSampleCount = 12,
 	SurfaceNormalSampleRadiusMultiplier = 0.72,
 	SurfaceNormalSampleAngle = math.pi * (3 - math.sqrt(5)),
+	SurfaceNormalCenterWeight = 2,
+	SurfaceNormalMinimumSampleWeight = 0.15,
 	ToolScreenPosition = Vector2.new(0.85, 0.85),
 	ToolCameraDepth = 2.5,
 	ToolCursorMovementScale = Vector2.new(0.018, 0.012),
@@ -70,7 +73,7 @@ local CleaningConfig = {
 		{
 			Id = "SoftBrush", DisplayName = "Soft Brush", TemplateName = "Soft Brush", VFXStartPartName = "Handle",
 			LoopSoundName = "SlowSwoosh", RadiusScale = 0.052, StrengthPerSecond = 3, PositionResponsiveness = 32,
-			SurfaceRotationDegrees = Vector3.new(0, 90, 0),
+			SurfaceRotationDegrees = Vector3.new(0, 90, 0), IdlePositionOffset = Vector3.new(0, 2.1, 0),
 		},
 		{
 			Id = "Hairdryer", DisplayName = "Hairdryer", TemplateName = "Hairdryer", VFXFolderName = "Hairdryer",
@@ -86,7 +89,7 @@ local CleaningConfig = {
 		},
 		{
 			Id = "Polisher", DisplayName = "Polisher", TemplateName = "Polisher", VFXStartPartName = "PolishingPadFront",
-			LoopSoundName = "Rolling", RadiusScale = 0.065, StrengthPerSecond = 2.8, PositionResponsiveness = 28,
+			LoopSoundName = "ElectricMotorLoop", RadiusScale = 0.065, StrengthPerSecond = 2.8, PositionResponsiveness = 28,
 			SurfaceRotationDegrees = Vector3.new(0, 90, 0),
 		},
 		{
