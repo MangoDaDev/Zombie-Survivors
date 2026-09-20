@@ -1,6 +1,14 @@
 local TutorialConfig = {
 	InitialStep = "PickUpItem",
 	CompleteStep = "Complete",
+	Onboarding = {
+		DirtGreaseItemId = 5,
+		DirtGreaseRestorationSteps = { "Spray", "Sponge" },
+		DustItemId = 6,
+		DustRestorationSteps = { "Spray", "SoftBrush" },
+		SoftBrushUpgradeId = "UnlockSoftBrush",
+		SoftBrushCashBuffer = 150,
+	},
 	Steps = {
 		PickUpItem = {
 			Text = "Pick Up Item",
@@ -36,6 +44,22 @@ local TutorialConfig = {
 		},
 		BuySponge = {
 			Text = "Buy Sponge",
+			Next = "FindDirtGreaseItem",
+		},
+		FindDirtGreaseItem = {
+			Text = "Find Another Item",
+			Next = "RestoreDirtGreaseItem",
+		},
+		RestoreDirtGreaseItem = {
+			Text = "Restore And Display It",
+			Next = "BuySoftBrush",
+		},
+		BuySoftBrush = {
+			Text = "Buy Soft Brush",
+			Next = "FindDustItem",
+		},
+		FindDustItem = {
+			Text = "Find A Dusty Item",
 			Next = "Complete",
 		},
 	},

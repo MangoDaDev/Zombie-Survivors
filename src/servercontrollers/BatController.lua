@@ -22,6 +22,7 @@ local Network
 local PlayerConnections: { [Player]: RBXScriptConnection } = {}
 local UpgradeConnections: { [Player]: RBXScriptConnection } = {}
 local LastSwings: { [Player]: number } = {}
+local LastVisualSwings: { [Player]: number } = {}
 local PositionHistory: { [Player]: { { Time: number, CFrame: CFrame } } } = {}
 local LastPositionSamples: { [Player]: number } = {}
 local LastPlayerHits: { [Player]: { [Player]: number } } = {}
@@ -335,8 +336,30 @@ function BatController.Swing(_, Player, Targets, BatId, SwingTime)
 	end
 end
 
+function BatController.BroadcastSwing(_, Player, BatId)
+	if PlayerStateController.Get(Player, "IsFixing", false) == true
+		or PlayerStateController.Get(Player, "IsPvpStunned", false) == true
+	then return end
+	local Info = if type(BatId) == "string" then GetBatInfo(BatId) else nil
+	local Ownership = DataService:get(Player, "Upgrades")
+	if not Info or BatId ~= UpgradeLogic.GetBatId(Ownership) then return end
+	local Character = Player.Character
+	if not Character then return end
+	local EquippedBat
+	for _, Child in Character:GetChildren() do
+		local ChildInfo = ToolResolver.GetBatInfo(Child)
+		if ChildInfo and ChildInfo.Id == BatId then EquippedBat = Child; break end
+	end
+	if not EquippedBat then return end
+	local SwingCooldown = Info.SwingCooldown * UpgradeLogic.GetBatCooldownMultiplier(Ownership)
+	local Now = Workspace:GetServerTimeNow()
+	if Now - (LastVisualSwings[Player] or 0) < math.max(SwingCooldown * 0.8, 0.1) then return end
+	LastVisualSwings[Player] = Now
+	Network:fireAllExcept(Player, "PlaySwing", Player, BatId, SwingCooldown)
+end
+
 function BatController.Init()
-	Network = Networker.server.new("BatController", BatController, { BatController.Swing })
+	Network = Networker.server.new("BatController", BatController, { BatController.Swing, BatController.BroadcastSwing })
 	RunService.Heartbeat:Connect(function()
 		RecordPositions(Workspace:GetServerTimeNow())
 	end)
@@ -368,6 +391,7 @@ function BatController.OnPlayerRemoving(Player)
 	local UpgradeConnection = UpgradeConnections[Player]
 	if UpgradeConnection then UpgradeConnection:Disconnect(); UpgradeConnections[Player] = nil end
 	LastSwings[Player] = nil
+	LastVisualSwings[Player] = nil
 	PositionHistory[Player] = nil
 	LastPositionSamples[Player] = nil
 	LastPlayerHits[Player] = nil

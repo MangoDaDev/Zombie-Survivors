@@ -1,6 +1,6 @@
-local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local TweenService = game:GetService("TweenService")
+local Players = game:GetService "Players"
+local ReplicatedStorage = game:GetService "ReplicatedStorage"
+local TweenService = game:GetService "TweenService"
 
 local NotificationManager = require(ReplicatedStorage.Modules.UI.NotificationManager)
 local SafeArea = require(ReplicatedStorage.Modules.UI.SafeArea)
@@ -28,17 +28,19 @@ return function()
 	end)
 
 	local function Show(NotificationText: string, Duration: number, Color: Color3?)
-		if not AlertContainer then return end
+		if not AlertContainer then
+			return
+		end
 		NextLayoutOrder += 1
 
-		local Alert = Instance.new("CanvasGroup")
+		local Alert = Instance.new "CanvasGroup"
 		Alert.Name = "Alert"
 		Alert.BackgroundTransparency = 1
 		Alert.LayoutOrder = NextLayoutOrder
-		Alert.Size = UDim2.fromOffset(ALERT_WIDTH, ALERT_HEIGHT)
+		Alert.Size = UDim2.new(0, ALERT_WIDTH, 0.035, ALERT_HEIGHT)
 		Alert.ZIndex = 80
 
-		local Label = Instance.new("TextLabel")
+		local Label = Instance.new "TextLabel"
 		Label.Name = "AlertText"
 		Label.AnchorPoint = Vector2.new(0.5, 0)
 		Label.BackgroundTransparency = 1
@@ -53,7 +55,7 @@ return function()
 		Label.ZIndex = 81
 		Label.Parent = Alert
 
-		local TextStroke = Instance.new("UIStroke")
+		local TextStroke = Instance.new "UIStroke"
 		TextStroke.Name = "NotificationStroke"
 		TextStroke.Color = UIStyle.Colors.Ink
 		TextStroke.StrokeSizingMode = Enum.StrokeSizingMode.ScaledSize
@@ -61,7 +63,7 @@ return function()
 		TextStroke.Transparency = 0.12
 		TextStroke.Parent = Label
 
-		local TextSizeConstraint = Instance.new("UITextSizeConstraint")
+		local TextSizeConstraint = Instance.new "UITextSizeConstraint"
 		TextSizeConstraint.MaxTextSize = 28
 		TextSizeConstraint.MinTextSize = 12
 		TextSizeConstraint.Parent = Label
@@ -92,11 +94,15 @@ return function()
 
 	Cleanup(function()
 		SafeAreaConnection:Disconnect()
-		if NotificationConnection then NotificationConnection:Disconnect() end
+		if NotificationConnection then
+			NotificationConnection:Disconnect()
+		end
 		for Alert, AlertState in ActiveAlerts do
 			AlertState.TweenIn:Cancel()
 			AlertState.TweenOut:Cancel()
-			if AlertState.Thread then task.cancel(AlertState.Thread) end
+			if AlertState.Thread then
+				task.cancel(AlertState.Thread)
+			end
 			Alert:Destroy()
 		end
 		table.clear(ActiveAlerts)
@@ -107,7 +113,9 @@ return function()
 		AnchorPoint = Vector2.new(0.5, 0),
 		BackgroundTransparency = 1,
 		BorderSizePixel = 0,
-		Position = function() return UDim2.new(0.5, 0, 0, TopOffset()) end,
+		Position = function()
+			return UDim2.new(0.5, 0, 0, TopOffset())
+		end,
 		Size = UDim2.fromOffset(ALERT_WIDTH, 260),
 		ZIndex = 80,
 		Action(function(Instance)

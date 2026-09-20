@@ -5,6 +5,13 @@ return {
 	Cash = EconomyConfig.StartingCash,
 	GuaranteedDropCount = 0,
 	HasRolledCrate = false,
+	Onboarding = {
+		DirtGreaseItemReceived = false,
+		DirtGreaseItemDisplayed = false,
+		SoftBrushFundingGranted = false,
+		DustFundingGranted = false,
+		DustItemReceived = false,
+	},
 	Analytics = {
 		OnboardingHighestStep = 0,
 		CratesBroken = 0,

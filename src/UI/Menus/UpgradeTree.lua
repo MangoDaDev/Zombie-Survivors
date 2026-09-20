@@ -28,6 +28,7 @@ local Spring = Vide.spring
 local LocalPlayer = Players.LocalPlayer
 local ONBOARDING_START_ID = "Start"
 local ONBOARDING_UPGRADE_ID = "UnlockSponge"
+local UPGRADE_READY_REMINDER_INTERVAL = 60
 
 local StateColors = {
 	Mystery = Color3.new(0, 0, 0),
@@ -41,15 +42,19 @@ local StateColors = {
 -- node placement, grouping, and spacing instead.
 local TreeCanvasSize = UpgradeConfig.CameraBounds * 2 + Vector2.one * UpgradeConfig.NodeSize * 2
 
+local function AllowsNormalOnboardingUpgrades(TutorialStep): boolean
+	return TutorialStep == "BuySoftBrush" or TutorialStep == "FindDustItem"
+end
+
 local function IsUpgradeVisibleDuringOnboarding(TutorialStep, UpgradeId: string): boolean
-	-- Show the owned starting node for context, while Sponge remains the only onboarding purchase.
 	return TutorialStep == TutorialConfig.CompleteStep
+		or AllowsNormalOnboardingUpgrades(TutorialStep)
 		or UpgradeId == ONBOARDING_START_ID
 		or UpgradeId == ONBOARDING_UPGRADE_ID
 end
 
 local function FilterOnboardingUpgrades(Upgrades, TutorialStep): { any }
-	if TutorialStep == TutorialConfig.CompleteStep then return Upgrades end
+	if TutorialStep == TutorialConfig.CompleteStep or AllowsNormalOnboardingUpgrades(TutorialStep) then return Upgrades end
 
 	for Index = #Upgrades, 1, -1 do
 		if Upgrades[Index].Id ~= ONBOARDING_UPGRADE_ID then
@@ -67,6 +72,7 @@ local function IsUpgradeButtonVisible(TutorialStep): boolean
 	-- Keep upgrades hidden until the tutorial explicitly introduces them.
 	return TutorialStep == "OpenUpgrades"
 		or TutorialStep == "BuySponge"
+		or AllowsNormalOnboardingUpgrades(TutorialStep)
 		or TutorialStep == TutorialConfig.CompleteStep
 end
 
@@ -401,6 +407,7 @@ return function()
 		KnownAffordableUpgradeIds[Upgrade.Id] = true
 	end
 	local AffordableNotificationScheduled = false
+	local UpgradeReminderThread: thread?
 	local IsDestroyed = false
 
 	Effect(function()
@@ -415,6 +422,39 @@ return function()
 			TutorialPulseTween:Cancel()
 			TutorialPulseValue.Value = 0
 		end
+	end
+
+	local function GetUpgradeReadyMessage(UpgradeCount: number, IsNew: boolean): string
+		if UpgradeCount == 1 then
+			return if IsNew then "New Upgrade Ready" else "Upgrade Ready"
+		end
+		return if IsNew then `{UpgradeCount} New Upgrades Ready` else `{UpgradeCount} Upgrades Ready`
+	end
+
+	local function ScheduleUpgradeReminder(Restart: boolean?)
+		if IsDestroyed or AffordableCount() == 0 then
+			if UpgradeReminderThread then
+				task.cancel(UpgradeReminderThread)
+				UpgradeReminderThread = nil
+			end
+			return
+		end
+		if Restart and UpgradeReminderThread then
+			task.cancel(UpgradeReminderThread)
+			UpgradeReminderThread = nil
+		end
+		if UpgradeReminderThread then return end
+
+		-- Keep reminding the player while an affordable upgrade remains ready to purchase.
+		UpgradeReminderThread = task.delay(UPGRADE_READY_REMINDER_INTERVAL, function()
+			UpgradeReminderThread = nil
+			if IsDestroyed then return end
+
+			local UpgradeCount = AffordableCount()
+			if UpgradeCount == 0 then return end
+			NotificationManager.Notify(GetUpgradeReadyMessage(UpgradeCount, false), 4, UIStyle.Colors.Gold)
+			ScheduleUpgradeReminder()
+		end)
 	end
 
 	local function UpdateAffordableNotification()
@@ -433,15 +473,18 @@ return function()
 			end
 
 			if NewlyAffordableUpgradeCount > 0 then
-				local Message = if NewlyAffordableUpgradeCount == 1
-					then "New Upgrade Ready"
-					else `{NewlyAffordableUpgradeCount} New Upgrades Ready`
-				NotificationManager.Notify(Message, 4, UIStyle.Colors.Gold)
+				NotificationManager.Notify(
+					GetUpgradeReadyMessage(NewlyAffordableUpgradeCount, true),
+					4,
+					UIStyle.Colors.Gold
+				)
 			end
+			ScheduleUpgradeReminder(NewlyAffordableUpgradeCount > 0)
 		end)
 	end
 
 	UpdateTutorialPulse()
+	ScheduleUpgradeReminder()
 
 	local function BeginDrag(Input: InputObject)
 		if
@@ -625,6 +668,10 @@ return function()
 	local TutorialPulseConnection = TutorialPulseValue.Changed:Connect(TutorialPulse)
 	Cleanup(function()
 		IsDestroyed = true
+		if UpgradeReminderThread then
+			task.cancel(UpgradeReminderThread)
+			UpgradeReminderThread = nil
+		end
 		InputBeganConnection:Disconnect()
 		InputChangedConnection:Disconnect()
 		InputEndedConnection:Disconnect()

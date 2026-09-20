@@ -17,7 +17,8 @@ local ItemInteractionConfig = {
 	RagdollDuration = 1.1,
 	RagdollRecoveryProtectionDuration = 1,
 	PvpHitCooldown = 0.8,
-	PvpProtectionDuration = 2.5,
+	-- Preserve the requested extra two seconds before a struck player can be hit again.
+	PvpProtectionDuration = 4.5,
 	PvpMaximumHitDistance = 10,
 	FixingRotationSpeedDegrees = 24,
 	SurfacePlacementAttempts = 4,

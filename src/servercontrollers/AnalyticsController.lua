@@ -140,6 +140,10 @@ local function GetTutorialBootstrapStep(Player: Player): number
 		EarnMoney = 12,
 		OpenUpgrades = 13,
 		BuySponge = 13,
+		FindDirtGreaseItem = 14,
+		RestoreDirtGreaseItem = 15,
+		BuySoftBrush = 16,
+		FindDustItem = 16,
 		Complete = 17,
 	}
 	return Steps[TutorialStep] or 0

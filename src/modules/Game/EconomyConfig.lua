@@ -6,11 +6,11 @@ local EconomyConfig = {
 	-- Scales restoration rewards and restored-item sale values without changing purchase prices.
 	ActiveIncomeMultiplier = 3,
 	-- Gives onboarding rarities extra active income, blended back to normal by Legendary.
-	OnboardingIncomeMultiplier = 1.5,
-	OnboardingIncomeBlendEndStage = 5,
+	OnboardingIncomeMultiplier = 2.5,
+	OnboardingIncomeBlendEndStage = 8,
 	-- Scales museum visitor payments only.
 	PassiveIncomeMultiplier = 1,
-	-- Values above 1 increase every upgrade price.
+	-- Values above 1 increase wawevery upgrade price.
 	UpgradeCostMultiplier = 0.95,
 	-- Values above 1 steepen rarity prices and later-stage upgrade costs.
 	LateGameCurveMultiplier = 1,

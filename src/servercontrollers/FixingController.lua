@@ -76,7 +76,8 @@ local function ShowToolRequirement(Player, ToolId)
 	local ToolInfo = GetToolInfo(ToolId)
 	local Upgrade = UpgradeLogic.GetToolUnlockUpgrade(ToolId)
 	local DisplayName = if ToolInfo then ToolInfo.DisplayName else ToolId
-	GuidanceController.Show(Player, `Use {DisplayName}`, nil, if Upgrade then `Upgrade:{Upgrade.Id}` else nil)
+	-- Missing-tool guidance must also alert the player when directing them to upgrades.
+	GuidanceController.Show(Player, `Use {DisplayName}`, nil, if Upgrade then `Upgrade:{Upgrade.Id}` else nil, true)
 end
 
 local function ShowToolRequirements(Player, MissingToolSteps)
@@ -106,7 +107,8 @@ local function ShowToolRequirements(Player, MissingToolSteps)
 		Player,
 		table.concat(Lines, "\n"),
 		nil,
-		if Upgrade then `Upgrade:{Upgrade.Id}` else nil
+		if Upgrade then `Upgrade:{Upgrade.Id}` else nil,
+		true
 	)
 end
 

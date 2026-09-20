@@ -403,28 +403,17 @@ local function DetectTargets(Tool, Info, SwingTime)
 	return #Targets
 end
 
-local function Swing(Tool, Info)
-	if Tool.Enabled == false or Tool.Parent ~= LocalPlayer.Character then
-		return
-	end
-	Tool.Enabled = false
+local function PlaySwingAnimation(Tool, Info, SwingCooldown)
 	local Handle = Tool:FindFirstChild "Handle"
 	if not Handle or not Handle:IsA "BasePart" then
-		Tool.Enabled = true
 		return
 	end
 	local OriginalGrip = Tool.Grip
-	local Ownership = DataService:get "Upgrades"
-	local CooldownMultiplier = UpgradeLogic.GetBatCooldownMultiplier(Ownership)
-	local SwingCooldown = Info.SwingCooldown * CooldownMultiplier
 	local Trail = Handle:FindFirstChildOfClass "Trail"
 	if Trail then
 		Trail.Enabled = true
 	end
 	Sounds.Play(Info.SwingSoundName, Handle, 70)
-	-- Resolve local crate hits immediately; animation timing must never delay break prediction or roulette.
-	local SwingTime = Workspace:GetServerTimeNow()
-	local TargetCount = DetectTargets(Tool, Info, SwingTime)
 	TweenService:Create(Tool, TweenInfo.new(Info.ImpactDelay, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
 		Grip = OriginalGrip * CFrame.Angles(
 			math.rad(Info.SwingRotationDegrees.X),
@@ -433,10 +422,7 @@ local function Swing(Tool, Info)
 		),
 	}):Play()
 	task.delay(Info.ImpactDelay, function()
-		-- Retry once at the visual impact frame only when the immediate scan found nothing.
-		if TargetCount == 0 and Tool.Parent == LocalPlayer.Character then
-			DetectTargets(Tool, Info, SwingTime)
-		end
+		if not Tool.Parent then return end
 		TweenService:Create(
 			Tool,
 			TweenInfo.new(
@@ -451,6 +437,35 @@ local function Swing(Tool, Info)
 		if Trail and Trail.Parent then
 			Trail.Enabled = false
 		end
+	end)
+end
+
+local function Swing(Tool, Info)
+	if Tool.Enabled == false or Tool.Parent ~= LocalPlayer.Character then
+		return
+	end
+	Tool.Enabled = false
+	local Handle = Tool:FindFirstChild "Handle"
+	if not Handle or not Handle:IsA "BasePart" then
+		Tool.Enabled = true
+		return
+	end
+	local Ownership = DataService:get "Upgrades"
+	local CooldownMultiplier = UpgradeLogic.GetBatCooldownMultiplier(Ownership)
+	local SwingCooldown = Info.SwingCooldown * CooldownMultiplier
+	-- Client-side Tool.Grip animation does not replicate, so every swing needs an explicit visual broadcast.
+	Network:fire("BroadcastSwing", Info.Id)
+	-- Resolve local crate hits immediately; animation timing must never delay break prediction or roulette.
+	local SwingTime = Workspace:GetServerTimeNow()
+	local TargetCount = DetectTargets(Tool, Info, SwingTime)
+	PlaySwingAnimation(Tool, Info, SwingCooldown)
+	task.delay(Info.ImpactDelay, function()
+		-- Retry once at the visual impact frame only when the immediate scan found nothing.
+		if TargetCount == 0 and Tool.Parent == LocalPlayer.Character then
+			DetectTargets(Tool, Info, SwingTime)
+		end
+	end)
+	task.delay(SwingCooldown, function()
 		if Tool.Parent then
 			Tool.Enabled = true
 		end
@@ -549,6 +564,32 @@ function BatController.ReactToCrate(_, Model, AttackerPosition, BatId)
 		return
 	end
 	ReactToCrate(Model, AttackerPosition, Info)
+end
+
+function BatController.PlaySwing(_, Player, BatId, SwingCooldown)
+	local Info = if type(BatId) == "string" then GetBatInfo(BatId) else nil
+	if
+		typeof(Player) ~= "Instance"
+		or not Player:IsA("Player")
+		or Player == LocalPlayer
+		or Player.Parent ~= Players
+		or not Info
+		or type(SwingCooldown) ~= "number"
+		or SwingCooldown ~= SwingCooldown
+		or SwingCooldown < 0.05
+		or SwingCooldown > 5
+	then
+		return
+	end
+	local Character = Player.Character
+	if not Character then return end
+	for _, Child in Character:GetChildren() do
+		local ChildInfo = ToolResolver.GetBatInfo(Child)
+		if ChildInfo and ChildInfo.Id == BatId then
+			PlaySwingAnimation(Child, Info, SwingCooldown)
+			return
+		end
+	end
 end
 
 function BatController.OnCharacterAdded(Character)

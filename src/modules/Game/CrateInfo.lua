@@ -49,9 +49,6 @@ local CrateInfo = {
 	},
 	NewPlayerDropSequence = {
 		{ ItemId = 1 },
-		-- IMPORTANT: The player's second item must stay a forced Toaster with both dirt and grease.
-		{ ItemId = 6, RestorationSteps = { "Spray", "Sponge" } },
-		{ ItemId = 5 },
 		{ ItemId = 14 },
 	},
 	Crates = {

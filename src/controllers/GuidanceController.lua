@@ -8,6 +8,7 @@ local CrateRuntime = require(ReplicatedStorage.Modules.Game.CrateRuntime)
 local Images = require(ReplicatedStorage.Modules.UI.Images)
 local ItemsInfo = require(ReplicatedStorage.Modules.Game.ItemsInfo)
 local Networker = require(ReplicatedStorage.Packages.networker)
+local NotificationManager = require(ReplicatedStorage.Modules.UI.NotificationManager)
 local RuntimeState = require(ReplicatedStorage.Modules.Game.RuntimeState)
 local TutorialConfig = require(ReplicatedStorage.Modules.Game.TutorialConfig)
 
@@ -60,7 +61,7 @@ local function GetNearestModel(Folder: Instance?, IsAllowed): Model?
 	return Closest
 end
 
-local function GetStarterTarget(): Model?
+local function GetOnboardingCrateTarget(StepId: string): Model?
 	local Cash = DataService:get "Cash" or 0
 	local Reward = GetNearestModel(Workspace:FindFirstChild "CrateRewards", function(Model)
 		local ItemName = string.match(Model.Name, "^CrateReward_(.+)$")
@@ -68,6 +69,7 @@ local function GetStarterTarget(): Model?
 		if not ItemInfo or ItemInfo.Price > Cash then
 			return false
 		end
+		if StepId ~= "PickUpItem" then return true end
 		local Steps = CleaningConfig.GetStepsForItem(ItemInfo)
 		return #Steps == 1 and Steps[1].Id == "Spray"
 	end)
@@ -119,8 +121,8 @@ local function ResolveTarget(StepId: string, TargetKind: string?): Instance?
 			return GetUpgradeTarget(UpgradeId)
 		end
 	end
-	if StepId == "PickUpItem" then
-		return GetStarterTarget()
+	if StepId == "PickUpItem" or StepId == "FindDirtGreaseItem" or StepId == "FindDustItem" then
+		return GetOnboardingCrateTarget(StepId)
 	end
 	local Museum = GetMuseum()
 	if StepId == "BringItemHome" or StepId == "StartCleaning" then
@@ -136,6 +138,11 @@ local function ResolveTarget(StepId: string, TargetKind: string?): Instance?
 		return GetGuiTarget "OpenButton"
 	elseif StepId == "BuySponge" then
 		return GetUpgradeTarget "UnlockSponge"
+	elseif StepId == "RestoreDirtGreaseItem" then
+		return Museum
+			and (Museum:FindFirstChild(`FixingItem_{LocalPlayer.UserId}`) or GetDisplay(false) or Museum:FindFirstChild("PromptPart", true))
+	elseif StepId == "BuySoftBrush" then
+		return GetUpgradeTarget "UnlockSoftBrush"
 	end
 end
 
@@ -267,9 +274,12 @@ function GuidanceController.ShowLocal(Text: string, Target: Instance?, TargetKin
 	end)
 end
 
-function GuidanceController.ShowMessage(_, Text, Target, TargetKind)
+function GuidanceController.ShowMessage(_, Text, Target, TargetKind, ShouldNotify)
 	if type(Text) ~= "string" or #Text > 40 then
 		return
+	end
+	if ShouldNotify == true then
+		NotificationManager.Notify(Text, 5)
 	end
 	GuidanceController.ShowLocal(
 		Text,
@@ -328,7 +338,7 @@ function GuidanceController.Init()
 		if type(StepId) ~= "string" or not TutorialConfig.GetStep(StepId) then
 			return
 		end
-		local IsNewReward = StepId == "PickUpItem"
+		local IsNewReward = (StepId == "PickUpItem" or StepId == "FindDirtGreaseItem" or StepId == "FindDustItem")
 			and Descendant:IsA "Model"
 			and Descendant.Parent
 			and Descendant.Parent.Name == "CrateRewards"

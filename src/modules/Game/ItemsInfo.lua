@@ -67,7 +67,8 @@ local ItemDefinitions: { ItemDefinition } = {
 		AssetName = "Basketball",
 		Rarity = "Common",
 		ChanceWeight = 30,
-		DifficultyValue = 35,
+		-- Keep the third onboarding item's restored value near $300.
+		DifficultyValue = 25,
 		MoveSpeed = 8,
 		DirtHP = 1,
 	},

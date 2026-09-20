@@ -14,6 +14,10 @@ local DataService
 local PurchaseLocks: { [Player]: boolean } = {}
 local ONBOARDING_UPGRADE_ID = "UnlockSponge"
 
+local function AllowsNormalOnboardingPurchases(TutorialStep: string): boolean
+	return TutorialStep == "BuySoftBrush" or TutorialStep == "FindDustItem"
+end
+
 local function CopyOwnership(Value)
 	return UpgradeLogic.NormalizeOwnership(Value)
 end
@@ -33,8 +37,12 @@ function UpgradeController.Purchase(_, Player: Player, UpgradeId: string)
 	if PurchaseLocks[Player] or Player.Parent ~= Players or type(UpgradeId) ~= "string" then return false, "Invalid request" end
 	local Upgrade = UpgradeConfig.Get(UpgradeId)
 	if not Upgrade or Upgrade.Purchasable == false then return false, "That upgrade cannot be purchased" end
-	-- Sponge is the only purchasable upgrade until the guided onboarding is complete.
-	if DataService:get(Player, "TutorialStep") ~= TutorialConfig.CompleteStep and UpgradeId ~= ONBOARDING_UPGRADE_ID then
+	local TutorialStep = DataService:get(Player, "TutorialStep")
+	-- Early onboarding keeps the Sponge path focused; the Soft Brush stage uses price guidance instead.
+	if TutorialStep ~= TutorialConfig.CompleteStep
+		and not AllowsNormalOnboardingPurchases(TutorialStep)
+		and UpgradeId ~= ONBOARDING_UPGRADE_ID
+	then
 		return false, "Finish onboarding first"
 	end
 	PurchaseLocks[Player] = true
@@ -60,6 +68,7 @@ function UpgradeController.Purchase(_, Player: Player, UpgradeId: string)
 	if UpgradeId == ONBOARDING_UPGRADE_ID then
 		GuidanceController.Advance(Player, "BuySponge")
 	end
+	GuidanceController.RefreshUpgradeRequirement(Player)
 	PurchaseLocks[Player] = nil
 	return true, "Purchased", Ownership
 end

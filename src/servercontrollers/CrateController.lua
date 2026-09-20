@@ -22,7 +22,6 @@ local MuseumController = require(ServerStorage.Controllers.MuseumController)
 local Networker = require(ReplicatedStorage.Packages.networker)
 local PlayerStateController = require(ServerStorage.Controllers.PlayerStateController)
 local RestorationVisuals = require(ReplicatedStorage.Modules.Game.RestorationVisuals)
-local TutorialConfig = require(ReplicatedStorage.Modules.Game.TutorialConfig)
 local UIStyle = require(ReplicatedStorage.Modules.UI.UIStyle)
 
 local MapAssets = ReplicatedStorage.Assets.Models.Map
@@ -34,6 +33,7 @@ local RewardFolder: Folder
 local ResetWall: BasePart?
 local Crates = {}
 local Rewards = {}
+local ActiveOnboardingRewards: { [Player]: string } = {}
 local PityLabels = {}
 local RandomGenerator = Random.new()
 local IsResetting = false
@@ -58,16 +58,13 @@ local function IsRecoveryEligible(Player: Player, Info): boolean
 end
 
 local function GetRewardItemInfo(Player: Player, Info, Luck: number)
-	local GuaranteedDropCount = DataService:get(Player, "GuaranteedDropCount")
-	local IsNewPlayer = GuaranteedDropCount ~= 0
-		or DataService:get(Player, "TutorialStep") == TutorialConfig.InitialStep
-	if type(GuaranteedDropCount) == "number" and IsNewPlayer then
-		local GuaranteedReward = CrateInfo.NewPlayerDropSequence[GuaranteedDropCount + 1]
+	local GuaranteedReward, RewardKind, GuaranteedIndex = GuidanceController.GetOnboardingReward(Player)
+	if GuaranteedReward then
 		local GuaranteedItemInfo = GuaranteedReward and GetItemInfo(GuaranteedReward.ItemId)
 		if GuaranteedItemInfo then
-			DataService:set(Player, "GuaranteedDropCount", GuaranteedDropCount + 1)
 			local RestorationSteps = GuaranteedReward.RestorationSteps
-			return GuaranteedItemInfo, false, if RestorationSteps then table.clone(RestorationSteps) else nil
+			return GuaranteedItemInfo, false, if RestorationSteps then table.clone(RestorationSteps) else nil,
+				RewardKind, GuaranteedIndex
 		end
 	end
 	-- A cash-poor player with no owned items always has a modest common-crate recovery loop.
@@ -199,6 +196,9 @@ end
 local function RemoveReward(RewardId, Reason, PurchasingPlayer)
 	local Reward = Rewards[RewardId]
 	if not Reward then return end
+	if Reward.Owner and ActiveOnboardingRewards[Reward.Owner] == RewardId then
+		ActiveOnboardingRewards[Reward.Owner] = nil
+	end
 	if Reason == "Purchased" then
 		NotifyNearbyPlayers(Reward, "PurchasedByAnother", PurchasingPlayer)
 	elseif Reason == "Expired" then
@@ -221,7 +221,8 @@ local function PurchaseReward(RewardId, Player)
 	if PlayerStateController.Get(Player, "IsCarryingItem", false) == true then SendPurchaseFeedback(Player, "AlreadyCarrying", ItemInfo.Name); return end
 	if not CarryController.CanCarry(Player) then SendPurchaseFeedback(Player, "Unavailable", ItemInfo.Name); return end
 	local RootPart = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
-	local Cash = DataService:get(Player, "Cash")
+	local OnboardingRewardKind = if Reward.Owner == Player then Reward.OnboardingRewardKind else nil
+	local Cash = GuidanceController.EnsureOnboardingRewardAffordable(Player, OnboardingRewardKind, ItemInfo.Price)
 	if not RootPart or not RootPart:IsA("BasePart") or type(Cash) ~= "number" then SendPurchaseFeedback(Player, "Unavailable", ItemInfo.Name); return end
 	if Cash < ItemInfo.Price and Reward.IsRecovery and IsRecoveryEligible(Player, Reward.Info) then
 		Cash += EconomyConfig.GetRecoveryGrant(Cash, ItemInfo.Price)
@@ -235,6 +236,7 @@ local function PurchaseReward(RewardId, Player)
 		return
 	end
 	DataService:set(Player, "Cash", Cash - ItemInfo.Price)
+	GuidanceController.MarkOnboardingRewardReceived(Player, OnboardingRewardKind, Reward.GuaranteedIndex)
 	AnalyticsController.TrackItemPurchased(Player, Reward.ItemId, "Crate", Reward.AnalyticsSessionId)
 	SendPurchaseFeedback(Player, "Success", ItemInfo.Name, ItemInfo.Price)
 	RemoveReward(RewardId, "Purchased", Player)
@@ -244,8 +246,11 @@ local function CreateReward(State, Player: Player, PredictionId, AnalyticsSessio
 	local Info = State.Info
 	local HasRolledCrate = DataService:get(Player, "HasRolledCrate") == true
 	local IsFirstRoll = not HasRolledCrate and DataService:get(Player, "GuaranteedDropCount") == 0
-	local ItemInfo, IsRecovery, RestorationSteps = GetRewardItemInfo(Player, Info, State.Luck)
+	local ItemInfo, IsRecovery, RestorationSteps, OnboardingRewardKind, GuaranteedIndex = GetRewardItemInfo(Player, Info, State.Luck)
 	if not ItemInfo then return end
+	local PreviousOnboardingRewardId = OnboardingRewardKind and ActiveOnboardingRewards[Player]
+	if PreviousOnboardingRewardId then RemoveReward(PreviousOnboardingRewardId, "Replaced") end
+	GuidanceController.PrepareOnboardingReward(Player, OnboardingRewardKind, ItemInfo.Price)
 	local Template = ReplicatedStorage.Assets.Models.Items:FindFirstChild(ItemInfo.AssetName)
 	if not Template or not Template:IsA("Model") then return end
 	local Model = Template:Clone()
@@ -291,6 +296,7 @@ local function CreateReward(State, Player: Player, PredictionId, AnalyticsSessio
 	if not HasRolledCrate then DataService:set(Player, "HasRolledCrate", true) end
 	local Reward = {
 		Id = RewardId,
+		Owner = Player,
 		Info = Info,
 		ItemId = ItemInfo.Id,
 		DirtCount = DirtCount,
@@ -303,9 +309,12 @@ local function CreateReward(State, Player: Player, PredictionId, AnalyticsSessio
 		IsRecovery = IsRecovery,
 		AnalyticsSessionId = AnalyticsSessionId,
 		RestorationSteps = RestorationSteps,
+		OnboardingRewardKind = OnboardingRewardKind,
+		GuaranteedIndex = GuaranteedIndex,
 		RevealTransparencies = RevealTransparencies,
 	}
 	Rewards[RewardId] = Reward
+	if OnboardingRewardKind then ActiveOnboardingRewards[Player] = RewardId end
 	Reward.Connection = Prompt.Triggered:Connect(function(Player)
 		if Rewards[RewardId] ~= Reward or Reward.Interacting then return end
 		Reward.Interacting = true
@@ -639,6 +648,12 @@ function CrateController.Init()
 		while true do UpdatePityDisplay(); task.wait(1) end
 	end)
 	task.spawn(StartResetSchedule)
+end
+
+function CrateController.OnPlayerRemoving(Player: Player)
+	local RewardId = ActiveOnboardingRewards[Player]
+	if RewardId then RemoveReward(RewardId, "PlayerLeft") end
+	ActiveOnboardingRewards[Player] = nil
 end
 
 return CrateController

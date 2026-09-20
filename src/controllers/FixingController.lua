@@ -163,7 +163,7 @@ end
 
 local function GetToolRadiusScale(ToolInfo): number
 	local Ownership = DataService:get("Upgrades")
-	-- Keep the radius viewport-relative across devices, with only a moderate taper for genuinely large item bounds.
+	-- Keep the radius viewport-relative, helping small items while only moderately tapering genuinely large bounds.
 	return (ToolInfo.RadiusScale or CleaningConfig.BrushRadiusScale)
 		* CleaningConfig.ToolRadiusMultiplier
 		* UpgradeLogic.GetToolRadiusMultiplier(Ownership, ToolInfo.Id)
@@ -424,7 +424,7 @@ local function GetCursorPosition(): Vector2
 		local TouchPosition = Vector2.new(ActiveTouchInput.Position.X, ActiveTouchInput.Position.Y)
 		local TouchOffset = Workspace.CurrentCamera.ViewportSize.Y * CleaningConfig.MobileTouchAimOffsetScale
 		-- Keep the mobile fixing radius and its actual hit area visible above the player's finger.
-		return Vector2.new(TouchPosition.X, math.max(TouchPosition.Y - TouchOffset, 0))
+		return Vector2.new(TouchPosition.X, math.max(TouchPosition.Y + TouchOffset, 0))
 	end
 	return UserInputService:GetMouseLocation()
 end
