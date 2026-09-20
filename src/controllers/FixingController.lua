@@ -39,7 +39,7 @@ local CreatedStartAttachment = false
 local CreatedToolEmitter = false
 local SmoothedToolPosition: Vector3?
 local SmoothedVisualToolCFrame: CFrame?
-local SmoothedFakeArmRotation: CFrame?
+local SmoothedFakeArmEndPosition: Vector3?
 local CurrentToolColor: Color3?
 local FakeArm: Part?
 local ViewmodelContainer: Folder?
@@ -321,7 +321,7 @@ local function Restore(Instant: boolean?)
 	ViewmodelSourceTool = nil
 	ViewmodelPartOffsets = {}
 	SmoothedVisualToolCFrame = nil
-	SmoothedFakeArmRotation = nil
+	SmoothedFakeArmEndPosition = nil
 	FakeArm = nil
 	if CameraBound then RunService:UnbindFromRenderStep(CAMERA_BINDING_NAME); CameraBound = false end
 	local Camera = Workspace.CurrentCamera
@@ -425,7 +425,7 @@ local function DestroyViewmodelTool()
 	ViewmodelSourceTool = nil
 	ViewmodelPartOffsets = {}
 	SmoothedVisualToolCFrame = nil
-	SmoothedFakeArmRotation = nil
+	SmoothedFakeArmEndPosition = nil
 end
 
 local function CreateViewmodelTool(SourceTool: Tool, ToolInfo)
@@ -1174,22 +1174,23 @@ UpdateVisualTool = function(DeltaTime)
 	if FakeArm then
 		local Camera = Workspace.CurrentCamera
 		local ArmStart = GetScreenWorldPosition(Camera, CleaningConfig.FakeArmScreenPosition, CleaningConfig.FakeArmCameraDepth)
-		local ArmEnd = SmoothedVisualToolCFrame.Position
+		local DesiredArmEnd = SmoothedVisualToolCFrame.Position
+		local ArmEndBlend = if IsFollowingSurface
+			then 1 - math.exp(-CleaningConfig.FakeArmEndResponsiveness * DeltaTime)
+			else 1
+		SmoothedFakeArmEndPosition = if SmoothedFakeArmEndPosition
+			then SmoothedFakeArmEndPosition:Lerp(DesiredArmEnd, ArmEndBlend)
+			else DesiredArmEnd
+		local ArmEnd = SmoothedFakeArmEndPosition
 		local ArmLength = (ArmEnd - ArmStart).Magnitude
 		if ArmLength > 0.01 then
-			local DesiredArmRotation = CFrame.lookAt(Vector3.zero, ArmEnd - ArmStart).Rotation
-			local ArmRotationBlend = 1 - math.exp(-CleaningConfig.FakeArmRotationResponsiveness * DeltaTime)
-			SmoothedFakeArmRotation = if SmoothedFakeArmRotation
-				then SmoothedFakeArmRotation:Lerp(DesiredArmRotation, ArmRotationBlend)
-				else DesiredArmRotation
-			-- Keep the hand attached to the tool while the shoulder end absorbs abrupt normal changes.
-			local ArmCenter = ArmEnd - SmoothedFakeArmRotation.LookVector * ArmLength / 2
+			-- Keep the shoulder fixed while easing only the tool-side endpoint across surface-normal changes.
 			FakeArm.Transparency = 0
 			FakeArm.Size = Vector3.new(CleaningConfig.FakeArmThickness, CleaningConfig.FakeArmThickness, ArmLength)
-			FakeArm.CFrame = SmoothedFakeArmRotation + ArmCenter
+			FakeArm.CFrame = CFrame.lookAt(ArmStart:Lerp(ArmEnd, 0.5), ArmEnd)
 		else
 			FakeArm.Transparency = 1
-			SmoothedFakeArmRotation = nil
+			SmoothedFakeArmEndPosition = nil
 		end
 	end
 end
