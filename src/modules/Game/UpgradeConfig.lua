@@ -66,7 +66,9 @@ local UpgradeConfig = {
 	MaximumMysteryDistance = 2,
 	CameraBounds = Vector2.new(2_100, 1_650),
 	DefaultDisplayLimit = 8,
-	DefaultVisitorsPerDisplay = 2,
+	-- Guest counts use this exact decimal until the completed per-level formula is rounded up.
+	DefaultGuestsPerItem = 2.5,
+	DefaultVisitorsPerDisplay = 2.5,
 	DefaultBatId = "WoodenBat",
 	DefaultWalkSpeed = 25,
 	DefaultJumpHeight = 7.2,
@@ -247,42 +249,74 @@ local UpgradeConfig = {
 		},
 		{
 			Id = "Visitors3",
-			Name = "3 Guests",
-			Description = "Allows three visitors to inspect one exhibit at once.",
-			Cost = 15000,
+			Name = "Guest Population I",
+			Description = "Raises the guest population to 3 guests per displayed item.",
+			Cost = 15_000,
+			FixedCost = true,
 			Icon = "Binoculars",
 			Position = GetVisitorPosition(1),
 			Prerequisites = { "Start" },
 			ConnectedUpgrades = { "Visitors4" },
 			Branch = "MuseumCapacity",
-			ShortValue = "3 Guests",
-			Effect = { Type = "VisitorsPerDisplay", Value = 3 },
+			ShortValue = "3 / ITEM",
+			-- Keep the legacy ID so previously purchased guest upgrades remain owned.
+			Effect = { Type = "GuestsPerItem", Value = 3.0, Tier = 1 },
 		},
 		{
 			Id = "Visitors4",
-			Name = "4 Guests",
-			Description = "Allows four visitors to inspect one exhibit at once.",
-			Cost = 2_000_000,
+			Name = "Guest Population II",
+			Description = "Raises the guest population to 3.4 guests per displayed item.",
+			Cost = 150_000,
+			FixedCost = true,
 			Icon = "Binoculars",
 			Position = GetVisitorPosition(2),
 			Prerequisites = { "Visitors3" },
 			ConnectedUpgrades = { "Visitors5" },
 			Branch = "MuseumCapacity",
-			ShortValue = "4 Guests",
-			Effect = { Type = "VisitorsPerDisplay", Value = 4 },
+			ShortValue = "3.4 / ITEM",
+			Effect = { Type = "GuestsPerItem", Value = 3.4, Tier = 2 },
 		},
 		{
 			Id = "Visitors5",
-			Name = "5 Guests",
-			Description = "Allows the maximum of five visitors at one exhibit.",
-			Cost = 25_000_000,
+			Name = "Guest Population III",
+			Description = "Raises the guest population to 3.75 guests per displayed item.",
+			Cost = 1_500_000,
+			FixedCost = true,
 			Icon = "Binoculars",
 			Position = GetVisitorPosition(3),
 			Prerequisites = { "Visitors4" },
+			ConnectedUpgrades = { "GuestPopulationIV" },
+			Branch = "MuseumCapacity",
+			ShortValue = "3.75 / ITEM",
+			Effect = { Type = "GuestsPerItem", Value = 3.75, Tier = 3 },
+		},
+		{
+			Id = "GuestPopulationIV",
+			Name = "Guest Population IV",
+			Description = "Raises the guest population to 4.05 guests per displayed item.",
+			Cost = 7_500_000,
+			FixedCost = true,
+			Icon = "Binoculars",
+			Position = GetVisitorPosition(4),
+			Prerequisites = { "Visitors5" },
+			ConnectedUpgrades = { "GuestPopulationV" },
+			Branch = "MuseumCapacity",
+			ShortValue = "4.05 / ITEM",
+			Effect = { Type = "GuestsPerItem", Value = 4.05, Tier = 4 },
+		},
+		{
+			Id = "GuestPopulationV",
+			Name = "Guest Population V",
+			Description = "Raises the guest population to 4.35 guests per displayed item.",
+			Cost = 30_000_000,
+			FixedCost = true,
+			Icon = "Binoculars",
+			Position = GetVisitorPosition(5),
+			Prerequisites = { "GuestPopulationIV" },
 			ConnectedUpgrades = {},
 			Branch = "MuseumCapacity",
-			ShortValue = "5 Guests",
-			Effect = { Type = "VisitorsPerDisplay", Value = 5 },
+			ShortValue = "4.35 / ITEM",
+			Effect = { Type = "GuestsPerItem", Value = 4.35, Tier = 5 },
 		},
 		{
 			Id = "UnlockSoftBrush",
@@ -1017,6 +1051,7 @@ local function GetEconomyStage(Upgrade): number
 	local Effect = Upgrade.Effect
 	if not Effect then return 1 end
 	if Effect.Type == "DisplayLimit" then return math.clamp(math.ceil((Effect.Value - 8) / 2), 1, 7) end
+	if Effect.Type == "GuestsPerItem" then return math.clamp(Effect.Tier, 1, 7) end
 	if Effect.Type == "VisitorsPerDisplay" then return math.clamp(Effect.Value - 2, 1, 7) end
 	if Effect.Type == "BatTier" then return math.clamp(math.ceil((Effect.Tier - 1) / 2), 1, 7) end
 	if Effect.Type == "BatCooldown" then return tonumber(string.match(Upgrade.Id, "%d+$")) or 1 end
@@ -1031,7 +1066,10 @@ local function GetEconomyStage(Upgrade): number
 end
 
 for _, Upgrade in UpgradeConfig.Upgrades do
-	Upgrade.Cost = EconomyConfig.GetUpgradeCost(Upgrade.Cost, GetEconomyStage(Upgrade))
+	-- Fixed prices are explicit balancing targets and must not be changed by global economy scaling.
+	if Upgrade.FixedCost ~= true then
+		Upgrade.Cost = EconomyConfig.GetUpgradeCost(Upgrade.Cost, GetEconomyStage(Upgrade))
+	end
 end
 
 function UpgradeConfig.Get(UpgradeId: string)

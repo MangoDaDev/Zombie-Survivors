@@ -23,16 +23,23 @@ local UpgradeLogic = require(ReplicatedStorage.Modules.Game.UpgradeLogic)
 local LocalPlayer = Players.LocalPlayer
 local BatController = {}
 local HookedTools: { [Tool]: boolean } = {}
+local ActiveSwings: { [Tool]: any } = {}
+local RemoteSwingStates: { [Player]: any } = {}
 local CratePredictions = {}
 local CrateReactions = {}
 local DebrisFolder: Folder
 local ActiveDebrisCount = 0
 local Network
 local RandomGenerator = Random.new()
+local RagdollBlocked = false
 local MAXIMUM_DEBRIS_COUNT = 100
 local DebrisCollisionDuration = 0.85
 local CreateCrateDebris
 local ShakeCamera
+
+local function IsRagdolled(): boolean
+	return RagdollBlocked or RuntimeState.Get(LocalPlayer, "IsPvpStunned", false) == true
+end
 
 local function GetBatInfo(BatId)
 	for _, Info in BatInfo do
@@ -417,7 +424,7 @@ local function GetRightGrip(Tool, Handle)
 	end
 end
 
-local function PlaySwingAnimation(Tool, Info, SwingCooldown, UseGripJoint): boolean
+local function PlaySwingAnimation(Tool, Info, SwingCooldown, UseGripJoint, SwingState): boolean
 	local Handle = Tool:FindFirstChild "Handle"
 	if not Handle or not Handle:IsA "BasePart" then
 		return false
@@ -436,15 +443,24 @@ local function PlaySwingAnimation(Tool, Info, SwingCooldown, UseGripJoint): bool
 	if Trail then
 		Trail.Enabled = true
 	end
-	Sounds.Play(Info.SwingSoundName, Handle, 70)
-	TweenService:Create(
+	local SwingSound = Sounds.Play(Info.SwingSoundName, Handle, 70)
+	local ForwardTween = TweenService:Create(
 		GripTarget,
 		TweenInfo.new(Info.ImpactDelay, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
 		{ [GripProperty] = SwingGrip }
-	):Play()
+	)
+	if SwingState then
+		SwingState.ForwardTween = ForwardTween
+		SwingState.GripProperty = GripProperty
+		SwingState.GripTarget = GripTarget
+		SwingState.OriginalGrip = OriginalGrip
+		SwingState.SwingSound = SwingSound
+		SwingState.Trail = Trail
+	end
+	ForwardTween:Play()
 	task.delay(Info.ImpactDelay, function()
-		if not Tool.Parent or not GripTarget.Parent then return end
-		TweenService:Create(
+		if (SwingState and SwingState.Cancelled) or not Tool.Parent or not GripTarget.Parent then return end
+		local ReturnTween = TweenService:Create(
 			GripTarget,
 			TweenInfo.new(
 				math.max(SwingCooldown - Info.ImpactDelay, 0.05),
@@ -452,18 +468,53 @@ local function PlaySwingAnimation(Tool, Info, SwingCooldown, UseGripJoint): bool
 				Enum.EasingDirection.Out
 			),
 			{ [GripProperty] = OriginalGrip }
-		):Play()
+		)
+		if SwingState then SwingState.ReturnTween = ReturnTween end
+		ReturnTween:Play()
 	end)
 	task.delay(SwingCooldown, function()
-		if Trail and Trail.Parent then
+		if Trail and Trail.Parent and (not SwingState or not SwingState.Cancelled) then
 			Trail.Enabled = false
 		end
 	end)
 	return true
 end
 
+local function CancelSwingState(SwingState)
+	if not SwingState or SwingState.Cancelled then return end
+	SwingState.Cancelled = true
+	if SwingState.ForwardTween then SwingState.ForwardTween:Cancel() end
+	if SwingState.ReturnTween then SwingState.ReturnTween:Cancel() end
+	if SwingState.GripTarget and SwingState.GripTarget.Parent then
+		SwingState.GripTarget[SwingState.GripProperty] = SwingState.OriginalGrip
+	end
+	if SwingState.Trail and SwingState.Trail.Parent then SwingState.Trail.Enabled = false end
+	if SwingState.SwingSound and SwingState.SwingSound.Parent then SwingState.SwingSound:Stop() end
+end
+
+local function CancelSwing(Tool)
+	CancelSwingState(ActiveSwings[Tool])
+end
+
+local function UpdateBatAvailability()
+	local IsPlayerRagdolled = IsRagdolled()
+	for _, Container in { LocalPlayer.Character, LocalPlayer:FindFirstChildOfClass("Backpack") } do
+		if not Container then continue end
+		for _, Tool in Container:GetChildren() do
+			if not ToolResolver.GetBatInfo(Tool) then continue end
+			if IsPlayerRagdolled then
+				-- Ragdoll always cancels the active Bat attack and blocks equipped or backpack activation.
+				CancelSwing(Tool)
+				Tool.Enabled = false
+			elseif not ActiveSwings[Tool] then
+				Tool.Enabled = true
+			end
+		end
+	end
+end
+
 local function Swing(Tool, Info)
-	if Tool.Enabled == false or Tool.Parent ~= LocalPlayer.Character then
+	if IsRagdolled() or Tool.Enabled == false or Tool.Parent ~= LocalPlayer.Character then
 		return
 	end
 	Tool.Enabled = false
@@ -475,20 +526,20 @@ local function Swing(Tool, Info)
 	local Ownership = DataService:get "Upgrades"
 	local CooldownMultiplier = UpgradeLogic.GetBatCooldownMultiplier(Ownership)
 	local SwingCooldown = Info.SwingCooldown * CooldownMultiplier
+	local SwingState = { Cancelled = false }
+	ActiveSwings[Tool] = SwingState
+	local SwingTime = Workspace:GetServerTimeNow()
 	-- Client-side Tool.Grip animation does not replicate, so every swing needs an explicit visual broadcast.
 	Network:fire("BroadcastSwing", Info.Id)
-	-- Resolve local crate hits immediately; animation timing must never delay break prediction or roulette.
-	local SwingTime = Workspace:GetServerTimeNow()
-	local TargetCount = DetectTargets(Tool, Info, SwingTime)
-	PlaySwingAnimation(Tool, Info, SwingCooldown, false)
+	PlaySwingAnimation(Tool, Info, SwingCooldown, false, SwingState)
 	task.delay(Info.ImpactDelay, function()
-		-- Retry once at the visual impact frame only when the immediate scan found nothing.
-		if TargetCount == 0 and Tool.Parent == LocalPlayer.Character then
-			DetectTargets(Tool, Info, SwingTime)
-		end
+		if SwingState.Cancelled or IsRagdolled() or Tool.Parent ~= LocalPlayer.Character then return end
+		-- Delay authority and hit detection until impact so a ragdoll during wind-up cancels the attack.
+		DetectTargets(Tool, Info, SwingTime)
 	end)
 	task.delay(SwingCooldown, function()
-		if Tool.Parent then
+		if ActiveSwings[Tool] == SwingState then ActiveSwings[Tool] = nil end
+		if Tool.Parent and not IsRagdolled() then
 			Tool.Enabled = true
 		end
 	end)
@@ -503,6 +554,7 @@ local function HookTool(Tool)
 		return
 	end
 	HookedTools[Tool] = true
+	if IsRagdolled() then Tool.Enabled = false end
 	Tool.Equipped:Connect(function()
 		local Handle = Tool:FindFirstChild "Handle"
 		if Handle then
@@ -513,6 +565,8 @@ local function HookTool(Tool)
 		Swing(Tool, Info)
 	end)
 	Tool.Destroying:Once(function()
+		CancelSwing(Tool)
+		ActiveSwings[Tool] = nil
 		HookedTools[Tool] = nil
 	end)
 end
@@ -529,6 +583,11 @@ function BatController.Init()
 	DebrisFolder.Name = "LocalCrateDebris"
 	DebrisFolder.Parent = Workspace
 	Network = Networker.client.new("BatController", BatController)
+	RuntimeState.GetChangedSignal(LocalPlayer, "IsPvpStunned"):Connect(function(IsStunned)
+		RagdollBlocked = IsStunned == true
+		UpdateBatAvailability()
+	end)
+	UpdateBatAvailability()
 	RunService.RenderStepped:Connect(function()
 		local Now = os.clock()
 		for Model, State in CratePredictions do
@@ -607,11 +666,15 @@ function BatController.PlaySwing(_, Player, BatId, SwingCooldown)
 	if not Character then return end
 	local Finished = false
 	local Connection
+	local SwingState = { Cancelled = false }
+	RemoteSwingStates[Player] = SwingState
 	local function TryPlay()
-		if Finished or Player.Character ~= Character then return end
+		if Finished or SwingState.Cancelled or Player.Character ~= Character then return end
 		for _, Child in Character:GetChildren() do
 			local ChildInfo = ToolResolver.GetBatInfo(Child)
-			if ChildInfo and ChildInfo.Id == BatId and PlaySwingAnimation(Child, Info, SwingCooldown, true) then
+			if ChildInfo and ChildInfo.Id == BatId
+				and PlaySwingAnimation(Child, Info, SwingCooldown, true, SwingState)
+			then
 				Finished = true
 				if Connection then Connection:Disconnect() end
 				return
@@ -619,12 +682,31 @@ function BatController.PlaySwing(_, Player, BatId, SwingCooldown)
 		end
 	end
 	TryPlay()
+	task.delay(SwingCooldown, function()
+		if RemoteSwingStates[Player] == SwingState then RemoteSwingStates[Player] = nil end
+	end)
 	if Finished then return end
 	-- The swing event may beat the replicated Tool or RightGrip hierarchy to an observing client.
 	Connection = Character.DescendantAdded:Connect(TryPlay)
 	task.delay(1, function()
 		if Connection and Connection.Connected then Connection:Disconnect() end
 	end)
+end
+
+function BatController.CancelSwing(_, Player)
+	if typeof(Player) ~= "Instance" or not Player:IsA("Player") or Player.Parent ~= Players then return end
+	if Player == LocalPlayer then
+		RagdollBlocked = true
+		for Tool in ActiveSwings do CancelSwing(Tool) end
+		for _, Container in { LocalPlayer.Character, LocalPlayer:FindFirstChildOfClass("Backpack") } do
+			if not Container then continue end
+			for _, Tool in Container:GetChildren() do
+				if ToolResolver.GetBatInfo(Tool) then Tool.Enabled = false end
+			end
+		end
+		return
+	end
+	CancelSwingState(RemoteSwingStates[Player])
 end
 
 function BatController.OnCharacterAdded(Character)

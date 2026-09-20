@@ -229,6 +229,8 @@ local function HitPlayer(Attacker: Player, TargetPlayer: Player, AttackerRoot: B
 	}
 	StunStates[TargetPlayer] = State
 	PlayerStateController.Set(TargetPlayer, "IsPvpStunned", true)
+	Network:fire(TargetPlayer, "CancelSwing", TargetPlayer)
+	Network:fireAllExcept(TargetPlayer, "CancelSwing", TargetPlayer)
 	-- PvP is displacement-only: the server applies a temporary physics stun and never damages health.
 	TargetHumanoid.AutoRotate = false
 	TargetHumanoid.PlatformStand = true
@@ -257,6 +259,7 @@ function BatController.Swing(_, Player, Targets, BatId, SwingTime)
 			then Network:fire(Player, "CrateHitRejected", TargetData.Model, TargetData.PredictionId, Reason) end
 		end
 	end
+	-- Ragdolled players must never authorize Bat hit detection or damage, including queued client attacks.
 	if PlayerStateController.Get(Player, "IsFixing", false) == true
 		or PlayerStateController.Get(Player, "IsPvpStunned", false) == true
 	then RejectCratePredictions("PlayerState"); return end

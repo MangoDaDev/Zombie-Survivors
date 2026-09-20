@@ -122,16 +122,19 @@ function UpgradeLogic.GetDisplayLimit(Ownership): number
 	return Limit
 end
 
-function UpgradeLogic.GetVisitorsPerDisplay(Ownership): number
-	local Limit = UpgradeConfig.DefaultVisitorsPerDisplay
+function UpgradeLogic.GetGuestsPerItem(Ownership): number
+	local Limit = UpgradeConfig.DefaultGuestsPerItem
 	for _, Upgrade in UpgradeConfig.Upgrades do
 		local Effect = Upgrade.Effect
-		if UpgradeLogic.IsPurchased(Ownership, Upgrade.Id) and Effect and Effect.Type == "VisitorsPerDisplay" then
+		if UpgradeLogic.IsPurchased(Ownership, Upgrade.Id) and Effect and Effect.Type == "GuestsPerItem" then
 			Limit = math.max(Limit, Effect.Value)
 		end
 	end
 	return Limit
 end
+
+-- Preserve the old public API for systems outside this repository that may still call it.
+UpgradeLogic.GetVisitorsPerDisplay = UpgradeLogic.GetGuestsPerItem
 
 function UpgradeLogic.IsToolUnlocked(Ownership, ToolId: string): boolean
 	if ToolId == "Spray" then return true end

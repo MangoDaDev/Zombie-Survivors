@@ -184,7 +184,7 @@ local visitTokens: { [Player]: {} } = {}
 local activeVisitors: { [Player]: { [any]: number } } = {}
 local DisplayReservations: { [Player]: { [any]: number } } = {}
 local ActiveCounts: { [Player]: { [number]: number } } = {}
-local VisitorsPerDisplay: { [Player]: number } = {}
+local GuestsPerItem: { [Player]: number } = {}
 local UpgradeConnections: { [Player]: RBXScriptConnection } = {}
 local LevelRuntime: { [Player]: { [number]: any } } = {}
 local ReadyPlayers: { [Player]: boolean } = {}
@@ -382,7 +382,7 @@ local function GetAvailableDisplays(Player: Player, LevelNumber: number): { any 
 	if not Reservations then
 		return AvailableDisplays
 	end
-	local VisitorLimit = VisitorsPerDisplay[Player] or UpgradeLogic.GetVisitorsPerDisplay(dataService:get(Player, "Upgrades"))
+	local VisitorLimit = GuestsPerItem[Player] or UpgradeLogic.GetGuestsPerItem(dataService:get(Player, "Upgrades"))
 	for _, DisplayState in MuseumController.GetOccupiedDisplays(Player, LevelNumber) do
 		if (Reservations[DisplayState] or 0) < VisitorLimit then
 			table.insert(AvailableDisplays, DisplayState)
@@ -393,9 +393,9 @@ end
 
 local function GetActiveVisitorLimit(Player: Player, LevelNumber: number): number
 	local OccupiedDisplayCount = #MuseumController.GetOccupiedDisplays(Player, LevelNumber)
-	local VisitorLimit = VisitorsPerDisplay[Player] or UpgradeLogic.GetVisitorsPerDisplay(dataService:get(Player, "Upgrades"))
-	-- Each level's visitor population is based only on the items displayed on that level.
-	return OccupiedDisplayCount * VisitorLimit
+	local VisitorLimit = GuestsPerItem[Player] or UpgradeLogic.GetGuestsPerItem(dataService:get(Player, "Upgrades"))
+	-- Use the exact guests-per-item decimal in the full level formula, then round only the final guest count up.
+	return math.ceil(OccupiedDisplayCount * VisitorLimit)
 end
 
 local function ReserveDisplay(Player: Player, DisplayState): boolean
@@ -403,7 +403,7 @@ local function ReserveDisplay(Player: Player, DisplayState): boolean
 	if not Reservations then
 		return false
 	end
-	local VisitorLimit = VisitorsPerDisplay[Player] or UpgradeLogic.GetVisitorsPerDisplay(dataService:get(Player, "Upgrades"))
+	local VisitorLimit = GuestsPerItem[Player] or UpgradeLogic.GetGuestsPerItem(dataService:get(Player, "Upgrades"))
 	local CurrentCount = Reservations[DisplayState] or 0
 	if CurrentCount >= VisitorLimit then
 		return false
@@ -567,9 +567,9 @@ function VisitorController.OnPlayerAdded(player: Player)
 	ActiveCounts[player] = {}
 	LevelRuntime[player] = {}
 	SubscribersByOwner[player] = {}
-	VisitorsPerDisplay[player] = UpgradeLogic.GetVisitorsPerDisplay(dataService:get(player, "Upgrades"))
+	GuestsPerItem[player] = UpgradeLogic.GetGuestsPerItem(dataService:get(player, "Upgrades"))
 	UpgradeConnections[player] = dataService:getChangedSignal(player, "Upgrades"):Connect(function()
-		VisitorsPerDisplay[player] = UpgradeLogic.GetVisitorsPerDisplay(dataService:get(player, "Upgrades"))
+		GuestsPerItem[player] = UpgradeLogic.GetGuestsPerItem(dataService:get(player, "Upgrades"))
 	end)
 	if ReadyPlayers[player] then AddSubscriber(player, player) end
 	task.spawn(function()
@@ -592,7 +592,7 @@ function VisitorController.OnPlayerRemoving(player: Player)
 	activeVisitors[player] = nil
 	DisplayReservations[player] = nil
 	ActiveCounts[player] = nil
-	VisitorsPerDisplay[player] = nil
+	GuestsPerItem[player] = nil
 	LevelRuntime[player] = nil
 	ReadyPlayers[player] = nil
 	LastViewRequestAt[player] = nil
