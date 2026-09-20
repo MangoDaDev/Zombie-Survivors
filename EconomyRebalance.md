@@ -71,12 +71,12 @@ This matches the cumulative restoration steps: tiers 1-6 introduce Spray; Sponge
 | Tier / first rarity | Required unlocked tools | Old cumulative unlock cost | New cumulative unlock cost | Old -> new minimum item price | New gate/price ratio |
 | --- | --- | ---: | ---: | ---: | ---: |
 | 1 / Common | Spray | 0 | 0 | 80 -> 120 | 0% |
-| 2 / Uncommon | Sponge, Soft Brush | 9,150 | 550 | 650 -> 700 | 79% |
-| 3 / Rare | + Hairdryer | 21,150 | 2,350 | 8,000 -> 4,000 | 59% |
-| 4 / Epic | + Spray Paint, Polisher | 4,756,150 | 21,350 | 55,000 -> 30,000 | 71% |
-| 5 / Legendary | + Hammer | 4,756,150 | 61,350 | 350,000 -> 150,000 | 41% |
-| 6 / Mythic | + Magnet | 4,756,150 | 241,350 | 1,500,000 -> 800,000 | 30% |
-| 7 / Secret | Same complete set | 4,756,150 | 241,350 | 7,500,000 -> 5,000,000 | 5% |
+| 2 / Uncommon | Sponge, Soft Brush | 9,150 | 1,200 | 650 -> 700 | 79% |
+| 3 / Rare | + Hairdryer | 21,150 | 5,200 | 8,000 -> 4,000 | 59% |
+| 4 / Epic | + Spray Paint, Polisher | 4,756,150 | 40,200 | 55,000 -> 30,000 | 71% |
+| 5 / Legendary | + Hammer | 4,756,150 | 340,200 | 350,000 -> 150,000 | 41% |
+| 6 / Mythic | + Magnet | 4,756,150 | 2,940,200 | 1,500,000 -> 800,000 | 30% |
+| 7 / Secret | Same complete set | 4,756,150 | 2,940,200 | 7,500,000 -> 5,000,000 | 5% |
 
 | Restoration setting | Old | New |
 | --- | ---: | ---: |
@@ -165,7 +165,7 @@ Cooldown upgrade multipliers changed from `0.90 / 0.78 / 0.64` to `0.88 / 0.75 /
 
 ## Upgrade costs and cumulative paths
 
-The total price of every purchasable upgrade fell from approximately 2.397B to 193.324M. Late progression still has substantial goals, but the 1B single-node cliff is gone.
+The total price of every purchasable upgrade fell from approximately 2.397B to 249.902M. Late progression still has substantial goals, but the 1B single-node cliff is gone.
 
 ### Museum
 
@@ -192,12 +192,12 @@ The total price of every purchasable upgrade fell from approximately 2.397B to 1
 | Upgrade | Old -> new direct cost | New cumulative unlock cost |
 | --- | ---: | ---: |
 | Sponge | 250 -> 200 | 200 |
-| Soft Brush | 900 -> 350 | 550 |
-| Hairdryer | 12,000 -> 1,800 | 2,350 |
-| Spray Paint | 8,000 -> 7,000 | 9,350 |
-| Polisher | 4,000,000 -> 12,000 | 21,350 |
-| Hammer | 85,000 -> 40,000 | 61,350 |
-| Magnet | 650,000 -> 180,000 | 241,350 |
+| Soft Brush | 900 -> 1,000 | 1,200 |
+| Hairdryer | 12,000 -> 4,000 | 5,200 |
+| Spray Paint | 8,000 -> 10,000 | 15,200 |
+| Polisher | 4,000,000 -> 25,000 | 40,200 |
+| Hammer | 85,000 -> 300,000 | 340,200 |
+| Magnet | 650,000 -> 2,600,000 | 2,940,200 |
 
 ### Restoration speed paths
 
@@ -207,12 +207,12 @@ The cumulative column includes that tool's full unlock prerequisites.
 | --- | ---: | ---: | ---: |
 | Spray | 500 / 25,000 / 1,000,000 | 400 / 4,000 / 40,000 | 400 / 4,400 / 44,400 |
 | Sponge | 3,000 / 60,000 / 1,250,000 | 700 / 7,000 / 70,000 | 900 / 7,900 / 77,900 |
-| Soft Brush | 5,000 / 100,000 / 2,000,000 | 900 / 9,000 / 90,000 | 1,450 / 10,450 / 100,450 |
-| Hairdryer | 50,000 / 750,000 / 10,000,000 | 2,500 / 25,000 / 250,000 | 4,850 / 29,850 / 279,850 |
-| Spray Paint | 35,000 / 400,000 / 5,000,000 | 8,000 / 80,000 / 800,000 | 17,350 / 97,350 / 897,350 |
-| Polisher | 15,000,000 / 150,000,000 / 1,000,000,000 | 12,000 / 120,000 / 1,200,000 | 33,350 / 153,350 / 1,353,350 |
-| Hammer | 350,000 / 5,000,000 / 60,000,000 | 50,000 / 500,000 / 5,000,000 | 111,350 / 611,350 / 5,611,350 |
-| Magnet | 2,500,000 / 30,000,000 / 300,000,000 | 220,000 / 2,200,000 / 22,000,000 | 461,350 / 2,661,350 / 24,661,350 |
+| Soft Brush | 5,000 / 100,000 / 2,000,000 | 1,500 / 9,000 / 90,000 | 2,700 / 11,700 / 101,700 |
+| Hairdryer | 50,000 / 750,000 / 10,000,000 | 6,000 / 25,000 / 250,000 | 11,200 / 36,200 / 286,200 |
+| Spray Paint | 35,000 / 400,000 / 5,000,000 | 15,000 / 120,000 / 1,200,000 | 30,200 / 150,200 / 1,350,200 |
+| Polisher | 15,000,000 / 150,000,000 / 1,000,000,000 | 30,000 / 300,000 / 3,000,000 | 70,200 / 370,200 / 3,370,200 |
+| Hammer | 350,000 / 5,000,000 / 60,000,000 | 400,000 / 3,000,000 / 18,000,000 | 740,200 / 3,740,200 / 21,740,200 |
+| Magnet | 2,500,000 / 30,000,000 / 300,000,000 | 3,000,000 / 12,000,000 / 45,000,000 | 5,940,200 / 17,940,200 / 62,940,200 |
 
 ### Combat
 
@@ -265,9 +265,9 @@ Representative payback checks:
 | Visitors4 | Eight Rare displays; adds one visitor slot each | 4 minutes |
 | Visitors5 | Twelve Epic displays; adds one visitor slot each | 7 minutes |
 | Spray Speed I | 15% throughput improvement at the Common stage | 3 minutes |
-| Hairdryer Speed I | 12% throughput improvement at the Rare stage | 2 minutes |
-| Polisher Speed I | 12% throughput improvement at the Epic stage | 2 minutes |
-| Magnet Speed I | 8% throughput improvement at the Mythic stage | 3 minutes |
+| Hairdryer Speed I | 12% throughput improvement at the Rare stage | 5 minutes |
+| Polisher Speed I | 12% throughput improvement at the Epic stage | 5 minutes |
+| Magnet Speed I | 8% throughput improvement at the Mythic stage | 40 minutes |
 | Stone Bat | Saves about 1.13s per Common crate | about 9 minutes |
 | Iron Bat | Saves about 2.04s per Rare crate versus Bronze | about 21 minutes |
 | Gold Bat | Saves about 3.55s per Epic crate versus Iron | about 13 minutes |
@@ -283,9 +283,9 @@ Higher speed levels cost roughly 10x the prior level, so their payback intention
 | Four guaranteed Common restorations | Roughly 4-8 minutes including tutorial movement and reveal time; yields about 2,770 net cash before visitor payments. |
 | Sponge + Soft Brush + Spray Speed I + Stone Bat | Roughly 6-12 minutes without needing a rare drop. |
 | Hairdryer and meaningful museum/combat choices | Roughly 10-20 minutes depending on display use and crate choice. |
-| Complete Epic tool set through Polisher | Roughly 25-45 minutes. |
-| Hammer / established midgame | Roughly 40-75 minutes. |
-| Magnet / Mythic-ready restoration | Roughly 1-2 hours. |
+| Complete Epic tool set through Polisher | Roughly 30-50 minutes. |
+| Hammer / established late game | Roughly 1-2 hours. |
+| Magnet / Mythic-ready restoration | A multi-hour end-game milestone. |
 | High late-game branches | Multi-hour goals; top display, tool-speed, and bat paths remain optional specializations rather than required gates. |
 
 ## Recovery protection and validation

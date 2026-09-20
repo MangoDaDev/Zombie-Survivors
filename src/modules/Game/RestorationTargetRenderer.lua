@@ -30,44 +30,6 @@ local function GetReferenceCFrame(Model: Model): CFrame
 	return if Box and Box:IsA("BasePart") then Box.CFrame else Model:GetPivot()
 end
 
-local function GetCounterpart(Model: Model, Template: Model, Target: BasePart): BasePart?
-	local Path = {}
-	local Current: Instance = Target
-	while Current ~= Model do
-		local Parent = Current.Parent
-		if not Parent then return nil end
-		local Ordinal = 0
-		for _, Sibling in Parent:GetChildren() do
-			if Sibling.Name == Current.Name and Sibling.ClassName == Current.ClassName then
-				Ordinal += 1
-				if Sibling == Current then break end
-			end
-		end
-		table.insert(Path, 1, { ClassName = Current.ClassName, Name = Current.Name, Ordinal = Ordinal })
-		Current = Parent
-	end
-
-	Current = Template
-	for _, Segment in Path do
-		local Ordinal = 0
-		local Match
-		for _, Child in Current:GetChildren() do
-			if Child.Name == Segment.Name and Child.ClassName == Segment.ClassName then
-				Ordinal += 1
-				if Ordinal == Segment.Ordinal then Match = Child; break end
-			end
-		end
-		if not Match then return nil end
-		Current = Match
-	end
-	return if Current:IsA("BasePart") then Current else nil
-end
-
-function RestorationTargetRenderer.GetOriginalRelativeCFrame(Model: Model, Target: BasePart, Template: Model): CFrame?
-	local TemplateTarget = GetCounterpart(Model, Template, Target)
-	return if TemplateTarget then GetReferenceCFrame(Template):ToObjectSpace(TemplateTarget.CFrame) else nil
-end
-
 function RestorationTargetRenderer.GetBentParts(Model: Model, Count: number?): { BasePart }
 	local Box = Model:FindFirstChild("BoundingBox")
 	local Center = if Box and Box:IsA("BasePart") then Box.Position else Model:GetPivot().Position
@@ -286,17 +248,28 @@ function RestorationTargetRenderer.GetState(Target: BasePart)
 	return States[Target]
 end
 
+function RestorationTargetRenderer.ApplyCurrentTransform(Model: Model, Target: BasePart)
+	local State = States[Target]
+	if not State or not Target.Parent then return end
+	if State.RestoredRelativeCFrame and State.StartRelativeCFrame then
+		local RestoredAmount = 1 - State.CurrentHealth / math.max(State.MaximumHealth, 0.001)
+		local RelativeCFrame = if State.CurrentHealth <= 0
+			then State.RestoredRelativeCFrame
+			else State.StartRelativeCFrame:Lerp(State.RestoredRelativeCFrame, RestoredAmount)
+		Target.CFrame = GetReferenceCFrame(Model) * RelativeCFrame
+	elseif State.RestoredCFrame and State.StartCFrame then
+		local RestoredAmount = 1 - State.CurrentHealth / math.max(State.MaximumHealth, 0.001)
+		Target.CFrame = if State.CurrentHealth <= 0
+			then State.RestoredCFrame
+			else State.StartCFrame:Lerp(State.RestoredCFrame, RestoredAmount)
+	end
+end
+
 function RestorationTargetRenderer.SetHealth(Model: Model, Target: BasePart, CurrentHealth: number)
 	local State = States[Target]
 	if not State or not Target.Parent then return end
 	State.CurrentHealth = math.clamp(CurrentHealth, 0, State.MaximumHealth)
-	if State.RestoredRelativeCFrame and State.StartRelativeCFrame then
-		local RestoredAmount = 1 - State.CurrentHealth / math.max(State.MaximumHealth, 0.001)
-		Target.CFrame = GetReferenceCFrame(Model) * State.StartRelativeCFrame:Lerp(State.RestoredRelativeCFrame, RestoredAmount)
-	elseif State.RestoredCFrame and State.StartCFrame then
-		local RestoredAmount = 1 - State.CurrentHealth / math.max(State.MaximumHealth, 0.001)
-		Target.CFrame = State.StartCFrame:Lerp(State.RestoredCFrame, RestoredAmount)
-	end
+	RestorationTargetRenderer.ApplyCurrentTransform(Model, Target)
 end
 
 function RestorationTargetRenderer.Restore(Model: Model, Target: BasePart)
@@ -305,9 +278,11 @@ function RestorationTargetRenderer.Restore(Model: Model, Target: BasePart)
 	if State.OriginalColor then
 		Target.Color = State.OriginalColor
 	elseif State.RestoredRelativeCFrame then
-		Target.CFrame = GetReferenceCFrame(Model) * State.RestoredRelativeCFrame
+		State.CurrentHealth = 0
+		RestorationTargetRenderer.ApplyCurrentTransform(Model, Target)
 	elseif State.RestoredCFrame then
-		Target.CFrame = State.RestoredCFrame
+		State.CurrentHealth = 0
+		RestorationTargetRenderer.ApplyCurrentTransform(Model, Target)
 	end
 end
 

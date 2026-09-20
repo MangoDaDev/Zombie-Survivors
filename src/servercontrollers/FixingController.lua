@@ -63,10 +63,9 @@ local function PlaceItemOnTable(Model: Model, Box: BasePart, TableSurface: BaseP
 	Model:PivotTo(BoxCFrame * BoxOffset:Inverse())
 end
 
-local function RotateItemAroundBoundingBox(Model: Model, Box: BasePart, SurfaceNormal: Vector3, Rotation: number)
-	local BoxCenter = Box.Position
+local function RotateItemAroundBoundingBox(Model: Model, InitialPivot: CFrame, BoxCenter: Vector3, SurfaceNormal: Vector3, Rotation: number)
 	local RotationCFrame = CFrame.fromAxisAngle(SurfaceNormal, Rotation)
-	Model:PivotTo(CFrame.new(BoxCenter) * RotationCFrame * CFrame.new(-BoxCenter) * Model:GetPivot())
+	Model:PivotTo(CFrame.new(BoxCenter) * RotationCFrame * CFrame.new(-BoxCenter) * InitialPivot)
 end
 
 local function IsToolUnlocked(Player, ToolId): boolean
@@ -162,6 +161,18 @@ local function GetTargets(Session): { BasePart }
 	end
 	if Step and Step.Type == "Paint" then return Session.PaintTargets or {} end
 	return if Step then Session.RestorationTargets[Step.Id] or {} else {}
+end
+
+local function GetBentTargetTransforms(Session, Step)
+	local Transforms = {}
+	for _, Target in Session.RestorationTargets[Step.Id] or {} do
+		local State = RestorationTargetRenderer.GetState(Target)
+		table.insert(Transforms, {
+			Damaged = State and State.StartRelativeCFrame or nil,
+			Restored = State and State.RestoredRelativeCFrame or nil,
+		})
+	end
+	return Transforms
 end
 
 local function GetTargetHP(Target, Step): number
@@ -279,6 +290,7 @@ local function PrepareAllTargets(Session)
 			else StepState.Remaining
 		local Targets = RestorationTargetRenderer.Add(Session.Model, Step.Type, TargetCount, Step.TargetHP, Step)
 		Session.RestorationTargets[Step.Id] = Targets
+		if Step.Type == "Bent" then Session.BentTargets = Targets end
 		if Step.Type == "Bent" and type(StepState.TargetHealth) == "table" then
 			for Index, Target in Targets do
 				local CurrentHealth = StepState.TargetHealth[Index]
@@ -365,6 +377,7 @@ local function PrepareCurrentStep(Player, Session)
 	PlayerStateController.Set(Player, "CleaningStepTotal", StepState.Total)
 	PlayerStateController.Set(Player, "CleaningStepRemaining", StepState.Remaining)
 	PlayerStateController.Set(Player, "CleaningTargetHealth", if Step.Type == "Bent" then StepState.TargetHealth else nil)
+	PlayerStateController.Set(Player, "CleaningTargetTransforms", if Step.Type == "Bent" then GetBentTargetTransforms(Session, Step) else nil)
 	PlayerStateController.Set(Player, "CleaningStepToolId", Step.ToolId)
 	PlayerStateController.Set(Player, "CleaningStepComplete", StepState.Completed == true)
 	UpdateProgress(Player, Session, true)
@@ -407,6 +420,7 @@ local function ClearSession(Player)
 	PlayerStateController.Set(Player, "CleaningStepTotal", nil)
 	PlayerStateController.Set(Player, "CleaningStepRemaining", nil)
 	PlayerStateController.Set(Player, "CleaningTargetHealth", nil)
+	PlayerStateController.Set(Player, "CleaningTargetTransforms", nil)
 	PlayerStateController.Set(Player, "CleaningRestorationComplete", nil)
 	PlayerStateController.Set(Player, "CleaningPaintCompleted", nil)
 	PlayerStateController.Set(Player, "CleaningPolishCompleted", nil)
@@ -592,11 +606,15 @@ local function StartFixing(Player)
 		IsUsingTool = false,
 		ActiveToolId = nil,
 		CurrentRotationSpeed = CONFIG.RotationSpeed,
+		InitialModelPivot = Model:GetPivot(),
+		PresentationRotation = 0,
+		RotationCenter = Box.Position,
 		StepIndex = StepIndex,
 		Completing = false,
 		TransitionId = 0,
 		LastProgress = -1,
 		RestoredBentTargets = {},
+		BentTargets = {},
 	}
 	Session.Connection = RunService.Heartbeat:Connect(function(DeltaTime)
 		if not Model.Parent or not RootPart.Parent or Humanoid.Health <= 0 then task.defer(ClearSession, Player); return end
@@ -604,7 +622,18 @@ local function StartFixing(Player)
 		local Blend = 1 - math.exp(-CONFIG.RotationResponsiveness * DeltaTime)
 		Session.CurrentRotationSpeed += (TargetRotationSpeed - Session.CurrentRotationSpeed) * Blend
 		if math.abs(TargetRotationSpeed - Session.CurrentRotationSpeed) < math.rad(0.05) then Session.CurrentRotationSpeed = TargetRotationSpeed end
-		RotateItemAroundBoundingBox(Model, Box, PromptPart.CFrame.UpVector, Session.CurrentRotationSpeed * DeltaTime)
+		Session.PresentationRotation += Session.CurrentRotationSpeed * DeltaTime
+		RotateItemAroundBoundingBox(
+			Model,
+			Session.InitialModelPivot,
+			Session.RotationCenter,
+			PromptPart.CFrame.UpVector,
+			Session.PresentationRotation
+		)
+		-- Model rotation and replication must not replace the authoritative per-target Hammer transform.
+		for _, Target in Session.BentTargets do
+			RestorationTargetRenderer.ApplyCurrentTransform(Model, Target)
+		end
 	end)
 	Session.CharacterConnection = Player.CharacterRemoving:Connect(function(RemovingCharacter)
 		if RemovingCharacter == RootPart.Parent then task.defer(ClearSession, Player) end

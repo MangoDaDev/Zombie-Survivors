@@ -55,11 +55,17 @@ local UpdateVisualTool
 local GetFixingItemModel
 local HideCharacterPart
 local ReportLocalProgress
+local ClearStepHighlights
+local UpdateStepHints
 local LocalTargetStates = {}
 local LocalStepCaches = {}
 local LocalStepId: string?
 local LocalStepTotal = 0
 local LocalStepRemaining = 0
+local TargetHighlights: { [BasePart]: Highlight } = {}
+local HintStepId: string?
+local HintStepStartedAt = 0
+local HintStepGeneration = 0
 local LastReportedRemaining = 0
 local LastProgressReport = 0
 local CompletionRequested = false
@@ -362,6 +368,10 @@ local function Restore(Instant: boolean?)
 	end
 	RuntimeState.Set(LocalPlayer, "CleaningRadiusVisible", false)
 	RuntimeState.Set(LocalPlayer, "CleaningBrushRadius", nil)
+	ClearStepHighlights(true)
+	HintStepId = nil
+	HintStepStartedAt = 0
+	HintStepGeneration += 1
 	LocalTargetStates = {}
 	LocalStepCaches = {}
 	LocalStepId = nil
@@ -579,6 +589,7 @@ local function EnterFixingView()
 		end)
 		CameraBound = true
 		task.defer(UpdateToolInterface)
+		task.defer(UpdateStepHints)
 	end)
 end
 
@@ -663,6 +674,48 @@ local function GetItemInfo(ItemId: number)
 	for _, ItemInfo in ItemsInfo do
 		if ItemInfo.Id == ItemId then return ItemInfo end
 	end
+end
+
+local function RemoveTargetHighlight(Target: BasePart, Instant: boolean?)
+	local Highlight = TargetHighlights[Target]
+	if not Highlight then return end
+	TargetHighlights[Target] = nil
+	if Instant or not Highlight.Parent then
+		Highlight:Destroy()
+		return
+	end
+	local Tween = TweenService:Create(Highlight, TweenInfo.new(CleaningConfig.StepHintFadeDuration), {
+		FillTransparency = 1,
+		OutlineTransparency = 1,
+	})
+	Tween.Completed:Once(function()
+		Highlight:Destroy()
+	end)
+	Tween:Play()
+end
+
+ClearStepHighlights = function(Instant: boolean?)
+	local HighlightedTargets = {}
+	for Target in TargetHighlights do table.insert(HighlightedTargets, Target) end
+	for _, Target in HighlightedTargets do RemoveTargetHighlight(Target, Instant) end
+end
+
+local function AddTargetHighlight(Target: BasePart)
+	if TargetHighlights[Target] or not Target.Parent then return end
+	local Highlight = Instance.new("Highlight")
+	Highlight.Name = "RestorationHintHighlight"
+	Highlight.Adornee = Target
+	Highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+	Highlight.FillColor = CleaningConfig.StepHintFillColor
+	Highlight.FillTransparency = 1
+	Highlight.OutlineColor = CleaningConfig.StepHintOutlineColor
+	Highlight.OutlineTransparency = 1
+	Highlight.Parent = Target
+	TargetHighlights[Target] = Highlight
+	TweenService:Create(Highlight, TweenInfo.new(CleaningConfig.StepHintFadeDuration, Enum.EasingStyle.Quad), {
+		FillTransparency = CleaningConfig.StepHintFillTransparency,
+		OutlineTransparency = CleaningConfig.StepHintOutlineTransparency,
+	}):Play()
 end
 
 local function ResetLocalStep()
@@ -812,15 +865,20 @@ local function PrepareLocalStep(ToolId: string): boolean
 
 	local MaximumHealth = if Step.Type == "Dirt" then ItemInfo.DirtHP else Step.TargetHP
 	local SavedTargetHealth = RuntimeState.Get(LocalPlayer, "CleaningTargetHealth")
-	local BendRotation = Step.BendRotationDegrees or Vector3.new(28, -18, 12)
-	local DamageRotation = CFrame.Angles(math.rad(BendRotation.X), math.rad(BendRotation.Y), math.rad(BendRotation.Z))
+	local SavedTargetTransforms = RuntimeState.Get(LocalPlayer, "CleaningTargetTransforms")
 	for Index, Target in Targets do
 		local CurrentHealth = if Step.Type == "Bent" and type(SavedTargetHealth) == "table" and type(SavedTargetHealth[Index]) == "number"
 			then math.clamp(SavedTargetHealth[Index], 0, MaximumHealth)
 			else MaximumHealth
 		local StartCFrame = Target.CFrame
-		local RestoredRelativeCFrame = if Step.Type == "Bent" and Template
-			then RestorationTargetRenderer.GetOriginalRelativeCFrame(Model, Target, Template)
+		local TargetTransforms = if Step.Type == "Bent" and type(SavedTargetTransforms) == "table"
+			then SavedTargetTransforms[Index]
+			else nil
+		local DamagedRelativeCFrame = if type(TargetTransforms) == "table" and typeof(TargetTransforms.Damaged) == "CFrame"
+			then TargetTransforms.Damaged
+			else nil
+		local RestoredRelativeCFrame = if type(TargetTransforms) == "table" and typeof(TargetTransforms.Restored) == "CFrame"
+			then TargetTransforms.Restored
 			else nil
 		table.insert(LocalTargetStates, {
 			Part = Target,
@@ -830,7 +888,7 @@ local function PrepareLocalStep(ToolId: string): boolean
 			DamagedColor = Target.Color,
 			OriginalAppearance = OriginalAppearances[Target],
 			StartCFrame = StartCFrame,
-			DamagedRelativeCFrame = RestoredRelativeCFrame and RestoredRelativeCFrame * DamageRotation or nil,
+			DamagedRelativeCFrame = DamagedRelativeCFrame,
 			RestoredRelativeCFrame = RestoredRelativeCFrame,
 			BaseTransparency = Target.Transparency,
 			Completed = CurrentHealth <= 0,
@@ -841,6 +899,57 @@ local function PrepareLocalStep(ToolId: string): boolean
 	LocalStepRemaining = RuntimeState.Get(LocalPlayer, "CleaningStepRemaining", #Targets)
 	LastReportedRemaining = LocalStepRemaining
 	return #LocalTargetStates > 0
+end
+
+UpdateStepHints = function()
+	local IsFixing = RuntimeState.Get(LocalPlayer, "IsFixing", false) == true
+	local ToolId = RuntimeState.Get(LocalPlayer, "CleaningStepToolId")
+	local IsComplete = RuntimeState.Get(LocalPlayer, "CleaningStepComplete", false) == true
+	if not IsFixing or type(ToolId) ~= "string" or IsComplete then
+		if HintStepId then
+			ClearStepHighlights(true)
+			HintStepGeneration += 1
+		end
+		HintStepId = nil
+		HintStepStartedAt = 0
+		return
+	end
+
+	if HintStepId ~= ToolId then
+		ClearStepHighlights(true)
+		HintStepId = ToolId
+		HintStepStartedAt = os.clock()
+		HintStepGeneration += 1
+		local ScheduledGeneration = HintStepGeneration
+		local Step = CleaningConfig.GetStep(ToolId)
+		if Step and Step.Type ~= "Bent" then
+			task.delay(CleaningConfig.StepHintDelay, function()
+				if ScheduledGeneration == HintStepGeneration then UpdateStepHints() end
+			end)
+		end
+	end
+	if LocalStepId ~= ToolId and not PrepareLocalStep(ToolId) then return end
+
+	local Step = CleaningConfig.GetStep(ToolId)
+	-- Hammer damage should be obvious immediately; other steps reveal remaining targets after the player stalls.
+	local ShouldShow = Step and (Step.Type == "Bent" or os.clock() - HintStepStartedAt >= CleaningConfig.StepHintDelay)
+	if not ShouldShow or CompletionRequested then
+		ClearStepHighlights(true)
+		return
+	end
+
+	local RemainingTargets = {}
+	for _, State in LocalTargetStates do
+		if not State.Completed and State.CurrentHealth > 0 and State.Part.Parent then
+			RemainingTargets[State.Part] = true
+			AddTargetHighlight(State.Part)
+		end
+	end
+	local HighlightedTargets = {}
+	for Target in TargetHighlights do table.insert(HighlightedTargets, Target) end
+	for _, Target in HighlightedTargets do
+		if not RemainingTargets[Target] then RemoveTargetHighlight(Target, false) end
+	end
 end
 
 ReportLocalProgress = function(Force: boolean)
@@ -1032,7 +1141,10 @@ local function ApplyToolLocally(ToolInfo, DeltaTime: number, AimPosition: Vector
 		if Model then Sounds.Play(ToolInfo.ImpactSoundName, Model.PrimaryPart or Model, TOOL_SOUND_MAX_DISTANCE) end
 	end
 
-	if ProgressChanged then ReportLocalProgress(false) end
+	if ProgressChanged then
+		ReportLocalProgress(false)
+		UpdateStepHints()
+	end
 	local Progress = GetLocalProgress()
 	RuntimeState.Set(LocalPlayer, "CleaningProgress", Progress)
 	CameraPush = CleaningConfig.CameraFinalPushDistance * math.clamp(
@@ -1042,6 +1154,7 @@ local function ApplyToolLocally(ToolInfo, DeltaTime: number, AimPosition: Vector
 	)
 	if Progress >= CleaningConfig.AutoCompletionThreshold then
 		CompletionRequested = true
+		UpdateStepHints()
 		UsingTool = false
 		ActiveToolId = nil
 		HammerInputHeld = false
@@ -1239,10 +1352,12 @@ function FixingController.Init()
 	RuntimeState.GetChangedSignal(LocalPlayer, "IsFixing"):Connect(function()
 		EnterFixingView()
 		UpdateFixPrompt()
+		task.defer(UpdateStepHints)
 	end)
 	RuntimeState.GetChangedSignal(LocalPlayer, "CleaningStepToolId"):Connect(function()
 		RequestedToolId = nil
 		UpdateToolInterface()
+		task.defer(UpdateStepHints)
 	end)
 	DataService:getChangedSignal("Fixing"):Connect(UpdateFixPrompt)
 	DataService:getChangedSignal("Upgrades"):Connect(UpdateToolInterface)
@@ -1256,6 +1371,7 @@ function FixingController.Init()
 		end
 		-- Tool and completion state can replicate in either order; always refresh radius visibility.
 		UpdateToolInterface()
+		task.defer(UpdateStepHints)
 	end)
 	FixingInterface.ExitRequested:Connect(function()
 		if RuntimeState.Get(LocalPlayer, "IsFixing", false) == true then
