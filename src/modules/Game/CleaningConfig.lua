@@ -24,6 +24,9 @@ local CleaningConfig = {
 	ToolPositionResponsiveness = 24,
 	-- Surface positions stay responsive while normal-driven rotation eases across sharp edges.
 	ToolSurfaceRotationResponsiveness = 2,
+	SurfaceNormalSampleCount = 12,
+	SurfaceNormalSampleRadiusMultiplier = 0.72,
+	SurfaceNormalSampleAngle = math.pi * (3 - math.sqrt(5)),
 	ToolScreenPosition = Vector2.new(0.85, 0.85),
 	ToolCameraDepth = 2.5,
 	ToolCursorMovementScale = Vector2.new(0.018, 0.012),

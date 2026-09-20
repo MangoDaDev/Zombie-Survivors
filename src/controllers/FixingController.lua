@@ -590,10 +590,19 @@ GetFixingItemModel = function(): Model?
 	return if Model and Model:IsA("Model") then Model else nil
 end
 
-local function GetAimPosition(): (Vector3?, BasePart?, Vector3?)
+local function RaycastFixingItem(
+	Camera: Camera,
+	ScreenPosition: Vector2,
+	Parameters: RaycastParams,
+	RayLength: number
+): RaycastResult?
+	local Ray = Camera:ViewportPointToRay(ScreenPosition.X, ScreenPosition.Y)
+	return Workspace:Raycast(Ray.Origin, Ray.Direction * RayLength, Parameters)
+end
+
+local function GetAimPosition(ToolInfo): (Vector3?, BasePart?, Vector3?)
 	local Camera = Workspace.CurrentCamera
 	local MousePosition = GetCursorPosition()
-	local Ray = Camera:ViewportPointToRay(MousePosition.X, MousePosition.Y)
 	local FixingItem = GetFixingItemModel()
 	if not FixingItem then return nil, nil, nil end
 	local Parameters = RaycastParams.new()
@@ -603,9 +612,31 @@ local function GetAimPosition(): (Vector3?, BasePart?, Vector3?)
 	local RayLength = if Box and Box:IsA("BasePart")
 		then (Camera.CFrame.Position - Box.Position).Magnitude + Box.Size.Magnitude
 		else 30
-	local Result = Workspace:Raycast(Ray.Origin, Ray.Direction * RayLength, Parameters)
+	local Result = RaycastFixingItem(Camera, MousePosition, Parameters, RayLength)
 	if not Result then return nil, nil, nil end
-	return Result.Position, if Result.Instance:IsA("BasePart") then Result.Instance else nil, Result.Normal
+	if not ToolInfo then
+		return Result.Position, if Result.Instance:IsA("BasePart") then Result.Instance else nil, Result.Normal
+	end
+
+	-- Uniform disk samples make every surface-contact tool settle against the area's average visible normal.
+	local Radius = GetToolRadiusScale(ToolInfo)
+		* Camera.ViewportSize.Y
+		* CleaningConfig.SurfaceNormalSampleRadiusMultiplier
+	local NormalSum = Result.Normal
+	local NormalCount = 1
+	for SampleIndex = 1, CleaningConfig.SurfaceNormalSampleCount do
+		local RadiusAlpha = math.sqrt(SampleIndex / CleaningConfig.SurfaceNormalSampleCount)
+		local Angle = SampleIndex * CleaningConfig.SurfaceNormalSampleAngle
+		local SampleOffset = Vector2.new(math.cos(Angle), math.sin(Angle)) * Radius * RadiusAlpha
+		local SampleResult = RaycastFixingItem(Camera, MousePosition + SampleOffset, Parameters, RayLength)
+		if SampleResult then
+			NormalSum += SampleResult.Normal
+			NormalCount += 1
+		end
+	end
+	local AverageNormal = NormalSum / NormalCount
+	if AverageNormal.Magnitude < 0.01 then AverageNormal = Result.Normal end
+	return Result.Position, if Result.Instance:IsA("BasePart") then Result.Instance else nil, AverageNormal.Unit
 end
 
 local function GetAirflowDirection(AimPosition: Vector3, Origin: Vector3): Vector3?
@@ -1142,7 +1173,7 @@ UpdateVisualTool = function(DeltaTime)
 		if StrikeProgress >= 1 then
 			HammerStrikeStartedAt = nil
 			if HammerInputHeld then
-				local AimPosition, _, SurfaceNormal = GetAimPosition()
+				local AimPosition, _, SurfaceNormal = GetAimPosition(ToolInfo)
 				if AimPosition and SurfaceNormal then StartHammerStrike(AimPosition, SurfaceNormal) end
 			else
 				StopHammerUse()
@@ -1150,7 +1181,7 @@ UpdateVisualTool = function(DeltaTime)
 		end
 	end
 	if UsingTool and (ToolInfo.Id == "Sponge" or ToolInfo.Id == "SoftBrush" or ToolInfo.Id == "Polisher") then
-		local AimPosition, _, SurfaceNormal = GetAimPosition()
+		local AimPosition, _, SurfaceNormal = GetAimPosition(ToolInfo)
 		if AimPosition and SurfaceNormal then
 			DesiredCFrame = GetSpongeUseCFrame(AimPosition, SurfaceNormal)
 			Responsiveness = CleaningConfig.SpongeSurfaceResponsiveness
@@ -1241,7 +1272,7 @@ function FixingController.Init()
 			and RuntimeState.Get(LocalPlayer, "CleaningStepComplete", false) ~= true
 		local AimPosition, AimPart, SurfaceNormal
 		if IsApplicable then
-			AimPosition, AimPart, SurfaceNormal = GetAimPosition()
+			AimPosition, AimPart, SurfaceNormal = GetAimPosition(ToolInfo)
 			RuntimeState.Set(LocalPlayer, "CleaningCursorPosition", GetCursorPosition())
 			-- Detection uses this viewport-height fraction directly; pixel conversion is only for drawing the HUD circle.
 			RuntimeState.Set(LocalPlayer, "CleaningBrushRadius", GetToolRadiusScale(ToolInfo) * Workspace.CurrentCamera.ViewportSize.Y)
@@ -1316,7 +1347,7 @@ function FixingController.Init()
 				CameraImpulse = math.max(CameraImpulse, CleaningConfig.CameraToolImpulseDistance)
 				Network:fire("StartUsingTool", ToolInfo.Id)
 				if ToolInfo.Id == "Hammer" then
-					local AimPosition, _, SurfaceNormal = GetAimPosition()
+					local AimPosition, _, SurfaceNormal = GetAimPosition(ToolInfo)
 					if AimPosition and SurfaceNormal then StartHammerStrike(AimPosition, SurfaceNormal) end
 				end
 			end
