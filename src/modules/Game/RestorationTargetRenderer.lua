@@ -30,6 +30,44 @@ local function GetReferenceCFrame(Model: Model): CFrame
 	return if Box and Box:IsA("BasePart") then Box.CFrame else Model:GetPivot()
 end
 
+local function GetCounterpart(Model: Model, Template: Model, Target: BasePart): BasePart?
+	local Path = {}
+	local Current: Instance = Target
+	while Current ~= Model do
+		local Parent = Current.Parent
+		if not Parent then return nil end
+		local Ordinal = 0
+		for _, Sibling in Parent:GetChildren() do
+			if Sibling.Name == Current.Name and Sibling.ClassName == Current.ClassName then
+				Ordinal += 1
+				if Sibling == Current then break end
+			end
+		end
+		table.insert(Path, 1, { ClassName = Current.ClassName, Name = Current.Name, Ordinal = Ordinal })
+		Current = Parent
+	end
+
+	Current = Template
+	for _, Segment in Path do
+		local Ordinal = 0
+		local Match
+		for _, Child in Current:GetChildren() do
+			if Child.Name == Segment.Name and Child.ClassName == Segment.ClassName then
+				Ordinal += 1
+				if Ordinal == Segment.Ordinal then Match = Child; break end
+			end
+		end
+		if not Match then return nil end
+		Current = Match
+	end
+	return if Current:IsA("BasePart") then Current else nil
+end
+
+function RestorationTargetRenderer.GetOriginalRelativeCFrame(Model: Model, Target: BasePart, Template: Model): CFrame?
+	local TemplateTarget = GetCounterpart(Model, Template, Target)
+	return if TemplateTarget then GetReferenceCFrame(Template):ToObjectSpace(TemplateTarget.CFrame) else nil
+end
+
 function RestorationTargetRenderer.GetBentParts(Model: Model, Count: number?): { BasePart }
 	local Box = Model:FindFirstChild("BoundingBox")
 	local Center = if Box and Box:IsA("BasePart") then Box.Position else Model:GetPivot().Position

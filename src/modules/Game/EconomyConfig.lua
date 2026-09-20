@@ -1,23 +1,23 @@
 local EconomyConfig = {
 	-- Values above 1 increase every active and passive payout while reducing upgrade costs.
-	ProgressionSpeedMultiplier = 1,
+	ProgressionSpeedMultiplier = 1.12,
 	-- Scales restorable item purchase prices without changing restoration tool costs.
-	ItemPurchasePriceMultiplier = 0.5,
+	ItemPurchasePriceMultiplier = 1,
 	-- Scales restoration rewards and restored-item sale values without changing purchase prices.
 	ActiveIncomeMultiplier = 3,
 	-- Gives onboarding rarities extra active income, blended back to normal by Legendary.
-	OnboardingIncomeMultiplier = 2,
+	OnboardingIncomeMultiplier = 1.5,
 	OnboardingIncomeBlendEndStage = 5,
 	-- Scales museum visitor payments only.
-	PassiveIncomeMultiplier = 1.5,
+	PassiveIncomeMultiplier = 1,
 	-- Values above 1 increase every upgrade price.
-	UpgradeCostMultiplier = 1,
+	UpgradeCostMultiplier = 0.95,
 	-- Values above 1 steepen rarity prices and later-stage upgrade costs.
 	LateGameCurveMultiplier = 1,
 
-	StartingCash = 750,
+	StartingCash = 900,
 	-- Restoration is a small completion bonus; selling and guests remain the primary income sources.
-	MinimumRestorationReward = 10,
+	MinimumRestorationReward = 15,
 	RestorationRewardRate = 0.05,
 	RecoveryCrateId = "CommonCrate",
 	RecoveryItemId = 1,
@@ -27,50 +27,57 @@ local EconomyConfig = {
 			ProgressionStage = 1,
 			RestorationTier = 1,
 			SourcePriceRange = { 25, 52 },
-			PriceRange = { 120, 500 },
-			GuestPayRate = 0.025,
+			PriceRange = { 75, 450 },
+			PriceCurveExponent = 1.35,
+			GuestPayRate = 0.018,
 		},
 		Uncommon = {
 			ProgressionStage = 2,
 			RestorationTier = 2,
 			SourcePriceRange = { 60, 118 },
-			PriceRange = { 800, 2_200 },
-			GuestPayRate = 0.018,
+			PriceRange = { 1_200, 4_000 },
+			PriceCurveExponent = 1.3,
+			GuestPayRate = 0.012,
 		},
 		Rare = {
 			ProgressionStage = 3,
 			RestorationTier = 3,
 			SourcePriceRange = { 130, 235 },
-			PriceRange = { 4_000, 12_000 },
-			GuestPayRate = 0.012,
+			PriceRange = { 4_500, 18_000 },
+			PriceCurveExponent = 1.25,
+			GuestPayRate = 0.0085,
 		},
 		Epic = {
 			ProgressionStage = 4,
 			RestorationTier = 4,
 			SourcePriceRange = { 240, 460 },
-			PriceRange = { 30_000, 90_000 },
-			GuestPayRate = 0.008,
+			PriceRange = { 35_000, 150_000 },
+			PriceCurveExponent = 1.2,
+			GuestPayRate = 0.0065,
 		},
 		Legendary = {
 			ProgressionStage = 5,
 			RestorationTier = 5,
 			SourcePriceRange = { 500, 880 },
-			PriceRange = { 150_000, 450_000 },
+			PriceRange = { 300_000, 1_400_000 },
+			PriceCurveExponent = 1.15,
 			GuestPayRate = 0.005,
 		},
 		Mythic = {
 			ProgressionStage = 6,
 			RestorationTier = 6,
 			SourcePriceRange = { 900, 1_400 },
-			PriceRange = { 800_000, 2_400_000 },
-			GuestPayRate = 0.003,
+			PriceRange = { 2_500_000, 8_500_000 },
+			PriceCurveExponent = 1.1,
+			GuestPayRate = 0.0035,
 		},
 		Secret = {
 			ProgressionStage = 7,
 			RestorationTier = 7,
 			SourcePriceRange = { 1_800, 2_500 },
-			PriceRange = { 5_000_000, 12_000_000 },
-			GuestPayRate = 0.002,
+			PriceRange = { 12_000_000, 28_000_000 },
+			PriceCurveExponent = 1.05,
+			GuestPayRate = 0.003,
 		},
 	},
 }
@@ -134,9 +141,10 @@ function EconomyConfig.GetItemPrice(Rarity: string, DifficultyValue: number): nu
 	local SourceMaximum = Info.SourcePriceRange[2]
 	local DifficultyAlpha =
 		math.clamp((DifficultyValue - SourceMinimum) / math.max(SourceMaximum - SourceMinimum, 1), 0, 1)
+	local PriceAlpha = DifficultyAlpha ^ Info.PriceCurveExponent
 	local PriceMinimum = Info.PriceRange[1]
 	local PriceMaximum = Info.PriceRange[2]
-	local BasePrice = PriceMinimum + (PriceMaximum - PriceMinimum) * DifficultyAlpha
+	local BasePrice = PriceMinimum + (PriceMaximum - PriceMinimum) * PriceAlpha
 
 	return RoundToReadableValue(
 		BasePrice * EconomyConfig.ItemPurchasePriceMultiplier * GetLateGameScale(Info.ProgressionStage)
@@ -244,6 +252,7 @@ function EconomyConfig.Validate()
 		assert(Info.ProgressionStage > PreviousStage, `Rarity stage must increase at {Rarity}`)
 		assert(Info.SourcePriceRange[1] <= Info.SourcePriceRange[2], `Invalid source price range for {Rarity}`)
 		assert(Info.PriceRange[1] <= Info.PriceRange[2], `Invalid price range for {Rarity}`)
+		assert(type(Info.PriceCurveExponent) == "number" and Info.PriceCurveExponent > 0, `Invalid price curve for {Rarity}`)
 		local MinimumPrice = EconomyConfig.GetItemPrice(Rarity, Info.SourcePriceRange[1])
 		assert(MinimumPrice > PreviousPrice, `Minimum item price must increase at {Rarity}`)
 		assert(Info.GuestPayRate > 0, `Guest pay rate must be positive for {Rarity}`)

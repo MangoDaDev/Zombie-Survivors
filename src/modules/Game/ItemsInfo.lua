@@ -417,7 +417,7 @@ local ItemDefinitions: { ItemDefinition } = {
 		AssetName = "Rotary Telephone",
 		Rarity = "Rare",
 		ChanceWeight = 8,
-		DifficultyValue = 180,
+		DifficultyValue = 181,
 		MoveSpeed = 8,
 		DirtHP = 2,
 	},

@@ -73,6 +73,7 @@ local HammerInputHeld = false
 local CameraEntryId = 0
 local BaseCameraCFrame: CFrame?
 local OriginalCameraCFrame: CFrame?
+local OriginalCameraRootOffset: CFrame?
 local CameraImpulse = 0
 local CameraPush = 0
 local LastCleanPosition: Vector3?
@@ -324,10 +325,13 @@ local function Restore(Instant: boolean?)
 	FakeArm = nil
 	if CameraBound then RunService:UnbindFromRenderStep(CAMERA_BINDING_NAME); CameraBound = false end
 	local Camera = Workspace.CurrentCamera
-	EnablePlayerControls()
 	local CameraType = OriginalCameraType
 	local FieldOfView = OriginalFieldOfView
-	local TargetCFrame = OriginalCameraCFrame
+	local Character = LocalPlayer.Character
+	local RootPart = Character and Character:FindFirstChild("HumanoidRootPart")
+	local TargetCFrame = if OriginalCameraRootOffset and RootPart and RootPart:IsA("BasePart")
+		then RootPart.CFrame * OriginalCameraRootOffset
+		else OriginalCameraCFrame
 	BaseCameraCFrame = nil
 	CameraImpulse = 0
 	CameraPush = 0
@@ -336,11 +340,15 @@ local function Restore(Instant: boolean?)
 		if RestoreId ~= CameraEntryId then return end
 		for Part, Transparency in HiddenParts do if Part.Parent then Part.LocalTransparencyModifier = Transparency end end
 		HiddenParts = {}
+		local Humanoid = Character and Character:FindFirstChildOfClass("Humanoid")
+		if Humanoid and Humanoid.Parent then Camera.CameraSubject = Humanoid end
 		if CameraType then Camera.CameraType = CameraType end
 		if FieldOfView then Camera.FieldOfView = FieldOfView end
+		EnablePlayerControls()
 		OriginalCameraType = nil
 		OriginalFieldOfView = nil
 		OriginalCameraCFrame = nil
+		OriginalCameraRootOffset = nil
 	end
 	if not Instant and CameraType and TargetCFrame and Camera.CameraType == Enum.CameraType.Scriptable then
 		local Tween = TweenService:Create(Camera, TweenInfo.new(CleaningConfig.CameraExitDuration, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
@@ -535,6 +543,10 @@ local function EnterFixingView()
 		OriginalFieldOfView = Camera.FieldOfView
 		OriginalCameraType = Camera.CameraType
 		OriginalCameraCFrame = Camera.CFrame
+		local RootPart = Character:FindFirstChild("HumanoidRootPart")
+		OriginalCameraRootOffset = if RootPart and RootPart:IsA("BasePart")
+			then RootPart.CFrame:ToObjectSpace(Camera.CFrame)
+			else nil
 		Camera.CameraType = Enum.CameraType.Scriptable
 		BaseCameraCFrame = GetFixingCameraCFrame(Camera, CameraPart, TableSurface, Box)
 		local EntryComplete = false
@@ -710,6 +722,8 @@ local function PrepareLocalStep(ToolId: string): boolean
 	local ItemId = RuntimeState.Get(LocalPlayer, "CleaningItemId")
 	local ItemInfo = if type(ItemId) == "number" then GetItemInfo(ItemId) else nil
 	if not Step or not Model or not ItemInfo then return false end
+	local Template = ReplicatedStorage.Assets.Models.Items:FindFirstChild(ItemInfo.AssetName)
+	if not Template or not Template:IsA("Model") then Template = nil end
 
 	local Targets = {}
 	local OriginalAppearances = {}
@@ -732,8 +746,7 @@ local function PrepareLocalStep(ToolId: string): boolean
 		end
 	elseif Step.Type == "Paint" or Step.Type == "Polish" then
 		Targets = PaintRenderer.GetPaintParts(Model)
-		local Template = ReplicatedStorage.Assets.Models.Items:FindFirstChild(ItemInfo.AssetName)
-		if Template and Template:IsA("Model") then
+		if Template then
 			for _, Target in Targets do
 				local Appearance = PaintRenderer.GetOriginalAppearance(Model, Target, Template)
 				if Step.Type == "Paint" and RuntimeState.Get(LocalPlayer, "CleaningPolishCompleted") ~= true and Appearance then
@@ -768,11 +781,16 @@ local function PrepareLocalStep(ToolId: string): boolean
 
 	local MaximumHealth = if Step.Type == "Dirt" then ItemInfo.DirtHP else Step.TargetHP
 	local SavedTargetHealth = RuntimeState.Get(LocalPlayer, "CleaningTargetHealth")
+	local BendRotation = Step.BendRotationDegrees or Vector3.new(28, -18, 12)
+	local DamageRotation = CFrame.Angles(math.rad(BendRotation.X), math.rad(BendRotation.Y), math.rad(BendRotation.Z))
 	for Index, Target in Targets do
 		local CurrentHealth = if Step.Type == "Bent" and type(SavedTargetHealth) == "table" and type(SavedTargetHealth[Index]) == "number"
 			then math.clamp(SavedTargetHealth[Index], 0, MaximumHealth)
 			else MaximumHealth
 		local StartCFrame = Target.CFrame
+		local RestoredRelativeCFrame = if Step.Type == "Bent" and Template
+			then RestorationTargetRenderer.GetOriginalRelativeCFrame(Model, Target, Template)
+			else nil
 		table.insert(LocalTargetStates, {
 			Part = Target,
 			TargetIndex = Index,
@@ -781,6 +799,8 @@ local function PrepareLocalStep(ToolId: string): boolean
 			DamagedColor = Target.Color,
 			OriginalAppearance = OriginalAppearances[Target],
 			StartCFrame = StartCFrame,
+			DamagedRelativeCFrame = RestoredRelativeCFrame and RestoredRelativeCFrame * DamageRotation or nil,
+			RestoredRelativeCFrame = RestoredRelativeCFrame,
 			BaseTransparency = Target.Transparency,
 			Completed = CurrentHealth <= 0,
 		})
@@ -833,6 +853,27 @@ local function GetLocalProgress(): number
 		end
 	end
 	return math.clamp((LocalStepTotal - LocalStepRemaining + PartialProgress) / math.max(LocalStepTotal, 1), 0, 1)
+end
+
+local function UpdateHammerPresentation()
+	if LocalStepId ~= "Hammer"
+		or RuntimeState.Get(LocalPlayer, "CleaningStepToolId") ~= "Hammer"
+		or RuntimeState.Get(LocalPlayer, "CleaningStepComplete", false) == true
+	then return end
+	local Model = GetFixingItemModel()
+	local Box = Model and Model:FindFirstChild("BoundingBox")
+	if not Model or not Box or not Box:IsA("BasePart") then return end
+	for _, State in LocalTargetStates do
+		if not State.Part.Parent or not State.DamagedRelativeCFrame or not State.RestoredRelativeCFrame then continue end
+		local RestoredAmount = 1 - math.clamp(State.CurrentHealth / math.max(State.MaximumHealth, 0.001), 0, 1)
+		State.Part.CFrame = Box.CFrame * State.DamagedRelativeCFrame:Lerp(State.RestoredRelativeCFrame, RestoredAmount)
+	end
+	local LocalProgress = GetLocalProgress()
+	local DisplayedProgress = RuntimeState.Get(LocalPlayer, "CleaningProgress", 0)
+	-- Authoritative acknowledgements can arrive behind the predicted hit; never render Hammer progress backwards.
+	if type(DisplayedProgress) ~= "number" or DisplayedProgress < LocalProgress then
+		RuntimeState.Set(LocalPlayer, "CleaningProgress", LocalProgress)
+	end
 end
 
 local function GetProjectedDistanceToPart(AimPosition: Vector3, Part: BasePart): number
@@ -920,7 +961,8 @@ local function ApplyToolLocally(ToolInfo, DeltaTime: number, AimPosition: Vector
 			local BaseTransparency = State.BaseTransparency
 			Target.Transparency = BaseTransparency + (1 - BaseTransparency) * (1 - State.CurrentHealth / math.max(State.MaximumHealth, 0.001))
 		elseif Step.Type == "Bent" then
-			-- Persist every hit; the server owns the part transform so rotation replication cannot overwrite it.
+			-- Render the exact BoundingBox-relative target immediately; the server persists the same transform.
+			UpdateHammerPresentation()
 			Network:fire("ReportHammerProgress", ToolInfo.Id, State.TargetIndex, State.CurrentHealth)
 		elseif Step.Type == "Metal" then
 			local RestoredAmount = 1 - State.CurrentHealth / math.max(State.MaximumHealth, 0.001)
@@ -1073,6 +1115,7 @@ end
 
 UpdateVisualTool = function(DeltaTime)
 	if RuntimeState.Get(LocalPlayer, "IsFixing", false) ~= true then return end
+	UpdateHammerPresentation()
 	local Tool, ToolInfo = GetEquippedCleaningTool()
 	if Tool ~= ViewmodelSourceTool then
 		if Tool and ToolInfo then CreateViewmodelTool(Tool, ToolInfo) else DestroyViewmodelTool() end

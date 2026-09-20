@@ -208,6 +208,7 @@ end
 
 local function UpdateProgress(Player, Session, Force)
 	local Progress = GetStepProgress(Session)
+	if Session.LastProgress >= 0 then Progress = math.max(Progress, Session.LastProgress) end
 	if Force or math.abs(Progress - Session.LastProgress) >= 0.005 then
 		Session.LastProgress = Progress
 		PlayerStateController.Set(Player, "CleaningProgress", Progress)
@@ -381,7 +382,15 @@ local function ClearSession(Player)
 	if Session.Model then Session.Model:Destroy() end
 	-- Rebuild the restored item as a massless inventory tool before releasing the character.
 	CarryController.SetFixingMode(Player, false)
-	if Session.RootPart and Session.RootPart.Parent then Session.RootPart.Anchored = Session.RootWasAnchored end
+	if Session.RootPart and Session.RootPart.Parent then
+		-- Anchoring can retain externally assigned assembly velocity; release from the exact entry pose without a fling.
+		Session.RootPart.CFrame = Session.RootCFrame
+		Session.RootPart.AssemblyLinearVelocity = Vector3.zero
+		Session.RootPart.AssemblyAngularVelocity = Vector3.zero
+		Session.RootPart.Anchored = Session.RootWasAnchored
+		Session.RootPart.AssemblyLinearVelocity = Vector3.zero
+		Session.RootPart.AssemblyAngularVelocity = Vector3.zero
+	end
 	if Session.Humanoid and Session.Humanoid.Parent then
 		Session.Humanoid.AutoRotate = Session.HumanoidAutoRotate
 		Session.Humanoid.WalkSpeed = Session.HumanoidWalkSpeed
@@ -572,6 +581,7 @@ local function StartFixing(Player)
 		Steps = Steps,
 		Model = Model,
 		RootPart = RootPart,
+		RootCFrame = RootPart.CFrame,
 		RootWasAnchored = RootWasAnchored,
 		Humanoid = Humanoid,
 		HumanoidAutoRotate = HumanoidAutoRotate,
@@ -839,7 +849,7 @@ function FixingController.ReportHammerProgress(_, Player, ToolId, TargetIndex, C
 	local Step = Session and Session.Steps[Session.StepIndex]
 	local StepState = Session and GetStepState(Session)
 	local Tool = Step and GetCleaningTool(Player, Step.ToolId)
-	if not Session or Session.Completing or not Session.IsUsingTool or not Step or Step.Type ~= "Bent"
+	if not Session or Session.Completing or not Step or Step.Type ~= "Bent"
 		or not StepState or Step.ToolId ~= ToolId or not Tool or Tool.Parent ~= Player.Character
 		or not IsToolUnlocked(Player, ToolId) or type(TargetIndex) ~= "number" or TargetIndex % 1 ~= 0
 		or type(CurrentHealth) ~= "number" or CurrentHealth ~= CurrentHealth or math.abs(CurrentHealth) == math.huge

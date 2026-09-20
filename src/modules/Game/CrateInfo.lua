@@ -54,7 +54,7 @@ local CrateInfo = {
 	},
 	NewPlayerDropSequence = { 1, 6, 5, 14 },
 	Crates = {
-		-- Keep higher-tier rewards gated behind the matching bat progression through sharply increasing durability.
+		-- Every crate keeps a nonzero chance for every rarity; better crates improve weighting and value per durability.
 		CreateCrate({
 			Id = "CommonCrate",
 			DisplayName = "Common",
@@ -63,85 +63,98 @@ local CrateInfo = {
 			MaximumActive = 48,
 			SpawnDepthBias = -0.9,
 			RarityChances = {
-				Common = 88,
+				Common = 87,
 				Uncommon = 11,
-				Rare = 1,
+				Rare = 1.7,
+				Epic = 0.25,
+				Legendary = 0.045,
+				Mythic = 0.0045,
+				Secret = 0.0005,
 			},
 		}),
 		CreateCrate({
 			Id = "UncommonCrate",
 			DisplayName = "Uncommon",
 			TemplateName = "UncommonCrate",
-			Health = 160,
+			Health = 90,
 			MaximumActive = 36,
 			SpawnDepthBias = -0.45,
 			RarityChances = {
-				Common = 35,
-				Uncommon = 50,
-				Rare = 14,
-				Epic = 1,
+				Common = 32,
+				Uncommon = 49,
+				Rare = 16,
+				Epic = 2.6,
+				Legendary = 0.35,
+				Mythic = 0.045,
+				Secret = 0.005,
 			},
 		}),
 		CreateCrate({
 			Id = "RareCrate",
 			DisplayName = "Rare",
 			TemplateName = "RareCrate",
-			Health = 1_000,
+			Health = 500,
 			MaximumActive = 24,
 			SpawnDepthBias = 0.1,
 			RarityChances = {
-				Common = 8,
-				Uncommon = 25,
-				Rare = 45,
-				Epic = 20,
-				Legendary = 2,
+				Common = 6,
+				Uncommon = 23,
+				Rare = 47,
+				Epic = 21,
+				Legendary = 2.7,
+				Mythic = 0.27,
+				Secret = 0.03,
 			},
 		}),
 		CreateCrate({
 			Id = "EpicCrate",
 			DisplayName = "Epic",
 			TemplateName = "EpicCrate",
-			Health = 5_000,
+			Health = 2_000,
 			MaximumActive = 16,
 			SpawnDepthBias = 0.5,
 			RarityChances = {
-				Common = 2,
-				Uncommon = 8,
-				Rare = 25,
-				Epic = 45,
+				Common = 1.2,
+				Uncommon = 6,
+				Rare = 24,
+				Epic = 48,
 				Legendary = 18,
-				Mythic = 2,
+				Mythic = 2.5,
+				Secret = 0.3,
 			},
 		}),
 		CreateCrate({
 			Id = "LegendaryCrate",
 			DisplayName = "Legendary",
 			TemplateName = "LegendaryCrate",
-			Health = 20_000,
+			Health = 6_500,
 			MaximumActive = 8,
 			SpawnDepthBias = 0.9,
 			RarityChances = {
-				Uncommon = 2,
-				Rare = 13,
-				Epic = 32,
-				Legendary = 44,
-				Mythic = 8,
-				Secret = 1,
+				Common = 0.3,
+				Uncommon = 1.2,
+				Rare = 8,
+				Epic = 30,
+				Legendary = 47,
+				Mythic = 12,
+				Secret = 1.5,
 			},
 		}),
 		CreateCrate({
 			Id = "MythicalCrate",
 			DisplayName = "Mythical",
 			TemplateName = "MythicalCrate",
-			Health = 60_000,
+			Health = 15_000,
 			MaximumActive = 1,
 			SpawnDepthBias = 1,
 			RarityChances = {
-				Rare = 5,
-				Epic = 20,
+				Common = 0.1,
+				Uncommon = 0.4,
+				Rare = 2.5,
+				Epic = 15,
 				Legendary = 40,
-				Mythic = 30,
-				Secret = 5,
+				Mythic = 36,
+				Secret = 6,
 			},
 			PityOnly = true,
 			PityInterval = 450,
@@ -151,15 +164,17 @@ local CrateInfo = {
 			Id = "SecretCrate",
 			DisplayName = "Secret",
 			TemplateName = "SecretCrate",
-			Health = 160_000,
+			Health = 30_000,
 			MaximumActive = 1,
 			SpawnDepthBias = 1,
 			RarityChances = {
-				Rare = 1,
-				Epic = 7,
-				Legendary = 22,
-				Mythic = 45,
-				Secret = 25,
+				Common = 0.05,
+				Uncommon = 0.15,
+				Rare = 0.8,
+				Epic = 5,
+				Legendary = 20,
+				Mythic = 47,
+				Secret = 27,
 			},
 			PityOnly = true,
 			PityInterval = 1_200,
@@ -267,15 +282,13 @@ function CrateInfo.Validate()
 		local ExpectedStage = 0
 		for Stage, Rarity in RarityOrder do
 			local RawChance = Info.RarityChances[Rarity]
-			assert(RawChance == nil or (type(RawChance) == "number" and RawChance >= 0), `Invalid {Rarity} chance for {Info.Id}`)
+			assert(type(RawChance) == "number" and RawChance > 0, `{Info.Id} must keep a nonzero {Rarity} chance`)
 			TotalChance += Chances[Rarity] or 0
 			ExpectedStage += Stage * (Chances[Rarity] or 0)
 		end
 		assert(math.abs(TotalChance - 1) < 0.0001, `Crate chances do not normalize for {Info.Id}`)
-		if Info.PityOnly ~= true then
-			assert(ExpectedStage > PreviousExpectedStage, `Regular crate quality must increase at {Info.Id}`)
-			PreviousExpectedStage = ExpectedStage
-		end
+		assert(ExpectedStage > PreviousExpectedStage, `Crate quality must increase at {Info.Id}`)
+		PreviousExpectedStage = ExpectedStage
 		PreviousHealth = Info.Health
 		SeenIds[Info.Id] = true
 	end
