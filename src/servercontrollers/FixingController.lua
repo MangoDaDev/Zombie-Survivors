@@ -80,6 +80,37 @@ local function ShowToolRequirement(Player, ToolId)
 	GuidanceController.Show(Player, `Use {DisplayName}`, nil, if Upgrade then `Upgrade:{Upgrade.Id}` else nil)
 end
 
+local function ShowToolRequirements(Player, MissingToolSteps)
+	local DisplayNames = {}
+	local SeenToolIds = {}
+	local FirstToolId
+	for _, Step in MissingToolSteps do
+		if SeenToolIds[Step.ToolId] then continue end
+		SeenToolIds[Step.ToolId] = true
+		local ToolInfo = GetToolInfo(Step.ToolId)
+		table.insert(DisplayNames, if ToolInfo then ToolInfo.DisplayName else Step.ToolId)
+		FirstToolId = FirstToolId or Step.ToolId
+	end
+	if #DisplayNames == 0 then return end
+	local Lines = { "Missing:" }
+	for _, DisplayName in DisplayNames do
+		local LineIndex = #Lines
+		local Separator = if Lines[LineIndex] == "Missing:" then " " else ", "
+		if #Lines[LineIndex] + #Separator + #DisplayName > 30 then
+			table.insert(Lines, DisplayName)
+		else
+			Lines[LineIndex] ..= Separator .. DisplayName
+		end
+	end
+	local Upgrade = FirstToolId and UpgradeLogic.GetToolUnlockUpgrade(FirstToolId)
+	GuidanceController.Show(
+		Player,
+		table.concat(Lines, "\n"),
+		nil,
+		if Upgrade then `Upgrade:{Upgrade.Id}` else nil
+	)
+end
+
 local function SaveState(Player, ItemId, State)
 	local Fixing = DataService:get(Player, "Fixing") or {}
 	Fixing[tostring(ItemId)] = State
@@ -348,6 +379,8 @@ local function ClearSession(Player)
 	if Session.HumanoidDiedConnection then Session.HumanoidDiedConnection:Disconnect() end
 	ClearTargets(Session)
 	if Session.Model then Session.Model:Destroy() end
+	-- Rebuild the restored item as a massless inventory tool before releasing the character.
+	CarryController.SetFixingMode(Player, false)
 	if Session.RootPart and Session.RootPart.Parent then Session.RootPart.Anchored = Session.RootWasAnchored end
 	if Session.Humanoid and Session.Humanoid.Parent then
 		Session.Humanoid.AutoRotate = Session.HumanoidAutoRotate
@@ -368,7 +401,6 @@ local function ClearSession(Player)
 	PlayerStateController.Set(Player, "CleaningRestorationComplete", nil)
 	PlayerStateController.Set(Player, "CleaningPaintCompleted", nil)
 	PlayerStateController.Set(Player, "CleaningPolishCompleted", nil)
-	CarryController.SetFixingMode(Player, false)
 	if Session.Prompt and Session.Prompt.Parent then Session.Prompt.Enabled = true end
 end
 
@@ -446,11 +478,14 @@ local function GetFirstAvailableIncompleteStep(Player, State, Steps): number?
 	return nil
 end
 
-local function GetFirstMissingToolStep(Player, State, Steps)
+local function GetMissingToolSteps(Player, State, Steps)
+	local MissingToolSteps = {}
 	for _, Step in Steps do
-		if State.Steps[Step.Id].Completed ~= true and not IsToolUnlocked(Player, Step.ToolId) then return Step end
+		if State.Steps[Step.Id].Completed ~= true and not IsToolUnlocked(Player, Step.ToolId) then
+			table.insert(MissingToolSteps, Step)
+		end
 	end
-	return nil
+	return MissingToolSteps
 end
 
 local function StartFixing(Player)
@@ -502,10 +537,10 @@ local function StartFixing(Player)
 		return
 	end
 	-- Require every remaining tool before entering fixing so the player cannot get stuck midway.
-	local MissingToolStep = GetFirstMissingToolStep(Player, State, Steps)
-	if MissingToolStep then
+	local MissingToolSteps = GetMissingToolSteps(Player, State, Steps)
+	if #MissingToolSteps > 0 then
 		Model:Destroy()
-		ShowToolRequirement(Player, MissingToolStep.ToolId)
+		ShowToolRequirements(Player, MissingToolSteps)
 		return
 	end
 	local CameraPart = TableModel and TableModel:FindFirstChild("CamPart")

@@ -42,7 +42,18 @@ local function GetVisitorPosition(LevelAfterBase: number): Vector2
 end
 
 local function GetBatCooldownPosition(Level: number): Vector2
+	-- Bat cooldown branches horizontally from Stone Bat so it remains separate from movement upgrades.
+	return GetBatPosition(1) + HEX_LEFT * Level
+end
+
+local function GetWalkSpeedPosition(Level: number): Vector2
+	-- WalkSpeed occupies the former cooldown path to the left of the starting node.
 	return HEX_LEFT * Level
+end
+
+local function GetJumpHeightPosition(Level: number): Vector2
+	-- Jump Height forks upward-left from the first WalkSpeed upgrade.
+	return GetWalkSpeedPosition(1) + HEX_UP_LEFT * Level
 end
 
 local UpgradeConfig = {
@@ -57,6 +68,8 @@ local UpgradeConfig = {
 	DefaultDisplayLimit = 8,
 	DefaultVisitorsPerDisplay = 2,
 	DefaultBatId = "WoodenBat",
+	DefaultWalkSpeed = 25,
+	DefaultJumpHeight = 7.2,
 	DefaultToolStrengthMultiplier = 1,
 	DefaultToolRadiusMultiplier = 1,
 	DefaultOwnership = {
@@ -71,7 +84,7 @@ local UpgradeConfig = {
 			Icon = "Upgrade",
 			Position = Vector2.zero,
 			Prerequisites = {},
-			ConnectedUpgrades = { "Display9", "Visitors3", "SpraySpeed1", "UnlockSponge", "StoneBat", "BatCooldown1" },
+			ConnectedUpgrades = { "Display9", "Visitors3", "SpraySpeed1", "UnlockSponge", "StoneBat", "WalkSpeed26" },
 			Branch = "Core",
 			ShortValue = "START",
 			Purchasable = false,
@@ -682,7 +695,7 @@ local UpgradeConfig = {
 			Icon = "StoneBat",
 			Position = GetBatPosition(1),
 			Prerequisites = { "Start" },
-			ConnectedUpgrades = { "BronzeBat" },
+			ConnectedUpgrades = { "BronzeBat", "BatCooldown1" },
 			Branch = "Combat",
 			ShortValue = "STONE",
 			Effect = { Type = "BatTier", BatId = "StoneBat", Tier = 2 },
@@ -811,7 +824,7 @@ local UpgradeConfig = {
 			Cost = 1_200,
 			Icon = "Auto",
 			Position = GetBatCooldownPosition(1),
-			Prerequisites = { "Start" },
+			Prerequisites = { "StoneBat" },
 			ConnectedUpgrades = { "BatCooldown2" },
 			Branch = "CombatSpeed",
 			ShortValue = "Level I",
@@ -842,6 +855,136 @@ local UpgradeConfig = {
 			Branch = "CombatSpeed",
 			ShortValue = "Level III",
 			Effect = { Type = "BatCooldown", Multiplier = 0.62 },
+		},
+		{
+			Id = "WalkSpeed26",
+			Name = "WalkSpeed 26",
+			Description = "Increases your base walking speed to 26.",
+			Cost = 600,
+			Icon = "Auto",
+			Position = GetWalkSpeedPosition(1),
+			Prerequisites = { "Start" },
+			ConnectedUpgrades = { "WalkSpeed27", "JumpHeight8" },
+			Branch = "Movement",
+			ShortValue = "26 SPEED",
+			Effect = { Type = "WalkSpeed", Value = 26 },
+		},
+		{
+			Id = "WalkSpeed27",
+			Name = "WalkSpeed 27",
+			Description = "Increases your base walking speed to 27.",
+			Cost = 4_000,
+			Icon = "Auto",
+			Position = GetWalkSpeedPosition(2),
+			Prerequisites = { "WalkSpeed26" },
+			ConnectedUpgrades = { "WalkSpeed28" },
+			Branch = "Movement",
+			ShortValue = "27 SPEED",
+			Effect = { Type = "WalkSpeed", Value = 27 },
+		},
+		{
+			Id = "WalkSpeed28",
+			Name = "WalkSpeed 28",
+			Description = "Increases your base walking speed to 28.",
+			Cost = 40_000,
+			Icon = "Auto",
+			Position = GetWalkSpeedPosition(3),
+			Prerequisites = { "WalkSpeed27" },
+			ConnectedUpgrades = { "WalkSpeed29" },
+			Branch = "Movement",
+			ShortValue = "28 SPEED",
+			Effect = { Type = "WalkSpeed", Value = 28 },
+		},
+		{
+			Id = "WalkSpeed29",
+			Name = "WalkSpeed 29",
+			Description = "Increases your base walking speed to 29.",
+			Cost = 400_000,
+			Icon = "Auto",
+			Position = GetWalkSpeedPosition(4),
+			Prerequisites = { "WalkSpeed28" },
+			ConnectedUpgrades = { "WalkSpeed30" },
+			Branch = "Movement",
+			ShortValue = "29 SPEED",
+			Effect = { Type = "WalkSpeed", Value = 29 },
+		},
+		{
+			Id = "WalkSpeed30",
+			Name = "WalkSpeed 30",
+			Description = "Increases your base walking speed to 30.",
+			Cost = 4_000_000,
+			Icon = "Auto",
+			Position = GetWalkSpeedPosition(5),
+			Prerequisites = { "WalkSpeed29" },
+			ConnectedUpgrades = {},
+			Branch = "Movement",
+			ShortValue = "30 SPEED",
+			Effect = { Type = "WalkSpeed", Value = 30 },
+		},
+		{
+			Id = "JumpHeight8",
+			Name = "Jump Height 8",
+			Description = "Increases your jump height to 8 studs.",
+			Cost = 1_200,
+			Icon = "Auto",
+			Position = GetJumpHeightPosition(1),
+			Prerequisites = { "WalkSpeed26" },
+			ConnectedUpgrades = { "JumpHeight9" },
+			Branch = "Movement",
+			ShortValue = "8 STUDS",
+			Effect = { Type = "JumpHeight", Value = 8 },
+		},
+		{
+			Id = "JumpHeight9",
+			Name = "Jump Height 9",
+			Description = "Increases your jump height to 9 studs.",
+			Cost = 8_000,
+			Icon = "Auto",
+			Position = GetJumpHeightPosition(2),
+			Prerequisites = { "JumpHeight8" },
+			ConnectedUpgrades = { "JumpHeight10" },
+			Branch = "Movement",
+			ShortValue = "9 STUDS",
+			Effect = { Type = "JumpHeight", Value = 9 },
+		},
+		{
+			Id = "JumpHeight10",
+			Name = "Jump Height 10",
+			Description = "Increases your jump height to 10 studs.",
+			Cost = 80_000,
+			Icon = "Auto",
+			Position = GetJumpHeightPosition(3),
+			Prerequisites = { "JumpHeight9" },
+			ConnectedUpgrades = { "JumpHeight11" },
+			Branch = "Movement",
+			ShortValue = "10 STUDS",
+			Effect = { Type = "JumpHeight", Value = 10 },
+		},
+		{
+			Id = "JumpHeight11",
+			Name = "Jump Height 11",
+			Description = "Increases your jump height to 11 studs.",
+			Cost = 800_000,
+			Icon = "Auto",
+			Position = GetJumpHeightPosition(4),
+			Prerequisites = { "JumpHeight10" },
+			ConnectedUpgrades = { "JumpHeight12" },
+			Branch = "Movement",
+			ShortValue = "11 STUDS",
+			Effect = { Type = "JumpHeight", Value = 11 },
+		},
+		{
+			Id = "JumpHeight12",
+			Name = "Jump Height 12",
+			Description = "Increases your jump height to 12 studs.",
+			Cost = 8_000_000,
+			Icon = "Auto",
+			Position = GetJumpHeightPosition(5),
+			Prerequisites = { "JumpHeight11" },
+			ConnectedUpgrades = {},
+			Branch = "Movement",
+			ShortValue = "12 STUDS",
+			Effect = { Type = "JumpHeight", Value = 12 },
 		},
 	},
 }
@@ -875,6 +1018,8 @@ local function GetEconomyStage(Upgrade): number
 	if Effect.Type == "VisitorsPerDisplay" then return math.clamp(Effect.Value - 2, 1, 7) end
 	if Effect.Type == "BatTier" then return math.clamp(math.ceil((Effect.Tier - 1) / 2), 1, 7) end
 	if Effect.Type == "BatCooldown" then return tonumber(string.match(Upgrade.Id, "%d+$")) or 1 end
+	if Effect.Type == "WalkSpeed" then return math.clamp(Effect.Value - UpgradeConfig.DefaultWalkSpeed, 1, 7) end
+	if Effect.Type == "JumpHeight" then return math.clamp(Effect.Value - 7, 1, 7) end
 	if Effect.Type == "ToolUnlock" then return ToolStages[Effect.ToolId] or 1 end
 	if Effect.Type == "ToolStrength" then
 		local SpeedLevel = tonumber(string.match(Upgrade.Id, "%d+$")) or 1

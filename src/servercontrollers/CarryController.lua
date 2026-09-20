@@ -2,6 +2,7 @@ local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerStorage = game:GetService("ServerStorage")
+local Workspace = game:GetService("Workspace")
 
 local AnalyticsController = require(ServerStorage.Controllers.AnalyticsController)
 local ItemsInfo = require(ReplicatedStorage.Modules.Game.ItemsInfo)
@@ -20,6 +21,7 @@ local ToolResolver = require(ReplicatedStorage.Modules.Game.ToolResolver)
 
 local DEFAULT_CARRY_OFFSET = CFrame.new(0, 0, -3) * CFrame.Angles(0, math.rad(90), 0)
 local SFX_MAX_DISTANCE = 80
+local MapAssets = ReplicatedStorage.Assets.Models.Map
 
 export type OwnershipState = {
 	BasePrice: number,
@@ -50,7 +52,6 @@ type MovementState = {
 local CarryController = {}
 
 local carryStates: { [Player]: CarryState } = {}
-local museumAreaConnections: { [Player]: RBXScriptConnection } = {}
 local characterRemovingConnections: { [Player]: RBXScriptConnection } = {}
 local MovementStates: { [Player]: MovementState } = {}
 local dataService
@@ -408,6 +409,7 @@ function CarryController.SetFixingMode(player: Player, enabled: boolean, Initial
 							Descendant.CanCollide = false
 							Descendant.CanQuery = false
 							Descendant.CanTouch = false
+							Descendant.Massless = true
 							Descendant.CastShadow = false
 						elseif Descendant:IsA("ParticleEmitter") or Descendant:IsA("Beam") or Descendant:IsA("Trail") then
 							Descendant.Enabled = false
@@ -516,17 +518,6 @@ function CarryController.OnPlayerAdded(player: Player)
 	characterRemovingConnections[player] = player.CharacterRemoving:Connect(function()
 		if not CarryController.DropCarriedItem(player) then StopCarrying(player) end
 	end)
-	local museumArea = MuseumController.GetMuseumArea(player)
-	if museumArea == nil or not museumArea:IsA("BasePart") then
-		return
-	end
-
-	museumAreaConnections[player] = museumArea.Touched:Connect(function(hit)
-		local character = player.Character
-		if character and hit:IsDescendantOf(character) then
-			deliverItem(player)
-		end
-	end)
 end
 
 function CarryController.OnCharacterAdded(player: Player, character: Model)
@@ -593,6 +584,22 @@ end
 
 function CarryController.Init()
 	MuseumController.SetInventoryRefreshHandler(CarryController.RefreshInventory)
+	local BasesAreaTemplate = MapAssets:FindFirstChild("BasesArea")
+	if BasesAreaTemplate and BasesAreaTemplate:IsA("BasePart") then
+		local BasesArea = BasesAreaTemplate:Clone()
+		BasesArea.Name = "BasesArea"
+		BasesArea.Anchored = true
+		BasesArea.CanCollide = false
+		BasesArea.CanTouch = true
+		BasesArea.Transparency = 1
+		BasesArea.Parent = Workspace
+		-- Any player carrying an item can deliver it through the shared bases area.
+		BasesArea.Touched:Connect(function(Hit)
+			local Character = Hit:FindFirstAncestorOfClass("Model")
+			local Player = Character and Players:GetPlayerFromCharacter(Character)
+			if Player then deliverItem(Player) end
+		end)
+	end
 	Networker.server.new("InventoryController", CarryController, {
 		CarryController.RequestDrop,
 		CarryController.SaveInventoryOrder,
@@ -600,11 +607,6 @@ function CarryController.Init()
 end
 
 function CarryController.OnPlayerRemoving(player: Player)
-	local connection = museumAreaConnections[player]
-	if connection then
-		connection:Disconnect()
-		museumAreaConnections[player] = nil
-	end
 	local CharacterConnection = characterRemovingConnections[player]
 	if CharacterConnection then
 		CharacterConnection:Disconnect()

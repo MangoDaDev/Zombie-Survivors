@@ -221,6 +221,28 @@ function UpgradeLogic.GetBatCooldownMultiplier(Ownership): number
 	return Multiplier
 end
 
+function UpgradeLogic.GetWalkSpeed(Ownership): number
+	local WalkSpeed = UpgradeConfig.DefaultWalkSpeed
+	for _, Upgrade in UpgradeConfig.Upgrades do
+		local Effect = Upgrade.Effect
+		if UpgradeLogic.IsPurchased(Ownership, Upgrade.Id) and Effect and Effect.Type == "WalkSpeed" then
+			WalkSpeed = math.max(WalkSpeed, Effect.Value)
+		end
+	end
+	return WalkSpeed
+end
+
+function UpgradeLogic.GetJumpHeight(Ownership): number
+	local JumpHeight = UpgradeConfig.DefaultJumpHeight
+	for _, Upgrade in UpgradeConfig.Upgrades do
+		local Effect = Upgrade.Effect
+		if UpgradeLogic.IsPurchased(Ownership, Upgrade.Id) and Effect and Effect.Type == "JumpHeight" then
+			JumpHeight = math.max(JumpHeight, Effect.Value)
+		end
+	end
+	return JumpHeight
+end
+
 function UpgradeLogic.CanReveal(Ownership, Upgrade): boolean
 	local Effect = Upgrade.Effect
 	return not Effect or Effect.Type ~= "ToolStrength" or UpgradeLogic.IsToolUnlocked(Ownership, Effect.ToolId)

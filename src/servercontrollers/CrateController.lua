@@ -37,7 +37,6 @@ local Rewards = {}
 local PityLabels = {}
 local RandomGenerator = Random.new()
 local IsResetting = false
-local ResetGeneration = 0
 local NextResetTime
 local PurchaseFeedbackDistancePadding = 8
 
@@ -371,14 +370,10 @@ end
 
 local function BreakCrate(State, Player: Player, PredictionId)
 	if Crates[State.Model] ~= State then return end
-	local BreakGeneration = ResetGeneration
 	local AnalyticsSessionId = AnalyticsController.TrackCrateBroken(Player, State.Model, State.Info)
 	Crates[State.Model] = nil
 	CreateReward(State, Player, PredictionId, AnalyticsSessionId)
 	State.Model:Destroy()
-	task.delay(State.Info.RespawnDelay, function()
-		if State.Info.Respawns ~= false and ResetGeneration == BreakGeneration then CrateController.Spawn(State.Info) end
-	end)
 end
 
 function CrateController.DamageCrate(Player, Model, Damage, PredictionId): boolean
@@ -452,10 +447,8 @@ local function SetResetWallVisible(IsVisible)
 	ResetWall.CanTouch = IsVisible
 end
 
-local function ClearCrateArea()
-	local RewardIds = {}
-	for RewardId in Rewards do table.insert(RewardIds, RewardId) end
-	for _, RewardId in RewardIds do RemoveReward(RewardId) end
+local function ClearCrates()
+	-- Reset only crates; spawned rewards keep their existing despawn deadlines.
 	local Models = {}
 	for Model in Crates do table.insert(Models, Model) end
 	for _, Model in Models do
@@ -499,7 +492,6 @@ end
 local function ResetCrates(BoundaryTime)
 	if IsResetting then return end
 	IsResetting = true
-	ResetGeneration += 1
 	Network:fireAll("UpdateResetState", NextResetTime, true)
 	SetResetWallVisible(true)
 	local ResetStartedAt = os.clock()
@@ -510,7 +502,7 @@ local function ResetCrates(BoundaryTime)
 			if IsPlayerInCrateZone(Player, CrateZone) then MuseumController.TeleportPlayerToMuseum(Player) end
 		end
 	end
-	ClearCrateArea()
+	ClearCrates()
 	GuidanceController.ResetTutorialCrates()
 	SpawnAllCrates(BoundaryTime)
 	local RemainingWallTime = CrateInfo.Reset.MinimumWallVisibleTime - (os.clock() - ResetStartedAt)

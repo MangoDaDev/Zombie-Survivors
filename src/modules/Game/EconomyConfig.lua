@@ -16,8 +16,9 @@ local EconomyConfig = {
 	LateGameCurveMultiplier = 1,
 
 	StartingCash = 750,
-	MinimumRestorationReward = 75,
-	RestorationRewardRate = 0.75,
+	-- Restoration is a small completion bonus; selling and guests remain the primary income sources.
+	MinimumRestorationReward = 10,
+	RestorationRewardRate = 0.05,
 	RecoveryCrateId = "CommonCrate",
 	RecoveryItemId = 1,
 	RarityOrder = { "Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythic", "Secret" },

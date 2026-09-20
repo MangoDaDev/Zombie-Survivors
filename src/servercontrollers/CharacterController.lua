@@ -3,6 +3,8 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Networker = require(ReplicatedStorage.Packages.networker)
+local PlayerStateController = require(script.Parent.PlayerStateController)
+local UpgradeLogic = require(ReplicatedStorage.Modules.Game.UpgradeLogic)
 
 local CONFIG = {
 	AnimationBundleId = 149344844441554,
@@ -24,12 +26,25 @@ local CharacterController = {
 	Config = CONFIG,
 }
 local CharacterNetwork: Networker.Server?
+local DataService
 
 local readyPlayers: { [Player]: boolean } = {}
 local loadingPlayers: { [Player]: boolean } = {}
 local lastRequestAt: { [Player]: number } = {}
+local UpgradeConnections: { [Player]: RBXScriptConnection } = {}
+local FixingConnections: { [Player]: RBXScriptConnection } = {}
 local cachedAnimationIds: { [string]: number }?
 local animationCacheAttempted = false
+
+local function ApplyMovementUpgrades(Player: Player)
+	-- Fixing temporarily owns movement values; apply the latest upgrades when fixing ends.
+	if PlayerStateController.Get(Player, "IsFixing", false) == true then return end
+	local Humanoid = Player.Character and Player.Character:FindFirstChildOfClass("Humanoid")
+	if not Humanoid then return end
+	local Ownership = DataService:get(Player, "Upgrades")
+	Humanoid.WalkSpeed = UpgradeLogic.GetWalkSpeed(Ownership)
+	Humanoid.JumpHeight = UpgradeLogic.GetJumpHeight(Ownership)
+end
 
 local function getAnimationIds(): { [string]: number }?
 	if cachedAnimationIds or animationCacheAttempted then
@@ -99,13 +114,24 @@ function CharacterController.Init()
 	})
 end
 
-function CharacterController.OnPlayerAdded(player: Player)
-	readyPlayers[player] = true
+function CharacterController.SetDataService(Service)
+	DataService = Service
 end
 
-function CharacterController.OnCharacterAdded(_player: Player, character: Model)
+function CharacterController.OnPlayerAdded(player: Player)
+	readyPlayers[player] = true
+	UpgradeConnections[player] = DataService:getChangedSignal(player, "Upgrades"):Connect(function()
+		ApplyMovementUpgrades(player)
+	end)
+	FixingConnections[player] = PlayerStateController.GetChangedSignal(player, "IsFixing"):Connect(function(IsFixing)
+		if IsFixing ~= true then ApplyMovementUpgrades(player) end
+	end)
+end
+
+function CharacterController.OnCharacterAdded(player: Player, character: Model)
 	local humanoid = character:FindFirstChildOfClass("Humanoid") or character:WaitForChild("Humanoid", 5)
 	if humanoid then
+		ApplyMovementUpgrades(player)
 		task.spawn(applyR6Animations, character, humanoid)
 	end
 end
@@ -114,6 +140,10 @@ function CharacterController.OnPlayerRemoving(player: Player)
 	readyPlayers[player] = nil
 	loadingPlayers[player] = nil
 	lastRequestAt[player] = nil
+	local UpgradeConnection = UpgradeConnections[player]
+	if UpgradeConnection then UpgradeConnection:Disconnect(); UpgradeConnections[player] = nil end
+	local FixingConnection = FixingConnections[player]
+	if FixingConnection then FixingConnection:Disconnect(); FixingConnections[player] = nil end
 end
 
 return CharacterController

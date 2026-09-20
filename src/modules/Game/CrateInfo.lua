@@ -3,7 +3,6 @@ local GetRandomFromWeightedTable = require(script.Parent.Parent.Math.GetRandomFr
 
 local SharedCrateInfo = {
 	TemplateFolderName = "Crates",
-	RespawnDelay = 0.6,
 	SpawnPadding = 4,
 	MinimumSpawnSeparation = 8,
 	ScaleStandardDeviation = 0.12,
@@ -24,7 +23,6 @@ local SharedCrateInfo = {
 	PurchaseDistance = 13,
 	RevealTickSoundName = "ItemRevealTick",
 	RevealCompleteSoundName = "ItemRevealComplete",
-	Respawns = true,
 }
 
 local RarityOrder = { "Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythic", "Secret" }
@@ -147,7 +145,6 @@ local CrateInfo = {
 			},
 			PityOnly = true,
 			PityInterval = 450,
-			Respawns = false,
 			DisplayColor = Color3.fromRGB(255, 48, 65),
 		}),
 		CreateCrate({
@@ -166,7 +163,6 @@ local CrateInfo = {
 			},
 			PityOnly = true,
 			PityInterval = 1_200,
-			Respawns = false,
 			DisplayColor = Color3.fromRGB(245, 245, 245),
 		}),
 	},

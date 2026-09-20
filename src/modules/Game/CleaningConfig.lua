@@ -22,6 +22,8 @@ local CleaningConfig = {
 	SprayVFXWidthScale = 1,
 	SprayEndpointResponsiveness = 24,
 	ToolPositionResponsiveness = 24,
+	-- Surface positions stay responsive while normal-driven rotation eases across sharp edges.
+	ToolSurfaceRotationResponsiveness = 2,
 	ToolScreenPosition = Vector2.new(0.85, 0.85),
 	ToolCameraDepth = 2.5,
 	ToolCursorMovementScale = Vector2.new(0.018, 0.012),
@@ -30,6 +32,7 @@ local CleaningConfig = {
 	FakeArmThickness = 0.38,
 	FakeArmScreenPosition = Vector2.new(0.92, 0.88),
 	FakeArmCameraDepth = 0.85,
+	FakeArmRotationResponsiveness = 2,
 	SpongeSurfaceResponsiveness = 30,
 	SpongeScrubDistance = 0.12,
 	SpongeScrubSideDistance = 0.035,

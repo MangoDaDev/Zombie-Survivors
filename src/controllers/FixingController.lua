@@ -39,6 +39,7 @@ local CreatedStartAttachment = false
 local CreatedToolEmitter = false
 local SmoothedToolPosition: Vector3?
 local SmoothedVisualToolCFrame: CFrame?
+local SmoothedFakeArmRotation: CFrame?
 local CurrentToolColor: Color3?
 local FakeArm: Part?
 local ViewmodelContainer: Folder?
@@ -319,6 +320,7 @@ local function Restore(Instant: boolean?)
 	ViewmodelSourceTool = nil
 	ViewmodelPartOffsets = {}
 	SmoothedVisualToolCFrame = nil
+	SmoothedFakeArmRotation = nil
 	FakeArm = nil
 	if CameraBound then RunService:UnbindFromRenderStep(CAMERA_BINDING_NAME); CameraBound = false end
 	local Camera = Workspace.CurrentCamera
@@ -415,6 +417,7 @@ local function DestroyViewmodelTool()
 	ViewmodelSourceTool = nil
 	ViewmodelPartOffsets = {}
 	SmoothedVisualToolCFrame = nil
+	SmoothedFakeArmRotation = nil
 end
 
 local function CreateViewmodelTool(SourceTool: Tool, ToolInfo)
@@ -1080,12 +1083,15 @@ UpdateVisualTool = function(DeltaTime)
 	end
 	local DesiredCFrame = GetDesiredToolCFrame(ToolInfo)
 	local Responsiveness = ToolInfo.PositionResponsiveness or CleaningConfig.ToolPositionResponsiveness
+	local RotationResponsiveness = Responsiveness
+	local IsFollowingSurface = false
 	local HammerContactPosition: Vector3?
 	if ToolInfo.Id == "Hammer" and HammerStrikeStartedAt and HammerStrikeAimPosition and HammerStrikeSurfaceNormal then
 		local StrikeDuration = math.max(ToolInfo.StrikeInterval or 0.28, 0.01)
 		local StrikeProgress = math.clamp((os.clock() - HammerStrikeStartedAt) / StrikeDuration, 0, 1)
 		DesiredCFrame = GetHammerUseCFrame(HammerStrikeAimPosition, HammerStrikeSurfaceNormal, StrikeProgress)
 		Responsiveness = ToolInfo.PositionResponsiveness or CleaningConfig.ToolPositionResponsiveness
+		IsFollowingSurface = true
 		if not HammerStrikeApplied and StrikeProgress >= CleaningConfig.HammerContactProgress then
 			HammerStrikeApplied = true
 			HammerContactPosition = HammerStrikeAimPosition
@@ -1105,10 +1111,19 @@ UpdateVisualTool = function(DeltaTime)
 		if AimPosition and SurfaceNormal then
 			DesiredCFrame = GetSpongeUseCFrame(AimPosition, SurfaceNormal)
 			Responsiveness = CleaningConfig.SpongeSurfaceResponsiveness
+			IsFollowingSurface = true
 		end
 	end
-	local Blend = 1 - math.exp(-Responsiveness * DeltaTime)
-	SmoothedVisualToolCFrame = if SmoothedVisualToolCFrame then SmoothedVisualToolCFrame:Lerp(DesiredCFrame, Blend) else DesiredCFrame
+	if IsFollowingSurface then RotationResponsiveness = CleaningConfig.ToolSurfaceRotationResponsiveness end
+	local PositionBlend = 1 - math.exp(-Responsiveness * DeltaTime)
+	local RotationBlend = 1 - math.exp(-RotationResponsiveness * DeltaTime)
+	if SmoothedVisualToolCFrame then
+		local Position = SmoothedVisualToolCFrame.Position:Lerp(DesiredCFrame.Position, PositionBlend)
+		local Rotation = SmoothedVisualToolCFrame.Rotation:Lerp(DesiredCFrame.Rotation, RotationBlend)
+		SmoothedVisualToolCFrame = Rotation + Position
+	else
+		SmoothedVisualToolCFrame = DesiredCFrame
+	end
 	PositionViewmodelTool(SmoothedVisualToolCFrame)
 	if HammerContactPosition then
 		ApplyToolLocally(ToolInfo, DeltaTime, HammerContactPosition)
@@ -1119,11 +1134,19 @@ UpdateVisualTool = function(DeltaTime)
 		local ArmEnd = SmoothedVisualToolCFrame.Position
 		local ArmLength = (ArmEnd - ArmStart).Magnitude
 		if ArmLength > 0.01 then
+			local DesiredArmRotation = CFrame.lookAt(Vector3.zero, ArmEnd - ArmStart).Rotation
+			local ArmRotationBlend = 1 - math.exp(-CleaningConfig.FakeArmRotationResponsiveness * DeltaTime)
+			SmoothedFakeArmRotation = if SmoothedFakeArmRotation
+				then SmoothedFakeArmRotation:Lerp(DesiredArmRotation, ArmRotationBlend)
+				else DesiredArmRotation
+			-- Keep the hand attached to the tool while the shoulder end absorbs abrupt normal changes.
+			local ArmCenter = ArmEnd - SmoothedFakeArmRotation.LookVector * ArmLength / 2
 			FakeArm.Transparency = 0
 			FakeArm.Size = Vector3.new(CleaningConfig.FakeArmThickness, CleaningConfig.FakeArmThickness, ArmLength)
-			FakeArm.CFrame = CFrame.lookAt(ArmStart:Lerp(ArmEnd, 0.5), ArmEnd)
+			FakeArm.CFrame = SmoothedFakeArmRotation + ArmCenter
 		else
 			FakeArm.Transparency = 1
+			SmoothedFakeArmRotation = nil
 		end
 	end
 end
