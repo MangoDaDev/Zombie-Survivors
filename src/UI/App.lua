@@ -1,6 +1,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local vide = require(ReplicatedStorage.Packages.vide)
+local Confirmation = require(script.Parent.Classes.Confirmation)
 local BottomRight = require(script.Parent.HUD.BottomRight)
 local CarryOverlay = require(script.Parent.HUD.CarryOverlay)
 local CleaningHUD = require(script.Parent.HUD.CleaningHUD)
@@ -25,5 +26,6 @@ return function()
 		GuidanceHUD(),
 		Notifications(),
 		UpgradeTree(),
+		Confirmation.Component(),
 	}
 end

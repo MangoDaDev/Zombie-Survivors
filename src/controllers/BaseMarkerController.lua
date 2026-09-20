@@ -35,7 +35,8 @@ local function CreateMarker(Museum: Model)
 	if not Owner then return end
 
 	local Roof = Museum:FindFirstChild("Roof") or Museum:WaitForChild("Roof", 10)
-	local RoofMount = Roof and Roof:FindFirstChild("RoofMount", true)
+	-- A replicated Roof can arrive before its children; wait for the authored mount before creating the marker.
+	local RoofMount = Roof and (Roof:FindFirstChild("RoofMount") or Roof:WaitForChild("RoofMount", 10))
 	if not RoofMount or not RoofMount:IsA("BasePart") or not Museum.Parent then return end
 
 	local IsLocalBase = Owner == LocalPlayer

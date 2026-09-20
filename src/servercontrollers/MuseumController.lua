@@ -12,6 +12,7 @@ local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
 local TeleportPlayer = require(ReplicatedStorage.Modules.Game.TeleportPlayer)
 local ToolResolver = require(ReplicatedStorage.Modules.Game.ToolResolver)
 local UpgradeLogic = require(ReplicatedStorage.Modules.Game.UpgradeLogic)
+local Networker = require(ReplicatedStorage.Packages.networker)
 
 local MuseumAssets = ReplicatedStorage.Assets.Models.Museum
 local BaseTemplate = MuseumAssets.Building.Base
@@ -21,6 +22,7 @@ local TableTemplate = MuseumAssets.Table
 local MuseumCFrames = MuseumAssets.MuseumCFrames
 local DisplayTemplate = MuseumAssets.Display
 local SFX_MAX_DISTANCE = 80
+local SALE_CONFIRMATION_LIFETIME = 15
 
 type DisplayState = {
 	index: number, model: Model, itemCFrame: BasePart, viewPart: BasePart,
@@ -41,6 +43,8 @@ local PlayerMuseums: Folder
 local DataService
 local InventoryRefreshHandler
 local CopyDisplays
+local Network
+local PendingSales: { [Player]: { SlotId: number, ItemId: number, ExpiresAt: number } } = {}
 
 local function GetItemInfo(ItemId: number)
 	for _, ItemInfo in ItemsInfo do if ItemInfo.Id == ItemId then return ItemInfo end end
@@ -143,6 +147,20 @@ local function SellDisplayedItem(Player: Player, DisplayState: DisplayState)
 	AnalyticsController.TrackItemSold(Player, ItemId, DisplayState.levelNumber, ItemInfo.SaleValue)
 	GuidanceController.Advance(Player, "EarnMoney")
 	Sounds.Play("Kaching", DisplayState.itemCFrame, SFX_MAX_DISTANCE)
+end
+
+local function RequestSaleConfirmation(Player: Player, Assignment: MuseumAssignment, DisplayState: DisplayState)
+	if Assignments[Player] ~= Assignment then return end
+	local ItemId = DisplayState.itemId
+	local ItemInfo = ItemId and GetItemInfo(ItemId)
+	if not ItemInfo then return end
+	-- Display sales stay pending until the owner accepts the named-item confirmation.
+	PendingSales[Player] = {
+		SlotId = DisplayState.index,
+		ItemId = ItemId,
+		ExpiresAt = os.clock() + SALE_CONFIRMATION_LIFETIME,
+	}
+	Network:fire(Player, "ShowSaleConfirmation", ItemInfo.Name, DisplayState.index, ItemId)
 end
 
 local function PlaceEquippedItem(Player: Player, Assignment: MuseumAssignment, DisplayState: DisplayState)
@@ -264,7 +282,7 @@ local function CreateDisplay(Player: Player, Assignment: MuseumAssignment, SlotI
 	UpdateDisplayPrompts(DisplayState)
 	table.insert(DisplayState.Connections, Prompt.Triggered:Connect(function(TriggeringPlayer) if TriggeringPlayer == Player then PlaceEquippedItem(Player, Assignment, DisplayState) end end))
 	table.insert(DisplayState.Connections, TakePrompt.Triggered:Connect(function(TriggeringPlayer) if TriggeringPlayer == Player then TakeDisplayedItem(Player, DisplayState) end end))
-	table.insert(DisplayState.Connections, SellPrompt.Triggered:Connect(function(TriggeringPlayer) if TriggeringPlayer == Player then SellDisplayedItem(Player, DisplayState) end end))
+	table.insert(DisplayState.Connections, SellPrompt.Triggered:Connect(function(TriggeringPlayer) if TriggeringPlayer == Player then RequestSaleConfirmation(Player, Assignment, DisplayState) end end))
 	local SavedItemId = SavedDisplays[tostring(SlotId)]
 	if type(SavedItemId) == "number" then SetDisplayItem(Player, DisplayState, SavedItemId) end
 end
@@ -315,7 +333,23 @@ function MuseumController.GetOccupiedDisplays(Player: Player, LevelNumber: numbe
 	if Assignment then for _, DisplayState in Assignment.displays do if (LevelNumber == nil or DisplayState.levelNumber == LevelNumber) and DisplayState.Unlocked and DisplayState.itemId and DisplayState.itemModel then table.insert(Result, DisplayState) end end end
 	return Result
 end
+function MuseumController.ConfirmSale(_, Player: Player, SlotId, ItemId)
+	if type(SlotId) ~= "number" or SlotId % 1 ~= 0 or type(ItemId) ~= "number" or ItemId % 1 ~= 0 then return end
+	local PendingSale = PendingSales[Player]
+	PendingSales[Player] = nil
+	if not PendingSale or PendingSale.ExpiresAt < os.clock() or PendingSale.SlotId ~= SlotId or PendingSale.ItemId ~= ItemId then return end
+	local Assignment = Assignments[Player]
+	local DisplayState = Assignment and Assignment.displays[SlotId]
+	if not DisplayState or DisplayState.itemId ~= ItemId or not DisplayState.sellPrompt.Enabled then return end
+	local Character = Player.Character
+	local RootPart = Character and Character:FindFirstChild("HumanoidRootPart")
+	local PromptPart = DisplayState.sellPrompt.Parent
+	if not RootPart or not RootPart:IsA("BasePart") or not PromptPart or not PromptPart:IsA("BasePart") then return end
+	if (RootPart.Position - PromptPart.Position).Magnitude > DisplayState.sellPrompt.MaxActivationDistance + 3 then return end
+	SellDisplayedItem(Player, DisplayState)
+end
 function MuseumController.Init()
+	Network = Networker.server.new("MuseumController", MuseumController, { MuseumController.ConfirmSale })
 	PlayerMuseums = Instance.new("Folder"); PlayerMuseums.Name = "PlayerMuseums"; PlayerMuseums.Parent = Workspace
 	for _, Position in MuseumCFrames:GetChildren() do if Position:IsA("BasePart") then table.insert(Positions, Position) end end
 	table.sort(Positions, function(A, B) return (tonumber(A.Name) or math.huge) < (tonumber(B.Name) or math.huge) end)
@@ -332,6 +366,7 @@ function MuseumController.OnPlayerAdded(Player: Player)
 end
 function MuseumController.OnCharacterAdded(Player: Player, Character: Model) task.spawn(TeleportCharacterToMuseum, Player, Character) end
 function MuseumController.OnPlayerRemoving(Player: Player)
+	PendingSales[Player] = nil
 	local Assignment = Assignments[Player]
 	if not Assignment then return end
 	Assignments[Player] = nil; OccupiedPositions[Assignment.position] = nil
