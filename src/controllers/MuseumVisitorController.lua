@@ -41,6 +41,31 @@ function MuseumVisitorController.VisitorSay(_, UniqueId, Message)
 	if Visitor and type(Message) == "string" then Visitor:Say(Message) end
 end
 
+function MuseumVisitorController.RagdollVisitor(_, UniqueId, Knockback)
+	local Visitor = GetVisitor(UniqueId)
+	if Visitor and typeof(Knockback) == "Vector3" then Visitor:Ragdoll(Knockback) end
+end
+
+function MuseumVisitorController.GetOwnHitTargets(HitboxCFrame: CFrame, HitboxSize: Vector3)
+	local Targets = {}
+	local HalfHitboxSize = HitboxSize / 2
+	for UniqueId, Visitor in Visitors do
+		local Model = Visitor.Model
+		if Visitor.OwnerUserId == game.Players.LocalPlayer.UserId and Model and not Visitor.IsRagdolled then
+			local BoundingCFrame, BoundingSize = Model:GetBoundingBox()
+			local LocalPosition = HitboxCFrame:PointToObjectSpace(BoundingCFrame.Position)
+			local HalfTargetSize = BoundingSize / 2
+			if math.abs(LocalPosition.X) <= HalfHitboxSize.X + HalfTargetSize.X
+				and math.abs(LocalPosition.Y) <= HalfHitboxSize.Y + HalfTargetSize.Y
+				and math.abs(LocalPosition.Z) <= HalfHitboxSize.Z + HalfTargetSize.Z
+			then
+				table.insert(Targets, { Model = Model, UniqueId = UniqueId })
+			end
+		end
+	end
+	return Targets
+end
+
 function MuseumVisitorController.FadeVisitor(_, UniqueId, Duration)
 	local Visitor = GetVisitor(UniqueId)
 	if Visitor and type(Duration) == "number" then Visitor:FadeOut(Duration) end

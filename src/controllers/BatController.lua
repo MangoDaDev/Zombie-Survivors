@@ -13,6 +13,7 @@ local CrateInfo = require(ReplicatedStorage.Modules.Game.CrateInfo)
 local CrateRuntime = require(ReplicatedStorage.Modules.Game.CrateRuntime)
 local CrateController = require(ReplicatedStorage.Controllers.CrateController)
 local DataService = require(ReplicatedStorage.Packages.dataservice).client
+local MuseumVisitorController = require(ReplicatedStorage.Controllers.MuseumVisitorController)
 local Networker = require(ReplicatedStorage.Packages.networker)
 local RuntimeState = require(ReplicatedStorage.Modules.Game.RuntimeState)
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
@@ -385,6 +386,14 @@ local function DetectTargets(Tool, Info, SwingTime)
 			Seen[Model] = true
 			local PredictionId = ShowPredictedImpact(Model, Handle, Info)
 			table.insert(Targets, { Model = Model, PredictionId = PredictionId })
+		end
+	end
+	for _, VisitorTarget in MuseumVisitorController.GetOwnHitTargets(HitboxCFrame, HitboxSize) do
+		if #Targets >= 16 then break end
+		if not Seen[VisitorTarget.Model] then
+			Seen[VisitorTarget.Model] = true
+			ShowPredictedImpact(VisitorTarget.Model, Handle, Info)
+			table.insert(Targets, { VisitorId = VisitorTarget.UniqueId })
 		end
 	end
 	-- An empty scan must not consume the authoritative swing cooldown.

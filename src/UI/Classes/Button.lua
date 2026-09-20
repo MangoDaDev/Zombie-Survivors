@@ -73,11 +73,6 @@ return function(props: Props)
 			Size = UDim2.new(1, 0, 0.88, 0),
 			ZIndex = 1,
 			create "UICorner" { CornerRadius = UIStyle.CornerRadius },
-			create "UIGradient" {
-				Color = ColorSequence.new(UIStyle.Colors.Paper, UIStyle.Colors.PaperShadow),
-				Rotation = 90,
-				Transparency = NumberSequence.new(0.78, 0.9),
-			},
 			create "ImageLabel" {
 				Name = "StudTexture",
 				BackgroundTransparency = 1,

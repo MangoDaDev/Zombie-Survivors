@@ -1,3 +1,4 @@
+local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -121,6 +122,32 @@ local function PrepareModel(Model: Instance)
 	end
 	local RootPart = Model:FindFirstChild("HumanoidRootPart")
 	if RootPart and RootPart:IsA("BasePart") then RootPart.Anchored = true end
+end
+
+local function ResetRagdoll(Visitor)
+	local Model = Visitor.Model
+	if not Model then return end
+	for _, JointInfo in Visitor.RagdollJoints or {} do
+		if JointInfo.Motor.Parent then
+			JointInfo.Motor.Enabled = true
+			JointInfo.Motor.Transform = CFrame.identity
+		end
+		JointInfo.Constraint:Destroy()
+		JointInfo.NoCollisionConstraint:Destroy()
+		JointInfo.Attachment0:Destroy()
+		JointInfo.Attachment1:Destroy()
+	end
+	Visitor.RagdollJoints = nil
+	Visitor.IsRagdolled = false
+	local Humanoid = Model:FindFirstChildOfClass("Humanoid")
+	if Humanoid then Humanoid.PlatformStand = false end
+	for _, Descendant in Model:GetDescendants() do
+		if Descendant:IsA("BasePart") then
+			Descendant.AssemblyLinearVelocity = Vector3.zero
+			Descendant.AssemblyAngularVelocity = Vector3.zero
+		end
+	end
+	PrepareModel(Model)
 end
 
 local function GetRenderTemplate(): Model?
@@ -254,6 +281,7 @@ local function AcquireModel(Visitor): Model?
 	if not Template then return nil end
 	local Model = table.remove(RenderPool) or Template:Clone()
 	Model.Name = `MuseumVisitor_{Visitor.UniqueId}`
+	CollectionService:AddTag(Model, "MuseumVisitor")
 	ApplyAppearance(Model, Visitor)
 	Model.Parent = GetRenderFolder()
 	Visitor.WalkJoints = GetWalkJoints(Model)
@@ -269,6 +297,8 @@ end
 local function ReleaseModel(Visitor)
 	local Model = Visitor.Model
 	if not Model then return end
+	ResetRagdoll(Visitor)
+	CollectionService:RemoveTag(Model, "MuseumVisitor")
 	for _, FadeInfo in Visitor.FadeInstances or {} do
 		if FadeInfo.Instance.Parent then FadeInfo.Instance.Transparency = FadeInfo.Transparency end
 	end
@@ -475,6 +505,17 @@ end
 function MuseumVisitor:Update(DeltaTime: number, Now: number)
 	local Model = self.Model
 	if not Model then return end
+	if self.IsRagdolled then
+		if self.FadeTargetAlpha ~= nil then
+			local Alpha = math.clamp((Now - self.FadeStartedAt) / self.FadeDuration, 0, 1)
+			self.FadeAlpha = self.FadeStartAlpha + (self.FadeTargetAlpha - self.FadeStartAlpha) * Alpha
+			for _, FadeInfo in self.FadeInstances do
+				FadeInfo.Instance.Transparency = FadeInfo.Transparency + (1 - FadeInfo.Transparency) * self.FadeAlpha
+			end
+			if Alpha >= 1 then self.FadeTargetAlpha = nil end
+		end
+		return
+	end
 	local DesiredRotation = self.RotationTarget
 	if self.MoveTarget then
 		local MoveAlpha = math.clamp((Now - self.MoveStartedAt) / self.MoveDuration, 0, 1)
@@ -571,6 +612,62 @@ function MuseumVisitor:Say(Message: string)
 	if not self.IsVisible then return end
 	local Head = self.Model and self.Model:FindFirstChild("Head")
 	if Head and Head:IsA("BasePart") and Message ~= "" then TextChatService:DisplayBubble(Head, Message) end
+end
+
+function MuseumVisitor:Ragdoll(Knockback: Vector3)
+	if self.IsRagdolled then return end
+	local Model = self.Model
+	if not Model then return end
+	self.IsRagdolled = true
+	self.MoveTarget = nil
+	self.RotationTarget = nil
+	self.WalkBlend = 0
+	self.RagdollJoints = {}
+	for _, Descendant in Model:GetDescendants() do
+		if Descendant:IsA("Motor6D") and Descendant.Part0 and Descendant.Part1 then
+			local Attachment0 = Instance.new("Attachment")
+			Attachment0.Name = "RagdollAttachment"
+			Attachment0.CFrame = Descendant.C0
+			Attachment0.Parent = Descendant.Part0
+			local Attachment1 = Instance.new("Attachment")
+			Attachment1.Name = "RagdollAttachment"
+			Attachment1.CFrame = Descendant.C1
+			Attachment1.Parent = Descendant.Part1
+			local Constraint = Instance.new("BallSocketConstraint")
+			Constraint.Name = "RagdollBallSocket"
+			Constraint.Attachment0 = Attachment0
+			Constraint.Attachment1 = Attachment1
+			Constraint.LimitsEnabled = true
+			Constraint.UpperAngle = 55
+			Constraint.TwistLimitsEnabled = true
+			Constraint.TwistLowerAngle = -45
+			Constraint.TwistUpperAngle = 45
+			Constraint.Parent = Descendant.Part0
+			local NoCollisionConstraint = Instance.new("NoCollisionConstraint")
+			NoCollisionConstraint.Name = "RagdollNoCollision"
+			NoCollisionConstraint.Part0 = Descendant.Part0
+			NoCollisionConstraint.Part1 = Descendant.Part1
+			NoCollisionConstraint.Parent = Descendant.Part0
+			Descendant.Enabled = false
+			table.insert(self.RagdollJoints, {
+				Motor = Descendant,
+				Attachment0 = Attachment0,
+				Attachment1 = Attachment1,
+				Constraint = Constraint,
+				NoCollisionConstraint = NoCollisionConstraint,
+			})
+		end
+	end
+	for _, Descendant in Model:GetDescendants() do
+		if Descendant:IsA("BasePart") then Descendant.Massless = false end
+	end
+	local Humanoid = Model:FindFirstChildOfClass("Humanoid")
+	if Humanoid then Humanoid.PlatformStand = true end
+	local RootPart = Model:FindFirstChild("HumanoidRootPart")
+	if RootPart and RootPart:IsA("BasePart") then
+		RootPart.Anchored = false
+		RootPart.AssemblyLinearVelocity = Knockback
+	end
 end
 
 function MuseumVisitor:FadeOut(Duration: number)

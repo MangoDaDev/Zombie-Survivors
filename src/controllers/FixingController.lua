@@ -154,6 +154,7 @@ local function GetToolRadiusScale(ToolInfo): number
 	local Ownership = DataService:get("Upgrades")
 	-- Keep the radius viewport-relative across devices, with only a moderate taper for genuinely large item bounds.
 	return (ToolInfo.RadiusScale or CleaningConfig.BrushRadiusScale)
+		* CleaningConfig.ToolRadiusMultiplier
 		* UpgradeLogic.GetToolRadiusMultiplier(Ownership, ToolInfo.Id)
 		* ActiveItemRadiusMultiplier
 end
@@ -830,7 +831,7 @@ local function FinishRemainingTargets(ToolId: string)
 end
 
 local function PrepareLocalStep(ToolId: string): boolean
-	if LocalStepId then
+	if LocalStepId and #LocalTargetStates > 0 then
 		LocalStepCaches[LocalStepId] = {
 			TargetStates = LocalTargetStates,
 			Total = LocalStepTotal,
@@ -940,9 +941,16 @@ local function PrepareLocalStep(ToolId: string): boolean
 			Completed = CurrentHealth <= 0,
 		})
 	end
+	local ExpectedTargetCount = math.max(0, math.round(SavedTargetCount))
+	if #LocalTargetStates < ExpectedTargetCount then
+		-- The item model and target folder can replicate before all target parts. Leave the step
+		-- unprepared so held cleaning input retries as the remaining descendants arrive.
+		ResetLocalStep()
+		return false
+	end
 	LocalStepId = ToolId
 	LocalStepTotal = RuntimeState.Get(LocalPlayer, "CleaningStepTotal", #Targets)
-	LocalStepRemaining = RuntimeState.Get(LocalPlayer, "CleaningStepRemaining", #Targets)
+	LocalStepRemaining = SavedTargetCount
 	LastReportedRemaining = LocalStepRemaining
 	return #LocalTargetStates > 0
 end
@@ -1105,33 +1113,52 @@ local function ApplyToolLocally(ToolInfo, DeltaTime: number, AimPosition: Vector
 	local Step = CleaningConfig.GetStep(ToolInfo.Id)
 	if not Step or CompletionRequested then return end
 	local Ownership = DataService:get("Upgrades")
-	local Strength = ToolInfo.StrengthPerSecond * UpgradeLogic.GetToolStrengthMultiplier(Ownership, ToolInfo.Id)
-	local Damage = Strength * math.clamp(DeltaTime, 0, 0.2)
-	if Step.Type == "Bent" then Damage = 1 end
+	local Strength = ToolInfo.StrengthPerSecond
+		* CleaningConfig.ToolStrengthMultiplier
+		* UpgradeLogic.GetToolStrengthMultiplier(Ownership, ToolInfo.Id)
 	local RadiusScale = GetToolRadiusScale(ToolInfo)
 	local ProgressChanged = false
 	local AppliedToTarget = false
 	local GreaseTargetCount = 0
+	local AffectedTargetStates = {}
+	local TargetsInRadius = 0
 	local NearestTargetState
 	local NearestTargetDistance = math.huge
-	if Step.Type == "Bent" and AimPosition then
-		for _, State in LocalTargetStates do
-			if State.Completed or not State.Part.Parent then continue end
-			local Distance = GetProjectedDistanceToPart(AimPosition, State.Part)
-			if Distance <= RadiusScale and Distance < NearestTargetDistance then
-				NearestTargetState = State
-				NearestTargetDistance = Distance
-			end
-		end
-	end
 
 	for _, State in LocalTargetStates do
 		local Target = State.Part
 		if State.Completed or not Target.Parent then continue end
 		-- Project the cleaning circle through the active item's full depth; same-item geometry never occludes targets.
-		if not AimPosition or GetProjectedDistanceToPart(AimPosition, Target) > RadiusScale then continue end
-		-- A hammer strike affects the nearest valid damaged part inside its full tool radius.
-		if Step.Type == "Bent" and State ~= NearestTargetState then continue end
+		if not AimPosition then continue end
+		local Distance = GetProjectedDistanceToPart(AimPosition, Target)
+		if Distance > RadiusScale then continue end
+		TargetsInRadius += 1
+		if Step.Type == "Bent" then
+			-- A hammer strike still affects only the nearest part, but every part in range contributes to slowdown.
+			if Distance < NearestTargetDistance then
+				NearestTargetState = State
+				NearestTargetDistance = Distance
+			end
+		else
+			table.insert(AffectedTargetStates, State)
+		end
+	end
+	if NearestTargetState then table.insert(AffectedTargetStates, NearestTargetState) end
+	-- Every additional target adds a gentle penalty, capped so clustered work never drops below half speed.
+	local SlowdownDivisor = math.min(
+		CleaningConfig.MaximumMultiTargetSlowdown,
+		1 + math.max(TargetsInRadius - 1, 0) * CleaningConfig.MultiTargetSlowdownPerAdditionalTarget
+	)
+	local Damage = if Step.Type == "Bent"
+		-- A base Hammer realigns one isolated target in exactly three hits; upgrades still improve it.
+		then Step.TargetHP / (ToolInfo.HitsPerTarget or 3)
+			* UpgradeLogic.GetToolStrengthMultiplier(Ownership, ToolInfo.Id)
+			/ SlowdownDivisor
+		else Strength * math.clamp(DeltaTime, 0, 0.2) / SlowdownDivisor
+	local EffectDeltaTime = DeltaTime * CleaningConfig.ToolStrengthMultiplier / SlowdownDivisor
+
+	for _, State in AffectedTargetStates do
+		local Target = State.Part
 		AppliedToTarget = true
 		if Step.Type == "Grease" then GreaseTargetCount += 1 end
 		local PreviousHealth = State.CurrentHealth
@@ -1165,9 +1192,9 @@ local function ApplyToolLocally(ToolInfo, DeltaTime: number, AimPosition: Vector
 		elseif Step.Type == "LooseDebris" then
 			local ToolPosition = if SmoothedVisualToolCFrame then SmoothedVisualToolCFrame.Position else Workspace.CurrentCamera.CFrame.Position
 			local Direction = GetAirflowDirection(AimPosition, ToolPosition)
-			if Direction then Target.CFrame += Direction * (ToolInfo.BlowSpeed or 8) * DeltaTime end
+			if Direction then Target.CFrame += Direction * (ToolInfo.BlowSpeed or 8) * EffectDeltaTime end
 			local CurrentTransparency = TargetHintTransparencies[Target] or Target.Transparency
-			SetHintAwareTransparency(Target, math.clamp(CurrentTransparency + DeltaTime * 0.9, 0, 1))
+			SetHintAwareTransparency(Target, math.clamp(CurrentTransparency + EffectDeltaTime * 0.9, 0, 1))
 		elseif State.OriginalAppearance then
 			local RestoredAmount = 1 - State.CurrentHealth / math.max(State.MaximumHealth, 0.001)
 			Target.Color = State.DamagedColor:Lerp(State.OriginalAppearance.Color, RestoredAmount)

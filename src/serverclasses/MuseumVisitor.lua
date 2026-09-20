@@ -73,6 +73,16 @@ function MuseumVisitor:Say(Message: string)
 	self:Replicate("VisitorSay", self.UniqueId, Message)
 end
 
+function MuseumVisitor:GetCurrentCFrame(): CFrame
+	return GetCurrentCFrame(self, Workspace:GetServerTimeNow())
+end
+
+function MuseumVisitor:Ragdoll(Knockback: Vector3)
+	self.CurrentCFrame = GetCurrentCFrame(self, Workspace:GetServerTimeNow())
+	self.MoveTarget = nil
+	self:Replicate("RagdollVisitor", self.UniqueId, Knockback)
+end
+
 function MuseumVisitor:FadeOut(Duration: number)
 	self:Replicate("FadeVisitor", self.UniqueId, Duration)
 end

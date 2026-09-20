@@ -1,6 +1,10 @@
 local CleaningConfig = {
 	AutoCompletionThreshold = 0.85,
 	BrushRadiusScale = 0.075,
+	ToolRadiusMultiplier = 0.75,
+	ToolStrengthMultiplier = 1.5,
+	MultiTargetSlowdownPerAdditionalTarget = 0.15,
+	MaximumMultiTargetSlowdown = 2,
 	CameraFieldOfView = 60,
 	CameraEntryDuration = 0.38,
 	CameraExitDuration = 0.25,
@@ -73,7 +77,7 @@ local CleaningConfig = {
 		{
 			Id = "SoftBrush", DisplayName = "Soft Brush", TemplateName = "Soft Brush", VFXStartPartName = "Handle",
 			LoopSoundName = "SlowSwoosh", RadiusScale = 0.052, StrengthPerSecond = 3, PositionResponsiveness = 32,
-			SurfaceRotationDegrees = Vector3.new(0, 90, 0), IdlePositionOffset = Vector3.new(0, 2.1, 0),
+			SurfaceRotationDegrees = Vector3.new(0, 90, 180), IdlePositionOffset = Vector3.new(0, 2.1, 0),
 		},
 		{
 			Id = "Hairdryer", DisplayName = "Hairdryer", TemplateName = "Hairdryer", VFXFolderName = "Hairdryer",
@@ -95,6 +99,7 @@ local CleaningConfig = {
 		{
 			Id = "Hammer", DisplayName = "Hammer", TemplateName = "Hammer", VFXStartPartName = "Handle",
 			RadiusScale = 0.045, StrengthPerSecond = 5, PositionResponsiveness = 36, StrikeInterval = 0.28,
+			HitsPerTarget = 3,
 			ImpactSoundName = "MetalHitSoft",
 		},
 		{

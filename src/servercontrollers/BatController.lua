@@ -14,6 +14,7 @@ local Networker = require(ReplicatedStorage.Packages.networker)
 local PlayerStateController = require(ServerStorage.Controllers.PlayerStateController)
 local ToolResolver = require(ReplicatedStorage.Modules.Game.ToolResolver)
 local UpgradeLogic = require(ReplicatedStorage.Modules.Game.UpgradeLogic)
+local VisitorController = require(ServerStorage.Controllers.VisitorController)
 
 local BatController = {}
 local DataService
@@ -109,6 +110,29 @@ local function IsTargetInRange(Player, RootPart, Target, Info, SwingTime): boole
 	end
 	return ClosestSnapshot ~= nil and ClosestDifference <= Info.ValidationHistoryWindow
 		and IsCFrameInRange(ClosestSnapshot.CFrame, Target, Info)
+end
+
+local function IsPositionInSwing(OriginCFrame: CFrame, Position: Vector3, Info): boolean
+	local LocalPosition = OriginCFrame:PointToObjectSpace(Position)
+	local Padding = Info.ValidationDistanceBuffer
+	return math.abs(LocalPosition.X) <= Info.HitboxWidth / 2 + Padding
+		and math.abs(LocalPosition.Y) <= Info.HitboxHeight / 2 + Padding
+		and LocalPosition.Z <= Padding
+		and LocalPosition.Z >= -Info.Range - Padding
+end
+
+local function IsVisitorInRange(Player: Player, RootPart: BasePart, Visitor, Info, SwingTime: number): boolean
+	local Position = Visitor:GetCurrentCFrame().Position
+	if (Position - RootPart.Position).Magnitude > ItemInteractionConfig.PvpMaximumHitDistance then return false end
+	if IsPositionInSwing(RootPart.CFrame, Position, Info) then return true end
+	local ClosestSnapshot
+	local ClosestDifference = math.huge
+	for _, Snapshot in PositionHistory[Player] or {} do
+		local Difference = math.abs(Snapshot.Time - SwingTime)
+		if Difference < ClosestDifference then ClosestSnapshot = Snapshot; ClosestDifference = Difference end
+	end
+	return ClosestSnapshot ~= nil and ClosestDifference <= Info.ValidationHistoryWindow
+		and IsPositionInSwing(ClosestSnapshot.CFrame, Position, Info)
 end
 
 local function RecordPositions(Now)
@@ -257,6 +281,21 @@ function BatController.Swing(_, Player, Targets, BatId, SwingTime)
 	LastSwings[Player] = SwingTime
 	local HitTargets = {}
 	for _, TargetData in Targets do
+		local VisitorId = if type(TargetData) == "table" then TargetData.VisitorId else nil
+		if VisitorId ~= nil then
+			if type(VisitorId) ~= "string" or #VisitorId > 64 or HitTargets[`Visitor_{VisitorId}`] then continue end
+			HitTargets[`Visitor_{VisitorId}`] = true
+			local Visitor = VisitorController.GetOwnedVisitor(Player, VisitorId)
+			if Visitor and IsVisitorInRange(Player, RootPart, Visitor, Info, SwingTime) then
+				local Direction = Visitor:GetCurrentCFrame().Position - RootPart.Position
+				local FlatDirection = Vector3.new(Direction.X, 0, Direction.Z)
+				if FlatDirection.Magnitude <= 0.01 then FlatDirection = RootPart.CFrame.LookVector end
+				local Knockback = FlatDirection.Unit * ItemInteractionConfig.BatKnockbackSpeed
+					+ Vector3.new(0, ItemInteractionConfig.BatKnockbackUpwardSpeed, 0)
+				VisitorController.HitVisitor(Player, Visitor, Knockback)
+			end
+			continue
+		end
 		local Target = if type(TargetData) == "table" then TargetData.Model else TargetData
 		local PredictionId = if type(TargetData) == "table" then TargetData.PredictionId else nil
 		if typeof(Target) ~= "Instance" or HitTargets[Target] then continue end

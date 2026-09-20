@@ -28,6 +28,8 @@ local CONFIG = {
 	WanderMessageChance = 0.15,
 	FloorMargin = 8,
 	FadeDuration = 0.8,
+	HitRagdollDuration = 1.6,
+	HitFadeDuration = 0.45,
 }
 
 local INSPECTION_MESSAGES = {
@@ -156,6 +158,14 @@ local WANDER_MESSAGES = {
 	"There's always another interesting piece nearby.",
 }
 
+local HIT_MESSAGES = {
+	"Ow! What was that for?!",
+	"Hey! I'm a paying guest!",
+	"I'm leaving a terrible review!",
+	"Security!",
+	"This museum is dangerous!",
+}
+
 local VisitorController = {
 	Config = CONFIG,
 }
@@ -281,6 +291,36 @@ local function isVisitActive(player: Player, token, visitor): boolean
 		and visitTokens[player] == token
 		and ActiveForPlayer ~= nil
 		and ActiveForPlayer[visitor] ~= nil
+end
+
+function VisitorController.GetOwnedVisitor(Player: Player, UniqueId: string)
+	if type(UniqueId) ~= "string" then return nil end
+	local ActiveForPlayer = activeVisitors[Player]
+	if not ActiveForPlayer then return nil end
+	for Visitor in ActiveForPlayer do
+		if Visitor.UniqueId == UniqueId then return Visitor end
+	end
+	return nil
+end
+
+function VisitorController.HitVisitor(Player: Player, Visitor, Knockback: Vector3): boolean
+	local ActiveForPlayer = activeVisitors[Player]
+	local Counts = ActiveCounts[Player]
+	-- Bat hits must only ever remove a guest owned by the attacking player.
+	if not ActiveForPlayer or not Counts or ActiveForPlayer[Visitor] == nil or Visitor.OwnerPlayer ~= Player then return false end
+	local LevelNumber = ActiveForPlayer[Visitor]
+	ActiveForPlayer[Visitor] = nil
+	Counts[LevelNumber] = math.max((Counts[LevelNumber] or 1) - 1, 0)
+	Visitor:Say(HIT_MESSAGES[math.random(1, #HIT_MESSAGES)])
+	Visitor:Ragdoll(Knockback)
+	task.delay(CONFIG.HitRagdollDuration, function()
+		if Visitor.UniqueId == nil then return end
+		Visitor:FadeOut(CONFIG.HitFadeDuration)
+		task.delay(CONFIG.HitFadeDuration, function()
+			Visitor:Destroy()
+		end)
+	end)
+	return true
 end
 
 local function IsPointInsidePart(Point: Vector3, Part: BasePart): boolean
