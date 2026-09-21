@@ -33,7 +33,7 @@ local RewardFolder: Folder
 local ResetWall: BasePart?
 local Crates = {}
 local Rewards = {}
-local ActiveOnboardingRewards: { [Player]: string } = {}
+local ActiveOnboardingRewards: { [Player]: { [string]: boolean } } = {}
 local PityLabels = {}
 local RandomGenerator = Random.new()
 local IsResetting = false
@@ -196,8 +196,10 @@ end
 local function RemoveReward(RewardId, Reason, PurchasingPlayer)
 	local Reward = Rewards[RewardId]
 	if not Reward then return end
-	if Reward.Owner and ActiveOnboardingRewards[Reward.Owner] == RewardId then
-		ActiveOnboardingRewards[Reward.Owner] = nil
+	local OwnerRewards = Reward.Owner and ActiveOnboardingRewards[Reward.Owner]
+	if OwnerRewards then
+		OwnerRewards[RewardId] = nil
+		if not next(OwnerRewards) then ActiveOnboardingRewards[Reward.Owner] = nil end
 	end
 	if Reason == "Purchased" then
 		NotifyNearbyPlayers(Reward, "PurchasedByAnother", PurchasingPlayer)
@@ -252,8 +254,6 @@ local function CreateReward(State, Player: Player, PredictionId, AnalyticsSessio
 	local IsFirstRoll = not HasRolledCrate and DataService:get(Player, "GuaranteedDropCount") == 0
 	local ItemInfo, IsRecovery, RestorationSteps, OnboardingRewardKind, GuaranteedIndex = GetRewardItemInfo(Player, Info, State.Luck)
 	if not ItemInfo then return end
-	local PreviousOnboardingRewardId = OnboardingRewardKind and ActiveOnboardingRewards[Player]
-	if PreviousOnboardingRewardId then RemoveReward(PreviousOnboardingRewardId, "Replaced") end
 	GuidanceController.PrepareOnboardingReward(Player, OnboardingRewardKind, ItemInfo.Price)
 	local Template = ReplicatedStorage.Assets.Models.Items:FindFirstChild(ItemInfo.AssetName)
 	if not Template or not Template:IsA("Model") then return end
@@ -318,7 +318,15 @@ local function CreateReward(State, Player: Player, PredictionId, AnalyticsSessio
 		RevealTransparencies = RevealTransparencies,
 	}
 	Rewards[RewardId] = Reward
-	if OnboardingRewardKind then ActiveOnboardingRewards[Player] = RewardId end
+	-- Breaking another crate must not despawn this reward; each drop keeps its own expiry.
+	if OnboardingRewardKind then
+		local OwnerRewards = ActiveOnboardingRewards[Player]
+		if not OwnerRewards then
+			OwnerRewards = {}
+			ActiveOnboardingRewards[Player] = OwnerRewards
+		end
+		OwnerRewards[RewardId] = true
+	end
 	Reward.Connection = Prompt.Triggered:Connect(function(Player)
 		if Rewards[RewardId] ~= Reward or Reward.Interacting then return end
 		Reward.Interacting = true
@@ -655,8 +663,14 @@ function CrateController.Init()
 end
 
 function CrateController.OnPlayerRemoving(Player: Player)
-	local RewardId = ActiveOnboardingRewards[Player]
-	if RewardId then RemoveReward(RewardId, "PlayerLeft") end
+	local OwnerRewards = ActiveOnboardingRewards[Player]
+	if OwnerRewards then
+		local RewardId = next(OwnerRewards)
+		while RewardId do
+			RemoveReward(RewardId, "PlayerLeft")
+			RewardId = next(OwnerRewards)
+		end
+	end
 	ActiveOnboardingRewards[Player] = nil
 end
 

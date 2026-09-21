@@ -54,6 +54,7 @@ return function()
 		Label.TextWrapped = true
 		Label.ZIndex = 81
 		Label.Parent = Alert
+		Label.RichText = true
 
 		local TextStroke = Instance.new "UIStroke"
 		TextStroke.Name = "NotificationStroke"

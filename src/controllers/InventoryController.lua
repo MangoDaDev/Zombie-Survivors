@@ -84,6 +84,11 @@ function InventoryController.Init()
 
 		local function GetCurrentTools()
 			local Tools = {}
+			for Index, Slot in HotbarSlots do
+				if Slot.Index ~= Index or not Slot.Frame or not Slot.Frame.Parent then
+					HotbarSlots[Index] = nil
+				end
+			end
 			for _, Container in { LocalPlayer.Character, LocalPlayer:FindFirstChildOfClass("Backpack") } do
 				if not Container then continue end
 				for _, Tool in Container:GetChildren() do
@@ -175,6 +180,10 @@ function InventoryController.Init()
 				local DesiredSlot = DesiredTool and Satchel:GetSlotForTool(DesiredTool)
 				if TargetSlot and DesiredSlot and TargetSlot ~= DesiredSlot then
 					DesiredSlot:Swap(TargetSlot)
+					-- Satchel does not delete an overflow slot emptied by Swap; keep its slot indexes contiguous.
+					if DesiredSlot.Index > HotbarCapacity and not DesiredSlot.Tool then
+						DesiredSlot:Delete()
+					end
 				end
 			end
 			UpdateNavigationVisibility()
@@ -355,9 +364,11 @@ function InventoryController.Init()
 		end)
 		Satchel.BackpackItemRemoved.Event:Connect(function(Slot)
 			if Slot.Index <= HotbarCapacity then HotbarSlots[Slot.Index] = Slot end
+			LastInventoryOrder = nil
 			task.defer(function()
 				ReconcileOrderedTools()
 				RenderCurrentPage()
+				UpdateToolIcons()
 				SaveInventoryOrder()
 			end)
 		end)

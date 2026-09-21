@@ -295,11 +295,11 @@ local function removeManagedTools(container: Instance)
 	end
 end
 
-local function restoreInventory(player: Player, character: Model)
+local function restoreInventory(player: Player, character: Model, exitingFixing: boolean?)
 	local backpack = player:FindFirstChildOfClass("Backpack") or player:WaitForChild("Backpack", 5)
 	-- A delayed character inventory rebuild must never replace the cleaning tools for an active fixing session.
 	if backpack == nil or player.Parent ~= Players or player.Character ~= character
-		or PlayerStateController.Get(player, "IsFixing", false) == true
+		or (not exitingFixing and PlayerStateController.Get(player, "IsFixing", false) == true)
 	then
 		return
 	end
@@ -478,7 +478,8 @@ function CarryController.SetFixingMode(player: Player, enabled: boolean, Initial
 			if character and InitialTool then InitialTool.Parent = character end
 		end
 	elseif character then
-		restoreInventory(player, character)
+		-- Restore inventory tools while IsFixing is still true so the completed item is present before release.
+		restoreInventory(player, character, true)
 	end
 end
 
