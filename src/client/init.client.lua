@@ -18,6 +18,7 @@ local modules_to_init = {
 	ReplicatedStorage.Controllers.ItemInfoBillboardController,
 	ReplicatedStorage.Controllers.TopbarController,
 	ReplicatedStorage.Controllers.AnalyticsController,
+	ReplicatedStorage.Controllers.FeedbackController,
 	ReplicatedStorage.UI.UIOrigin,
 	ReplicatedStorage.Controllers.GuidanceController,
 	ReplicatedStorage.Controllers.InventoryController,

@@ -29,6 +29,8 @@ local UsingTool = false
 local ActiveToolId: string?
 local RequestedToolId: string?
 local FixPrompt: ProximityPrompt?
+local FixPromptConnection: RBXScriptConnection?
+local EquippedItemTool: Tool?
 local CharacterConnections: { RBXScriptConnection } = {}
 local ToolLoop: Sound?
 local ToolBeam: Beam?
@@ -237,7 +239,17 @@ end
 
 local function UpdateFixPrompt()
 	if not FixPrompt then return end
-	local Tool = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Tool")
+	local Character = LocalPlayer.Character
+	local Tool = if EquippedItemTool and EquippedItemTool.Parent == Character then EquippedItemTool else nil
+	if not Tool and Character then
+		for _, Child in Character:GetChildren() do
+			if ToolResolver.GetItemInfo(Child) and Child:HasTag("satchelSlot") then
+				Tool = Child
+				break
+			end
+		end
+	end
+	EquippedItemTool = Tool
 	local ItemInfo = ToolResolver.GetItemInfo(Tool)
 	local ItemId = ItemInfo and ItemInfo.Id
 	local ItemKey = InventoryItemKey.Get(Tool)
@@ -245,7 +257,7 @@ local function UpdateFixPrompt()
 	local State = if ItemKey then Fixing[ItemKey] else nil
 	FixPrompt.Enabled = RuntimeState.Get(LocalPlayer, "IsFixing", false) ~= true
 		and type(ItemId) == "number"
-		and (type(State) ~= "table" or State.Completed ~= true)
+		and not CleaningConfig.IsCleaningComplete(State, ItemInfo)
 end
 
 local function HideForeignFixPrompt(Descendant: Instance)
@@ -256,9 +268,18 @@ end
 
 local function WatchCharacter(Character: Model)
 	for _, Connection in CharacterConnections do Connection:Disconnect() end
+	EquippedItemTool = nil
 	CharacterConnections = {
-		Character.ChildAdded:Connect(function() task.defer(UpdateFixPrompt); task.defer(UpdateToolInterface) end),
-		Character.ChildRemoved:Connect(function() task.defer(UpdateFixPrompt); task.defer(UpdateToolInterface) end),
+		Character.ChildAdded:Connect(function(Child)
+			if ToolResolver.GetItemInfo(Child) and Child:HasTag("satchelSlot") then EquippedItemTool = Child end
+			task.defer(UpdateFixPrompt)
+			task.defer(UpdateToolInterface)
+		end),
+		Character.ChildRemoved:Connect(function(Child)
+			if Child == EquippedItemTool then EquippedItemTool = nil end
+			task.defer(UpdateFixPrompt)
+			task.defer(UpdateToolInterface)
+		end),
 		Character.DescendantAdded:Connect(function(Descendant)
 			if RuntimeState.Get(LocalPlayer, "IsFixing", false) == true and Descendant:IsA("BasePart") then
 				HideCharacterPart(Descendant)
@@ -1645,6 +1666,14 @@ function FixingController.Init()
 		Museums.DescendantAdded:Connect(HideForeignFixPrompt)
 		local Museum = Museums:WaitForChild(`Museum_{LocalPlayer.UserId}`)
 		FixPrompt = Museum:WaitForChild("Table"):WaitForChild("PromptPart"):WaitForChild("FixItemPrompt") :: ProximityPrompt
+		if FixPromptConnection then FixPromptConnection:Disconnect() end
+		FixPromptConnection = FixPrompt.Triggered:Connect(function(TriggeringPlayer)
+			if TriggeringPlayer ~= LocalPlayer then return end
+			UpdateFixPrompt()
+			local Tool = EquippedItemTool
+			local ItemKey = Tool and InventoryItemKey.Get(Tool)
+			if ItemKey then Network:fire("RequestStartFixing", ItemKey) end
+		end)
 		UpdateFixPrompt()
 	end)
 	RuntimeState.GetChangedSignal(LocalPlayer, "IsFixing"):Connect(function()

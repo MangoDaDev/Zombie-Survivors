@@ -234,7 +234,7 @@ local function createTool(player: Player, itemId: number, itemKey: string): Tool
 	local fixing = dataService:get(player, "Fixing") or {}
 	local fixingState = fixing[itemKey]
 	local tool = Instance.new("Tool")
-	tool.Name = if CleaningConfig.IsCleaningComplete(fixingState) then itemInfo.Name else "???"
+	tool.Name = if CleaningConfig.IsCleaningComplete(fixingState, itemInfo) then itemInfo.Name else "???"
 	tool.CanBeDropped = false
 	tool.RequiresHandle = true
 	tool.Grip = tool.Grip * CFrame.Angles(0, math.rad(180), 0)
@@ -414,14 +414,25 @@ function CarryController.RequestDrop(_, Player: Player)
 	return CarryController.DropCarriedItem(Player)
 end
 
-function CarryController.GetEquippedItem(player: Player): (number?, string?)
+function CarryController.GetEquippedItem(player: Player, ExpectedItemKey: string?): (number?, string?)
 	local Character = player.Character
 	if not Character then return nil end
+	local EquippedItemId
+	local EquippedItemKey
 	for _, Tool in Character:GetChildren() do
 		local ItemInfo = ToolResolver.GetItemInfo(Tool)
-		if ItemInfo and Tool:HasTag("satchelSlot") then return ItemInfo.Id, InventoryItemKey.Get(Tool) end
+		local ItemKey = ItemInfo and Tool:HasTag("satchelSlot") and InventoryItemKey.Get(Tool) or nil
+		if not ItemKey then continue end
+		if ExpectedItemKey then
+			if ItemKey == ExpectedItemKey then return ItemInfo.Id, ItemKey end
+			continue
+		end
+		-- Equip replication may briefly expose both sides of an item switch. Do not guess which item is held.
+		if EquippedItemKey then return nil end
+		EquippedItemId = ItemInfo.Id
+		EquippedItemKey = ItemKey
 	end
-	return nil
+	return EquippedItemId, EquippedItemKey
 end
 
 function CarryController.RefreshInventory(player: Player)

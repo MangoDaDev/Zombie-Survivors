@@ -34,7 +34,11 @@ local DataService
 local Network
 local Sessions = {}
 local PromptConnections: { [Player]: RBXScriptConnection } = {}
+local PendingStarts = {}
 local CompleteCurrentStep
+
+local START_RETRY_INTERVAL = 0.05
+local START_RETRY_COUNT = 8
 
 local function GetInfo(ItemId)
 	for _, Info in ItemsInfo do if Info.Id == ItemId then return Info end end
@@ -462,37 +466,36 @@ local function GetMissingToolSteps(Player, State, Steps)
 	return MissingToolSteps
 end
 
-local function StartFixing(Player)
-	if Sessions[Player] then return end
-	local ItemId, ItemKey = CarryController.GetEquippedItem(Player)
+local function StartFixing(Player, ExpectedItemKey: string?): boolean
+	if Sessions[Player] then return true end
+	local ItemId, ItemKey = CarryController.GetEquippedItem(Player, ExpectedItemKey)
 	local Info = ItemId and GetInfo(ItemId)
 	local Museum = MuseumController.GetMuseum(Player)
 	local TableModel = Museum and Museum:FindFirstChild("Table")
 	local PromptPart = TableModel and TableModel:FindFirstChild("PromptPart")
 	local Prompt = PromptPart and PromptPart:FindFirstChild("FixItemPrompt")
 	if not ItemId or not ItemKey or not Info then
-		GuidanceController.Show(Player, "Equip An Item")
-		return
+		return false
 	end
-	if not PromptPart or not PromptPart:IsA("BasePart") then return end
+	if not PromptPart or not PromptPart:IsA("BasePart") then return true end
 	local RootPart = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
 	local Inventory = DataService:get(Player, "Inventory")
 	local InventoryKeys = DataService:get(Player, "InventoryKeys")
 	local InventoryPosition = type(InventoryKeys) == "table" and table.find(InventoryKeys, ItemKey) or nil
-	if not RootPart or not RootPart:IsA("BasePart") or (RootPart.Position - PromptPart.Position).Magnitude > 13 or type(Inventory) ~= "table" or not InventoryPosition or Inventory[InventoryPosition] ~= ItemId then return end
+	if not RootPart or not RootPart:IsA("BasePart") or (RootPart.Position - PromptPart.Position).Magnitude > 13 or type(Inventory) ~= "table" or not InventoryPosition or Inventory[InventoryPosition] ~= ItemId then return true end
 	local Template = ReplicatedStorage.Assets.Models.Items:FindFirstChild(Info.AssetName)
-	if not Template or not Template:IsA("Model") then return end
+	if not Template or not Template:IsA("Model") then return true end
 	local Fixing = DataService:get(Player, "Fixing") or {}
 	local State = Fixing[ItemKey] or { Completed = false }
 	if State.Completed == true then
 		GuidanceController.Show(Player, "Ready To Display")
-		return
+		return true
 	end
 	local Steps = CleaningConfig.GetStepsForItem(Info, State)
-	if #Steps == 0 then return end
+	if #Steps == 0 then return true end
 	local Model = Template:Clone()
 	local Box = Model:FindFirstChild("BoundingBox")
-	if not Box or not Box:IsA("BasePart") then Model:Destroy(); return end
+	if not Box or not Box:IsA("BasePart") then Model:Destroy(); return true end
 	Model.PrimaryPart = Box
 	Model.Name = `FixingItem_{Player.UserId}`
 	for _, Part in Model:GetDescendants() do
@@ -510,23 +513,23 @@ local function StartFixing(Player)
 		Model:Destroy()
 		GuidanceController.Advance(Player, "CleanThis")
 		GuidanceController.Show(Player, "Ready To Display")
-		return
+		return true
 	end
 	-- Require every remaining tool before entering fixing so the player cannot get stuck midway.
 	local MissingToolSteps = GetMissingToolSteps(Player, State, Steps)
 	if #MissingToolSteps > 0 then
 		Model:Destroy()
 		ShowToolRequirements(Player, MissingToolSteps)
-		return
+		return true
 	end
 	local CameraPart = TableModel and TableModel:FindFirstChild("CamPart")
-	if not CameraPart or not CameraPart:IsA("BasePart") then Model:Destroy(); return end
+	if not CameraPart or not CameraPart:IsA("BasePart") then Model:Destroy(); return true end
 	PlaceItemOnTable(Model, Box, PromptPart)
 	Model.Parent = Museum
 	-- Keep the standard item billboard hidden while the player is actively fixing the item.
 	local RootWasAnchored = RootPart.Anchored
 	local Humanoid = Player.Character and Player.Character:FindFirstChildOfClass("Humanoid")
-	if not Humanoid then Model:Destroy(); return end
+	if not Humanoid then Model:Destroy(); return true end
 	-- Save the release pose before equipping restoration tools can alter the character assembly.
 	local RootCFrame = RootPart.CFrame
 	local HumanoidAutoRotate = Humanoid.AutoRotate
@@ -599,6 +602,44 @@ local function StartFixing(Player)
 	AnalyticsController.TrackRestorationStarted(Player, Info)
 	GuidanceController.Advance(Player, "StartCleaning")
 	if GetStepProgress(Session) >= CleaningConfig.AutoCompletionThreshold then task.defer(CompleteCurrentStep, Player, Session) end
+	return true
+end
+
+local function QueueStartFixing(Player, ExpectedItemKey: string?)
+	if Sessions[Player] then return end
+	local Pending = PendingStarts[Player]
+	if Pending then
+		if ExpectedItemKey then Pending.ExpectedItemKey = ExpectedItemKey end
+		return
+	end
+	Pending = {
+		ExpectedItemKey = ExpectedItemKey,
+		Attempts = 0,
+	}
+	PendingStarts[Player] = Pending
+	local function TryStart()
+		if PendingStarts[Player] ~= Pending or Sessions[Player] or Player.Parent == nil then
+			PendingStarts[Player] = nil
+			return
+		end
+		Pending.Attempts += 1
+		if not Pending.ExpectedItemKey and Pending.Attempts < 2 then
+			task.delay(START_RETRY_INTERVAL, TryStart)
+			return
+		end
+		if StartFixing(Player, Pending.ExpectedItemKey) then
+			PendingStarts[Player] = nil
+			return
+		end
+		if Pending.Attempts >= START_RETRY_COUNT then
+			PendingStarts[Player] = nil
+			GuidanceController.Show(Player, "Equip An Item")
+			return
+		end
+		task.delay(START_RETRY_INTERVAL, TryStart)
+	end
+	-- Let a same-frame equip or item switch and the client's exact item key reach the server first.
+	task.delay(START_RETRY_INTERVAL, TryStart)
 end
 
 local function PlayFullCompletionFeedback(Session)
@@ -868,10 +909,16 @@ function FixingController.Exit(_, Player)
 	ClearSession(Player)
 end
 
+function FixingController.RequestStartFixing(_, Player, ItemKey)
+	if type(ItemKey) ~= "string" or ItemKey == "" or #ItemKey > 100 then return end
+	QueueStartFixing(Player, ItemKey)
+end
+
 function FixingController.SetDataService(Service) DataService = Service end
 
 function FixingController.Init()
 	Network = Networker.server.new("FixingController", FixingController, {
+		FixingController.RequestStartFixing,
 		FixingController.SelectTool,
 		FixingController.StartUsingTool,
 		FixingController.ReportProgress,
@@ -893,18 +940,20 @@ function FixingController.OnPlayerAdded(Player)
 		Prompt.Exclusivity = Enum.ProximityPromptExclusivity.AlwaysShow
 		Prompt.Enabled = true; Prompt.UIOffset = Vector2.new(0, -55); Prompt.Parent = Part
 		PromptConnections[Player] = Prompt.Triggered:Connect(function(TriggeringPlayer)
-			if TriggeringPlayer == Player then StartFixing(Player) end
+			if TriggeringPlayer == Player then QueueStartFixing(Player) end
 		end)
 	end
 end
 
 function FixingController.OnPlayerRemoving(Player)
+	PendingStarts[Player] = nil
 	ClearSession(Player)
 	local PromptConnection = PromptConnections[Player]
 	if PromptConnection then PromptConnection:Disconnect(); PromptConnections[Player] = nil end
 end
 
 function FixingController.OnCharacterAdded(Player)
+	PendingStarts[Player] = nil
 	if Sessions[Player] then ClearSession(Player) end
 end
 

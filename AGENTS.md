@@ -2,8 +2,7 @@
 
 ## Project
 
-- Roblox restoration game built in Luau and synchronized with Rojo.
-- Gameplay includes crate rewards, item cleaning, inventory, museum displays, visitors, upgrades, and guided progression.
+- Do not create permanent scripts inside of studio.
 - `default.project.json` defines the source-to-DataModel mapping; `Index.md` is the concise first-party code map.
 
 ## Requirements / Rules

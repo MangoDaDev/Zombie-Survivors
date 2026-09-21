@@ -98,7 +98,7 @@ return function(itemInfo, adornee: BasePart, fixingState): BillboardGui
 	nameLabel.FontFace = COMIC_FONT
 	nameLabel.Position = UDim2.fromScale(0, 0.16)
 	nameLabel.Size = UDim2.fromScale(1, 0.26)
-	local IsCleaningComplete = CleaningConfig.IsCleaningComplete(fixingState)
+	local IsCleaningComplete = CleaningConfig.IsCleaningComplete(fixingState, itemInfo)
 	-- Keep the item name hidden until cleaning is complete; its rarity is intentionally always visible.
 	nameLabel.Text = if IsCleaningComplete then itemInfo.Name else "???"
 	nameLabel.TextColor3 = Color3.new(1, 1, 1)

@@ -231,7 +231,7 @@ function CleaningConfig.Validate()
 	end
 end
 
-function CleaningConfig.IsCleaningComplete(FixingState): boolean
+function CleaningConfig.IsCleaningComplete(FixingState, ItemInfo): boolean
 	if type(FixingState) ~= "table" then
 		return false
 	end
@@ -239,12 +239,24 @@ function CleaningConfig.IsCleaningComplete(FixingState): boolean
 		return true
 	end
 	if type(FixingState.Steps) == "table" then
-		for _, StepInfo in CleaningConfig.Steps do
-			if StepInfo.Type == "Dirt" then
-				local StepState = FixingState.Steps[StepInfo.Id]
-				return type(StepState) == "table" and StepState.Completed == true
+		local HasStepState = false
+		local RequiredSteps = if type(ItemInfo) == "table"
+			then CleaningConfig.GetStepsForItem(ItemInfo, FixingState)
+			else CleaningConfig.Steps
+		for _, StepInfo in RequiredSteps do
+			local StepState = FixingState.Steps[StepInfo.Id]
+			if type(StepState) ~= "table" then
+				if ItemInfo then return false end
+				continue
 			end
+			HasStepState = true
+			if StepState.Completed ~= true then return false end
 		end
+		if HasStepState then return true end
+	end
+	if type(ItemInfo) == "table" and #CleaningConfig.GetStepsForItem(ItemInfo, FixingState) > 1 then
+		-- Legacy dirt completion must not mark a multi-step restoration as fully clean.
+		return false
 	end
 	return type(FixingState.Remaining) == "number" and FixingState.Remaining <= 0
 end

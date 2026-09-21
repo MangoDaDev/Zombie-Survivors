@@ -35,7 +35,8 @@ local EconomyConfig = {
 			SourcePriceRange = { 25, 52 },
 			PriceRange = { 75, 450 },
 			PriceCurveExponent = 1.35,
-			GuestPayRate = 0.018,
+			GuestPayBase = 1.5,
+			GuestPayRate = 0.025,
 		},
 		Uncommon = {
 			ProgressionStage = 2,
@@ -176,7 +177,9 @@ end
 
 function EconomyConfig.GetGuestPay(Rarity: string, Price: number): number
 	local Info = EconomyConfig.GetRarity(Rarity)
-	return math.max(1, RoundToReadableValue(Price * Info.GuestPayRate * GetPassiveIncomeScale()))
+	local Pay = ((Info.GuestPayBase or 0) + Price * Info.GuestPayRate) * GetPassiveIncomeScale()
+	-- Keep low-value items distinct per view without changing the readable rounding of larger payouts.
+	return math.max(1, if Pay < 100 then math.round(Pay) else RoundToReadableValue(Pay))
 end
 
 function EconomyConfig.GetRestorationTier(Rarity: string): number
