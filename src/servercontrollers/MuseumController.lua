@@ -21,6 +21,7 @@ local BaseTemplate = MuseumAssets.Building.Base
 local LevelTemplate = MuseumAssets.Building.Level
 local RoofTemplate = MuseumAssets.Building.Roof
 local TableTemplate = MuseumAssets.Table
+local UpgradePedastolTemplate = MuseumAssets.UpgradePedastol
 local MuseumCFrames = MuseumAssets.MuseumCFrames
 local DisplayTemplate = MuseumAssets.Display
 local SFX_MAX_DISTANCE = 80
@@ -325,6 +326,28 @@ local function CreateTable(Assignment: MuseumAssignment)
 	TableModel.Parent = Assignment.museum
 end
 
+local function CreateUpgradePedastol(Assignment: MuseumAssignment)
+	if Assignment.museum:FindFirstChild("UpgradePedastol") then return end
+	local Level = Assignment.levels[1]
+	local Marker = Level and Level:FindFirstChild("UpgradePedastolCFrame")
+	if not Marker or not Marker:IsA("BasePart") then return end
+	local Pedastol = UpgradePedastolTemplate:Clone()
+	Pedastol.Name = "UpgradePedastol"
+	Pedastol:PivotTo(Marker.CFrame)
+	local PromptPart = Pedastol:FindFirstChild("PromptPart")
+	if PromptPart and PromptPart:IsA("BasePart") then
+		local Prompt = Instance.new("ProximityPrompt")
+		Prompt.Name = "UpgradePrompt"
+		Prompt.ActionText = "Open Upgrades"
+		Prompt.ObjectText = "Upgrades"
+		Prompt.HoldDuration = 0
+		Prompt.MaxActivationDistance = 10
+		Prompt.RequiresLineOfSight = false
+		Prompt.Parent = PromptPart
+	end
+	Pedastol.Parent = Assignment.museum
+end
+
 local function CreatePrompt(Name: string, ActionText: string, KeyCode: Enum.KeyCode, GamepadKeyCode: Enum.KeyCode, Offset: Vector2, Base: BasePart): ProximityPrompt
 	local Prompt = Instance.new("ProximityPrompt")
 	Prompt.Name = Name; Prompt.ActionText = ActionText; Prompt.ObjectText = "Display"; Prompt.HoldDuration = 0
@@ -384,6 +407,7 @@ local function RefreshMuseum(Player: Player)
 		end
 	end
 	CreateTable(Assignment)
+	CreateUpgradePedastol(Assignment)
 	PositionRoof(Assignment, LevelCount)
 	DataService:set(Player, "DisplayItemKeys", SavedDisplayItemKeys)
 end

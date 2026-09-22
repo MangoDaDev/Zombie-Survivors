@@ -245,8 +245,9 @@ local function ShowPredictedImpact(Model, Handle, Info)
 		PredictionId = HttpService:GenerateGUID(false)
 		local RuntimeCrate = CrateRuntime.Get(Model)
 		local CrateInfoEntry = GetCrateInfo(RuntimeCrate and RuntimeCrate.CrateId or Model.Name)
-		local IsPredictedFinalHit =
-			PredictCrateDamage(Model, Info.CrateDamage, PredictionId, CrateInfoEntry and CrateInfoEntry.Health)
+		-- Keep impact effects, but do not predict health loss or a reveal for an underpowered bat.
+		local IsPredictedFinalHit = CrateInfoEntry ~= nil and CrateInfo.CanBatDamage(CrateInfoEntry, Info.CrateDamage)
+			and PredictCrateDamage(Model, Info.CrateDamage, PredictionId, CrateInfoEntry.Health)
 		local Character = LocalPlayer.Character
 		local RootPart = Character and Character:FindFirstChild "HumanoidRootPart"
 		if RootPart and RootPart:IsA "BasePart" then

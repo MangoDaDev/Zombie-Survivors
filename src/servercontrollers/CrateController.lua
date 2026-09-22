@@ -390,15 +390,17 @@ local function BreakCrate(State, Player: Player, PredictionId)
 	State.Model:Destroy()
 end
 
-function CrateController.DamageCrate(Player, Model, Damage, PredictionId): boolean
+function CrateController.DamageCrate(Player, Model, Damage, PredictionId): (boolean, boolean)
 	local State = Crates[Model]
 	local RootPart = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
-	if not State or not RootPart or not RootPart:IsA("BasePart") or type(Damage) ~= "number" then return false end
+	if not State or not RootPart or not RootPart:IsA("BasePart") or type(Damage) ~= "number" then return false, false end
+	-- Use full crate health for the bat gate so earlier damage cannot bypass the required strength.
+	if not CrateInfo.CanBatDamage(State.Info, Damage) then return true, false end
 	AnalyticsController.TrackCrateDiscovered(Player, State.Model, State.Info)
 	State.Health = math.max(0, State.Health - math.clamp(Damage, 0, State.Info.Health))
 	Network:fireAll("UpdateCrateHealth", State.Model, State.Info.Id, State.Health, State.Info.Health)
 	if State.Health <= 0 then BreakCrate(State, Player, PredictionId) end
-	return true
+	return true, true
 end
 
 local function GetActiveCrateCount(CrateId): number

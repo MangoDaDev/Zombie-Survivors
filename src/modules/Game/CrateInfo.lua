@@ -1,5 +1,6 @@
 local GaussianRandom = require(script.Parent.Parent.Math.GaussianRandom)
 local GetRandomFromWeightedTable = require(script.Parent.Parent.Math.GetRandomFromWeightedTable)
+local BatInfo = require(script.Parent.BatInfo)
 local EconomyConfig = require(script.Parent.EconomyConfig)
 
 local SharedCrateInfo = {
@@ -37,6 +38,9 @@ local function CreateCrate(Info)
 end
 
 local CrateInfo = {
+	-- A bat cannot damage a crate if breaking it from full health needs more than this many hits.
+	BaseAllowedBatHits = 25,
+	BatDamageHitAllowanceExponent = 0.7,
 	Reset = {
 		Interval = 150,
 		MinimumWallVisibleTime = 5,
@@ -53,7 +57,7 @@ local CrateInfo = {
 		{ ItemId = 14 },
 	},
 	Crates = {
-		-- Every crate keeps a nonzero chance for every rarity; better crates improve weighting and value per durability.
+		-- Keep every rarity possible, but even high-tier crates should favor drops below the rarest items.
 		CreateCrate({
 			Id = "CommonCrate",
 			DisplayName = "Common",
@@ -97,12 +101,12 @@ local CrateInfo = {
 			SpawnDepthBias = 0.1,
 			RarityChances = {
 				Common = 6,
-				Uncommon = 23,
-				Rare = 47,
-				Epic = 21,
-				Legendary = 2.7,
-				Mythic = 0.27,
-				Secret = 0.03,
+				Uncommon = 24,
+				Rare = 48,
+				Epic = 19,
+				Legendary = 2.5,
+				Mythic = 0.23,
+				Secret = 0.025,
 			},
 		}),
 		CreateCrate({
@@ -114,12 +118,12 @@ local CrateInfo = {
 			SpawnDepthBias = 0.5,
 			RarityChances = {
 				Common = 1.2,
-				Uncommon = 6,
-				Rare = 24,
-				Epic = 48,
-				Legendary = 18,
-				Mythic = 2.5,
-				Secret = 0.3,
+				Uncommon = 7,
+				Rare = 26,
+				Epic = 49,
+				Legendary = 15,
+				Mythic = 1.6,
+				Secret = 0.2,
 			},
 		}),
 		CreateCrate({
@@ -131,12 +135,12 @@ local CrateInfo = {
 			SpawnDepthBias = 0.9,
 			RarityChances = {
 				Common = 0.3,
-				Uncommon = 1.2,
-				Rare = 8,
-				Epic = 30,
-				Legendary = 47,
-				Mythic = 12,
-				Secret = 1.5,
+				Uncommon = 1.5,
+				Rare = 10,
+				Epic = 33,
+				Legendary = 44,
+				Mythic = 10,
+				Secret = 1,
 			},
 		}),
 		CreateCrate({
@@ -149,11 +153,11 @@ local CrateInfo = {
 			RarityChances = {
 				Common = 0.1,
 				Uncommon = 0.4,
-				Rare = 2.5,
-				Epic = 15,
-				Legendary = 40,
-				Mythic = 36,
-				Secret = 6,
+				Rare = 3.5,
+				Epic = 19,
+				Legendary = 43,
+				Mythic = 30,
+				Secret = 4,
 			},
 			PityOnly = true,
 			PityInterval = 450,
@@ -169,11 +173,11 @@ local CrateInfo = {
 			RarityChances = {
 				Common = 0.05,
 				Uncommon = 0.15,
-				Rare = 0.8,
-				Epic = 5,
-				Legendary = 20,
-				Mythic = 47,
-				Secret = 27,
+				Rare = 1.3,
+				Epic = 7.5,
+				Legendary = 23,
+				Mythic = 48,
+				Secret = 20,
 			},
 			PityOnly = true,
 			PityInterval = 1_200,
@@ -185,6 +189,18 @@ local CrateInfo = {
 function CrateInfo.Get(CrateId: string)
 	for _, Info in CrateInfo.Crates do
 		if Info.Id == CrateId then return Info end
+	end
+end
+
+function CrateInfo.CanBatDamage(Info, Damage: number): boolean
+	return type(Info) == "table" and type(Info.Health) == "number" and type(Damage) == "number"
+		and Damage > 0
+		and math.ceil(Info.Health / Damage) <= CrateInfo.BaseAllowedBatHits + Damage ^ CrateInfo.BatDamageHitAllowanceExponent
+end
+
+function CrateInfo.GetRequiredBat(Info)
+	for _, Bat in BatInfo do
+		if CrateInfo.CanBatDamage(Info, Bat.CrateDamage) then return Bat end
 	end
 end
 
