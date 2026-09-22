@@ -11,6 +11,7 @@ local BatInfo = require(ReplicatedStorage.Modules.Game.BatInfo)
 local CollisionGroups = require(ReplicatedStorage.Modules.Game.CollisionGroups)
 local CrateInfo = require(ReplicatedStorage.Modules.Game.CrateInfo)
 local CrateRuntime = require(ReplicatedStorage.Modules.Game.CrateRuntime)
+local ItemInteractionConfig = require(ReplicatedStorage.Modules.Game.ItemInteractionConfig)
 local CrateController = require(ReplicatedStorage.Controllers.CrateController)
 local DataService = require(ReplicatedStorage.Packages.dataservice).client
 local MuseumVisitorController = require(ReplicatedStorage.Controllers.MuseumVisitorController)
@@ -36,6 +37,7 @@ local MAXIMUM_DEBRIS_COUNT = 100
 local DebrisCollisionDuration = 0.85
 local CreateCrateDebris
 local ShakeCamera
+local CriticalHitTemplate: Attachment?
 
 local function IsRagdolled(): boolean
 	return RagdollBlocked or RuntimeState.Get(LocalPlayer, "IsPvpStunned", false) == true
@@ -232,14 +234,38 @@ local function GetTargetModel(Part): Model?
 	return nil
 end
 
-local function ShowPredictedImpact(Model, Handle, Info)
+local function PlayCriticalHitEffect(Position: Vector3)
+	if not CriticalHitTemplate then return end
+	local Anchor = Instance.new "Part"
+	Anchor.Name = "LocalCriticalHitEffect"
+	Anchor.Anchored = true
+	Anchor.CanCollide = false
+	Anchor.CanQuery = false
+	Anchor.CanTouch = false
+	Anchor.Transparency = 1
+	Anchor.Size = Vector3.one * 0.05
+	Anchor.Position = Position
+	Anchor.Parent = Workspace
+	local Effect = CriticalHitTemplate:Clone()
+	Effect.Parent = Anchor
+	-- The disabled template emitters use Rate as their one-shot burst count.
+	local MaximumLifetime = 0
+	for _, Emitter in Effect:GetChildren() do
+		if not Emitter:IsA("ParticleEmitter") then continue end
+		Emitter:Emit(math.max(1, math.round(Emitter.Rate)))
+		MaximumLifetime = math.max(MaximumLifetime, Emitter.Lifetime.Max)
+	end
+	Debris:AddItem(Anchor, MaximumLifetime + 0.1)
+end
+
+local function ShowPredictedImpact(Model, Handle, Info, HitMultiplier)
 	local PredictionId
 	if CollectionService:HasTag(Model, "Crate") then
 		PredictionId = HttpService:GenerateGUID(false)
 		local RuntimeCrate = CrateRuntime.Get(Model)
 		local CrateInfoEntry = GetCrateInfo(RuntimeCrate and RuntimeCrate.CrateId or Model.Name)
 		local IsPredictedFinalHit = CrateInfoEntry ~= nil
-			and PredictCrateDamage(Model, Info.CrateDamage, PredictionId, CrateInfoEntry.Health)
+			and PredictCrateDamage(Model, Info.CrateDamage * HitMultiplier, PredictionId, CrateInfoEntry.Health)
 		local Character = LocalPlayer.Character
 		local RootPart = Character and Character:FindFirstChild "HumanoidRootPart"
 		if RootPart and RootPart:IsA "BasePart" then
@@ -274,6 +300,8 @@ local function ShowPredictedImpact(Model, Handle, Info)
 			end
 		end
 	end
+	-- Every falling critical hit adds the Studio-authored particle burst at impact.
+	if HitMultiplier > 1 then PlayCriticalHitEffect(Model:GetPivot().Position) end
 	local Highlight = Instance.new "Highlight"
 	Highlight.FillColor = Color3.new(1, 1, 1)
 	Highlight.FillTransparency = 0.35
@@ -372,18 +400,19 @@ local function DetectTargets(Tool, Info, SwingTime)
 	if not Character or not RootPart or not RootPart:IsA "BasePart" or not Handle or not Handle:IsA "BasePart" then
 		return 0
 	end
+	local HitMultiplier = ItemInteractionConfig.GetFallingHitMultiplier(RootPart.AssemblyLinearVelocity.Y)
 	local Parameters = OverlapParams.new()
 	Parameters.FilterType = Enum.RaycastFilterType.Exclude
 	Parameters.FilterDescendantsInstances = { Character }
-	local HitboxCFrame = RootPart.CFrame * CFrame.new(0, 0, -Info.Range / 2)
-	local HitboxSize = Vector3.new(Info.HitboxWidth, Info.HitboxHeight, Info.Range)
+	local HitboxCFrame = RootPart.CFrame * CFrame.new(0, (Info.HitboxUpwardExtension - Info.HitboxDownwardExtension) / 2, -Info.Range / 2)
+	local HitboxSize = Vector3.new(Info.HitboxWidth, Info.HitboxHeight + Info.HitboxUpwardExtension + Info.HitboxDownwardExtension, Info.Range)
 	local Targets = {}
 	local Seen = {}
 	for _, Part in Workspace:GetPartBoundsInBox(HitboxCFrame, HitboxSize, Parameters) do
 		local Model = GetTargetModel(Part)
 		if Model and not Seen[Model] then
 			Seen[Model] = true
-			local PredictionId = ShowPredictedImpact(Model, Handle, Info)
+			local PredictionId = ShowPredictedImpact(Model, Handle, Info, HitMultiplier)
 			table.insert(Targets, { Model = Model, PredictionId = PredictionId })
 		end
 	end
@@ -391,13 +420,14 @@ local function DetectTargets(Tool, Info, SwingTime)
 		if #Targets >= 16 then break end
 		if not Seen[VisitorTarget.Model] then
 			Seen[VisitorTarget.Model] = true
-			ShowPredictedImpact(VisitorTarget.Model, Handle, Info)
+			ShowPredictedImpact(VisitorTarget.Model, Handle, Info, HitMultiplier)
 			table.insert(Targets, { VisitorId = VisitorTarget.UniqueId })
 		end
 	end
 	-- An empty scan must not consume the authoritative swing cooldown.
 	if #Targets > 0 then
-		Network:fire("Swing", Targets, Info.Id, SwingTime)
+		-- Send the impact-time bonus so latency cannot change a critical hit after prediction.
+		Network:fire("Swing", Targets, Info.Id, SwingTime, HitMultiplier)
 	end
 	return #Targets
 end
@@ -571,6 +601,10 @@ local function HookContainer(Container)
 end
 
 function BatController.Init()
+	task.spawn(function()
+		local Folder = ReplicatedStorage.Assets.VFX:WaitForChild("CriticalHit", 5)
+		if Folder then CriticalHitTemplate = Folder:WaitForChild("Impact", 5) end
+	end)
 	DebrisFolder = Instance.new "Folder"
 	DebrisFolder.Name = "LocalCrateDebris"
 	DebrisFolder.Parent = Workspace
@@ -591,6 +625,11 @@ function BatController.Init()
 	task.spawn(function()
 		HookContainer(LocalPlayer:WaitForChild "Backpack")
 	end)
+end
+
+function BatController.CriticalHitEffect(_, Position)
+	if typeof(Position) ~= "Vector3" then return end
+	PlayCriticalHitEffect(Position)
 end
 
 function BatController.CrateHitConfirmed(_, Position, Normal, Color, Material, IsFinalHit, BatId, PredictionId)

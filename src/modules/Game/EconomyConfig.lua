@@ -82,7 +82,7 @@ local EconomyConfig = {
 			SourcePriceRange = { 500, 880 },
 			PriceRange = { 1_250_000, 5_000_000 },
 			PriceCurveExponent = 1.15,
-			GuestPayRate = 0.0015,
+			GuestPayRate = 0.0016,
 		},
 		Mythic = {
 			ProgressionStage = 6,
@@ -90,7 +90,7 @@ local EconomyConfig = {
 			SourcePriceRange = { 900, 1_400 },
 			PriceRange = { 12_000_000, 40_000_000 },
 			PriceCurveExponent = 1.1,
-			GuestPayRate = 0.0007,
+			GuestPayRate = 0.001,
 		},
 		Secret = {
 			ProgressionStage = 7,
@@ -98,7 +98,7 @@ local EconomyConfig = {
 			SourcePriceRange = { 1_800, 2_500 },
 			PriceRange = { 50_000_000, 130_000_000 },
 			PriceCurveExponent = 1.05,
-			GuestPayRate = 0.0004,
+			GuestPayRate = 0.0006,
 		},
 	},
 }

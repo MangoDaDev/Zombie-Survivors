@@ -9,6 +9,9 @@ local SharedBatInfo = {
 	SwingRotationDegrees = Vector3.new(72, 18, 0),
 	HitboxWidth = 7,
 	HitboxHeight = 6,
+	-- Extend bat hits 6 studs above and below the original hitbox.
+	HitboxUpwardExtension = 6,
+	HitboxDownwardExtension = 6,
 	ValidationDistanceBuffer = 6,
 	MinimumFacingDot = -0.25,
 	SwingSoundName = "BatSwing",

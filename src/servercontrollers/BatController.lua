@@ -91,10 +91,11 @@ local function IsCFrameInRange(OriginCFrame, Target, Info): boolean
 	Parameters.FilterType = Enum.RaycastFilterType.Include
 	Parameters.FilterDescendantsInstances = { Target }
 	Parameters.MaxParts = 1
-	local HitboxCFrame = OriginCFrame * CFrame.new(0, 0, -Info.Range / 2)
+	local HitboxCFrame = OriginCFrame * CFrame.new(0, (Info.HitboxUpwardExtension - Info.HitboxDownwardExtension) / 2, -Info.Range / 2)
 	-- Allow for replicated character/crate motion around the client's exact overlap volume.
 	local ValidationPadding = Info.ValidationDistanceBuffer * 2
-	local HitboxSize = Vector3.new(Info.HitboxWidth, Info.HitboxHeight, Info.Range) + Vector3.one * ValidationPadding
+	local HitboxSize = Vector3.new(Info.HitboxWidth, Info.HitboxHeight + Info.HitboxUpwardExtension + Info.HitboxDownwardExtension, Info.Range)
+		+ Vector3.one * ValidationPadding
 	return #Workspace:GetPartBoundsInBox(HitboxCFrame, HitboxSize, Parameters) > 0
 end
 
@@ -117,7 +118,8 @@ local function IsPositionInSwing(OriginCFrame: CFrame, Position: Vector3, Info):
 	local LocalPosition = OriginCFrame:PointToObjectSpace(Position)
 	local Padding = Info.ValidationDistanceBuffer
 	return math.abs(LocalPosition.X) <= Info.HitboxWidth / 2 + Padding
-		and math.abs(LocalPosition.Y) <= Info.HitboxHeight / 2 + Padding
+		and LocalPosition.Y <= Info.HitboxHeight / 2 + Info.HitboxUpwardExtension + Padding
+		and LocalPosition.Y >= -Info.HitboxHeight / 2 - Info.HitboxDownwardExtension - Padding
 		and LocalPosition.Z <= Padding
 		and LocalPosition.Z >= -Info.Range - Padding
 end
@@ -199,7 +201,7 @@ local function GetCrateImpact(Model: Model, Origin: Vector3)
 	return TargetPosition, if Normal.Magnitude > 0.01 then Normal.Unit else Vector3.yAxis, Part.Color, Part.Material
 end
 
-local function HitPlayer(Attacker: Player, TargetPlayer: Player, AttackerRoot: BasePart, Info, Now: number)
+local function HitPlayer(Attacker: Player, TargetPlayer: Player, AttackerRoot: BasePart, Info, Now: number, KnockbackMultiplier: number)
 	if Attacker == TargetPlayer or Now < (ProtectedUntil[TargetPlayer] or 0) then return end
 	-- Do not let repeated hits restart or extend an active ragdoll.
 	if StunStates[TargetPlayer] or PlayerStateController.Get(TargetPlayer, "IsPvpStunned", false) == true then return end
@@ -239,18 +241,20 @@ local function HitPlayer(Attacker: Player, TargetPlayer: Player, AttackerRoot: B
 	local Direction = TargetRoot.Position - AttackerRoot.Position
 	local FlatDirection = Vector3.new(Direction.X, 0, Direction.Z)
 	if FlatDirection.Magnitude <= 0.01 then FlatDirection = AttackerRoot.CFrame.LookVector end
-	local Knockback = FlatDirection.Unit * ItemInteractionConfig.BatKnockbackSpeed
-		+ Vector3.new(0, ItemInteractionConfig.BatKnockbackUpwardSpeed, 0)
-	if Knockback.Magnitude > ItemInteractionConfig.MaximumKnockbackSpeed then
-		Knockback = Knockback.Unit * ItemInteractionConfig.MaximumKnockbackSpeed
+	local Knockback = (FlatDirection.Unit * ItemInteractionConfig.BatKnockbackSpeed
+		+ Vector3.new(0, ItemInteractionConfig.BatKnockbackUpwardSpeed, 0)) * KnockbackMultiplier
+	local MaximumKnockbackSpeed = ItemInteractionConfig.MaximumKnockbackSpeed * KnockbackMultiplier
+	if Knockback.Magnitude > MaximumKnockbackSpeed then
+		Knockback = Knockback.Unit * MaximumKnockbackSpeed
 	end
 	TargetRoot.AssemblyLinearVelocity = Knockback
 	task.delay(ItemInteractionConfig.RagdollDuration, function()
 		if StunStates[TargetPlayer] == State then ClearStun(TargetPlayer, true) end
 	end)
+	return true
 end
 
-function BatController.Swing(_, Player, Targets, BatId, SwingTime)
+function BatController.Swing(_, Player, Targets, BatId, SwingTime, ClientHitMultiplier)
 	if type(Targets) ~= "table" or #Targets > 16 then return end
 	local function RejectCratePredictions(Reason)
 		for _, TargetData in Targets do
@@ -283,6 +287,11 @@ function BatController.Swing(_, Player, Targets, BatId, SwingTime)
 	local LastSwing = LastSwings[Player]
 	if LastSwing and SwingTime - LastSwing < MinimumServerCooldown then RejectCratePredictions("Cooldown"); return end
 	LastSwings[Player] = SwingTime
+	-- Falling-hit strength is client-owned; only bound the supplied multiplier to the designed 1x-2x range.
+	local HitMultiplier = if type(ClientHitMultiplier) == "number" and ClientHitMultiplier == ClientHitMultiplier
+		then math.clamp(ClientHitMultiplier, 1, 2) else 1
+	-- Double only the critical bonus so knockback follows the same curve up to 3x.
+	local KnockbackMultiplier = 1 + (HitMultiplier - 1) * ItemInteractionConfig.FallingHitKnockbackBonusScale
 	local HitTargets = {}
 	for _, TargetData in Targets do
 		local VisitorId = if type(TargetData) == "table" then TargetData.VisitorId else nil
@@ -294,9 +303,12 @@ function BatController.Swing(_, Player, Targets, BatId, SwingTime)
 				local Direction = Visitor:GetCurrentCFrame().Position - RootPart.Position
 				local FlatDirection = Vector3.new(Direction.X, 0, Direction.Z)
 				if FlatDirection.Magnitude <= 0.01 then FlatDirection = RootPart.CFrame.LookVector end
-				local Knockback = FlatDirection.Unit * ItemInteractionConfig.GuestBatKnockbackSpeed
-					+ Vector3.new(0, ItemInteractionConfig.GuestBatKnockbackUpwardSpeed, 0)
-				VisitorController.HitVisitor(Player, Visitor, Knockback)
+				local Knockback = (FlatDirection.Unit * ItemInteractionConfig.GuestBatKnockbackSpeed
+					+ Vector3.new(0, ItemInteractionConfig.GuestBatKnockbackUpwardSpeed, 0)) * KnockbackMultiplier
+				local ImpactPosition = Visitor:GetCurrentCFrame().Position
+				if VisitorController.HitVisitor(Player, Visitor, Knockback) and HitMultiplier > 1 then
+					Network:fireAllExcept(Player, "CriticalHitEffect", ImpactPosition)
+				end
 			end
 			continue
 		end
@@ -308,11 +320,12 @@ function BatController.Swing(_, Player, Targets, BatId, SwingTime)
 		if Target:IsA("Model") and Target:HasTag("Crate") then
 			if IsTargetInRange(Player, RootPart, Target, Info, SwingTime) then
 				local ImpactPosition, ImpactNormal, ImpactColor, ImpactMaterial = GetCrateImpact(Target, RootPart.Position)
-				local HitAccepted, Damaged = CrateController.DamageCrate(Player, Target, Info.CrateDamage, PredictionId)
+				local HitAccepted, Damaged = CrateController.DamageCrate(Player, Target, Info.CrateDamage * HitMultiplier, PredictionId)
 				local IsFinalHit = Damaged and not Target.Parent
 				if IsFinalHit then GuidanceController.MarkTutorialCrateBroken(Player, Target) end
 				if HitAccepted then
 					Network:fire(Player, "CrateHitConfirmed", ImpactPosition, ImpactNormal, ImpactColor, ImpactMaterial, IsFinalHit, Info.Id, PredictionId)
+					if HitMultiplier > 1 then Network:fireAllExcept(Player, "CriticalHitEffect", ImpactPosition) end
 				elseif PredictionId then
 					Network:fire(Player, "CrateHitRejected", Target, PredictionId, "InactiveCrate")
 				end
@@ -326,7 +339,12 @@ function BatController.Swing(_, Player, Targets, BatId, SwingTime)
 		end
 		if Target:IsA("Model") then
 			local TargetPlayer = Players:GetPlayerFromCharacter(Target)
-			if TargetPlayer then HitPlayer(Player, TargetPlayer, RootPart, Info, Now) end
+			if TargetPlayer then
+				local ImpactPosition = Target:GetPivot().Position
+				if HitPlayer(Player, TargetPlayer, RootPart, Info, Now, KnockbackMultiplier) and HitMultiplier > 1 then
+					Network:fireAllExcept(Player, "CriticalHitEffect", ImpactPosition)
+				end
+			end
 		end
 	end
 end
