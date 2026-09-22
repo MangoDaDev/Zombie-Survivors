@@ -1,6 +1,5 @@
 local GaussianRandom = require(script.Parent.Parent.Math.GaussianRandom)
 local GetRandomFromWeightedTable = require(script.Parent.Parent.Math.GetRandomFromWeightedTable)
-local BatInfo = require(script.Parent.BatInfo)
 local EconomyConfig = require(script.Parent.EconomyConfig)
 
 local SharedCrateInfo = {
@@ -8,6 +7,7 @@ local SharedCrateInfo = {
 	SpawnPadding = 4,
 	MinimumSpawnSeparation = 8,
 	ScaleStandardDeviation = 0.12,
+	-- Higher-health tiers override this with slightly less size-based luck.
 	ScaleLuckStrength = 2,
 	HealthBarHideDelay = 1.6,
 	HealthBarTweenTime = 0.12,
@@ -38,9 +38,6 @@ local function CreateCrate(Info)
 end
 
 local CrateInfo = {
-	-- A bat cannot damage a crate if breaking it from full health needs more than this many hits.
-	BaseAllowedBatHits = 25,
-	BatDamageHitAllowanceExponent = 0.7,
 	Reset = {
 		Interval = 150,
 		MinimumWallVisibleTime = 5,
@@ -80,6 +77,7 @@ local CrateInfo = {
 			DisplayName = "Uncommon",
 			TemplateName = "UncommonCrate",
 			Health = 90,
+			ScaleLuckStrength = 1.9,
 			MaximumActive = 36,
 			SpawnDepthBias = -0.45,
 			RarityChances = {
@@ -97,6 +95,7 @@ local CrateInfo = {
 			DisplayName = "Rare",
 			TemplateName = "RareCrate",
 			Health = 500,
+			ScaleLuckStrength = 1.8,
 			MaximumActive = 24,
 			SpawnDepthBias = 0.1,
 			RarityChances = {
@@ -114,6 +113,7 @@ local CrateInfo = {
 			DisplayName = "Epic",
 			TemplateName = "EpicCrate",
 			Health = 2_000,
+			ScaleLuckStrength = 1.7,
 			MaximumActive = 16,
 			SpawnDepthBias = 0.5,
 			RarityChances = {
@@ -131,6 +131,7 @@ local CrateInfo = {
 			DisplayName = "Legendary",
 			TemplateName = "LegendaryCrate",
 			Health = 6_500,
+			ScaleLuckStrength = 1.6,
 			MaximumActive = 8,
 			SpawnDepthBias = 0.9,
 			RarityChances = {
@@ -148,6 +149,7 @@ local CrateInfo = {
 			DisplayName = "Mythical",
 			TemplateName = "MythicalCrate",
 			Health = 15_000,
+			ScaleLuckStrength = 1.5,
 			MaximumActive = 1,
 			SpawnDepthBias = 1,
 			RarityChances = {
@@ -168,6 +170,7 @@ local CrateInfo = {
 			DisplayName = "Secret",
 			TemplateName = "SecretCrate",
 			Health = 30_000,
+			ScaleLuckStrength = 1.4,
 			MaximumActive = 1,
 			SpawnDepthBias = 1,
 			RarityChances = {
@@ -189,18 +192,6 @@ local CrateInfo = {
 function CrateInfo.Get(CrateId: string)
 	for _, Info in CrateInfo.Crates do
 		if Info.Id == CrateId then return Info end
-	end
-end
-
-function CrateInfo.CanBatDamage(Info, Damage: number): boolean
-	return type(Info) == "table" and type(Info.Health) == "number" and type(Damage) == "number"
-		and Damage > 0
-		and math.ceil(Info.Health / Damage) <= CrateInfo.BaseAllowedBatHits + Damage ^ CrateInfo.BatDamageHitAllowanceExponent
-end
-
-function CrateInfo.GetRequiredBat(Info)
-	for _, Bat in BatInfo do
-		if CrateInfo.CanBatDamage(Info, Bat.CrateDamage) then return Bat end
 	end
 end
 

@@ -13,6 +13,7 @@ local MuseumConfig = require(ReplicatedStorage.Modules.Game.MuseumConfig)
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
 local TeleportPlayer = require(ReplicatedStorage.Modules.Game.TeleportPlayer)
 local ToolResolver = require(ReplicatedStorage.Modules.Game.ToolResolver)
+local TutorialConfig = require(ReplicatedStorage.Modules.Game.TutorialConfig)
 local UpgradeLogic = require(ReplicatedStorage.Modules.Game.UpgradeLogic)
 local Networker = require(ReplicatedStorage.Packages.networker)
 
@@ -37,7 +38,7 @@ type MuseumAssignment = {
 	museum: Model, position: BasePart, levels: { [number]: Model },
 	displays: { [number]: DisplayState }, occupiedDisplays: { DisplayState },
 	occupiedDisplaysByLevel: { [number]: { DisplayState } }, museumAreas: { BasePart },
-	base: Model?, roof: Model?, UpgradeConnection: RBXScriptConnection?,
+	base: Model?, roof: Model?, UpgradeConnection: RBXScriptConnection?, TutorialConnection: RBXScriptConnection?,
 }
 
 local MuseumController = {}
@@ -360,6 +361,16 @@ local function CreateUpgradePedastol(Assignment: MuseumAssignment)
 	Pedastol.Parent = Assignment.museum
 end
 
+local function UpdateUpgradePedastol(Player: Player, Assignment: MuseumAssignment)
+	-- The upgrade pedestal stays hidden until the tutorial is complete.
+	if DataService:get(Player, "TutorialStep") == TutorialConfig.CompleteStep then
+		CreateUpgradePedastol(Assignment)
+	else
+		local Pedastol = Assignment.museum:FindFirstChild("UpgradePedastol")
+		if Pedastol then Pedastol:Destroy() end
+	end
+end
+
 local function CreatePrompt(Name: string, ActionText: string, KeyCode: Enum.KeyCode, GamepadKeyCode: Enum.KeyCode, Offset: Vector2, Base: BasePart): ProximityPrompt
 	local Prompt = Instance.new("ProximityPrompt")
 	Prompt.Name = Name; Prompt.ActionText = ActionText; Prompt.ObjectText = "Display"; Prompt.HoldDuration = 0
@@ -419,7 +430,7 @@ local function RefreshMuseum(Player: Player)
 		end
 	end
 	CreateTable(Assignment)
-	CreateUpgradePedastol(Assignment)
+	UpdateUpgradePedastol(Player, Assignment)
 	PositionRoof(Assignment, LevelCount)
 	DataService:set(Player, "DisplayItemKeys", SavedDisplayItemKeys)
 end
@@ -479,11 +490,14 @@ function MuseumController.OnPlayerAdded(Player: Player)
 	local Museum = Instance.new("Model"); Museum.Name = `Museum_{Player.UserId}`; Museum.Parent = PlayerMuseums
 	local Assignment: MuseumAssignment = {
 		museum = Museum, position = Position, levels = {}, displays = {}, occupiedDisplays = {},
-		occupiedDisplaysByLevel = {}, museumAreas = {}, base = nil, roof = nil, UpgradeConnection = nil,
+		occupiedDisplaysByLevel = {}, museumAreas = {}, base = nil, roof = nil, UpgradeConnection = nil, TutorialConnection = nil,
 	}
 	OccupiedPositions[Position] = Player; Assignments[Player] = Assignment
 	RefreshMuseum(Player)
 	Assignment.UpgradeConnection = DataService:getChangedSignal(Player, "Upgrades"):Connect(function() RefreshMuseum(Player) end)
+	Assignment.TutorialConnection = DataService:getChangedSignal(Player, "TutorialStep"):Connect(function()
+		UpdateUpgradePedastol(Player, Assignment)
+	end)
 end
 function MuseumController.OnCharacterAdded(Player: Player, Character: Model) task.spawn(TeleportCharacterToMuseum, Player, Character) end
 function MuseumController.OnPlayerRemoving(Player: Player)
@@ -492,6 +506,7 @@ function MuseumController.OnPlayerRemoving(Player: Player)
 	if not Assignment then return end
 	Assignments[Player] = nil; OccupiedPositions[Assignment.position] = nil
 	if Assignment.UpgradeConnection then Assignment.UpgradeConnection:Disconnect() end
+	if Assignment.TutorialConnection then Assignment.TutorialConnection:Disconnect() end
 	for _, DisplayState in Assignment.displays do for _, Connection in DisplayState.Connections do Connection:Disconnect() end end
 	Assignment.museum:Destroy()
 end

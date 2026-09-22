@@ -5,7 +5,6 @@ local ServerStorage = game:GetService("ServerStorage")
 local Workspace = game:GetService("Workspace")
 
 local BatInfo = require(ReplicatedStorage.Modules.Game.BatInfo)
-local CrateInfo = require(ReplicatedStorage.Modules.Game.CrateInfo)
 local CrateController = require(ServerStorage.Controllers.CrateController)
 local CarryController = require(ServerStorage.Controllers.CarryController)
 local GuidanceController = require(ServerStorage.Controllers.GuidanceController)
@@ -24,7 +23,6 @@ local PlayerConnections: { [Player]: RBXScriptConnection } = {}
 local UpgradeConnections: { [Player]: RBXScriptConnection } = {}
 local LastSwings: { [Player]: number } = {}
 local LastVisualSwings: { [Player]: number } = {}
-local LastWeakBatNotices: { [Player]: number } = {}
 local PositionHistory: { [Player]: { { Time: number, CFrame: CFrame } } } = {}
 local LastPositionSamples: { [Player]: number } = {}
 local LastPlayerHits: { [Player]: { [Player]: number } } = {}
@@ -308,14 +306,6 @@ function BatController.Swing(_, Player, Targets, BatId, SwingTime)
 		if PredictionId ~= nil and (type(PredictionId) ~= "string" or #PredictionId > 64) then continue end
 		HitTargets[Target] = true
 		if Target:IsA("Model") and Target:HasTag("Crate") then
-			if DataService:get(Player, "TutorialStep") == "PickUpItem" then
-				local TutorialCrate = GuidanceController.GetTutorialCrateForPlayer(Player)
-				if Target ~= TutorialCrate then
-					if TutorialCrate then GuidanceController.Show(Player, "Break This Crate", TutorialCrate) end
-					if PredictionId then Network:fire(Player, "CrateHitRejected", Target, PredictionId, "TutorialTarget") end
-					continue
-				end
-			end
 			if IsTargetInRange(Player, RootPart, Target, Info, SwingTime) then
 				local ImpactPosition, ImpactNormal, ImpactColor, ImpactMaterial = GetCrateImpact(Target, RootPart.Position)
 				local HitAccepted, Damaged = CrateController.DamageCrate(Player, Target, Info.CrateDamage, PredictionId)
@@ -325,11 +315,6 @@ function BatController.Swing(_, Player, Targets, BatId, SwingTime)
 					Network:fire(Player, "CrateHitConfirmed", ImpactPosition, ImpactNormal, ImpactColor, ImpactMaterial, IsFinalHit, Info.Id, PredictionId)
 				elseif PredictionId then
 					Network:fire(Player, "CrateHitRejected", Target, PredictionId, "InactiveCrate")
-				end
-				if HitAccepted and not Damaged and Now - (LastWeakBatNotices[Player] or 0) >= 3 then
-					LastWeakBatNotices[Player] = Now
-					local RequiredBat = CrateInfo.GetRequiredBat(CrateInfo.Get(Target.Name))
-					if RequiredBat then GuidanceController.Show(Player, `Bat too weak: {RequiredBat.DisplayName}`, nil, nil, true) end
 				end
 				if HitAccepted and Target.Parent then
 					Network:fireAllExcept(Player, "ReactToCrate", Target, RootPart.Position, Info.Id)
@@ -402,7 +387,6 @@ function BatController.OnPlayerRemoving(Player)
 	if UpgradeConnection then UpgradeConnection:Disconnect(); UpgradeConnections[Player] = nil end
 	LastSwings[Player] = nil
 	LastVisualSwings[Player] = nil
-	LastWeakBatNotices[Player] = nil
 	PositionHistory[Player] = nil
 	LastPositionSamples[Player] = nil
 	LastPlayerHits[Player] = nil

@@ -2,18 +2,18 @@ local EconomyConfig = {
 	-- Values above 1 increase every active and passive payout while reducing upgrade costs.
 	ProgressionSpeedMultiplier = 1.22,
 	-- Scales restorable item purchase prices without changing restoration tool costs.
-	ItemPurchasePriceMultiplier = 0.3,
+	ItemPurchasePriceMultiplier = 0.2,
 	-- Scales restoration rewards and restored-item sale values without changing purchase prices.
-	ActiveIncomeMultiplier = 3,
+	ActiveIncomeMultiplier = 1.5,
 	-- Gives onboarding rarities extra active income, blended back to normal by Legendary.
-	OnboardingIncomeMultiplier = 2.5,
+	OnboardingIncomeMultiplier = 1.2,
 	OnboardingIncomeBlendEndStage = 8,
 	-- Scales museum visitor payments only.
-	PassiveIncomeMultiplier = 5,
+	PassiveIncomeMultiplier = 23,
 	-- Values above 1 increase every upgrade price.
 	UpgradeCostMultiplier = 0.95,
 	-- Values above 1 steepen rarity prices and later-stage upgrade costs.
-	LateGameCurveMultiplier = 1.05,
+	LateGameCurveMultiplier = 1.1,
 	-- Smoothly adjusts rarity weights after Rare without disturbing early-game drops.
 	-- EndMultiplier is reached at Secret; Exponent controls how late the curve accelerates.
 	LateGameRarityCurveStartStage = 3,
@@ -21,7 +21,7 @@ local EconomyConfig = {
 	LateGameRarityCurveEndMultiplier = 0.9,
 	LateGameRarityCurveExponent = 2,
 
-	StartingCash = 600,
+	StartingCash = 300,
 	-- Restoration is a small completion bonus; selling and guests remain the primary income sources.
 	MinimumRestorationReward = 15,
 	RestorationRewardRate = 0.05,

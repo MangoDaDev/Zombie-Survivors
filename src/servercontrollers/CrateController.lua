@@ -394,8 +394,7 @@ function CrateController.DamageCrate(Player, Model, Damage, PredictionId): (bool
 	local State = Crates[Model]
 	local RootPart = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
 	if not State or not RootPart or not RootPart:IsA("BasePart") or type(Damage) ~= "number" then return false, false end
-	-- Use full crate health for the bat gate so earlier damage cannot bypass the required strength.
-	if not CrateInfo.CanBatDamage(State.Info, Damage) then return true, false end
+	-- Every bat can damage every crate; higher-tier bats only reduce the hits needed.
 	AnalyticsController.TrackCrateDiscovered(Player, State.Model, State.Info)
 	State.Health = math.max(0, State.Health - math.clamp(Damage, 0, State.Info.Health))
 	Network:fireAll("UpdateCrateHealth", State.Model, State.Info.Id, State.Health, State.Info.Health)

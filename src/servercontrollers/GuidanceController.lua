@@ -212,8 +212,9 @@ function GuidanceController.MarkTutorialCrateBroken(Player: Player, Crate: Model
 end
 
 function GuidanceController.MarkTutorialRewardCreated(Player: Player, Crate: Model, Reward: Model)
-	-- Pickup guidance must only target the reward from this player's assigned broken crate.
-	if DataService:get(Player, "TutorialStep") ~= "PickUpItem" or TutorialCrates[Player] ~= Crate then return end
+	-- Any crate can complete the first break; guide pickup to its own reward.
+	if DataService:get(Player, "TutorialStep") ~= "PickUpItem" or TutorialRewards[Player] then return end
+	TutorialCrates[Player] = Crate
 	TutorialRewards[Player] = Reward
 end
 
