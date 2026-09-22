@@ -189,6 +189,11 @@ local CrateInfo = {
 	},
 }
 
+local CrateTiers = {}
+for Tier, Info in CrateInfo.Crates do
+	CrateTiers[Info] = Tier
+end
+
 function CrateInfo.Get(CrateId: string)
 	for _, Info in CrateInfo.Crates do
 		if Info.Id == CrateId then return Info end
@@ -227,10 +232,11 @@ function CrateInfo.GetNormalizedRarityChances(Info, Luck: number?): { [string]: 
 	local Chances = {}
 	local Total = 0
 	local LuckMultiplier = if type(Luck) == "number" then math.max(Luck, 0.05) else 1
+	local CrateTier = CrateTiers[Info] or 1
 	for Stage, Rarity in RarityOrder do
 		local Chance = Info and Info.RarityChances and Info.RarityChances[Rarity]
 		if type(Chance) == "number" and Chance > 0 then
-			local AdjustedChance = EconomyConfig.GetRarityChanceWeight(Rarity, Chance)
+			local AdjustedChance = EconomyConfig.GetCrateRarityChanceWeight(Rarity, Chance, CrateTier)
 				* LuckMultiplier ^ (Stage - 1)
 			Chances[Rarity] = AdjustedChance
 			Total += AdjustedChance
@@ -250,12 +256,13 @@ end
 function CrateInfo.GetRandomItem(ItemsInfo, Info, RandomGenerator: Random?, Luck: number?)
 	local Generator = RandomGenerator or DefaultRandom
 	local RarityEntries = {}
+	local CrateTier = CrateTiers[Info] or 1
 	for _, Rarity in RarityOrder do
 		local ChanceWeight = Info and Info.RarityChances and Info.RarityChances[Rarity]
 		if type(ChanceWeight) == "number" and ChanceWeight > 0 then
 			table.insert(RarityEntries, {
 				Rarity = Rarity,
-				ChanceWeight = EconomyConfig.GetRarityChanceWeight(Rarity, ChanceWeight),
+				ChanceWeight = EconomyConfig.GetCrateRarityChanceWeight(Rarity, ChanceWeight, CrateTier),
 			})
 		end
 	end

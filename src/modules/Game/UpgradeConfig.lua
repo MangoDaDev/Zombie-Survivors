@@ -441,7 +441,7 @@ local UpgradeConfig = {
 			Id = "SprayPaintSpeed1",
 			Name = "Paint Speed I",
 			Description = "Improves spray paint restoration speed and radius.",
-			Cost = 15_000,
+			Cost = 25_000,
 			Icon = "Auto",
 			Position = GetToolSpeedPosition(GetToolPosition(4), 1),
 			Prerequisites = { "UnlockSprayPaint" },
@@ -1068,7 +1068,12 @@ end
 for _, Upgrade in UpgradeConfig.Upgrades do
 	-- Fixed prices are explicit balancing targets and must not be changed by global economy scaling.
 	if Upgrade.FixedCost ~= true then
-		Upgrade.Cost = EconomyConfig.GetUpgradeCost(Upgrade.Cost, GetEconomyStage(Upgrade))
+		local Effect = Upgrade.Effect
+		-- Later tool unlocks follow the item prices they serve; Sponge and Soft Brush retain their authored costs.
+		local ToolUnlockCost = if Effect and Effect.Type == "ToolUnlock"
+			then EconomyConfig.GetToolUnlockCost(Effect.ToolId, GetEconomyStage(Upgrade))
+			else nil
+		Upgrade.Cost = ToolUnlockCost or EconomyConfig.GetUpgradeCost(Upgrade.Cost, GetEconomyStage(Upgrade))
 	end
 end
 

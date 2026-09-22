@@ -9,17 +9,30 @@ local EconomyConfig = {
 	OnboardingIncomeMultiplier = 1.2,
 	OnboardingIncomeBlendEndStage = 8,
 	-- Scales museum visitor payments only.
-	PassiveIncomeMultiplier = 23,
+	PassiveIncomeMultiplier = 3,
 	-- Values above 1 increase every upgrade price.
 	UpgradeCostMultiplier = 0.95,
-	-- Values above 1 steepen rarity prices and later-stage upgrade costs.
-	LateGameCurveMultiplier = 1.1,
+	-- Values above 1 steepen later-rarity item prices.
+	LateGameCurveMultiplier = 1.2,
+	-- Keep upgrade price scaling independently tunable from item prices.
+	UpgradeLateGameCurveMultiplier = 1.356,
 	-- Smoothly adjusts rarity weights after Rare without disturbing early-game drops.
 	-- EndMultiplier is reached at Secret; Exponent controls how late the curve accelerates.
 	LateGameRarityCurveStartStage = 3,
 	LateGameRarityCurveEndStage = 7,
 	LateGameRarityCurveEndMultiplier = 0.9,
 	LateGameRarityCurveExponent = 2,
+	-- Each crate tier multiplies Secret-vs-Common loot odds by this amount; intermediate rarities scale smoothly.
+	CrateRarityLuckPerTier = 1.1,
+	-- Later tool unlocks cost slightly less than the cheapest item in the tier that needs them.
+	-- Sponge and Soft Brush keep their authored upgrade prices.
+	ToolUnlockPriceRatios = {
+		Hairdryer = 0.8,
+		SprayPaint = 0.75,
+		Polisher = 0.85,
+		Hammer = 0.8,
+		Magnet = 0.8,
+	},
 
 	StartingCash = 300,
 	-- Restoration is a small completion bonus; selling and guests remain the primary income sources.
@@ -36,7 +49,7 @@ local EconomyConfig = {
 			PriceRange = { 75, 450 },
 			PriceCurveExponent = 1.35,
 			GuestPayBase = 1.5,
-			GuestPayRate = 0.025,
+			GuestPayRate = 0.055,
 		},
 		Uncommon = {
 			ProgressionStage = 2,
@@ -44,47 +57,48 @@ local EconomyConfig = {
 			SourcePriceRange = { 60, 118 },
 			PriceRange = { 1_200, 4_000 },
 			PriceCurveExponent = 1.3,
-			GuestPayRate = 0.012,
+			GuestPayRate = 0.017,
 		},
 		Rare = {
 			ProgressionStage = 3,
 			RestorationTier = 3,
 			SourcePriceRange = { 130, 235 },
-			PriceRange = { 4_500, 18_000 },
+			-- Rare and later item prices support the wider tool unlock price ladder.
+			PriceRange = { 15_000, 50_000 },
 			PriceCurveExponent = 1.25,
-			GuestPayRate = 0.0085,
+			GuestPayRate = 0.007,
 		},
 		Epic = {
 			ProgressionStage = 4,
 			RestorationTier = 4,
 			SourcePriceRange = { 240, 460 },
-			PriceRange = { 35_000, 150_000 },
+			PriceRange = { 105_000, 500_000 },
 			PriceCurveExponent = 1.2,
-			GuestPayRate = 0.0065,
+			GuestPayRate = 0.0035,
 		},
 		Legendary = {
 			ProgressionStage = 5,
 			RestorationTier = 5,
 			SourcePriceRange = { 500, 880 },
-			PriceRange = { 300_000, 1_400_000 },
+			PriceRange = { 1_250_000, 5_000_000 },
 			PriceCurveExponent = 1.15,
-			GuestPayRate = 0.005,
+			GuestPayRate = 0.0015,
 		},
 		Mythic = {
 			ProgressionStage = 6,
 			RestorationTier = 6,
 			SourcePriceRange = { 900, 1_400 },
-			PriceRange = { 2_500_000, 8_500_000 },
+			PriceRange = { 12_000_000, 40_000_000 },
 			PriceCurveExponent = 1.1,
-			GuestPayRate = 0.0035,
+			GuestPayRate = 0.0007,
 		},
 		Secret = {
 			ProgressionStage = 7,
 			RestorationTier = 7,
 			SourcePriceRange = { 1_800, 2_500 },
-			PriceRange = { 12_000_000, 28_000_000 },
+			PriceRange = { 50_000_000, 130_000_000 },
 			PriceCurveExponent = 1.05,
-			GuestPayRate = 0.003,
+			GuestPayRate = 0.0004,
 		},
 	},
 }
@@ -102,6 +116,10 @@ end
 
 local function GetLateGameScale(ProgressionStage: number): number
 	return EconomyConfig.LateGameCurveMultiplier ^ math.max(ProgressionStage - 3, 0)
+end
+
+local function GetUpgradeLateGameScale(ProgressionStage: number): number
+	return EconomyConfig.UpgradeLateGameCurveMultiplier ^ math.max(ProgressionStage - 3, 0)
 end
 
 local function GetActiveIncomeScale(): number
@@ -124,6 +142,13 @@ function EconomyConfig.GetRarityChanceWeight(Rarity: string, BaseChanceWeight: n
 		^ EconomyConfig.LateGameRarityCurveExponent
 	local WeightMultiplier = 1 + (EconomyConfig.LateGameRarityCurveEndMultiplier - 1) * CurveAlpha
 	return BaseChanceWeight * WeightMultiplier
+end
+
+function EconomyConfig.GetCrateRarityChanceWeight(Rarity: string, BaseChanceWeight: number, CrateTier: number): number
+	local RarityStage = EconomyConfig.GetRarity(Rarity).ProgressionStage
+	local RarityAlpha = (RarityStage - 1) / (#EconomyConfig.RarityOrder - 1)
+	return EconomyConfig.GetRarityChanceWeight(Rarity, BaseChanceWeight)
+		* EconomyConfig.CrateRarityLuckPerTier ^ ((CrateTier - 1) * RarityAlpha)
 end
 
 function EconomyConfig.GetOnboardingIncomeScale(Rarity: string): number
@@ -150,6 +175,18 @@ function EconomyConfig.GetMinimumPriceForRestorationTier(RestorationTier: number
 		end
 	end
 	return nil
+end
+
+function EconomyConfig.GetToolUnlockCost(ToolId: string, RestorationTier: number): number?
+	local Ratio = EconomyConfig.ToolUnlockPriceRatios[ToolId]
+	if not Ratio then
+		return nil
+	end
+	local MinimumItemPrice = EconomyConfig.GetMinimumPriceForRestorationTier(RestorationTier)
+	if not MinimumItemPrice then
+		return nil
+	end
+	return RoundToReadableValue(MinimumItemPrice * Ratio)
 end
 
 function EconomyConfig.GetItemPrice(Rarity: string, DifficultyValue: number): number
@@ -201,7 +238,7 @@ function EconomyConfig.GetUpgradeCost(BaseCost: number, ProgressionStage: number
 	end
 	local Stage = ProgressionStage or 1
 	local CostScale = EconomyConfig.UpgradeCostMultiplier
-		* GetLateGameScale(Stage)
+		* GetUpgradeLateGameScale(Stage)
 		/ EconomyConfig.ProgressionSpeedMultiplier
 	return RoundToReadableValue(BaseCost * CostScale)
 end
@@ -252,8 +289,10 @@ function EconomyConfig.Validate()
 			EconomyConfig.PassiveIncomeMultiplier,
 			EconomyConfig.UpgradeCostMultiplier,
 			EconomyConfig.LateGameCurveMultiplier,
+			EconomyConfig.UpgradeLateGameCurveMultiplier,
 			EconomyConfig.LateGameRarityCurveEndMultiplier,
 			EconomyConfig.LateGameRarityCurveExponent,
+			EconomyConfig.CrateRarityLuckPerTier,
 		}
 	do
 		assert(type(Value) == "number" and Value > 0, "Economy multipliers must be positive")

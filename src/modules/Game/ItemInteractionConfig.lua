@@ -1,6 +1,7 @@
 local ItemInteractionConfig = {
 	WorldItemDespawnDuration = 60,
-	ItemBillboardMaxDistance = 500,
+	-- Keep item identity and value billboards viewable up to 250 studs away.
+	ItemBillboardMaxDistance = 250,
 	WorldItemTimerUpdateInterval = 0.1,
 	-- Carrying temporarily reduces the player's current normal WalkSpeed by 20%.
 	CarryWalkSpeedMultiplier = 0.8,
