@@ -13,7 +13,7 @@ local EconomyConfig = {
 	-- Values above 1 increase every upgrade price.
 	UpgradeCostMultiplier = 0.95,
 	-- Values above 1 steepen later-rarity item prices.
-	LateGameCurveMultiplier = 1.2,
+	LateGameCurveMultiplier = 0.95,
 	-- Keep upgrade price scaling independently tunable from item prices.
 	UpgradeLateGameCurveMultiplier = 1.356,
 	-- Smoothly adjusts rarity weights after Rare without disturbing early-game drops.
@@ -49,7 +49,7 @@ local EconomyConfig = {
 			PriceRange = { 75, 450 },
 			PriceCurveExponent = 1.35,
 			GuestPayBase = 1.5,
-			GuestPayRate = 0.055,
+			GuestPayRate = 0.075,
 		},
 		Uncommon = {
 			ProgressionStage = 2,
@@ -57,7 +57,7 @@ local EconomyConfig = {
 			SourcePriceRange = { 60, 118 },
 			PriceRange = { 1_200, 4_000 },
 			PriceCurveExponent = 1.3,
-			GuestPayRate = 0.017,
+			GuestPayRate = 0.027,
 		},
 		Rare = {
 			ProgressionStage = 3,

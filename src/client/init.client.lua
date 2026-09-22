@@ -16,7 +16,6 @@ local modules_to_init = {
 	ReplicatedStorage.Controllers.MuseumController,
 	ReplicatedStorage.Controllers.UpgradePedastolController,
 	ReplicatedStorage.Controllers.BaseMarkerController,
-	ReplicatedStorage.Controllers.ItemInfoBillboardController,
 	ReplicatedStorage.Controllers.TopbarController,
 	ReplicatedStorage.Controllers.AnalyticsController,
 	ReplicatedStorage.Controllers.FeedbackController,

@@ -94,6 +94,15 @@ end
 
 function GuidanceController.GetOnboardingReward(Player: Player)
 	local Progress = CopyOnboarding(DataService:get(Player, "Onboarding"))
+	-- The first item received after buying Sponge must include grease, even if opening drops remain.
+	if not Progress.DirtGreaseItemReceived
+		and UpgradeLogic.IsToolUnlocked(DataService:get(Player, "Upgrades"), "Sponge")
+	then
+		return {
+			ItemId = ONBOARDING.DirtGreaseItemId,
+			RestorationSteps = ONBOARDING.DirtGreaseRestorationSteps,
+		}, "DirtGrease"
+	end
 	if DataService:get(Player, "TutorialStep") == TutorialConfig.CompleteStep
 		and not Progress.DiscreteProgressionActive
 	then
@@ -106,13 +115,6 @@ function GuidanceController.GetOnboardingReward(Player: Player)
 		return GuaranteedReward, "Guaranteed", GuaranteedDropCount + 1
 	end
 
-	if not Progress.DirtGreaseItemReceived then
-		-- This remains forced until it is actually purchased, so it is always the third received item.
-		return {
-			ItemId = ONBOARDING.DirtGreaseItemId,
-			RestorationSteps = ONBOARDING.DirtGreaseRestorationSteps,
-		}, "DirtGrease"
-	end
 	if Progress.DirtGreaseItemDisplayed and HasSoftBrush(Player) and not Progress.DustItemReceived then
 		-- The first forced reward after confirmed Soft Brush ownership must contain Dust.
 		return {

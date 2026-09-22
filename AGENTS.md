@@ -7,6 +7,7 @@
 
 ## Requirements / Rules
 
+- Add comments in the code of the intended behaviour.
 - Inspect the repository and similar implementations before editing; reuse existing utilities, patterns, and assets.
 - Use Roblox Studio MCP for live DataModel or Studio-owned assets. Do not use computer control, invent instance paths, or run playtests unless requested.
 - Keep code simple, modular, mostly event-driven, and consistent with nearby Luau.

@@ -1,5 +1,4 @@
 local ReplicatedStorage = game:GetService "ReplicatedStorage"
-local CollectionService = game:GetService "CollectionService"
 
 local FormatNumber = require(ReplicatedStorage.Modules.Math.FormatNumber)
 local Images = require(ReplicatedStorage.Modules.UI.Images)
@@ -12,7 +11,6 @@ local BILLBOARD_SIZE = UDim2.fromScale(7.5, 4.6)
 local BILLBOARD_HEIGHT_OFFSET = 2
 local BILLBOARD_HEIGHT_SCALE = 0.18
 local COMIC_FONT = UIStyle.Font
-local ITEM_INFO_TAG = "ItemInfoBillboard"
 
 local function addStroke(label: TextLabel)
 	local stroke = Instance.new "UIStroke"
@@ -73,10 +71,7 @@ return function(itemInfo, adornee: BasePart, fixingState): BillboardGui
 	local BillboardRoot = ItemModel or adornee
 	-- Keep every item's identity and value information in one shared BillboardGui.
 	for _, Descendant in BillboardRoot:GetDescendants() do
-		if
-			Descendant:IsA "BillboardGui"
-			and (Descendant.Name == "ItemInfo" or CollectionService:HasTag(Descendant, ITEM_INFO_TAG))
-		then
+		if Descendant:IsA "BillboardGui" and Descendant.Name == "ItemInfo" then
 			Descendant:Destroy()
 		end
 	end
@@ -85,6 +80,7 @@ return function(itemInfo, adornee: BasePart, fixingState): BillboardGui
 	billboard.Name = "ItemInfo"
 	billboard.Adornee = adornee
 	billboard.AlwaysOnTop = true
+	-- Let MaxDistance alone control when this item information is rendered.
 	billboard.MaxDistance = ItemInteractionConfig.ItemBillboardMaxDistance
 	billboard.Size = BILLBOARD_SIZE
 	local ItemHeight = if ItemModel then ItemModel:GetExtentsSize().Y else adornee.Size.Y
@@ -160,8 +156,6 @@ return function(itemInfo, adornee: BasePart, fixingState): BillboardGui
 			end
 		end
 	end
-
-	CollectionService:AddTag(billboard, ITEM_INFO_TAG)
 
 	return billboard
 end
