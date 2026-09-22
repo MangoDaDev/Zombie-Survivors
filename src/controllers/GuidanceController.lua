@@ -6,7 +6,6 @@ local DataService = require(ReplicatedStorage.Packages.dataservice).client
 local CleaningConfig = require(ReplicatedStorage.Modules.Game.CleaningConfig)
 local CrateRuntime = require(ReplicatedStorage.Modules.Game.CrateRuntime)
 local Images = require(ReplicatedStorage.Modules.UI.Images)
-local ItemsInfo = require(ReplicatedStorage.Modules.Game.ItemsInfo)
 local Networker = require(ReplicatedStorage.Packages.networker)
 local NotificationManager = require(ReplicatedStorage.Modules.UI.NotificationManager)
 local RuntimeState = require(ReplicatedStorage.Modules.Game.RuntimeState)
@@ -23,7 +22,6 @@ local OverrideId = 0
 local OverrideText: string?
 local OverrideTarget: Instance?
 local OverrideTargetKind: string?
-local StarterCrate: Model?
 local OpenUpgradesCompletedLocally = false
 
 local function GetMuseum(): Model?
@@ -32,58 +30,11 @@ local function GetMuseum(): Model?
 	return if Museum and Museum:IsA "Model" then Museum else nil
 end
 
-local function GetItemInfo(ItemName: string)
-	for _, ItemInfo in ItemsInfo do
-		if ItemInfo.Name == ItemName then
-			return ItemInfo
-		end
-	end
-end
-
-local function GetNearestModel(Folder: Instance?, IsAllowed): Model?
-	local Character = LocalPlayer.Character
-	local RootPart = Character and Character:FindFirstChild "HumanoidRootPart"
-	local Closest: Model?
-	local ClosestDistance = math.huge
-	if not Folder then
-		return nil
-	end
-	for _, Model in Folder:GetChildren() do
-		if not Model:IsA "Model" or not IsAllowed(Model) then
-			continue
-		end
-		local Distance = if RootPart then (Model:GetPivot().Position - RootPart.Position).Magnitude else 0
-		if Distance < ClosestDistance then
-			Closest = Model
-			ClosestDistance = Distance
-		end
-	end
-	return Closest
-end
-
 local function GetStarterTarget(): Model?
-	local Cash = DataService:get "Cash" or 0
-	local Reward = GetNearestModel(Workspace:FindFirstChild "CrateRewards", function(Model)
-		local ItemName = string.match(Model.Name, "^CrateReward_(.+)$")
-		local ItemInfo = ItemName and GetItemInfo(ItemName)
-		if not ItemInfo or ItemInfo.Price > Cash then
-			return false
-		end
-		local Steps = CleaningConfig.GetStepsForItem(ItemInfo)
-		return #Steps == 1 and Steps[1].Id == "Spray"
-	end)
-	if Reward then
-		return Reward
-	end
-	if StarterCrate and StarterCrate.Parent then
-		return StarterCrate
-	end
-	if not Network then
-		return nil
-	end
-	local Target = Network:fetch "GetTutorialCrate"
-	StarterCrate = if typeof(Target) == "Instance" and Target:IsA "Model" then Target else nil
-	return StarterCrate
+	if not Network then return nil end
+	-- The server selects this player's crate or its own reward; nearby drops belong to other players.
+	local Target = Network:fetch "GetTutorialTarget"
+	return if typeof(Target) == "Instance" and Target:IsA "Model" and Target.Parent then Target else nil
 end
 
 local function GetDisplay(Occupied: boolean): Model?
@@ -224,15 +175,15 @@ local function RefreshTutorial()
 		SetGuidance(nil, nil)
 		return
 	end
-	if StepId ~= "PickUpItem" then
-		StarterCrate = nil
-	end
 	local Step = type(StepId) == "string" and TutorialConfig.GetStep(StepId) or nil
 	local Text = Step and Step.Text
+	local StarterTarget: Model?
 	if StepId == "PickUpItem" then
-		local Target = GetStarterTarget()
-		if Target and Target.Parent and Target.Parent.Name == "Crates" then
+		StarterTarget = GetStarterTarget()
+		if StarterTarget and StarterTarget.Parent and StarterTarget.Parent.Name == "Crates" then
 			Text = "Break This Crate"
+		elseif not StarterTarget then
+			Text = "Wait For Crates"
 		end
 	elseif StepId == "UseTool" then
 		local ToolId = RuntimeState.Get(LocalPlayer, "CleaningStepToolId")
@@ -243,7 +194,7 @@ local function RefreshTutorial()
 	end
 	SetGuidance(
 		Text,
-		if Step then ResolveTarget(StepId) else nil,
+		if StepId == "PickUpItem" then StarterTarget elseif Step then ResolveTarget(StepId) else nil,
 		if StepId == "OpenUpgrades" then "Right" else nil
 	)
 end
@@ -320,7 +271,6 @@ function GuidanceController.Init()
 		if DataService:get "TutorialStep" ~= "PickUpItem" then
 			return
 		end
-		StarterCrate = nil
 		if IsResetting then
 			SetGuidance("Wait For Crates", nil)
 		else
@@ -349,7 +299,6 @@ function GuidanceController.Init()
 end
 
 function GuidanceController.OnCharacterAdded()
-	StarterCrate = nil
 	task.defer(RefreshTutorial)
 end
 

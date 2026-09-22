@@ -6,6 +6,21 @@ local Networker = require(ReplicatedStorage.Packages.networker)
 local MuseumVisitorController = {}
 local Visitors = {}
 local Network
+local ViewedOwnerUserId
+local ViewRequestToken = 0
+
+local function RequestViewedMuseum(OwnerUserId)
+	ViewedOwnerUserId = OwnerUserId
+	ViewRequestToken += 1
+	local RequestToken = ViewRequestToken
+	local function SendViewRequest()
+		if RequestToken ~= ViewRequestToken then return end
+		Network:fire("SetViewedMuseum", OwnerUserId)
+		-- Keep retrying until the server confirms the base, since its position may lag the client at the boundary.
+		task.delay(1, SendViewRequest)
+	end
+	SendViewRequest()
+end
 
 local function GetVisitor(UniqueId)
 	return if type(UniqueId) == "string" then Visitors[UniqueId] else nil
@@ -86,13 +101,16 @@ function MuseumVisitorController.ClearOwner(_, OwnerUserId)
 			Visitor:Destroy()
 		end
 	end
+	if OwnerUserId == ViewedOwnerUserId then RequestViewedMuseum(OwnerUserId) end
+end
+
+function MuseumVisitorController.ConfirmViewedMuseum(_, OwnerUserId)
+	if OwnerUserId == ViewedOwnerUserId then ViewRequestToken += 1 end
 end
 
 function MuseumVisitorController.Init()
 	Network = Networker.client.new("MuseumVisitorController", MuseumVisitorController)
-	MuseumVisitor.SetViewedOwnerChangedHandler(function(OwnerUserId)
-		Network:fire("SetViewedMuseum", OwnerUserId)
-	end)
+	MuseumVisitor.SetViewedOwnerChangedHandler(RequestViewedMuseum)
 	Network:fire("Ready")
 end
 

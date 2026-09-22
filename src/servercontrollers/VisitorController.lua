@@ -541,10 +541,13 @@ function VisitorController.SetViewedMuseum(_, Player: Player, OwnerUserId)
 	local Owner = Players:GetPlayerByUserId(OwnerUserId)
 	if not Owner or not CanObserve(Player, Owner) then return end
 	local PreviousOwner = ViewedOwnerByPlayer[Player]
-	if PreviousOwner == Owner then return end
-	if PreviousOwner and PreviousOwner ~= Player then RemoveSubscriber(Player, PreviousOwner) end
-	ViewedOwnerByPlayer[Player] = if Owner ~= Player then Owner else nil
-	if Owner ~= Player then AddSubscriber(Player, Owner) end
+	if PreviousOwner ~= Owner then
+		if PreviousOwner and PreviousOwner ~= Player then RemoveSubscriber(Player, PreviousOwner) end
+		ViewedOwnerByPlayer[Player] = if Owner ~= Player then Owner else nil
+	end
+	-- Rejoin and confirm only after the server verifies the visitor is inside this museum.
+	AddSubscriber(Player, Owner)
+	Network:fire(Player, "ConfirmViewedMuseum", OwnerUserId)
 end
 
 function VisitorController.Init()

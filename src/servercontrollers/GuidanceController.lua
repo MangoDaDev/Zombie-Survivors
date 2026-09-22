@@ -13,6 +13,7 @@ local DataService
 local Network
 local TutorialCrates: { [Player]: Model } = {}
 local CompletedTutorialCrates: { [Player]: boolean } = {}
+local TutorialRewards: { [Player]: Model } = {}
 local ONBOARDING = TutorialConfig.Onboarding
 
 local function CopyOnboarding(Value)
@@ -61,6 +62,7 @@ local function GetTutorialCrateForPlayer(Player: Player): Model?
 	if DataService:get(Player, "TutorialStep") ~= "PickUpItem" then
 		TutorialCrates[Player] = nil
 		CompletedTutorialCrates[Player] = nil
+		TutorialRewards[Player] = nil
 		return nil
 	end
 	if CompletedTutorialCrates[Player] then return nil end
@@ -193,6 +195,13 @@ function GuidanceController.GetTutorialCrate(_, Player: Player): Model?
 	return GetTutorialCrateForPlayer(Player)
 end
 
+function GuidanceController.GetTutorialTarget(_, Player: Player): Model?
+	if DataService:get(Player, "TutorialStep") ~= "PickUpItem" then return nil end
+	local Reward = TutorialRewards[Player]
+	if Reward and Reward.Parent then return Reward end
+	return GetTutorialCrateForPlayer(Player)
+end
+
 function GuidanceController.GetTutorialCrateForPlayer(Player: Player): Model?
 	return GetTutorialCrateForPlayer(Player)
 end
@@ -202,11 +211,24 @@ function GuidanceController.MarkTutorialCrateBroken(Player: Player, Crate: Model
 	CompletedTutorialCrates[Player] = true
 end
 
+function GuidanceController.MarkTutorialRewardCreated(Player: Player, Crate: Model, Reward: Model)
+	-- Pickup guidance must only target the reward from this player's assigned broken crate.
+	if DataService:get(Player, "TutorialStep") ~= "PickUpItem" or TutorialCrates[Player] ~= Crate then return end
+	TutorialRewards[Player] = Reward
+end
+
+function GuidanceController.MarkTutorialRewardRemoved(Player: Player, Reward: Model)
+	if TutorialRewards[Player] ~= Reward then return end
+	TutorialRewards[Player] = nil
+	TutorialCrates[Player] = nil
+	CompletedTutorialCrates[Player] = nil
+end
+
 function GuidanceController.ResetTutorialCrates()
 	for _, Player in Players:GetPlayers() do
 		if DataService:get(Player, "TutorialStep") ~= "PickUpItem" then continue end
 		TutorialCrates[Player] = nil
-		CompletedTutorialCrates[Player] = nil
+		if not TutorialRewards[Player] then CompletedTutorialCrates[Player] = nil end
 	end
 end
 
@@ -218,6 +240,7 @@ function GuidanceController.Init()
 	Network = Networker.server.new("GuidanceController", GuidanceController, {
 		GuidanceController.OpenedUpgrades,
 		GuidanceController.GetTutorialCrate,
+		GuidanceController.GetTutorialTarget,
 	})
 end
 
@@ -265,6 +288,7 @@ end
 function GuidanceController.OnPlayerRemoving(Player: Player)
 	TutorialCrates[Player] = nil
 	CompletedTutorialCrates[Player] = nil
+	TutorialRewards[Player] = nil
 end
 
 return GuidanceController

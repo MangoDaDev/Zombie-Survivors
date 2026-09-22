@@ -29,6 +29,7 @@ local LocalPlayer = Players.LocalPlayer
 local ONBOARDING_START_ID = "Start"
 local ONBOARDING_UPGRADE_ID = "UnlockSponge"
 local UPGRADE_READY_REMINDER_INTERVAL = 60
+local UPGRADE_GUIDANCE_DELAY = 30
 
 local StateColors = {
 	Mystery = Color3.new(0, 0, 0),
@@ -350,6 +351,7 @@ return function()
 	local IsPurchasing = Source(false)
 	local IsOpenButtonHovered = Source(false)
 	local IsOpenButtonPressed = Source(false)
+	local ShowUpgradeGuidanceArrow = Source(false)
 	local TutorialPulse = Source(0)
 	local LastPurchasedId = Source ""
 	local StartUpgrade = UpgradeConfig.Get("Start")
@@ -403,6 +405,7 @@ return function()
 	end
 	local AffordableNotificationScheduled = false
 	local UpgradeReminderThread: thread?
+	local UpgradeGuidanceThread: thread?
 	local IsDestroyed = false
 
 	Effect(function()
@@ -417,6 +420,26 @@ return function()
 			TutorialPulseTween:Cancel()
 			TutorialPulseValue.Value = 0
 		end
+	end
+
+	local function UpdateUpgradeGuidanceArrow()
+		if IsDestroyed or IsOpen() or AffordableCount() == 0 then
+			ShowUpgradeGuidanceArrow(false)
+			if UpgradeGuidanceThread then
+				task.cancel(UpgradeGuidanceThread)
+				UpgradeGuidanceThread = nil
+			end
+			return
+		end
+		if ShowUpgradeGuidanceArrow() or UpgradeGuidanceThread then return end
+
+		-- Show the upgrade button arrow only after an affordable upgrade has gone unopened for 30 seconds.
+		UpgradeGuidanceThread = task.delay(UPGRADE_GUIDANCE_DELAY, function()
+			UpgradeGuidanceThread = nil
+			if not IsDestroyed and not IsOpen() and AffordableCount() > 0 then
+				ShowUpgradeGuidanceArrow(true)
+			end
+		end)
 	end
 
 	local function GetUpgradeReadyMessage(UpgradeCount: number, IsNew: boolean): string
@@ -480,6 +503,7 @@ return function()
 
 	UpdateTutorialPulse()
 	ScheduleUpgradeReminder()
+	UpdateUpgradeGuidanceArrow()
 
 	local function BeginDrag(Input: InputObject)
 		if
@@ -649,16 +673,19 @@ return function()
 		Ownership(UpgradeLogic.NormalizeOwnership(Value))
 		UpdateTutorialPulse()
 		UpdateAffordableNotification()
+		UpdateUpgradeGuidanceArrow()
 	end)
 	local CashConnection = DataService:getChangedSignal("Cash"):Connect(function(Value)
 		Cash(if type(Value) == "number" then Value else 0)
 		UpdateTutorialPulse()
 		UpdateAffordableNotification()
+		UpdateUpgradeGuidanceArrow()
 	end)
 	local TutorialConnection = DataService:getChangedSignal("TutorialStep"):Connect(function(Value)
 		TutorialStep(Value)
 		UpdateTutorialPulse()
 		UpdateAffordableNotification()
+		UpdateUpgradeGuidanceArrow()
 	end)
 	local TutorialPulseConnection = TutorialPulseValue.Changed:Connect(TutorialPulse)
 	Cleanup(function()
@@ -666,6 +693,10 @@ return function()
 		if UpgradeReminderThread then
 			task.cancel(UpgradeReminderThread)
 			UpgradeReminderThread = nil
+		end
+		if UpgradeGuidanceThread then
+			task.cancel(UpgradeGuidanceThread)
+			UpgradeGuidanceThread = nil
 		end
 		InputBeganConnection:Disconnect()
 		InputChangedConnection:Disconnect()
@@ -868,6 +899,20 @@ return function()
 				TextScaled = true,
 				ZIndex = 26,
 			},
+			Create "TextLabel" {
+				Name = "GuidanceArrow",
+				AnchorPoint = Vector2.new(0.5, 0.5),
+				BackgroundTransparency = 1,
+				FontFace = UIStyle.Font,
+				Position = UDim2.fromScale(0.5, 1.58),
+				Rotation = -90,
+				Size = UDim2.fromScale(0.9, 0.9),
+				Text = ">",
+				TextColor3 = Color3.fromRGB(72, 209, 238),
+				TextScaled = true,
+				Visible = ShowUpgradeGuidanceArrow,
+				ZIndex = 28,
+			},
 			Create "TextButton" {
 				AutoButtonColor = false,
 				BackgroundTransparency = 1,
@@ -915,6 +960,7 @@ return function()
 						GuidanceController.OpenedUpgradeTree()
 					end
 					IsOpen(Opening)
+					UpdateUpgradeGuidanceArrow()
 					Sounds.Play("Click", LocalPlayer.PlayerGui)
 				end,
 			},

@@ -16,6 +16,7 @@ data_service:init({
 local modules_to_init = {
 	ServerStorage.Controllers.PlayerStateController,
 	ServerStorage.Controllers.DataController,
+	ServerStorage.Controllers.LeaderstatsController,
 	ServerStorage.Controllers.GuidanceController,
 	ServerStorage.Controllers.AnalyticsController,
 	ServerStorage.Controllers.CollisionController,

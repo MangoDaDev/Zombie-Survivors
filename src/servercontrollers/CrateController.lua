@@ -196,6 +196,9 @@ end
 local function RemoveReward(RewardId, Reason, PurchasingPlayer)
 	local Reward = Rewards[RewardId]
 	if not Reward then return end
+	if Reward.Owner and Reward.Model then
+		GuidanceController.MarkTutorialRewardRemoved(Reward.Owner, Reward.Model)
+	end
 	local OwnerRewards = Reward.Owner and ActiveOnboardingRewards[Reward.Owner]
 	if OwnerRewards then
 		OwnerRewards[RewardId] = nil
@@ -318,6 +321,7 @@ local function CreateReward(State, Player: Player, PredictionId, AnalyticsSessio
 		RevealTransparencies = RevealTransparencies,
 	}
 	Rewards[RewardId] = Reward
+	GuidanceController.MarkTutorialRewardCreated(Player, State.Model, Model)
 	-- Breaking another crate must not despawn this reward; each drop keeps its own expiry.
 	if OnboardingRewardKind then
 		local OwnerRewards = ActiveOnboardingRewards[Player]
