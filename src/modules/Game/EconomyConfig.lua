@@ -34,7 +34,7 @@ local EconomyConfig = {
 		Magnet = 0.8,
 	},
 
-	StartingCash = 300,
+	StartingCash = 250,
 	-- Restoration is a small completion bonus; selling and guests remain the primary income sources.
 	MinimumRestorationReward = 15,
 	RestorationRewardRate = 0.05,

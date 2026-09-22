@@ -5,6 +5,8 @@ local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 
 local Signal = require(ReplicatedStorage.Packages.signal)
+local NotificationManager = require(ReplicatedStorage.Modules.UI.NotificationManager)
+local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
 
 local UpgradePedastolController = {}
 UpgradePedastolController.OpenRequested = Signal.new()
@@ -79,7 +81,14 @@ local function registerDescendant(descendant: Instance)
 		arrows[arrow] = arrow:GetPivot()
 		if not renderConnection then renderConnection = RunService.RenderStepped:Connect(animateArrows) end
 	elseif descendant.Name == "UpgradePrompt" and descendant:IsA("ProximityPrompt") and descendant.Parent and descendant.Parent.Name == "PromptPart" then
+		if promptConnections[descendant] then return end
 		promptConnections[descendant] = descendant.Triggered:Connect(function()
+			-- Visitors can see the pedestal prompt, but only the owner's tree opens here.
+			if not descendant:FindFirstAncestor(`Museum_{localPlayer.UserId}`) then
+				NotificationManager.Notify("This isn't your upgrade pedestal.")
+				Sounds.Play("Error", localPlayer.PlayerGui)
+				return
+			end
 			UpgradePedastolController.OpenRequested:Fire()
 		end)
 	end

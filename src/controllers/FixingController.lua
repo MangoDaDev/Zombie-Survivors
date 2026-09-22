@@ -12,6 +12,7 @@ local DataService = require(ReplicatedStorage.Packages.dataservice).client
 local FixingInterface = require(ReplicatedStorage.Modules.UI.FixingInterface)
 local ItemsInfo = require(ReplicatedStorage.Modules.Game.ItemsInfo)
 local Networker = require(ReplicatedStorage.Packages.networker)
+local NotificationManager = require(ReplicatedStorage.Modules.UI.NotificationManager)
 local PaintRenderer = require(ReplicatedStorage.Modules.Game.PaintRenderer)
 local RuntimeState = require(ReplicatedStorage.Modules.Game.RuntimeState)
 local RestorationTargetRenderer = require(ReplicatedStorage.Modules.Game.RestorationTargetRenderer)
@@ -30,6 +31,7 @@ local ActiveToolId: string?
 local RequestedToolId: string?
 local FixPrompt: ProximityPrompt?
 local FixPromptConnection: RBXScriptConnection?
+local ForeignFixPromptConnections: { [ProximityPrompt]: RBXScriptConnection } = {}
 local EquippedItemTool: Tool?
 local CharacterConnections: { RBXScriptConnection } = {}
 local ToolLoop: Sound?
@@ -260,10 +262,15 @@ local function UpdateFixPrompt()
 		and not CleaningConfig.IsCleaningComplete(State, ItemInfo)
 end
 
-local function HideForeignFixPrompt(Descendant: Instance)
+local function WatchForeignFixPrompt(Descendant: Instance)
 	if not Descendant:IsA("ProximityPrompt") or Descendant.Name ~= "FixItemPrompt" then return end
-	-- Only the owner should see the interaction prompt on their fixing table.
-	if not Descendant:FindFirstAncestor(`Museum_{LocalPlayer.UserId}`) then Descendant.Enabled = false end
+	if Descendant:FindFirstAncestor(`Museum_{LocalPlayer.UserId}`) or ForeignFixPromptConnections[Descendant] then return end
+	-- Visitors can see the table prompt, but only its owner can start fixing here.
+	ForeignFixPromptConnections[Descendant] = Descendant.Triggered:Connect(function(TriggeringPlayer)
+		if TriggeringPlayer ~= LocalPlayer then return end
+		NotificationManager.Notify("This isn't your fixing table.")
+		Sounds.Play("Error", LocalPlayer.PlayerGui)
+	end)
 end
 
 local function WatchCharacter(Character: Model)
@@ -1662,8 +1669,15 @@ function FixingController.Init()
 	Network = Networker.client.new("FixingController", FixingController)
 	task.spawn(function()
 		local Museums = Workspace:WaitForChild("PlayerMuseums")
-		for _, Descendant in Museums:GetDescendants() do HideForeignFixPrompt(Descendant) end
-		Museums.DescendantAdded:Connect(HideForeignFixPrompt)
+		for _, Descendant in Museums:GetDescendants() do WatchForeignFixPrompt(Descendant) end
+		Museums.DescendantAdded:Connect(WatchForeignFixPrompt)
+		Museums.DescendantRemoving:Connect(function(Descendant)
+			local Connection = ForeignFixPromptConnections[Descendant]
+			if Connection then
+				Connection:Disconnect()
+				ForeignFixPromptConnections[Descendant] = nil
+			end
+		end)
 		local Museum = Museums:WaitForChild(`Museum_{LocalPlayer.UserId}`)
 		FixPrompt = Museum:WaitForChild("Table"):WaitForChild("PromptPart"):WaitForChild("FixItemPrompt") :: ProximityPrompt
 		if FixPromptConnection then FixPromptConnection:Disconnect() end

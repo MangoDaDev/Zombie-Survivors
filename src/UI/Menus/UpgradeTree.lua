@@ -637,6 +637,8 @@ return function()
 
 		local FirstPosition, SecondPosition = GetPinchTouches()
 		if not FirstPosition or not SecondPosition then
+			-- Track a touch starting on any part of the viewport, including empty canvas space.
+			BeginDrag(Input)
 			return
 		end
 		IsPinching = true
@@ -668,8 +670,9 @@ return function()
 						SetZoom(PinchStartZoom * PinchScale, PinchPosition)
 					end
 				end
+				-- Pinch movement is handled above; one touch continues to the camera drag below.
+				return
 			end
-			return
 		end
 		if Input.UserInputType == Enum.UserInputType.MouseWheel and Viewport then
 			local MousePosition = UserInputService:GetMouseLocation()
@@ -937,8 +940,8 @@ return function()
 			BackgroundColor3 = UIStyle.Colors.Blue,
 			BorderSizePixel = 0,
 			Position = UDim2.fromScale(0.018, 0.52),
-			-- Keep the upgrade button primarily scale-based and square across screen sizes.
-			Size = UDim2.new(0.06, 24, 0.105, 24),
+			-- Keep the scale values and square shape; add a few pixels to each axis.
+			Size = UDim2.new(0.06, 32, 0.105, 32),
 			Visible = function()
 				return IsUpgradeButtonVisible(TutorialStep())
 			end,
@@ -988,14 +991,14 @@ return function()
 				AnchorPoint = Vector2.new(0.5, 0.5),
 				BackgroundTransparency = 1,
 				Image = Images.ObjectiveArrow,
-				ImageColor3 = function()
-					return Color3.new(1, 1, 1):Lerp(Color3.fromRGB(255, 45, 45), UpgradeGuidanceMotion())
-				end,
-				Position = function()
-					return UDim2.fromScale(1.65, 0.5) + UDim2.fromOffset(-UpgradeGuidanceMotion() * 8, 0)
-				end,
+				ImageColor3 = Color3.new(1, 1, 1),
+				Position = UDim2.fromScale(1.425, 0.5),
 				Rotation = -90,
-				Size = UDim2.fromScale(0.9, 0.9),
+				-- Keep the guidance arrow half-sized and pulse its scale gently without a color flash.
+				Size = function()
+					local scale = 0.45 + UpgradeGuidanceMotion() * 0.035
+					return UDim2.fromScale(scale, scale)
+				end,
 				Visible = ShowUpgradeGuidanceArrow,
 				ZIndex = 28,
 			},

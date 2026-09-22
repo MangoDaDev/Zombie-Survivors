@@ -1025,7 +1025,6 @@ local UpgradeConfig = {
 	},
 }
 
-
 local ToolProgression = {
 	{ UpgradeId = "UnlockSponge", ToolId = "Sponge", RestorationTier = 2 },
 	{ UpgradeId = "UnlockSoftBrush", ToolId = "SoftBrush", RestorationTier = 2 },
@@ -1049,15 +1048,33 @@ local ToolStages = {
 
 local function GetEconomyStage(Upgrade): number
 	local Effect = Upgrade.Effect
-	if not Effect then return 1 end
-	if Effect.Type == "DisplayLimit" then return math.clamp(math.ceil((Effect.Value - 8) / 2), 1, 7) end
-	if Effect.Type == "GuestsPerItem" then return math.clamp(Effect.Tier, 1, 7) end
-	if Effect.Type == "VisitorsPerDisplay" then return math.clamp(Effect.Value - 2, 1, 7) end
-	if Effect.Type == "BatTier" then return math.clamp(math.ceil((Effect.Tier - 1) / 2), 1, 7) end
-	if Effect.Type == "BatCooldown" then return tonumber(string.match(Upgrade.Id, "%d+$")) or 1 end
-	if Effect.Type == "WalkSpeed" then return math.clamp(Effect.Value - UpgradeConfig.DefaultWalkSpeed, 1, 7) end
-	if Effect.Type == "JumpHeight" then return math.clamp(Effect.Value - 7, 1, 7) end
-	if Effect.Type == "ToolUnlock" then return ToolStages[Effect.ToolId] or 1 end
+	if not Effect then
+		return 1
+	end
+	if Effect.Type == "DisplayLimit" then
+		return math.clamp(math.ceil((Effect.Value - 8) / 2), 1, 7)
+	end
+	if Effect.Type == "GuestsPerItem" then
+		return math.clamp(Effect.Tier, 1, 7)
+	end
+	if Effect.Type == "VisitorsPerDisplay" then
+		return math.clamp(Effect.Value - 2, 1, 7)
+	end
+	if Effect.Type == "BatTier" then
+		return math.clamp(math.ceil((Effect.Tier - 1) / 2), 1, 7)
+	end
+	if Effect.Type == "BatCooldown" then
+		return tonumber(string.match(Upgrade.Id, "%d+$")) or 1
+	end
+	if Effect.Type == "WalkSpeed" then
+		return math.clamp(Effect.Value - UpgradeConfig.DefaultWalkSpeed, 1, 7)
+	end
+	if Effect.Type == "JumpHeight" then
+		return math.clamp(Effect.Value - 7, 1, 7)
+	end
+	if Effect.Type == "ToolUnlock" then
+		return ToolStages[Effect.ToolId] or 1
+	end
 	if Effect.Type == "ToolStrength" then
 		local SpeedLevel = tonumber(string.match(Upgrade.Id, "%d+$")) or 1
 		return math.clamp((ToolStages[Effect.ToolId] or 1) + SpeedLevel - 1, 1, 7)
@@ -1085,13 +1102,14 @@ function UpgradeConfig.Get(UpgradeId: string)
 	end
 end
 
-
 function UpgradeConfig.GetToolUnlockCumulativeCost(ToolId: string): number?
 	local CumulativeCost = 0
 	for _, Entry in ToolProgression do
 		local Upgrade = UpgradeConfig.Get(Entry.UpgradeId)
 		CumulativeCost += if Upgrade then Upgrade.Cost else 0
-		if Entry.ToolId == ToolId then return CumulativeCost end
+		if Entry.ToolId == ToolId then
+			return CumulativeCost
+		end
 	end
 	return nil
 end
@@ -1099,7 +1117,10 @@ end
 function UpgradeConfig.Validate()
 	local ById = {}
 	for _, Upgrade in UpgradeConfig.Upgrades do
-		assert(type(Upgrade.Id) == "string" and not ById[Upgrade.Id], `Invalid or duplicate upgrade id {tostring(Upgrade.Id)}`)
+		assert(
+			type(Upgrade.Id) == "string" and not ById[Upgrade.Id],
+			`Invalid or duplicate upgrade id {tostring(Upgrade.Id)}`
+		)
 		assert(type(Upgrade.Cost) == "number" and Upgrade.Cost >= 0, `Invalid cost for upgrade {Upgrade.Id}`)
 		ById[Upgrade.Id] = Upgrade
 	end
@@ -1119,8 +1140,7 @@ function UpgradeConfig.Validate()
 		local Upgrade = ById[Entry.UpgradeId]
 		CumulativeCost += Upgrade.Cost
 		local MinimumItemPrice = EconomyConfig.GetMinimumPriceForRestorationTier(Entry.RestorationTier)
-		local BaseMinimumItemPrice = MinimumItemPrice
-			and MinimumItemPrice / EconomyConfig.ItemPurchasePriceMultiplier
+		local BaseMinimumItemPrice = MinimumItemPrice and MinimumItemPrice / EconomyConfig.ItemPurchasePriceMultiplier
 		assert(
 			BaseMinimumItemPrice and CumulativeCost <= BaseMinimumItemPrice,
 			`Tool progression through {Entry.ToolId} costs more than the base tier-{Entry.RestorationTier} item price`
