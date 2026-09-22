@@ -15,6 +15,11 @@ local TutorialCrates: { [Player]: Model } = {}
 local CompletedTutorialCrates: { [Player]: boolean } = {}
 local TutorialRewards: { [Player]: Model } = {}
 local ONBOARDING = TutorialConfig.Onboarding
+local RandomGenerator = Random.new()
+
+local function ChooseOnboardingItem(ItemIds): number
+	return ItemIds[RandomGenerator:NextInteger(1, #ItemIds)]
+end
 
 local function CopyOnboarding(Value)
 	local Progress = if type(Value) == "table" then table.clone(Value) else {}
@@ -37,6 +42,13 @@ local function HasRestorationSteps(State, RequiredSteps): boolean
 		if not table.find(State.RestorationSteps, StepId) then return false end
 	end
 	return true
+end
+
+local function HasOnboardingRestoration(Fixing, ItemIds, RequiredSteps): boolean
+	for _, ItemId in ItemIds do
+		if HasRestorationSteps(Fixing[tostring(ItemId)], RequiredSteps) then return true end
+	end
+	return false
 end
 
 local function FindClosestCommonCrate(Player: Player): Model?
@@ -99,7 +111,7 @@ function GuidanceController.GetOnboardingReward(Player: Player)
 		and UpgradeLogic.IsToolUnlocked(DataService:get(Player, "Upgrades"), "Sponge")
 	then
 		return {
-			ItemId = ONBOARDING.DirtGreaseItemId,
+			ItemId = ChooseOnboardingItem(ONBOARDING.DirtGreaseItemIds),
 			RestorationSteps = ONBOARDING.DirtGreaseRestorationSteps,
 		}, "DirtGrease"
 	end
@@ -112,13 +124,13 @@ function GuidanceController.GetOnboardingReward(Player: Player)
 	GuaranteedDropCount = if type(GuaranteedDropCount) == "number" then math.max(0, math.floor(GuaranteedDropCount)) else 0
 	local GuaranteedReward = CrateInfo.NewPlayerDropSequence[GuaranteedDropCount + 1]
 	if GuaranteedReward then
-		return GuaranteedReward, "Guaranteed", GuaranteedDropCount + 1
+		return { ItemId = ChooseOnboardingItem(GuaranteedReward.ItemIds) }, "Guaranteed", GuaranteedDropCount + 1
 	end
 
 	if Progress.DirtGreaseItemDisplayed and HasSoftBrush(Player) and not Progress.DustItemReceived then
 		-- The first forced reward after confirmed Soft Brush ownership must contain Dust.
 		return {
-			ItemId = ONBOARDING.DustItemId,
+			ItemId = ChooseOnboardingItem(ONBOARDING.DustItemIds),
 			RestorationSteps = ONBOARDING.DustRestorationSteps,
 		}, "Dust"
 	end
@@ -171,7 +183,7 @@ function GuidanceController.MarkOnboardingRewardReceived(Player: Player, RewardK
 end
 
 function GuidanceController.MarkOnboardingItemDisplayed(Player: Player, ItemId: number)
-	if ItemId ~= ONBOARDING.DirtGreaseItemId then return end
+	if not table.find(ONBOARDING.DirtGreaseItemIds, ItemId) then return end
 	local Progress = CopyOnboarding(DataService:get(Player, "Onboarding"))
 	if not Progress.DirtGreaseItemReceived or Progress.DirtGreaseItemDisplayed then return end
 	Progress.DirtGreaseItemDisplayed = true
@@ -257,9 +269,9 @@ function GuidanceController.OnPlayerAdded(Player: Player)
 	local Fixing = DataService:get(Player, "Fixing")
 	if type(Fixing) == "table" then
 		Progress.DirtGreaseItemReceived = Progress.DirtGreaseItemReceived
-			or HasRestorationSteps(Fixing[tostring(ONBOARDING.DirtGreaseItemId)], ONBOARDING.DirtGreaseRestorationSteps)
+			or HasOnboardingRestoration(Fixing, ONBOARDING.DirtGreaseItemIds, ONBOARDING.DirtGreaseRestorationSteps)
 		Progress.DustItemReceived = Progress.DustItemReceived
-			or HasRestorationSteps(Fixing[tostring(ONBOARDING.DustItemId)], ONBOARDING.DustRestorationSteps)
+			or HasOnboardingRestoration(Fixing, ONBOARDING.DustItemIds, ONBOARDING.DustRestorationSteps)
 	end
 	Progress.DiscreteProgressionActive = Progress.DiscreteProgressionActive
 		or WasVisibleExtensionStep
@@ -279,7 +291,7 @@ function GuidanceController.OnPlayerAdded(Player: Player)
 	local Displays = DataService:get(Player, "Displays")
 	if Progress.DirtGreaseItemReceived and type(Displays) == "table" then
 		for _, ItemId in Displays do
-			if ItemId == ONBOARDING.DirtGreaseItemId then
+			if table.find(ONBOARDING.DirtGreaseItemIds, ItemId) then
 				GuidanceController.MarkOnboardingItemDisplayed(Player, ItemId)
 				break
 			end

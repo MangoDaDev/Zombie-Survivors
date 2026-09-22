@@ -2,9 +2,11 @@ local TutorialConfig = {
 	InitialStep = "PickUpItem",
 	CompleteStep = "Complete",
 	Onboarding = {
-		DirtGreaseItemId = 5,
+		-- These alternatives all receive the same guaranteed grease restoration steps.
+		DirtGreaseItemIds = { 5, 20, 95, 18 },
 		DirtGreaseRestorationSteps = { "Spray", "Sponge" },
-		DustItemId = 6,
+		-- These alternatives all receive the same guaranteed Dust restoration steps.
+		DustItemIds = { 6, 91, 100 },
 		DustRestorationSteps = { "Spray", "SoftBrush" },
 		SoftBrushUpgradeId = "UnlockSoftBrush",
 		SoftBrushCashBuffer = 150,

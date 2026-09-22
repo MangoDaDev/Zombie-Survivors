@@ -50,8 +50,9 @@ local CrateInfo = {
 		PixelsPerStud = 16,
 	},
 	NewPlayerDropSequence = {
-		{ ItemId = 1 },
-		{ ItemId = 14 },
+		-- Keep the two opening rewards affordable and distinct while varying the item players uncover.
+		{ ItemIds = { 1, 16, 24, 80 } },
+		{ ItemIds = { 14, 47, 64, 94 } },
 	},
 	Crates = {
 		-- Keep every rarity possible, but even high-tier crates should favor drops below the rarest items.
