@@ -1,7 +1,11 @@
+local ContextActionService = game:GetService "ContextActionService"
+local GuiService = game:GetService "GuiService"
 local Players = game:GetService "Players"
 local ReplicatedStorage = game:GetService "ReplicatedStorage"
+local StarterGui = game:GetService "StarterGui"
 local TweenService = game:GetService "TweenService"
 local UserInputService = game:GetService "UserInputService"
+local Workspace = game:GetService "Workspace"
 
 local TutorialConfig = require(ReplicatedStorage.Modules.Game.TutorialConfig)
 local UpgradeConfig = require(ReplicatedStorage.Modules.Game.UpgradeConfig)
@@ -13,9 +17,11 @@ local UpgradePedastolController = require(ReplicatedStorage.Controllers.UpgradeP
 local Images = require(ReplicatedStorage.Modules.UI.Images)
 local Networker = require(ReplicatedStorage.Packages.networker)
 local NotificationManager = require(ReplicatedStorage.Modules.UI.NotificationManager)
+local SafeArea = require(ReplicatedStorage.Modules.UI.SafeArea)
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
 local UIStyle = require(ReplicatedStorage.Modules.UI.UIStyle)
 local Notification = require(ReplicatedStorage.UI.Effects.Notification)
+local TopbarController = require(ReplicatedStorage.Controllers.TopbarController)
 local Vide = require(ReplicatedStorage.Packages.vide)
 
 local Action = Vide.action
@@ -31,6 +37,8 @@ local ONBOARDING_START_ID = "Start"
 local ONBOARDING_UPGRADE_ID = "UnlockSponge"
 local UPGRADE_READY_REMINDER_INTERVAL = 60
 local UPGRADE_GUIDANCE_DELAY = 30
+local MOBILE_CONTROLS_ACTION = "BlockUpgradeTreeMovement"
+local MOBILE_CONTROLS_PRIORITY = Enum.ContextActionPriority.High.Value
 
 local StateColors = {
 	Mystery = Color3.new(0, 0, 0),
@@ -360,11 +368,10 @@ local function CreateNode(Properties)
 	}
 end
 
-return function()
+return function(IsOpen)
 	local Ownership = Source(UpgradeLogic.NormalizeOwnership(DataService:get "Upgrades"))
 	local Cash = Source(DataService:get "Cash" or 0)
 	local TutorialStep = Source(DataService:get "TutorialStep")
-	local IsOpen = Source(false)
 	local IsPurchasing = Source(false)
 	local IsOpenButtonHovered = Source(false)
 	local IsOpenButtonPressed = Source(false)
@@ -378,6 +385,7 @@ return function()
 	local CameraPosition = Spring(CameraTarget, 0.16, 0.9)
 	local Zoom = Spring(ZoomTarget, 0.16, 0.9)
 	local ViewportSize = Source(Vector2.new(800, 500))
+	local TopInset = Source(SafeArea.GetTopOffset())
 	local RevealDistances = Derive(function()
 		return UpgradeLogic.GetRevealDistances(Ownership(), UpgradeConfig.MaximumMysteryDistance)
 	end)
@@ -435,6 +443,61 @@ return function()
 	local UpgradeReminderThread: thread?
 	local UpgradeGuidanceThread: thread?
 	local IsDestroyed = false
+	local SavedBackpackEnabled: boolean?
+	local SavedTouchControlsEnabled: boolean?
+	local SavedCameraType: Enum.CameraType?
+	local BlockedCamera: Camera?
+
+	local function RestoreMobileControls()
+		if not UserInputService.TouchEnabled then return end
+		ContextActionService:UnbindAction(MOBILE_CONTROLS_ACTION)
+		if SavedTouchControlsEnabled ~= nil then
+			GuiService.TouchControlsEnabled = SavedTouchControlsEnabled
+			SavedTouchControlsEnabled = nil
+		end
+		if BlockedCamera and SavedCameraType and BlockedCamera.CameraType == Enum.CameraType.Scriptable then
+			BlockedCamera.CameraType = SavedCameraType
+		end
+		BlockedCamera = nil
+		SavedCameraType = nil
+	end
+
+	local function BlockMobileControls()
+		if not UserInputService.TouchEnabled then return end
+		-- Hide the touch joystick and jump button, and sink movement/jump actions while the tree is open.
+		SavedTouchControlsEnabled = GuiService.TouchControlsEnabled
+		GuiService.TouchControlsEnabled = false
+		ContextActionService:BindActionAtPriority(
+			MOBILE_CONTROLS_ACTION,
+			function() return Enum.ContextActionResult.Sink end,
+			false,
+			MOBILE_CONTROLS_PRIORITY,
+			table.unpack(Enum.PlayerActions:GetEnumItems())
+		)
+		local Camera = Workspace.CurrentCamera
+		if Camera and Camera.CameraType ~= Enum.CameraType.Scriptable then
+			-- A scriptable camera ignores mobile camera-turn gestures; restore its previous mode on close.
+			BlockedCamera = Camera
+			SavedCameraType = Camera.CameraType
+			Camera.CameraType = Enum.CameraType.Scriptable
+		end
+	end
+
+	local function HideOtherUI()
+		SavedBackpackEnabled = StarterGui:GetCoreGuiEnabled(Enum.CoreGuiType.Backpack)
+		StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, false)
+		TopbarController.Toggle(false)
+		BlockMobileControls()
+	end
+
+	local function RestoreOtherUI()
+		RestoreMobileControls()
+		TopbarController.Toggle(true)
+		if SavedBackpackEnabled ~= nil then
+			StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Backpack, SavedBackpackEnabled)
+			SavedBackpackEnabled = nil
+		end
+	end
 
 	Effect(function()
 		local Amount = AffordableCount()
@@ -575,6 +638,7 @@ return function()
 
 	local function SetZoom(NewZoom: number, ScreenPosition: Vector2?)
 		local OldZoom = ZoomTarget()
+		-- Use the same tree zoom limits for mouse, buttons, and pinch on every screen size.
 		NewZoom = math.clamp(NewZoom, UpgradeConfig.MinimumZoom, UpgradeConfig.MaximumZoom)
 		if math.abs(NewZoom - OldZoom) < 0.001 then
 			return
@@ -730,6 +794,7 @@ return function()
 		end
 	end)
 	local function SetUpgradeTreeOpen(opening: boolean)
+		if opening == IsOpen() then return end
 		if opening then
 			if not IsCameraNearUpgrade(CameraTarget()) then
 				CameraTarget(if StartUpgrade then StartUpgrade.Position else Vector2.zero)
@@ -740,6 +805,9 @@ return function()
 				TutorialPulseValue.Value = 0
 			end
 			GuidanceController.OpenedUpgradeTree()
+			HideOtherUI()
+		else
+			RestoreOtherUI()
 		end
 		IsOpen(opening)
 		UpdateUpgradeGuidanceArrow()
@@ -770,8 +838,12 @@ return function()
 	end)
 	local TutorialPulseConnection = TutorialPulseValue.Changed:Connect(TutorialPulse)
 	local UpgradeGuidanceMotionConnection = UpgradeGuidanceMotionValue.Changed:Connect(UpgradeGuidanceMotion)
+	local SafeAreaConnection = SafeArea.GetChangedSignal():Connect(function()
+		TopInset(SafeArea.GetTopOffset())
+	end)
 	Cleanup(function()
 		IsDestroyed = true
+		if IsOpen() then RestoreOtherUI() end
 		UpgradePedastolController.SetUpgradeAvailable(false)
 		if UpgradeReminderThread then
 			task.cancel(UpgradeReminderThread)
@@ -790,6 +862,7 @@ return function()
 		TutorialConnection:Disconnect()
 		TutorialPulseConnection:Disconnect()
 		UpgradeGuidanceMotionConnection:Disconnect()
+		SafeAreaConnection:Disconnect()
 		TutorialPulseTween:Cancel()
 		TutorialPulseValue:Destroy()
 		UpgradeGuidanceMotionTween:Cancel()
@@ -878,12 +951,12 @@ return function()
 	local ViewportProperties = {
 		Name = "TreeViewport",
 		Active = true,
-		BackgroundColor3 = Color3.fromRGB(24, 24, 26),
-		BackgroundTransparency = 0,
+		-- Keep the full-screen tree backdrop plain black at 30% transparency.
+		BackgroundColor3 = Color3.new(0, 0, 0),
+		BackgroundTransparency = 0.3,
 		BorderSizePixel = 0,
 		ClipsDescendants = true,
-		Position = UDim2.fromScale(0.025, 0.12),
-		Size = UDim2.fromScale(0.95, 0.84),
+		Size = UDim2.fromScale(1, 1),
 		ZIndex = 22,
 		InputBegan = BeginDrag,
 		Action(function(Instance)
@@ -893,34 +966,9 @@ return function()
 				ViewportSize(Viewport.AbsoluteSize)
 			end)
 		end),
-		Create "UICorner" { CornerRadius = UIStyle.CornerRadius },
-		Create "UIStroke" {
-			ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-			Color = UIStyle.Colors.BlueDark,
-			Thickness = UIStyle.OutlineThickness,
-			Transparency = 0.08,
-		},
-		Create "ImageLabel" {
-			Name = "StudTexture",
-			BackgroundTransparency = 1,
-			Image = UIStyle.StudTexture,
-			ImageColor3 = UIStyle.Colors.Paper,
-			ImageTransparency = 0.94,
-			ScaleType = Enum.ScaleType.Tile,
-			Size = UDim2.fromScale(1, 1),
-			TileSize = UDim2.fromOffset(72, 72),
-			ZIndex = 22,
-		},
 		Create "Frame"(CanvasProperties),
 	}
 
-	local PanelScale = Spring(
-		Derive(function()
-			return if IsOpen() then 1 else 0.92
-		end),
-		0.18,
-		0.86
-	)
 	local PanelTransparency = Spring(
 		Derive(function()
 			return if IsOpen() then 0 else 1
@@ -943,7 +991,7 @@ return function()
 			-- Keep the scale values and square shape; add a few pixels to each axis.
 			Size = UDim2.new(0.06, 32, 0.105, 32),
 			Visible = function()
-				return IsUpgradeButtonVisible(TutorialStep())
+				return IsUpgradeButtonVisible(TutorialStep()) and not IsOpen()
 			end,
 			ZIndex = 25,
 			Action(function(Instance)
@@ -1041,56 +1089,24 @@ return function()
 		Create "CanvasGroup" {
 			Name = "UpgradeTree",
 			AnchorPoint = Vector2.new(0.5, 0.5),
-			BackgroundColor3 = UIStyle.Colors.Ink,
+			BackgroundTransparency = 1,
 			BorderSizePixel = 0,
 			GroupTransparency = PanelTransparency,
 			Interactable = IsOpen,
 			Position = UDim2.fromScale(0.5, 0.5),
-			Size = UDim2.fromScale(0.7, 0.66),
+			-- The tree covers the full screen; only the close control clears the topbar inset.
+			Size = UDim2.fromScale(1, 1),
 			Visible = function()
 				return PanelTransparency() < 0.995
 			end,
 			ZIndex = 21,
-			Create "UIAspectRatioConstraint" { AspectRatio = 1.618 },
-			Create "UISizeConstraint" { MaxSize = Vector2.new(1_100, 650) },
-			Create "UIScale" { Scale = PanelScale },
-			Create "UICorner" { CornerRadius = UIStyle.CornerRadius },
-			Create "UIStroke" {
-				Color = UIStyle.Colors.BlueDark,
-				Thickness = UIStyle.OutlineThickness,
-			},
-			Create "Frame" {
-				Name = "Header",
-				BackgroundColor3 = UIStyle.Colors.BlueDark,
-				BorderSizePixel = 0,
-				Size = UDim2.fromScale(1, 0.115),
-				ZIndex = 22,
-				Create "UICorner" { CornerRadius = UIStyle.CornerRadius },
-				Create "Frame" {
-					AnchorPoint = Vector2.new(0, 1),
-					BackgroundColor3 = UIStyle.Colors.BlueDark,
-					BorderSizePixel = 0,
-					Position = UDim2.fromScale(0, 1),
-					Size = UDim2.fromScale(1, 0.12),
-					ZIndex = 23,
-				},
-			},
-			Create "TextLabel" {
-				BackgroundTransparency = 1,
-				FontFace = UIStyle.Font,
-				Position = UDim2.fromScale(0.03, 0.025),
-				Size = UDim2.fromScale(0.45, 0.07),
-				Text = "UPGRADE TREE",
-				TextColor3 = Color3.new(1, 1, 1),
-				TextScaled = true,
-				TextXAlignment = Enum.TextXAlignment.Left,
-				ZIndex = 24,
-			},
 			Create "TextButton" {
 				AnchorPoint = Vector2.new(1, 0),
 				AutoButtonColor = false,
 				BackgroundColor3 = UIStyle.Colors.Red,
-				Position = UDim2.fromScale(0.975, 0.012),
+				Position = function()
+					return UDim2.new(1, -16, 0, TopInset() + 10)
+				end,
 				Size = UDim2.fromOffset(40, 36),
 				Text = "X",
 				TextColor3 = Color3.new(1, 1, 1),
@@ -1098,8 +1114,7 @@ return function()
 				FontFace = UIStyle.Font,
 				ZIndex = 26,
 				Activated = function()
-					IsOpen(false)
-					Sounds.Play("Click", LocalPlayer.PlayerGui)
+					SetUpgradeTreeOpen(false)
 				end,
 				Create "UICorner" { CornerRadius = UIStyle.SmallCornerRadius },
 				Create "UIStroke" { Color = UIStyle.Colors.Ink, Thickness = 2 },

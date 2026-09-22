@@ -1,6 +1,8 @@
 local TutorialConfig = {
 	InitialStep = "PickUpItem",
 	CompleteStep = "Complete",
+	-- Show this final message when the Sponge purchase completes the visible tutorial.
+	CompleteText = "Have Fun!",
 	Onboarding = {
 		-- These alternatives all receive the same guaranteed grease restoration steps.
 		DirtGreaseItemIds = { 5, 20, 95, 18 },

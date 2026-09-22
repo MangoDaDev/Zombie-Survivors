@@ -58,9 +58,10 @@ end
 
 local UpgradeConfig = {
 	NodeSize = NODE_SIZE,
+	-- Keep the opening view readable while allowing a wider overview and a closer look on every device.
 	DefaultZoom = 1.35,
-	MinimumZoom = 0.4,
-	MaximumZoom = 1.35,
+	MinimumZoom = 0.1,
+	MaximumZoom = 1.8,
 	ZoomStep = 1.14,
 	CameraRecoveryDistance = 384,
 	MaximumMysteryDistance = 2,

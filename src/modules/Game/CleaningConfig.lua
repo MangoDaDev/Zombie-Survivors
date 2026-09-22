@@ -140,7 +140,8 @@ local CleaningConfig = {
 		{
 			Id = "SoftBrush", MinimumRestorationTier = 2, Type = "LightDust", IconName = "LightDust",
 			DisplayName = "Brushing Dust", ToolId = "SoftBrush", TargetHP = 1.5,
-			PatchColor = Color3.fromRGB(132, 136, 141), PatchTransparency = 0.48, CompletionSoundName = "Reward1",
+			-- Dust patches remain visible while still showing the item surface beneath them.
+			PatchColor = Color3.fromRGB(132, 136, 141), PatchTransparency = 0.38, CompletionSoundName = "Reward1",
 		},
 		{
 			Id = "Hairdryer", MinimumRestorationTier = 3, Type = "LooseDebris", IconName = "LooseDebris",

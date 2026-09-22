@@ -89,7 +89,13 @@ end
 function GuidanceController.Advance(Player: Player, ExpectedStep: string)
 	if Player.Parent ~= Players or DataService:get(Player, "TutorialStep") ~= ExpectedStep then return end
 	local Step = TutorialConfig.GetStep(ExpectedStep)
-	if Step then DataService:set(Player, "TutorialStep", Step.Next) end
+	if Step then
+		DataService:set(Player, "TutorialStep", Step.Next)
+		if Step.Next == TutorialConfig.CompleteStep then
+			-- End the visible tutorial with a brief message after the Sponge purchase.
+			GuidanceController.Show(Player, TutorialConfig.CompleteText)
+		end
+	end
 end
 
 function GuidanceController.Show(Player: Player, Text: string, Target: Instance?, TargetKind: string?, ShouldNotify: boolean?)

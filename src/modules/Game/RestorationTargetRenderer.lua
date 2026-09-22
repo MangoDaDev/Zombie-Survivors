@@ -103,13 +103,13 @@ function RestorationTargetRenderer.GetSuggestedCount(Model: Model, Type: string,
 	-- Keep surface damage prominent without allowing large items to create unbounded part counts.
 	-- Keep hairdryer debris numerous and readable enough for the airflow direction to register clearly.
 	local Density = if Type == "LightDust"
-		then 7.4
+		then 8.2
 		elseif Type == "LooseDebris" then 10.8
 		elseif Type == "Metal" and Step then Step.TargetDensity or 0.55
 		else 0.55
 	local Minimum = if Type == "Metal" and Step then Step.MinimumTargets or 1 else 1
 	local Maximum = if Type == "LightDust"
-		then 120
+		then 132
 		elseif Type == "LooseDebris" then 192
 		elseif Type == "Metal" and Step then Step.MaximumTargets or 8
 		else 8
@@ -216,15 +216,17 @@ function RestorationTargetRenderer.Add(Model: Model, Type: string, Count: number
 			local Size = math.clamp(math.sqrt(TotalArea / math.max(Count, 1)) * 0.56, 0.09, 0.42)
 			Target.Shape = Enum.PartType.Block
 			Target.Size = Vector3.new(Size, 0.018, Size)
-			Target.Color = Step.PatchColor
+			-- Give each dust patch a slight warm tint variation while retaining its configured base color.
+			Target.Color = Step.PatchColor:Lerp(Color3.fromRGB(166, 151, 132), Generator:NextNumber(0, 0.3))
 			Target.Transparency = Step.PatchTransparency
 		elseif Type == "LooseDebris" then
-			-- Hairdryer debris stays readable in motion at roughly 50% above the original size.
-			local Size = Generator:NextNumber(0.21, 0.45)
+			-- Blowable debris varies in size and dusty color, and stays 10% transparent.
+			local Size = Generator:NextNumber(0.16, 0.53)
+			local Shade = Generator:NextInteger(-20, 20)
 			Target.Shape = Enum.PartType.Ball
 			Target.Size = Vector3.one * Size
-			Target.Color = Color3.fromRGB(112, 103, 91)
-			Target.Transparency = 0.12
+			Target.Color = Color3.fromRGB(112 + Shade, 103 + Shade + Generator:NextInteger(-5, 5), 91 + Shade + Generator:NextInteger(-8, 8))
+			Target.Transparency = 0.1
 		else
 			-- Magnet fragments use the same restrained 50% size lift as the debris effect.
 			local Size = Generator:NextNumber(0.18, 0.33)

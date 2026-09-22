@@ -52,7 +52,6 @@ return function()
 		Label.Text = NotificationText
 		Label.TextColor3 = Color or UIStyle.Colors.Red
 		Label.TextScaled = true
-		Label.TextWrapped = true
 		Label.ZIndex = 81
 		Label.Parent = Alert
 		Label.RichText = true
@@ -65,11 +64,6 @@ return function()
 		TextStroke.Transparency = 0.12
 		TextStroke.Parent = Label
 
-		local TextSizeConstraint = Instance.new "UITextSizeConstraint"
-		TextSizeConstraint.MaxTextSize = 28
-		TextSizeConstraint.MinTextSize = 12
-		TextSizeConstraint.Parent = Label
-
 		Alert.Parent = AlertContainer
 		Sounds.Play("Alert", Players.LocalPlayer.PlayerGui)
 
@@ -79,7 +73,8 @@ return function()
 		})
 		local TextFadeOut = TweenService:Create(Label, ALERT_TWEEN_INFO, { TextTransparency = 1 })
 		local StrokeFadeOut = TweenService:Create(TextStroke, ALERT_TWEEN_INFO, { Transparency = 1 })
-		local AlertState = { TweenIn = TweenIn, TweenOut = TweenOut, TextFadeOut = TextFadeOut, StrokeFadeOut = StrokeFadeOut }
+		local AlertState =
+			{ TweenIn = TweenIn, TweenOut = TweenOut, TextFadeOut = TextFadeOut, StrokeFadeOut = StrokeFadeOut }
 		ActiveAlerts[Alert] = AlertState
 		TweenIn:Play()
 		AlertState.Thread = task.spawn(function()
