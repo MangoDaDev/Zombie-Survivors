@@ -334,13 +334,25 @@ local function CreateUpgradePedastol(Assignment: MuseumAssignment)
 	local Pedastol = UpgradePedastolTemplate:Clone()
 	Pedastol.Name = "UpgradePedastol"
 	Pedastol:PivotTo(Marker.CFrame)
+	local Arrow = Pedastol:FindFirstChild("Arrow")
+	if Arrow then
+		for _, Descendant in Arrow:GetDescendants() do
+			if Descendant:IsA("BasePart") then
+				Descendant.CanCollide = false
+				Descendant.CanTouch = false
+			end
+		end
+	end
 	local PromptPart = Pedastol:FindFirstChild("PromptPart")
 	if PromptPart and PromptPart:IsA("BasePart") then
 		local Prompt = Instance.new("ProximityPrompt")
+		-- This prompt opens the local upgrade tree; purchases remain server validated.
 		Prompt.Name = "UpgradePrompt"
 		Prompt.ActionText = "Open Upgrades"
 		Prompt.ObjectText = "Upgrades"
 		Prompt.HoldDuration = 0
+		Prompt.KeyboardKeyCode = Enum.KeyCode.E
+		Prompt.GamepadKeyCode = Enum.KeyCode.ButtonX
 		Prompt.MaxActivationDistance = 10
 		Prompt.RequiresLineOfSight = false
 		Prompt.Parent = PromptPart

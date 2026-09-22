@@ -13,11 +13,13 @@ local CrateInfo = require(ReplicatedStorage.Modules.Game.CrateInfo)
 local CrateRuntime = require(ReplicatedStorage.Modules.Game.CrateRuntime)
 local CrateController = require(ReplicatedStorage.Controllers.CrateController)
 local DataService = require(ReplicatedStorage.Packages.dataservice).client
+local Images = require(ReplicatedStorage.Modules.UI.Images)
 local MuseumVisitorController = require(ReplicatedStorage.Controllers.MuseumVisitorController)
 local Networker = require(ReplicatedStorage.Packages.networker)
 local RuntimeState = require(ReplicatedStorage.Modules.Game.RuntimeState)
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
 local ToolResolver = require(ReplicatedStorage.Modules.Game.ToolResolver)
+local UIStyle = require(ReplicatedStorage.Modules.UI.UIStyle)
 local UpgradeLogic = require(ReplicatedStorage.Modules.Game.UpgradeLogic)
 
 local LocalPlayer = Players.LocalPlayer
@@ -27,12 +29,14 @@ local ActiveSwings: { [Tool]: any } = {}
 local RemoteSwingStates: { [Player]: any } = {}
 local CratePredictions = {}
 local CrateReactions = {}
+local WeakBatPrompts = {}
 local DebrisFolder: Folder
 local ActiveDebrisCount = 0
 local Network
 local RandomGenerator = Random.new()
 local RagdollBlocked = false
 local MAXIMUM_DEBRIS_COUNT = 100
+local WEAK_BAT_PROMPT_DURATION = 2.5
 local DebrisCollisionDuration = 0.85
 local CreateCrateDebris
 local ShakeCamera
@@ -239,6 +243,75 @@ local function CanTargetCrate(Model: Model): boolean
 	return RuntimeState.Get(LocalPlayer, "GuidanceTarget") == Model
 end
 
+local function ShowWeakBatPrompt(Model: Model, RequiredBat)
+	local Center = Model.PrimaryPart
+	local Image = RequiredBat and Images[RequiredBat.Icon]
+	if not Center or not Image then return end
+	local Existing = WeakBatPrompts[Model]
+	if Existing then
+		Existing.ExpiresAt = os.clock() + WEAK_BAT_PROMPT_DURATION
+		return
+	end
+
+	local Billboard = Instance.new "BillboardGui"
+	Billboard.Name = "WeakBatPrompt"
+	Billboard.Adornee = Center
+	Billboard.AlwaysOnTop = true
+	Billboard.MaxDistance = 100
+	Billboard.Size = UDim2.fromOffset(110, 106)
+	Billboard.Parent = Center
+
+	local Panel = Instance.new "Frame"
+	Panel.Size = UDim2.fromScale(1, 1)
+	Panel.BackgroundColor3 = Color3.fromRGB(31, 34, 42)
+	Panel.BorderSizePixel = 0
+	Panel.Parent = Billboard
+	local Corner = Instance.new "UICorner"
+	Corner.CornerRadius = UDim.new(0, 8)
+	Corner.Parent = Panel
+	local Border = Instance.new "UIStroke"
+	Border.Color = Color3.fromRGB(255, 226, 91)
+	Border.Thickness = 2
+	Border.Parent = Panel
+
+	local Label = Instance.new "TextLabel"
+	Label.Name = "Needs"
+	Label.BackgroundTransparency = 1
+	Label.FontFace = UIStyle.Font
+	Label.Position = UDim2.fromScale(0.1, 0.06)
+	Label.Size = UDim2.fromScale(0.8, 0.3)
+	Label.Text = "Needs:"
+	Label.TextColor3 = Color3.new(1, 1, 1)
+	Label.TextScaled = true
+	Label.Parent = Panel
+
+	local Icon = Instance.new "ImageLabel"
+	Icon.Name = "RequiredBat"
+	Icon.BackgroundTransparency = 1
+	Icon.Image = Image
+	Icon.ScaleType = Enum.ScaleType.Fit
+	Icon.Position = UDim2.fromScale(0.19, 0.37)
+	Icon.Size = UDim2.fromScale(0.62, 0.56)
+	Icon.Parent = Panel
+
+	local State = { ExpiresAt = os.clock() + WEAK_BAT_PROMPT_DURATION }
+	WeakBatPrompts[Model] = State
+	State.Connection = Model.Destroying:Once(function()
+		WeakBatPrompts[Model] = nil
+	end)
+	task.spawn(function()
+		while WeakBatPrompts[Model] == State do
+			local Remaining = State.ExpiresAt - os.clock()
+			if Remaining <= 0 then break end
+			task.wait(Remaining)
+		end
+		if WeakBatPrompts[Model] ~= State then return end
+		WeakBatPrompts[Model] = nil
+		State.Connection:Disconnect()
+		Billboard:Destroy()
+	end)
+end
+
 local function ShowPredictedImpact(Model, Handle, Info)
 	local PredictionId
 	if CollectionService:HasTag(Model, "Crate") then
@@ -246,7 +319,9 @@ local function ShowPredictedImpact(Model, Handle, Info)
 		local RuntimeCrate = CrateRuntime.Get(Model)
 		local CrateInfoEntry = GetCrateInfo(RuntimeCrate and RuntimeCrate.CrateId or Model.Name)
 		-- Keep impact effects, but do not predict health loss or a reveal for an underpowered bat.
-		local IsPredictedFinalHit = CrateInfoEntry ~= nil and CrateInfo.CanBatDamage(CrateInfoEntry, Info.CrateDamage)
+		local CanDamage = CrateInfoEntry ~= nil and CrateInfo.CanBatDamage(CrateInfoEntry, Info.CrateDamage)
+		if CrateInfoEntry and not CanDamage then ShowWeakBatPrompt(Model, CrateInfo.GetRequiredBat(CrateInfoEntry)) end
+		local IsPredictedFinalHit = CanDamage
 			and PredictCrateDamage(Model, Info.CrateDamage, PredictionId, CrateInfoEntry.Health)
 		local Character = LocalPlayer.Character
 		local RootPart = Character and Character:FindFirstChild "HumanoidRootPart"

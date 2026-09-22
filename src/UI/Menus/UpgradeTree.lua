@@ -9,6 +9,7 @@ local UpgradeLogic = require(ReplicatedStorage.Modules.Game.UpgradeLogic)
 local DataService = require(ReplicatedStorage.Packages.dataservice).client
 local FormatNumber = require(ReplicatedStorage.Modules.Math.FormatNumber)
 local GuidanceController = require(ReplicatedStorage.Controllers.GuidanceController)
+local UpgradePedastolController = require(ReplicatedStorage.Controllers.UpgradePedastolController)
 local Images = require(ReplicatedStorage.Modules.UI.Images)
 local Networker = require(ReplicatedStorage.Packages.networker)
 local NotificationManager = require(ReplicatedStorage.Modules.UI.NotificationManager)
@@ -51,7 +52,9 @@ local function IsUpgradeVisibleDuringOnboarding(TutorialStep, UpgradeId: string)
 end
 
 local function FilterOnboardingUpgrades(Upgrades, TutorialStep): { any }
-	if TutorialStep == TutorialConfig.CompleteStep then return Upgrades end
+	if TutorialStep == TutorialConfig.CompleteStep then
+		return Upgrades
+	end
 
 	for Index = #Upgrades, 1, -1 do
 		if Upgrades[Index].Id ~= ONBOARDING_UPGRADE_ID then
@@ -67,9 +70,7 @@ end
 
 local function IsUpgradeButtonVisible(TutorialStep): boolean
 	-- Keep upgrades hidden until the tutorial explicitly introduces them.
-	return TutorialStep == "OpenUpgrades"
-		or TutorialStep == "BuySponge"
-		or TutorialStep == TutorialConfig.CompleteStep
+	return TutorialStep == "OpenUpgrades" or TutorialStep == "BuySponge" or TutorialStep == TutorialConfig.CompleteStep
 end
 
 local function ResolveUpgradeIcon(Upgrade): string
@@ -154,7 +155,9 @@ local function CreateNode(Properties)
 
 	Effect(function()
 		local Amount = if Properties.IsOpen() and IsAffordable() then 1 else 0
-		if NodeNotification then NodeNotification:SetAmount(Amount) end
+		if NodeNotification then
+			NodeNotification:SetAmount(Amount)
+		end
 	end)
 	Cleanup(function()
 		if NodeNotification then
@@ -169,12 +172,17 @@ local function CreateNode(Properties)
 
 	local function AttemptPurchase()
 		Pressed(false)
-		if not IsVisibleDuringOnboarding() or not IsDetailed() or State() ~= "Available" or Properties.IsPurchasing() then
+		if
+			not IsVisibleDuringOnboarding()
+			or not IsDetailed()
+			or State() ~= "Available"
+			or Properties.IsPurchasing()
+		then
 			return
 		end
 		if not CanAfford() then
 			Sounds.Play("Error", LocalPlayer.PlayerGui)
-			GuidanceController.ShowLocal("Need More Cash")
+			GuidanceController.ShowLocal "Need More Cash"
 			return
 		end
 		Properties.Purchase(Upgrade)
@@ -186,7 +194,10 @@ local function CreateNode(Properties)
 		BackgroundTransparency = 1,
 		ClipsDescendants = false,
 		GroupTransparency = Transparency,
-		Position = UDim2.fromOffset(TreeCanvasSize.X / 2 + Upgrade.Position.X, TreeCanvasSize.Y / 2 + Upgrade.Position.Y),
+		Position = UDim2.fromOffset(
+			TreeCanvasSize.X / 2 + Upgrade.Position.X,
+			TreeCanvasSize.Y / 2 + Upgrade.Position.Y
+		),
 		Size = UDim2.fromOffset(UpgradeConfig.NodeSize, UpgradeConfig.NodeSize),
 		Visible = function()
 			return IsVisibleDuringOnboarding() and Transparency() < 0.985
@@ -231,9 +242,15 @@ local function CreateNode(Properties)
 			Image = Images.Hexagon,
 			ImageColor3 = function()
 				-- Mystery, owned, affordable, and unavailable nodes each keep a distinct state color.
-				if not IsDetailed() then return StateColors.Mystery end
-				if State() == "Purchased" then return StateColors.Purchased end
-				if IsAffordable() then return UIStyle.Colors.Blue end
+				if not IsDetailed() then
+					return StateColors.Mystery
+				end
+				if State() == "Purchased" then
+					return StateColors.Purchased
+				end
+				if IsAffordable() then
+					return UIStyle.Colors.Blue
+				end
 				return StateColors.Unavailable
 			end,
 			Rotation = 90,
@@ -352,9 +369,10 @@ return function()
 	local IsOpenButtonHovered = Source(false)
 	local IsOpenButtonPressed = Source(false)
 	local ShowUpgradeGuidanceArrow = Source(false)
+	local UpgradeGuidanceMotion = Source(0)
 	local TutorialPulse = Source(0)
 	local LastPurchasedId = Source ""
-	local StartUpgrade = UpgradeConfig.Get("Start")
+	local StartUpgrade = UpgradeConfig.Get "Start"
 	local CameraTarget = Source(if StartUpgrade then StartUpgrade.Position else Vector2.zero)
 	local ZoomTarget = Source(UpgradeConfig.DefaultZoom)
 	local CameraPosition = Spring(CameraTarget, 0.16, 0.9)
@@ -371,19 +389,29 @@ return function()
 	end)
 	local OpenButtonScale = Spring(
 		Derive(function()
-			if IsOpenButtonPressed() then return 0.9 end
+			if IsOpenButtonPressed() then
+				return 0.9
+			end
 			-- Give only the Open Upgrades step a noticeable, restrained scale pulse.
-			if IsOpenUpgradesStep() then return 1.12 + TutorialPulse() * 0.08 end
+			if IsOpenUpgradesStep() then
+				return 1.12 + TutorialPulse() * 0.08
+			end
 			return if IsOpenButtonHovered() then 1.05 else 1
 		end),
 		0.12,
 		0.82
 	)
 	local Network = Networker.client.new("UpgradeController", {})
-	local TutorialPulseValue = Instance.new("NumberValue")
+	local TutorialPulseValue = Instance.new "NumberValue"
 	local TutorialPulseTween = TweenService:Create(
 		TutorialPulseValue,
 		TweenInfo.new(0.7, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+		{ Value = 1 }
+	)
+	local UpgradeGuidanceMotionValue = Instance.new "NumberValue"
+	local UpgradeGuidanceMotionTween = TweenService:Create(
+		UpgradeGuidanceMotionValue,
+		TweenInfo.new(0.55, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
 		{ Value = 1 }
 	)
 	local Viewport: Frame?
@@ -410,7 +438,11 @@ return function()
 
 	Effect(function()
 		local Amount = AffordableCount()
-		if OpenButtonNotification then OpenButtonNotification:SetAmount(Amount) end
+		if OpenButtonNotification then
+			OpenButtonNotification:SetAmount(Amount)
+		end
+		-- The pedestal flashes for the same affordable upgrades counted by the button notification.
+		UpgradePedastolController.SetUpgradeAvailable(Amount > 0)
 	end)
 
 	local function UpdateTutorialPulse()
@@ -425,19 +457,24 @@ return function()
 	local function UpdateUpgradeGuidanceArrow()
 		if IsDestroyed or IsOpen() or AffordableCount() == 0 then
 			ShowUpgradeGuidanceArrow(false)
+			UpgradeGuidanceMotionTween:Cancel()
+			UpgradeGuidanceMotionValue.Value = 0
 			if UpgradeGuidanceThread then
 				task.cancel(UpgradeGuidanceThread)
 				UpgradeGuidanceThread = nil
 			end
 			return
 		end
-		if ShowUpgradeGuidanceArrow() or UpgradeGuidanceThread then return end
+		if ShowUpgradeGuidanceArrow() or UpgradeGuidanceThread then
+			return
+		end
 
 		-- Show the upgrade button arrow only after an affordable upgrade has gone unopened for 30 seconds.
 		UpgradeGuidanceThread = task.delay(UPGRADE_GUIDANCE_DELAY, function()
 			UpgradeGuidanceThread = nil
 			if not IsDestroyed and not IsOpen() and AffordableCount() > 0 then
 				ShowUpgradeGuidanceArrow(true)
+				UpgradeGuidanceMotionTween:Play()
 			end
 		end)
 	end
@@ -461,26 +498,36 @@ return function()
 			task.cancel(UpgradeReminderThread)
 			UpgradeReminderThread = nil
 		end
-		if UpgradeReminderThread then return end
+		if UpgradeReminderThread then
+			return
+		end
 
 		-- Keep reminding the player while an affordable upgrade remains ready to purchase.
 		UpgradeReminderThread = task.delay(UPGRADE_READY_REMINDER_INTERVAL, function()
 			UpgradeReminderThread = nil
-			if IsDestroyed then return end
+			if IsDestroyed then
+				return
+			end
 
 			local UpgradeCount = AffordableCount()
-			if UpgradeCount == 0 then return end
-			NotificationManager.Notify(GetUpgradeReadyMessage(UpgradeCount, false), 4, UIStyle.Colors.Gold)
+			if UpgradeCount == 0 then
+				return
+			end
+			NotificationManager.Notify(GetUpgradeReadyMessage(UpgradeCount, false), 8, UIStyle.Colors.Gold)
 			ScheduleUpgradeReminder()
 		end)
 	end
 
 	local function UpdateAffordableNotification()
-		if AffordableNotificationScheduled then return end
+		if AffordableNotificationScheduled then
+			return
+		end
 		AffordableNotificationScheduled = true
 		task.defer(function()
 			AffordableNotificationScheduled = false
-			if IsDestroyed then return end
+			if IsDestroyed then
+				return
+			end
 
 			local NewlyAffordableUpgradeCount = 0
 			for _, Upgrade in GetPurchasableUpgrades(Ownership(), Cash(), TutorialStep()) do
@@ -544,7 +591,9 @@ return function()
 	end
 
 	local function IsInsideViewport(ScreenPosition: Vector2): boolean
-		if not Viewport then return false end
+		if not Viewport then
+			return false
+		end
 		local Minimum = Viewport.AbsolutePosition
 		local Maximum = Minimum + Viewport.AbsoluteSize
 		return ScreenPosition.X >= Minimum.X
@@ -565,7 +614,9 @@ return function()
 	end
 
 	local function EndPinch()
-		if not IsPinching then return end
+		if not IsPinching then
+			return
+		end
 		IsPinching = false
 		PinchStartDistance = 0
 		LastPinchPosition = nil
@@ -575,13 +626,19 @@ return function()
 	end
 
 	local InputBeganConnection = UserInputService.InputBegan:Connect(function(Input)
-		if not IsOpen() or Input.UserInputType ~= Enum.UserInputType.Touch then return end
+		if not IsOpen() or Input.UserInputType ~= Enum.UserInputType.Touch then
+			return
+		end
 		local Position = Vector2.new(Input.Position.X, Input.Position.Y)
-		if not IsInsideViewport(Position) then return end
+		if not IsInsideViewport(Position) then
+			return
+		end
 		ActiveTouches[Input] = Position
 
 		local FirstPosition, SecondPosition = GetPinchTouches()
-		if not FirstPosition or not SecondPosition then return end
+		if not FirstPosition or not SecondPosition then
+			return
+		end
 		IsPinching = true
 		PinchStartDistance = (SecondPosition - FirstPosition).Magnitude
 		PinchStartZoom = ZoomTarget()
@@ -669,6 +726,27 @@ return function()
 			end)
 		end
 	end)
+	local function SetUpgradeTreeOpen(opening: boolean)
+		if opening then
+			if not IsCameraNearUpgrade(CameraTarget()) then
+				CameraTarget(if StartUpgrade then StartUpgrade.Position else Vector2.zero)
+			end
+			ZoomTarget(UpgradeConfig.DefaultZoom)
+			if IsOpenUpgradesStep() and AffordableCount() == 0 then
+				TutorialPulseTween:Cancel()
+				TutorialPulseValue.Value = 0
+			end
+			GuidanceController.OpenedUpgradeTree()
+		end
+		IsOpen(opening)
+		UpdateUpgradeGuidanceArrow()
+		Sounds.Play("Click", LocalPlayer.PlayerGui)
+	end
+	local PedastolConnection = UpgradePedastolController.OpenRequested:Connect(function()
+		if not IsOpen() then
+			SetUpgradeTreeOpen(true)
+		end
+	end)
 	local UpgradeConnection = DataService:getChangedSignal("Upgrades"):Connect(function(Value)
 		Ownership(UpgradeLogic.NormalizeOwnership(Value))
 		UpdateTutorialPulse()
@@ -688,8 +766,10 @@ return function()
 		UpdateUpgradeGuidanceArrow()
 	end)
 	local TutorialPulseConnection = TutorialPulseValue.Changed:Connect(TutorialPulse)
+	local UpgradeGuidanceMotionConnection = UpgradeGuidanceMotionValue.Changed:Connect(UpgradeGuidanceMotion)
 	Cleanup(function()
 		IsDestroyed = true
+		UpgradePedastolController.SetUpgradeAvailable(false)
 		if UpgradeReminderThread then
 			task.cancel(UpgradeReminderThread)
 			UpgradeReminderThread = nil
@@ -701,12 +781,16 @@ return function()
 		InputBeganConnection:Disconnect()
 		InputChangedConnection:Disconnect()
 		InputEndedConnection:Disconnect()
+		PedastolConnection:Disconnect()
 		UpgradeConnection:Disconnect()
 		CashConnection:Disconnect()
 		TutorialConnection:Disconnect()
 		TutorialPulseConnection:Disconnect()
+		UpgradeGuidanceMotionConnection:Disconnect()
 		TutorialPulseTween:Cancel()
 		TutorialPulseValue:Destroy()
+		UpgradeGuidanceMotionTween:Cancel()
+		UpgradeGuidanceMotionValue:Destroy()
 		if OpenButtonNotification then
 			OpenButtonNotification:Destroy()
 			OpenButtonNotification = nil
@@ -899,17 +983,19 @@ return function()
 				TextScaled = true,
 				ZIndex = 26,
 			},
-			Create "TextLabel" {
+			Create "ImageLabel" {
 				Name = "GuidanceArrow",
 				AnchorPoint = Vector2.new(0.5, 0.5),
 				BackgroundTransparency = 1,
-				FontFace = UIStyle.Font,
-				Position = UDim2.fromScale(0.5, 1.58),
+				Image = Images.ObjectiveArrow,
+				ImageColor3 = function()
+					return Color3.new(1, 1, 1):Lerp(Color3.fromRGB(255, 45, 45), UpgradeGuidanceMotion())
+				end,
+				Position = function()
+					return UDim2.fromScale(1.65, 0.5) + UDim2.fromOffset(-UpgradeGuidanceMotion() * 8, 0)
+				end,
 				Rotation = -90,
 				Size = UDim2.fromScale(0.9, 0.9),
-				Text = ">",
-				TextColor3 = Color3.fromRGB(72, 209, 238),
-				TextScaled = true,
 				Visible = ShowUpgradeGuidanceArrow,
 				ZIndex = 28,
 			},
@@ -945,23 +1031,7 @@ return function()
 				end,
 				Activated = function()
 					IsOpenButtonPressed(false)
-					local Opening = not IsOpen()
-					if Opening then
-						if not IsCameraNearUpgrade(CameraTarget()) then
-							CameraTarget(if StartUpgrade then StartUpgrade.Position else Vector2.zero)
-						end
-						ZoomTarget(UpgradeConfig.DefaultZoom)
-						if IsOpenUpgradesStep() then
-							if AffordableCount() == 0 then
-								TutorialPulseTween:Cancel()
-								TutorialPulseValue.Value = 0
-							end
-						end
-						GuidanceController.OpenedUpgradeTree()
-					end
-					IsOpen(Opening)
-					UpdateUpgradeGuidanceArrow()
-					Sounds.Play("Click", LocalPlayer.PlayerGui)
+					SetUpgradeTreeOpen(not IsOpen())
 				end,
 			},
 		},

@@ -1,15 +1,15 @@
 local EconomyConfig = {
 	-- Values above 1 increase every active and passive payout while reducing upgrade costs.
-	ProgressionSpeedMultiplier = 1.12,
+	ProgressionSpeedMultiplier = 1.22,
 	-- Scales restorable item purchase prices without changing restoration tool costs.
-	ItemPurchasePriceMultiplier = 0.5,
+	ItemPurchasePriceMultiplier = 0.3,
 	-- Scales restoration rewards and restored-item sale values without changing purchase prices.
 	ActiveIncomeMultiplier = 3,
 	-- Gives onboarding rarities extra active income, blended back to normal by Legendary.
 	OnboardingIncomeMultiplier = 2.5,
 	OnboardingIncomeBlendEndStage = 8,
 	-- Scales museum visitor payments only.
-	PassiveIncomeMultiplier = 1,
+	PassiveIncomeMultiplier = 5,
 	-- Values above 1 increase every upgrade price.
 	UpgradeCostMultiplier = 0.95,
 	-- Values above 1 steepen rarity prices and later-stage upgrade costs.
@@ -120,11 +120,8 @@ function EconomyConfig.GetRarityChanceWeight(Rarity: string, BaseChanceWeight: n
 	local ProgressionStage = EconomyConfig.GetRarity(Rarity).ProgressionStage
 	-- Preserve this smooth curve so economy tuning does not introduce visible jumps between rarities.
 	local CurveLength = EconomyConfig.LateGameRarityCurveEndStage - EconomyConfig.LateGameRarityCurveStartStage
-	local CurveAlpha = math.clamp(
-		(ProgressionStage - EconomyConfig.LateGameRarityCurveStartStage) / CurveLength,
-		0,
-		1
-	) ^ EconomyConfig.LateGameRarityCurveExponent
+	local CurveAlpha = math.clamp((ProgressionStage - EconomyConfig.LateGameRarityCurveStartStage) / CurveLength, 0, 1)
+		^ EconomyConfig.LateGameRarityCurveExponent
 	local WeightMultiplier = 1 + (EconomyConfig.LateGameRarityCurveEndMultiplier - 1) * CurveAlpha
 	return BaseChanceWeight * WeightMultiplier
 end
@@ -286,7 +283,10 @@ function EconomyConfig.Validate()
 		assert(Info.ProgressionStage > PreviousStage, `Rarity stage must increase at {Rarity}`)
 		assert(Info.SourcePriceRange[1] <= Info.SourcePriceRange[2], `Invalid source price range for {Rarity}`)
 		assert(Info.PriceRange[1] <= Info.PriceRange[2], `Invalid price range for {Rarity}`)
-		assert(type(Info.PriceCurveExponent) == "number" and Info.PriceCurveExponent > 0, `Invalid price curve for {Rarity}`)
+		assert(
+			type(Info.PriceCurveExponent) == "number" and Info.PriceCurveExponent > 0,
+			`Invalid price curve for {Rarity}`
+		)
 		local MinimumPrice = EconomyConfig.GetItemPrice(Rarity, Info.SourcePriceRange[1])
 		assert(MinimumPrice > PreviousPrice, `Minimum item price must increase at {Rarity}`)
 		assert(Info.GuestPayRate > 0, `Guest pay rate must be positive for {Rarity}`)

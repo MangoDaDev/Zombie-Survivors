@@ -33,7 +33,8 @@ return function()
 		end
 		NextLayoutOrder += 1
 
-		local Alert = Instance.new "CanvasGroup"
+		-- Notification alerts use Frames; fade the text and stroke directly.
+		local Alert = Instance.new "Frame"
 		Alert.Name = "Alert"
 		Alert.BackgroundTransparency = 1
 		Alert.LayoutOrder = NextLayoutOrder
@@ -74,10 +75,11 @@ return function()
 
 		local TweenIn = TweenService:Create(Label, ALERT_TWEEN_INFO, { Size = UDim2.fromScale(1, 1) })
 		local TweenOut = TweenService:Create(Alert, ALERT_TWEEN_INFO, {
-			GroupTransparency = 1,
 			Size = UDim2.fromOffset(ALERT_WIDTH, 0),
 		})
-		local AlertState = { TweenIn = TweenIn, TweenOut = TweenOut }
+		local TextFadeOut = TweenService:Create(Label, ALERT_TWEEN_INFO, { TextTransparency = 1 })
+		local StrokeFadeOut = TweenService:Create(TextStroke, ALERT_TWEEN_INFO, { Transparency = 1 })
+		local AlertState = { TweenIn = TweenIn, TweenOut = TweenOut, TextFadeOut = TextFadeOut, StrokeFadeOut = StrokeFadeOut }
 		ActiveAlerts[Alert] = AlertState
 		TweenIn:Play()
 		AlertState.Thread = task.spawn(function()
@@ -87,6 +89,8 @@ return function()
 				return
 			end
 			TweenOut:Play()
+			TextFadeOut:Play()
+			StrokeFadeOut:Play()
 			TweenOut.Completed:Wait()
 			ActiveAlerts[Alert] = nil
 			Alert:Destroy()
@@ -101,6 +105,8 @@ return function()
 		for Alert, AlertState in ActiveAlerts do
 			AlertState.TweenIn:Cancel()
 			AlertState.TweenOut:Cancel()
+			AlertState.TextFadeOut:Cancel()
+			AlertState.StrokeFadeOut:Cancel()
 			if AlertState.Thread then
 				task.cancel(AlertState.Thread)
 			end

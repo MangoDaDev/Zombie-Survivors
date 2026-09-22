@@ -2,6 +2,8 @@ FOLLOW THIS UI STYLE: **"STUD" UI STYLE**
 
 When using a UIAspectRatioConstraint, keep meaningful nonzero responsive Size values on both axes unless a zero axis is explicitly required.
 
+Avoid creating CanvasGroups unless they are needed for scrolling UI. Use Frames or other suitable GuiObjects for ordinary UI, including notifications.
+
 local function WhiteRectangularButtonExample()
 	return
     create "Frame" {
