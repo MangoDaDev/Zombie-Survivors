@@ -137,7 +137,7 @@ local CleaningConfig = {
 			CompletionSoundName = "Reward1",
 		},
 		{
-			Id = "SprayPaint", MinimumRestorationTier = 4, Type = "Paint", IconName = "Paint",
+			Id = "SprayPaint", MinimumRestorationTier = 1, Type = "Paint", IconName = "Paint",
 			DisplayName = "Restoring Paint", ToolId = "SprayPaint", TargetHP = 2,
 			DirtColor = Color3.fromRGB(88, 68, 50), DirtAmountMinimum = 0.78, DirtAmountMaximum = 0.96,
 			CompletionSoundName = "Reward1",
@@ -155,26 +155,26 @@ local CleaningConfig = {
 			CompletionSoundName = "Reward1",
 		},
 		{
-			Id = "SoftBrush", MinimumRestorationTier = 2, Type = "LightDust", IconName = "LightDust",
+			Id = "SoftBrush", MinimumRestorationTier = 3, Type = "LightDust", IconName = "LightDust",
 			DisplayName = "Brushing Dust", ToolId = "SoftBrush", TargetHP = 1.5,
 			-- Dust patches remain visible while still showing the item surface beneath them.
 			PatchColor = Color3.fromRGB(132, 136, 141), PatchTransparency = 0.38, CompletionSoundName = "Reward1",
 		},
 		{
-			Id = "Hairdryer", MinimumRestorationTier = 3, Type = "LooseDebris", IconName = "LooseDebris",
+			Id = "Hairdryer", MinimumRestorationTier = 4, Type = "LooseDebris", IconName = "LooseDebris",
 			DisplayName = "Blowing Debris", ToolId = "Hairdryer", TargetHP = 1, CompletionSoundName = "Swoosh",
 		},
 		{
-			Id = "Polisher", MinimumRestorationTier = 4, Type = "Polish", IconName = "Polish",
+			Id = "Polisher", MinimumRestorationTier = 5, Type = "Polish", IconName = "Polish",
 			DisplayName = "Polishing Finish", ToolId = "Polisher", TargetHP = 2, CompletionSoundName = "Reward2",
 		},
 		{
-			Id = "Hammer", MinimumRestorationTier = 5, Type = "Bent", IconName = "Bent",
+			Id = "Hammer", MinimumRestorationTier = 6, Type = "Bent", IconName = "Bent",
 			DisplayName = "Realigning Parts", ToolId = "Hammer", TargetHP = 5,
 			BendRotationDegrees = Vector3.new(28, -18, 12), CompletionSoundName = "MetalHitSoft",
 		},
 		{
-			Id = "Magnet", MinimumRestorationTier = 6, Type = "Metal", IconName = "Metal",
+			Id = "Magnet", MinimumRestorationTier = 7, Type = "Metal", IconName = "Metal",
 			DisplayName = "Extracting Metal", ToolId = "Magnet", TargetHP = 3,
 			-- Keep Magnet particles roughly 50% denser without treating every item part as magnetic.
 			TargetDensity = 2.1, MinimumTargets = 6, MaximumTargets = 36,
@@ -206,12 +206,18 @@ function CleaningConfig.RollRestorationSteps(ItemInfo, RandomGenerator: Random?)
 	local ItemPrice = if type(ItemInfo) == "table" and type(ItemInfo.Price) == "number"
 		then math.max(ItemInfo.Price, 1)
 		else 1
+	local RestorationTier = if type(ItemInfo) == "table" and type(ItemInfo.RestorationTier) == "number"
+		then math.max(1, math.floor(ItemInfo.RestorationTier))
+		else 1
 	local StepIds = { "Spray" }
 	local UnlockCosts = {}
 	local MinimumUnlockCost = math.huge
 
+	-- MinimumRestorationTier is a hard safety boundary: an item must never require a tool from a later
+	-- economy tier. The price weighting below only varies eligible steps; it cannot leak late-game tools
+	-- such as the Hammer or Magnet onto Common items.
 	for _, StepInfo in CleaningConfig.Steps do
-		if StepInfo.ToolId == "Spray" then continue end
+		if StepInfo.ToolId == "Spray" or RestorationTier < StepInfo.MinimumRestorationTier then continue end
 		local UnlockCost = UpgradeConfig.GetToolUnlockCost(StepInfo.ToolId)
 		if type(UnlockCost) == "number" then
 			UnlockCosts[StepInfo.Id] = UnlockCost
@@ -219,8 +225,10 @@ function CleaningConfig.RollRestorationSteps(ItemInfo, RandomGenerator: Random?)
 		end
 	end
 
+	-- Eligible restoration types roll independently so rarer items can contain several layers. Direct tool
+	-- price favors early affordable tools, while item price raises the chance as item rarity/value increases.
 	for _, StepInfo in CleaningConfig.Steps do
-		if StepInfo.ToolId == "Spray" then continue end
+		if StepInfo.ToolId == "Spray" or RestorationTier < StepInfo.MinimumRestorationTier then continue end
 		local UnlockCost = UnlockCosts[StepInfo.Id]
 		if type(UnlockCost) ~= "number" then continue end
 		local ItemFactor = ItemPrice ^ CleaningConfig.RestorationStepCostCurveExponent

@@ -21,6 +21,7 @@ local Networker = require(ReplicatedStorage.Packages.networker)
 local PlayerStateController = require(ServerStorage.Controllers.PlayerStateController)
 local RestorationVisuals = require(ReplicatedStorage.Modules.Game.RestorationVisuals)
 local UIStyle = require(ReplicatedStorage.Modules.UI.UIStyle)
+local UpgradeLogic = require(ReplicatedStorage.Modules.Game.UpgradeLogic)
 
 local MapAssets = ReplicatedStorage.Assets.Models.Map
 local CrateController = {}
@@ -43,6 +44,32 @@ local function GetItemInfo(ItemId)
 	end
 end
 
+local function GetRarityToolWeightMultipliers(Player: Player): { [string]: number }
+	local Ownership = DataService:get(Player, "Upgrades")
+	local RestorationTiers = {}
+	local Multipliers = {}
+	for _, ItemInfo in ItemsInfo do
+		RestorationTiers[ItemInfo.Rarity] = ItemInfo.RestorationTier
+	end
+
+	for Rarity, RestorationTier in RestorationTiers do
+		local HasRequiredTools = true
+		for _, StepInfo in CleaningConfig.Steps do
+			-- Every non-default tool introduced by this rarity counts as required readiness. Missing several
+			-- tools still applies one configurable penalty rather than compounding the rarity into near-impossibility.
+			if StepInfo.ToolId ~= "Spray"
+				and StepInfo.MinimumRestorationTier <= RestorationTier
+				and not UpgradeLogic.IsToolUnlocked(Ownership, StepInfo.ToolId)
+			then
+				HasRequiredTools = false
+				break
+			end
+		end
+		Multipliers[Rarity] = if HasRequiredTools then 1 else CrateInfo.MissingRequiredToolRarityWeightMultiplier
+	end
+	return Multipliers
+end
+
 local function GetRewardItemInfo(Player: Player, Info, Luck: number)
 	local GuaranteedReward, RewardKind, GuaranteedIndex = GuidanceController.GetOnboardingReward(Player)
 	if GuaranteedReward then
@@ -55,7 +82,8 @@ local function GetRewardItemInfo(Player: Player, Info, Luck: number)
 		end
 	end
 	-- GetRandomItem also returns roll diagnostics; do not let those values masquerade as restoration metadata.
-	local ItemInfo = CrateInfo.GetRandomItem(ItemsInfo, Info, RandomGenerator, Luck)
+	local RarityWeightMultipliers = GetRarityToolWeightMultipliers(Player)
+	local ItemInfo = CrateInfo.GetRandomItem(ItemsInfo, Info, RandomGenerator, Luck, RarityWeightMultipliers)
 	return ItemInfo, nil, nil, nil
 end
 

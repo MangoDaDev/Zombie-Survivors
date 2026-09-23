@@ -38,6 +38,8 @@ local function CreateCrate(Info)
 end
 
 local CrateInfo = {
+	-- A rarity remains possible without its restoration tools, but its weight is reduced 2.5x.
+	MissingRequiredToolRarityWeightMultiplier = 0.4,
 	Reset = {
 		Interval = 150,
 		SpawnBatchSize = 8,
@@ -254,16 +256,27 @@ function CrateInfo.GetNormalizedRarityChances(Info, Luck: number?): { [string]: 
 	return Chances
 end
 
-function CrateInfo.GetRandomItem(ItemsInfo, Info, RandomGenerator: Random?, Luck: number?)
+function CrateInfo.GetRandomItem(
+	ItemsInfo,
+	Info,
+	RandomGenerator: Random?,
+	Luck: number?,
+	RarityWeightMultipliers: { [string]: number }?
+)
 	local Generator = RandomGenerator or DefaultRandom
 	local RarityEntries = {}
 	local CrateTier = CrateTiers[Info] or 1
 	for _, Rarity in RarityOrder do
 		local ChanceWeight = Info and Info.RarityChances and Info.RarityChances[Rarity]
 		if type(ChanceWeight) == "number" and ChanceWeight > 0 then
+			local PlayerWeightMultiplier = if type(RarityWeightMultipliers) == "table"
+				and type(RarityWeightMultipliers[Rarity]) == "number"
+				then math.max(RarityWeightMultipliers[Rarity], 0)
+				else 1
 			table.insert(RarityEntries, {
 				Rarity = Rarity,
-				ChanceWeight = EconomyConfig.GetCrateRarityChanceWeight(Rarity, ChanceWeight, CrateTier),
+				ChanceWeight = EconomyConfig.GetCrateRarityChanceWeight(Rarity, ChanceWeight, CrateTier)
+					* PlayerWeightMultiplier,
 			})
 		end
 	end

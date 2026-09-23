@@ -20,10 +20,10 @@ local EconomyConfig = {
 	-- EndMultiplier is reached at Secret; Exponent controls how late the curve accelerates.
 	LateGameRarityCurveStartStage = 1,
 	LateGameRarityCurveEndStage = 7,
-	LateGameRarityCurveEndMultiplier = 0.7,
-	LateGameRarityCurveExponent = 1.2,
+	LateGameRarityCurveEndMultiplier = 0.2,
+	LateGameRarityCurveExponent = 1.1,
 	-- Each crate tier multiplies Secret-vs-Common loot odds by this amount; intermediate rarities scale smoothly.
-	CrateRarityLuckPerTier = 1.1,
+	CrateRarityLuckPerTier = 1.15,
 	-- Later tool unlocks cost slightly less than the cheapest item in their configured progression tier.
 	-- Paint and Sponge keep their authored entry prices.
 	ToolUnlockPriceRatios = {

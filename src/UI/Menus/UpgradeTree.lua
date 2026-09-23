@@ -502,7 +502,8 @@ return function(IsOpen)
 	Effect(function()
 		local Amount = AffordableCount()
 		if OpenButtonNotification then
-			OpenButtonNotification:SetAmount(Amount)
+			-- While the menu is open this control is a close button, so its upgrade badge stays hidden.
+			OpenButtonNotification:SetAmount(if IsOpen() then 0 else Amount)
 		end
 		-- The pedestal flashes for the same affordable upgrades counted by the button notification.
 		UpgradePedastolController.SetUpgradeAvailable(Amount > 0)
@@ -985,7 +986,10 @@ return function(IsOpen)
 		Create "Frame" {
 			Name = "OpenButton",
 			AnchorPoint = Vector2.new(0, 0.5),
-			BackgroundColor3 = UIStyle.Colors.Blue,
+			-- The persistent upgrade toggle becomes a red close control while the tree is open.
+			BackgroundColor3 = function()
+				return if IsOpen() then UIStyle.Colors.Red else UIStyle.Colors.Blue
+			end,
 			BorderSizePixel = 0,
 			-- Keep the persistent toggle on the left-middle edge, clear of the top-right player list and mobile controls.
 			Position = UDim2.new(0, 18, 0.5, 0),
@@ -996,7 +1000,7 @@ return function(IsOpen)
 			ZIndex = 25,
 			Action(function(Instance)
 				OpenButtonNotification = Notification.new("AvailableUpgrades", Instance)
-				OpenButtonNotification:SetAmount(AffordableCount())
+				OpenButtonNotification:SetAmount(if IsOpen() then 0 else AffordableCount())
 			end),
 			Create "UIAspectRatioConstraint" { AspectRatio = 1 },
 			Create "UICorner" { CornerRadius = UIStyle.CornerRadius },
@@ -1018,10 +1022,24 @@ return function(IsOpen)
 				ZIndex = 25,
 			},
 			Create "ImageLabel" {
+				Name = "UpgradeIcon",
 				BackgroundTransparency = 1,
 				Image = Images.Upgrade,
 				Position = UDim2.fromScale(0.2, 0.1),
 				Size = UDim2.fromScale(0.6, 0.6),
+				Visible = function() return not IsOpen() end,
+				ZIndex = 26,
+			},
+			Create "TextLabel" {
+				Name = "CloseIcon",
+				BackgroundTransparency = 1,
+				FontFace = UIStyle.Font,
+				Position = UDim2.fromScale(0.2, 0.06),
+				Size = UDim2.fromScale(0.6, 0.64),
+				Text = "X",
+				TextColor3 = Color3.new(1, 1, 1),
+				TextScaled = true,
+				Visible = IsOpen,
 				ZIndex = 26,
 			},
 			Create "TextLabel" {
@@ -1029,7 +1047,7 @@ return function(IsOpen)
 				FontFace = UIStyle.Font,
 				Position = UDim2.fromScale(0.06, 0.7),
 				Size = UDim2.fromScale(0.88, 0.2),
-				Text = "UPGRADES",
+				Text = function() return if IsOpen() then "CLOSE" else "UPGRADES" end,
 				TextColor3 = Color3.new(1, 1, 1),
 				TextScaled = true,
 				ZIndex = 26,
