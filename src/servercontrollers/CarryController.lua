@@ -25,8 +25,6 @@ local SFX_MAX_DISTANCE = 80
 local MapAssets = ReplicatedStorage.Assets.Models.Map
 
 export type OwnershipState = {
-	BasePrice: number,
-	CurrentPrice: number,
 	OwnerUserId: number,
 	OwnershipId: string,
 	TransferCount: number,
@@ -181,9 +179,7 @@ local function attachCarriedModel(player: Player, state: CarryState): boolean
 	carryWeld.Part1 = boundingBox
 	carryWeld.Parent = boundingBox
 	model.Parent = character
-	local DisplayInfo = table.clone(itemInfo)
-	DisplayInfo.Price = state.Ownership.CurrentPrice
-	ItemInfoBillboard(DisplayInfo, boundingBox, fixingState)
+	ItemInfoBillboard(itemInfo, boundingBox, fixingState)
 	state.model = model
 	local Humanoid = character and character:FindFirstChildOfClass("Humanoid")
 	if Humanoid then
@@ -557,14 +553,7 @@ function CarryController.StartCarrying(
 		RestorationSteps = ResolvedRestorationSteps,
 		ItemKey = ResolvedOwnershipId,
 		Ownership = {
-			BasePrice = ItemInfo.Price,
-			CurrentPrice = if Ownership and type(Ownership.CurrentPrice) == "number"
-				then math.clamp(
-					math.round(Ownership.CurrentPrice),
-					ItemInfo.Price,
-					ItemInfo.Price * ItemInteractionConfig.MaximumPurchasePriceMultiplier
-				)
-				else ItemInfo.Price,
+			-- Item acquisition is always free; ownership tracks copy identity and transfers, never a purchase price.
 			OwnerUserId = player.UserId,
 			OwnershipId = ResolvedOwnershipId,
 			TransferCount = if Ownership and type(Ownership.TransferCount) == "number"

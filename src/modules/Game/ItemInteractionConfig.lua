@@ -8,15 +8,14 @@ local ItemInteractionConfig = {
 	-- Carrying temporarily reduces the player's current normal WalkSpeed by 20%.
 	CarryWalkSpeedMultiplier = 0.8,
 	DropForwardDistance = 4,
-	DroppedItemPurchaseDistance = 10,
+	DroppedItemPickupDistance = 10,
 	UnexpectedMoveDistance = 8,
-	PurchasePriceMultiplier = 1.25,
-	MaximumPurchasePriceMultiplier = 3,
 	BatKnockbackSpeed = 55,
 	BatKnockbackUpwardSpeed = 20,
 	-- Guest hits should launch them dramatically before they disappear.
 	GuestBatKnockbackSpeed = 110,
 	GuestBatKnockbackUpwardSpeed = 42,
+	GuestMaximumHitDistance = 10,
 	MaximumKnockbackSpeed = 70,
 	FallingHitMinimumSpeed = 2,
 	-- A larger scale makes the falling-hit bonus approach 2x more slowly.
@@ -28,7 +27,8 @@ local ItemInteractionConfig = {
 	PvpHitCooldown = 0.8,
 	-- Preserve the requested extra two seconds before a struck player can be hit again.
 	PvpProtectionDuration = 4.5,
-	PvpMaximumHitDistance = 10,
+	-- PvP exact-hit detection is client-owned; this intentionally generous server cap only blocks map-wide spoofing.
+	PvpMaximumHitDistance = 40,
 	FixingRotationSpeedDegrees = 24,
 	SurfacePlacementAttempts = 4,
 	SurfacePlacementOffset = 0.015,

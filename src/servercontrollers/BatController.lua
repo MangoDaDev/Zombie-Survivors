@@ -126,7 +126,7 @@ end
 
 local function IsVisitorInRange(Player: Player, RootPart: BasePart, Visitor, Info, SwingTime: number): boolean
 	local Position = Visitor:GetCurrentCFrame().Position
-	if (Position - RootPart.Position).Magnitude > ItemInteractionConfig.PvpMaximumHitDistance then return false end
+	if (Position - RootPart.Position).Magnitude > ItemInteractionConfig.GuestMaximumHitDistance then return false end
 	if IsPositionInSwing(RootPart.CFrame, Position, Info) then return true end
 	local ClosestSnapshot
 	local ClosestDifference = math.huge
@@ -176,14 +176,6 @@ local function ClearStun(Player: Player, RestoreCharacter: boolean, UpdatePlayer
 	if State.RootPart.Parent then State.RootPart:SetNetworkOwnershipAuto() end
 end
 
-local function HasClearHitPath(AttackerCharacter: Model, TargetCharacter: Model, Origin: Vector3, Target: Vector3): boolean
-	local Parameters = RaycastParams.new()
-	Parameters.FilterType = Enum.RaycastFilterType.Exclude
-	Parameters.FilterDescendantsInstances = { AttackerCharacter, TargetCharacter }
-	Parameters.IgnoreWater = true
-	return Workspace:Raycast(Origin, Target - Origin, Parameters) == nil
-end
-
 local function GetCrateImpact(Model: Model, Origin: Vector3)
 	local Parameters = RaycastParams.new()
 	Parameters.FilterType = Enum.RaycastFilterType.Include
@@ -201,7 +193,7 @@ local function GetCrateImpact(Model: Model, Origin: Vector3)
 	return TargetPosition, if Normal.Magnitude > 0.01 then Normal.Unit else Vector3.yAxis, Part.Color, Part.Material
 end
 
-local function HitPlayer(Attacker: Player, TargetPlayer: Player, AttackerRoot: BasePart, Info, Now: number, KnockbackMultiplier: number)
+local function HitPlayer(Attacker: Player, TargetPlayer: Player, AttackerRoot: BasePart, Now: number, KnockbackMultiplier: number)
 	if Attacker == TargetPlayer or Now < (ProtectedUntil[TargetPlayer] or 0) then return end
 	-- Do not let repeated hits restart or extend an active ragdoll.
 	if StunStates[TargetPlayer] or PlayerStateController.Get(TargetPlayer, "IsPvpStunned", false) == true then return end
@@ -211,9 +203,9 @@ local function HitPlayer(Attacker: Player, TargetPlayer: Player, AttackerRoot: B
 	local TargetHumanoid = TargetCharacter and TargetCharacter:FindFirstChildOfClass("Humanoid")
 	if not AttackerCharacter or not TargetCharacter or not TargetRoot or not TargetRoot:IsA("BasePart") or not TargetHumanoid or TargetHumanoid.Health <= 0 then return end
 	if TargetRoot.Anchored or PlayerStateController.Get(TargetPlayer, "IsFixing", false) == true then return end
+	-- The reporting client owns the exact PvP hitbox decision. Keep only this deliberately broad
+	-- server distance check so latency rarely rejects a real hit while map-wide spoofed hits still fail.
 	if (TargetRoot.Position - AttackerRoot.Position).Magnitude > ItemInteractionConfig.PvpMaximumHitDistance then return end
-	if not IsTargetInRange(Attacker, AttackerRoot, TargetCharacter, Info, Now) then return end
-	if not HasClearHitPath(AttackerCharacter, TargetCharacter, AttackerRoot.Position, TargetRoot.Position) then return end
 
 	local Hits = LastPlayerHits[Attacker] or {}
 	LastPlayerHits[Attacker] = Hits
@@ -341,7 +333,7 @@ function BatController.Swing(_, Player, Targets, BatId, SwingTime, ClientHitMult
 			local TargetPlayer = Players:GetPlayerFromCharacter(Target)
 			if TargetPlayer then
 				local ImpactPosition = Target:GetPivot().Position
-				if HitPlayer(Player, TargetPlayer, RootPart, Info, Now, KnockbackMultiplier) and HitMultiplier > 1 then
+				if HitPlayer(Player, TargetPlayer, RootPart, Now, KnockbackMultiplier) and HitMultiplier > 1 then
 					Network:fireAllExcept(Player, "CriticalHitEffect", ImpactPosition)
 				end
 			end

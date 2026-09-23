@@ -7,7 +7,6 @@ local ConveyorItem = require(ServerStorage.Classes.ConveyorItem)
 local DirtRenderer = require(ReplicatedStorage.Modules.Game.DirtRenderer)
 local ItemsInfo = require(ReplicatedStorage.Modules.Game.ItemsInfo)
 local GetRandomFromWeightedTable = require(ReplicatedStorage.Modules.Math.GetRandomFromWeightedTable)
-local GuidanceController = require(ServerStorage.Controllers.GuidanceController)
 
 local CONFIG = {
 	Luck = 1,
@@ -19,8 +18,6 @@ local CONFIG = {
 local ConveyorController = {
 	Config = CONFIG,
 }
-
-local dataService
 
 local function getPathLength(path: { CFrame }): number
 	local length = 0
@@ -85,7 +82,7 @@ local function getItemInfo(itemName: string)
 	return nil
 end
 
-local function purchaseItem(item, player: Player)
+local function claimItem(item, player: Player)
 	if item.Purchased or item.UniqueId == nil then
 		return
 	end
@@ -104,25 +101,19 @@ local function purchaseItem(item, player: Player)
 	end
 
 	local itemInfo = getItemInfo(item.ItemName)
-	local cash = dataService:get(player, "Cash")
-	if itemInfo == nil or type(cash) ~= "number" or cash < itemInfo.Price then
-		GuidanceController.Show(player, "Need More Cash")
-		return
-	end
+	if itemInfo == nil then return end
 
 	item.Purchased = true
-	if not CarryController.StartCarrying(player, itemInfo.Id, item.DirtCount) then
+	-- Conveyor items follow the same free-acquisition rule as crate rewards and dropped world items.
+	if not CarryController.StartCarrying(player, itemInfo.Id, item.DirtCount, nil, nil, false) then
 		item.Purchased = nil
 		return
 	end
 
-	dataService:set(player, "Cash", cash - itemInfo.Price)
 	item:Destroy()
 end
 
-function ConveyorController.SetDataService(service)
-	dataService = service
-end
+function ConveyorController.SetDataService(_service) end
 
 local function getConveyorPaths(): { { CFrame } }
 	local segments = getConveyorSegments()
@@ -168,7 +159,7 @@ end
 function ConveyorController.Init()
 	local paths = getConveyorPaths()
 	assert(#paths == 2, `Expected two conveyor paths, found {#paths}`)
-	ConveyorItem.SetPurchaseHandler(purchaseItem)
+	ConveyorItem.SetPurchaseHandler(claimItem)
 
 	task.spawn(function()
 		while true do
