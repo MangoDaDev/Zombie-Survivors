@@ -7,6 +7,7 @@ return {
 	HasRolledCrate = false,
 	Onboarding = {
 		DiscreteProgressionActive = false,
+		PaintItemReceived = false,
 		DirtGreaseItemReceived = false,
 		DirtGreaseItemDisplayed = false,
 		SoftBrushFundingGranted = false,

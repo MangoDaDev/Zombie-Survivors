@@ -1082,6 +1082,7 @@ return function(IsOpen)
 				end,
 				Activated = function()
 					IsOpenButtonPressed(false)
+					Sounds.Play("Click", LocalPlayer.PlayerGui)
 					SetUpgradeTreeOpen(not IsOpen())
 				end,
 			},
@@ -1102,7 +1103,7 @@ return function(IsOpen)
 			ZIndex = 21,
 			Create "TextButton" {
 				AnchorPoint = Vector2.new(1, 0),
-				AutoButtonColor = false,
+				AutoButtonColor = true,
 				BackgroundColor3 = UIStyle.Colors.Red,
 				Position = function()
 					return UDim2.new(1, -16, 0, TopInset() + 10)
@@ -1114,6 +1115,7 @@ return function(IsOpen)
 				FontFace = UIStyle.Font,
 				ZIndex = 26,
 				Activated = function()
+					Sounds.Play("Click", LocalPlayer.PlayerGui)
 					SetUpgradeTreeOpen(false)
 				end,
 				Create "UICorner" { CornerRadius = UIStyle.SmallCornerRadius },
@@ -1128,7 +1130,7 @@ return function(IsOpen)
 				ZIndex = 26,
 				Create "UIListLayout" { FillDirection = Enum.FillDirection.Vertical, Padding = UDim.new(0, 8) },
 				Create "TextButton" {
-					AutoButtonColor = false,
+					AutoButtonColor = true,
 					BackgroundColor3 = UIStyle.Colors.InkSoft,
 					FontFace = UIStyle.Font,
 					Size = UDim2.fromOffset(42, 42),
@@ -1144,7 +1146,7 @@ return function(IsOpen)
 					Create "UIStroke" { Color = UIStyle.Colors.Ink, Thickness = 2 },
 				},
 				Create "TextButton" {
-					AutoButtonColor = false,
+					AutoButtonColor = true,
 					BackgroundColor3 = UIStyle.Colors.InkSoft,
 					FontFace = UIStyle.Font,
 					Size = UDim2.fromOffset(42, 42),

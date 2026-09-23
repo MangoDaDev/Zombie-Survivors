@@ -48,6 +48,13 @@ return function(props: Props)
 		0.15,
 		0.9
 	)
+	local faceDepth = spring(
+		derive(function()
+			return if enabled() and pressed() then 0.065 else 0
+		end),
+		0.11,
+		0.9
+	)
 	effect(function()
 		if not enabled() then
 			hovered(false)
@@ -76,6 +83,18 @@ return function(props: Props)
 			Thickness = UIStyle.OutlineThickness,
 		},
 		create "UIScale" { Scale = scale },
+		create "ImageLabel" {
+			Name = "Glow",
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			BackgroundTransparency = 1,
+			Image = UIStyle.GlowTexture,
+			ImageColor3 = buttonColor,
+			ImageTransparency = function()
+				return if enabled() and hovered() then 0.82 else 0.94
+			end,
+			Position = UDim2.fromScale(0.5, 0.44),
+			Size = UDim2.fromScale(1.24, 1.6),
+		},
 		create "Frame" {
 			Name = "Content",
 			BackgroundColor3 = function()
@@ -85,7 +104,13 @@ return function(props: Props)
 				return if hovered() then Color:Lerp(UIStyle.Colors.Paper, 0.08) else Color
 			end,
 			BorderSizePixel = 0,
-			Size = UDim2.new(1, 0, 0.88, 0),
+			-- Compress the raised face into its backing while pressed so clicks feel physical.
+			Position = function()
+				return UDim2.fromScale(0, faceDepth())
+			end,
+			Size = function()
+				return UDim2.fromScale(1, 0.88 - faceDepth())
+			end,
 			ZIndex = 1,
 			create "UICorner" { CornerRadius = UIStyle.CornerRadius },
 			create "ImageLabel" {
@@ -138,6 +163,9 @@ return function(props: Props)
 				end
 			end,
 			MouseLeave = function()
+				if hovered() then
+					Sounds.Play("HoverEnd", LocalPlayer.PlayerGui)
+				end
 				hovered(false)
 				pressed(false)
 			end,
@@ -150,6 +178,7 @@ return function(props: Props)
 					)
 				then
 					pressed(true)
+					Sounds.Play("MouseDown", LocalPlayer.PlayerGui)
 				end
 			end,
 			InputEnded = function(input)

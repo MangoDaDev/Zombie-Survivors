@@ -4,6 +4,9 @@ local TutorialConfig = {
 	-- Show this final message when the Paint purchase completes the visible tutorial.
 	CompleteText = "Have Fun!",
 	Onboarding = {
+		-- The first item after Paint is purchased must require Paint, regardless of its normal tier.
+		PaintItemIds = { 14, 47, 64, 94 },
+		PaintRestorationSteps = { "Spray", "SprayPaint" },
 		-- These alternatives all receive the same guaranteed grease restoration steps.
 		DirtGreaseItemIds = { 5, 20, 95, 18 },
 		DirtGreaseRestorationSteps = { "Spray", "Sponge" },

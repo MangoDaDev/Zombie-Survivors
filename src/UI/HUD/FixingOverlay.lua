@@ -10,12 +10,17 @@ local Vide = require(ReplicatedStorage.Packages.vide)
 
 local Cleanup = Vide.cleanup
 local Create = Vide.create
+local Derive = Vide.derive
 local Source = Vide.source
+local Spring = Vide.spring
 
 local LocalPlayer = Players.LocalPlayer
 
 return function()
 	local IsFixing = Source(RuntimeState.Get(LocalPlayer, "IsFixing", false) == true)
+	local Transition = Spring(Derive(function()
+		return if IsFixing() then 1 else 0
+	end), 0.14, 0.88)
 	local TopOffset = Source(SafeArea.GetTopOffset(16))
 	local Connections = {
 		RuntimeState.GetChangedSignal(LocalPlayer, "IsFixing"):Connect(function(Value)
@@ -33,9 +38,19 @@ return function()
 		Name = "FixingOverlay",
 		AnchorPoint = Vector2.new(1, 0),
 		BackgroundTransparency = 1,
-		Position = function() return UDim2.new(0.98, 0, 0, TopOffset()) end,
+		Position = function()
+			return UDim2.new(0.98, 0, 0, TopOffset() - math.round((1 - Transition()) * 10))
+		end,
 		Size = UDim2.fromScale(0.4, 0.075),
-		Visible = IsFixing,
+		-- Preserve the topbar-safe anchor while easing the exit control in and out.
+		Visible = function()
+			return IsFixing() or Transition() > 0.01
+		end,
+		Create "UIScale" {
+			Scale = function()
+				return 0.9 + 0.1 * Transition()
+			end,
+		},
 		Create "UIListLayout" {
 			FillDirection = Enum.FillDirection.Horizontal,
 			HorizontalAlignment = Enum.HorizontalAlignment.Right,
@@ -44,6 +59,7 @@ return function()
 		},
 		Button({
 			Text = "Stop Cleaning (Q)",
+			Enabled = IsFixing,
 			BackgroundColor3 = UIStyle.Colors.Red,
 			OnActivated = function()
 				FixingInterface.ExitRequested:Fire()

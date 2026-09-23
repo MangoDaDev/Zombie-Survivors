@@ -24,6 +24,7 @@ end
 local function CopyOnboarding(Value)
 	local Progress = if type(Value) == "table" then table.clone(Value) else {}
 	Progress.DiscreteProgressionActive = Progress.DiscreteProgressionActive == true
+	Progress.PaintItemReceived = Progress.PaintItemReceived == true
 	Progress.DirtGreaseItemReceived = Progress.DirtGreaseItemReceived == true
 	Progress.DirtGreaseItemDisplayed = Progress.DirtGreaseItemDisplayed == true
 	Progress.SoftBrushFundingGranted = Progress.SoftBrushFundingGranted == true
@@ -112,6 +113,15 @@ end
 
 function GuidanceController.GetOnboardingReward(Player: Player)
 	local Progress = CopyOnboarding(DataService:get(Player, "Onboarding"))
+	-- Paint's forced reward stays ahead of later tools so buying both cannot skip either item.
+	if not Progress.PaintItemReceived
+		and UpgradeLogic.IsToolUnlocked(DataService:get(Player, "Upgrades"), "SprayPaint")
+	then
+		return {
+			ItemId = ChooseOnboardingItem(ONBOARDING.PaintItemIds),
+			RestorationSteps = ONBOARDING.PaintRestorationSteps,
+		}, "Paint"
+	end
 	-- The first item received after buying Sponge must include grease, even if opening drops remain.
 	if not Progress.DirtGreaseItemReceived
 		and UpgradeLogic.IsToolUnlocked(DataService:get(Player, "Upgrades"), "Sponge")
@@ -154,10 +164,14 @@ function GuidanceController.MarkOnboardingRewardReceived(Player: Player, RewardK
 		end
 		return
 	end
-	if RewardKind ~= "DirtGrease" and RewardKind ~= "Dust" then return end
+	if RewardKind ~= "Paint" and RewardKind ~= "DirtGrease" and RewardKind ~= "Dust" then return end
 	local Progress = CopyOnboarding(DataService:get(Player, "Onboarding"))
 	Progress.DiscreteProgressionActive = true
-	if RewardKind == "DirtGrease" then
+	if RewardKind == "Paint" then
+		-- Claiming, rather than merely revealing, consumes the guaranteed Paint reward.
+		Progress.PaintItemReceived = true
+		DataService:set(Player, "GuaranteedDropCount", math.max(DataService:get(Player, "GuaranteedDropCount") or 0, 2))
+	elseif RewardKind == "DirtGrease" then
 		Progress.DirtGreaseItemReceived = true
 		DataService:set(Player, "GuaranteedDropCount", math.max(DataService:get(Player, "GuaranteedDropCount") or 0, 3))
 	else
@@ -253,6 +267,8 @@ function GuidanceController.OnPlayerAdded(Player: Player)
 		or TutorialStep == "FindDustItem"
 	local Fixing = DataService:get(Player, "Fixing")
 	if type(Fixing) == "table" then
+		Progress.PaintItemReceived = Progress.PaintItemReceived
+			or HasOnboardingRestoration(Fixing, ONBOARDING.PaintItemIds, ONBOARDING.PaintRestorationSteps)
 		Progress.DirtGreaseItemReceived = Progress.DirtGreaseItemReceived
 			or HasOnboardingRestoration(Fixing, ONBOARDING.DirtGreaseItemIds, ONBOARDING.DirtGreaseRestorationSteps)
 		Progress.DustItemReceived = Progress.DustItemReceived
@@ -260,6 +276,7 @@ function GuidanceController.OnPlayerAdded(Player: Player)
 	end
 	Progress.DiscreteProgressionActive = Progress.DiscreteProgressionActive
 		or WasVisibleExtensionStep
+		or Progress.PaintItemReceived
 		or Progress.DirtGreaseItemReceived
 		or Progress.DustItemReceived
 	local GuaranteedDropCount = DataService:get(Player, "GuaranteedDropCount")
@@ -271,6 +288,7 @@ function GuidanceController.OnPlayerAdded(Player: Player)
 	if WasVisibleExtensionStep then DataService:set(Player, "TutorialStep", TutorialConfig.CompleteStep) end
 	local ReconciledDropCount = if Progress.DustItemReceived then math.max(GuaranteedDropCount, 4)
 		elseif Progress.DirtGreaseItemReceived then math.max(GuaranteedDropCount, 3)
+		elseif Progress.PaintItemReceived then math.max(GuaranteedDropCount, 2)
 		else GuaranteedDropCount
 	if ReconciledDropCount ~= GuaranteedDropCount then DataService:set(Player, "GuaranteedDropCount", ReconciledDropCount) end
 	local Displays = DataService:get(Player, "Displays")
