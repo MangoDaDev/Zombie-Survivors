@@ -68,17 +68,25 @@ local CleaningConfig = {
 	StepHintOutlineTransparency = 0.08,
 	StepTransitionDelay = 0.3,
 	FullCompletionDelay = 1.2,
-	-- New item copies strongly favor cheaper tools, without hard-locking damage types to that order.
+	-- Each restoration type rolls independently: cheaper tools are common early, while valuable items gain more layers.
 	RestorationStepMinimumChance = 0.02,
 	RestorationStepMaximumChance = 0.92,
 	RestorationStepCostCurveExponent = 0.75,
 	RestorationStepPriceWeightExponent = 0.4,
+	RestorationStepEarlyChanceScale = 0.75,
 	DirtDamageSoundName = "Hooked",
+	-- Keep tool presentation and selected-step execution aligned with the current upgrade progression.
 	Tools = {
 		{
 			Id = "Spray", DisplayName = "Spray", TemplateName = "SprayBottle", VFXFolderName = "SprayBottle",
 			VFXName = "WaterEffect", VFXStartPartName = "EffectStart", LoopSoundName = "SprayLoop",
 			RadiusScale = 0.08, StrengthPerSecond = 3.6, VFXWidthScale = 1, PositionResponsiveness = 22,
+		},
+		{
+			Id = "SprayPaint", DisplayName = "Spray Paint", TemplateName = "SprayPaint", VFXFolderName = "SprayPaint",
+			VFXName = "Paint", VFXStartPartName = "EffectStart", LoopSoundName = "SprayPaintLoop",
+			RadiusScale = 0.08, StrengthPerSecond = 3.4, VFXWidthScale = 1, ColorFromTarget = true,
+			ColorResponsiveness = 14, PositionResponsiveness = 22,
 		},
 		{
 			Id = "Sponge", DisplayName = "Sponge", TemplateName = "Sponge", VFXFolderName = "Bubbles",
@@ -99,12 +107,6 @@ local CleaningConfig = {
 			PositionResponsiveness = 24, AirflowRange = 10, AirflowConeDegrees = 24, BlowSpeed = 12,
 			BlowResponsiveness = 12, VFXRateScale = 1.5, VFXSizeScale = 1.5, VFXLifetimeScale = 2.2,
 			VFXSpeedScale = 1.25, VFXDragScale = 0.4, VFXSpreadScale = 1.15,
-		},
-		{
-			Id = "SprayPaint", DisplayName = "Spray Paint", TemplateName = "SprayPaint", VFXFolderName = "SprayPaint",
-			VFXName = "Paint", VFXStartPartName = "EffectStart", LoopSoundName = "SprayPaintLoop",
-			RadiusScale = 0.08, StrengthPerSecond = 3.4, VFXWidthScale = 1, ColorFromTarget = true,
-			ColorResponsiveness = 14, PositionResponsiveness = 22,
 		},
 		{
 			Id = "Polisher", DisplayName = "Polisher", TemplateName = "Polisher", VFXStartPartName = "PolishingPadFront",
@@ -135,6 +137,12 @@ local CleaningConfig = {
 			CompletionSoundName = "Reward1",
 		},
 		{
+			Id = "SprayPaint", MinimumRestorationTier = 4, Type = "Paint", IconName = "Paint",
+			DisplayName = "Restoring Paint", ToolId = "SprayPaint", TargetHP = 2,
+			DirtColor = Color3.fromRGB(88, 68, 50), DirtAmountMinimum = 0.78, DirtAmountMaximum = 0.96,
+			CompletionSoundName = "Reward1",
+		},
+		{
 			Id = "Sponge",
 			MinimumRestorationTier = 2,
 			Type = "Grease",
@@ -155,12 +163,6 @@ local CleaningConfig = {
 		{
 			Id = "Hairdryer", MinimumRestorationTier = 3, Type = "LooseDebris", IconName = "LooseDebris",
 			DisplayName = "Blowing Debris", ToolId = "Hairdryer", TargetHP = 1, CompletionSoundName = "Swoosh",
-		},
-		{
-			Id = "SprayPaint", MinimumRestorationTier = 4, Type = "Paint", IconName = "Paint",
-			DisplayName = "Restoring Paint", ToolId = "SprayPaint", TargetHP = 2,
-			DirtColor = Color3.fromRGB(88, 68, 50), DirtAmountMinimum = 0.78, DirtAmountMaximum = 0.96,
-			CompletionSoundName = "Reward1",
 		},
 		{
 			Id = "Polisher", MinimumRestorationTier = 4, Type = "Polish", IconName = "Polish",
@@ -204,7 +206,7 @@ function CleaningConfig.RollRestorationSteps(ItemInfo, RandomGenerator: Random?)
 	local ItemPrice = if type(ItemInfo) == "table" and type(ItemInfo.Price) == "number"
 		then math.max(ItemInfo.Price, 1)
 		else 1
-	local StepIds = {}
+	local StepIds = { "Spray" }
 	local UnlockCosts = {}
 	local MinimumUnlockCost = math.huge
 
@@ -218,11 +220,7 @@ function CleaningConfig.RollRestorationSteps(ItemInfo, RandomGenerator: Random?)
 	end
 
 	for _, StepInfo in CleaningConfig.Steps do
-		if StepInfo.ToolId == "Spray" then
-			table.insert(StepIds, StepInfo.Id)
-			continue
-		end
-
+		if StepInfo.ToolId == "Spray" then continue end
 		local UnlockCost = UnlockCosts[StepInfo.Id]
 		if type(UnlockCost) ~= "number" then continue end
 		local ItemFactor = ItemPrice ^ CleaningConfig.RestorationStepCostCurveExponent
@@ -231,7 +229,9 @@ function CleaningConfig.RollRestorationSteps(ItemInfo, RandomGenerator: Random?)
 		local PriceWeight = (MinimumUnlockCost / math.max(UnlockCost, 1))
 			^ CleaningConfig.RestorationStepPriceWeightExponent
 		local BaseChance = CleaningConfig.RestorationStepMinimumChance
-			+ (CleaningConfig.RestorationStepMaximumChance - CleaningConfig.RestorationStepMinimumChance) * PriceWeight
+			+ (CleaningConfig.RestorationStepMaximumChance - CleaningConfig.RestorationStepMinimumChance)
+				* PriceWeight
+				* CleaningConfig.RestorationStepEarlyChanceScale
 		local Chance = BaseChance + (CleaningConfig.RestorationStepMaximumChance - BaseChance) * Affordability
 		if Generator:NextNumber() <= Chance then table.insert(StepIds, StepInfo.Id) end
 	end
@@ -273,11 +273,8 @@ function CleaningConfig.Validate()
 		assert(ToolInfo.StrengthPerSecond > 0 and ToolInfo.RadiusScale > 0, `Invalid cleaning balance for {ToolInfo.Id}`)
 		Tools[ToolInfo.Id] = true
 	end
-	local PreviousTier = 0
 	for _, StepInfo in CleaningConfig.Steps do
 		assert(Tools[StepInfo.ToolId], `Restoration step {StepInfo.Id} has no configured tool`)
-		assert(StepInfo.MinimumRestorationTier >= PreviousTier, `Restoration tiers must not decrease at {StepInfo.Id}`)
-		PreviousTier = StepInfo.MinimumRestorationTier
 	end
 end
 

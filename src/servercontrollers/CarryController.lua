@@ -321,6 +321,15 @@ local function restoreInventory(player: Player, character: Model, exitingFixing:
 			fixing[ItemKey] = { Total = DirtCount, Remaining = DirtCount, Completed = false }
 			fixingChanged = true
 		end
+		local ItemInfo = type(itemId) == "number" and getItemInfo(itemId) or nil
+		local FixingState = fixing[ItemKey]
+		if ItemInfo and type(FixingState) == "table" and FixingState.Completed ~= true
+			and (type(FixingState.RestorationSteps) ~= "table" or #FixingState.RestorationSteps == 0)
+		then
+			-- Persist one weighted mix for legacy inventory items so they no longer use the old hard rarity thresholds.
+			FixingState.RestorationSteps = CleaningConfig.RollRestorationSteps(ItemInfo)
+			fixingChanged = true
+		end
 	end
 	if fixingChanged then dataService:set(player, "Fixing", fixing) end
 

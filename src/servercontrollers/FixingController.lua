@@ -491,6 +491,12 @@ local function StartFixing(Player, ExpectedItemKey: string?): boolean
 		GuidanceController.Show(Player, "Ready To Display")
 		return true
 	end
+	if type(State.RestorationSteps) ~= "table" or #State.RestorationSteps == 0 then
+		-- Migrate any incomplete item that reached fixing without passing through the inventory rebuild.
+		State.RestorationSteps = CleaningConfig.RollRestorationSteps(Info)
+		Fixing[ItemKey] = State
+		DataService:set(Player, "Fixing", Fixing)
+	end
 	local Steps = CleaningConfig.GetStepsForItem(Info, State)
 	if #Steps == 0 then return true end
 	local Model = Template:Clone()

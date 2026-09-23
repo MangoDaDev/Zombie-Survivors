@@ -48,12 +48,15 @@ local function GetRewardItemInfo(Player: Player, Info, Luck: number)
 	if GuaranteedReward then
 		local GuaranteedItemInfo = GuaranteedReward and GetItemInfo(GuaranteedReward.ItemId)
 		if GuaranteedItemInfo then
-			local RestorationSteps = GuaranteedReward.RestorationSteps
+			-- Ungated opening rewards stay Spray-only; later guided rewards author their required tool explicitly.
+			local RestorationSteps = GuaranteedReward.RestorationSteps or { "Spray" }
 			return GuaranteedItemInfo, if RestorationSteps then table.clone(RestorationSteps) else nil,
 				RewardKind, GuaranteedIndex
 		end
 	end
-	return CrateInfo.GetRandomItem(ItemsInfo, Info, RandomGenerator, Luck)
+	-- GetRandomItem also returns roll diagnostics; do not let those values masquerade as restoration metadata.
+	local ItemInfo = CrateInfo.GetRandomItem(ItemsInfo, Info, RandomGenerator, Luck)
+	return ItemInfo, nil, nil, nil
 end
 
 local function GetRevealDuration(Info, IsFirstRoll: boolean?): number
