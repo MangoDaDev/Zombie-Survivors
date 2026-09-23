@@ -1,6 +1,8 @@
 local Debris = game:GetService("Debris")
+local Lighting = game:GetService("Lighting")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 
@@ -23,11 +25,12 @@ local Reveals = {}
 local PredictedReveals = {}
 local HealthVisibilityIds = setmetatable({}, { __mode = "k" })
 local ScreenEffectId = 0
+local ActiveRollPresentation
 local RandomGenerator = Random.new()
 local LocalPlayer = Players.LocalPlayer
 local FirstRollPreviewItems = {}
 
-local STAR_BURST_COUNT = 12
+local STAR_BURST_COUNT = 24
 local STAR_BURST_TARGET_SIZE = 0.08
 local STAR_BURST_EDGE_MARGIN = Vector2.new(0.07, 0.09)
 -- Crate-break stars must remain subtle enough that they never obscure the revealed item.
@@ -176,36 +179,203 @@ end
 
 local function PulseModel(Model, Duration, Scale: number?)
 	local BaseScale = Scale or 1
-	local ScaleValue = Instance.new("NumberValue")
-	ScaleValue.Value = BaseScale * 0.9
-	local Connection = ScaleValue.Changed:Connect(function(Value)
-		if Model.Parent then Model:ScaleTo(Value) end
+	local BasePivot = Model:GetPivot()
+	local MotionValue = Instance.new("NumberValue")
+	local SpinDirection = if RandomGenerator:NextInteger(0, 1) == 0 then -1 else 1
+	local SpinDegrees = RandomGenerator:NextNumber(38, 62) * SpinDirection
+	MotionValue.Value = 0
+	local Connection = MotionValue.Changed:Connect(function(Value)
+		if not Model.Parent then return end
+		-- Each silhouette snaps in with a readable spin and overshooting scale instead of a flat size pulse.
+		local RotationAlpha = 1 - math.clamp(Value, 0, 1)
+		Model:ScaleTo(BaseScale * (0.72 + 0.28 * Value))
+		Model:PivotTo(
+			BasePivot
+				* CFrame.Angles(
+					math.rad(10 * RotationAlpha),
+					math.rad(SpinDegrees * RotationAlpha),
+					math.rad(-8 * SpinDirection * RotationAlpha)
+				)
+		)
 	end)
 	TweenService:Create(
-		ScaleValue,
-		TweenInfo.new(math.max(Duration * 0.8, 0.04), Enum.EasingStyle.Back, Enum.EasingDirection.Out),
-		{ Value = BaseScale * 1.08 }
+		MotionValue,
+		TweenInfo.new(math.max(Duration * 0.85, 0.05), Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+		{ Value = 1 }
 	):Play()
 	task.delay(Duration, function()
 		Connection:Disconnect()
-		ScaleValue:Destroy()
+		if Model.Parent then
+			Model:ScaleTo(BaseScale)
+			Model:PivotTo(BasePivot)
+		end
+		MotionValue:Destroy()
 	end)
 end
 
-local function PlayTick(Info, Model, Index, SwitchCount: number?)
-	local Parent = Model.PrimaryPart or Model:FindFirstChildWhichIsA("BasePart")
-	if not Parent then return end
-	local Sound = Sounds.Play(Info.RevealTickSoundName, Parent, 70)
+local function ShakeCamera(Strength: number, Duration: number)
+	task.spawn(function()
+		local StartedAt = os.clock()
+		while os.clock() - StartedAt < Duration do
+			RunService.RenderStepped:Wait()
+			local Camera = Workspace.CurrentCamera
+			if not Camera then continue end
+			local Alpha = 1 - (os.clock() - StartedAt) / Duration
+			local Offset = Vector3.new(
+				RandomGenerator:NextNumber(-1, 1),
+				RandomGenerator:NextNumber(-1, 1),
+				0
+			) * Strength * Alpha
+			local Roll = math.rad(RandomGenerator:NextNumber(-1, 1) * Strength * 9 * Alpha)
+			Camera.CFrame *= CFrame.new(Offset) * CFrame.Angles(0, 0, Roll)
+		end
+	end)
+end
+
+local function FinishRollPresentation(Reveal, Config)
+	if Reveal.TickSound and Reveal.TickSound.Parent then Reveal.TickSound:Destroy() end
+	Reveal.TickSound = nil
+	local Presentation = Reveal.RollPresentation
+	if not Presentation or Presentation.Finished then return end
+	Presentation.Finished = true
+	Reveal.RollPresentation = nil
+	if ActiveRollPresentation == Presentation then ActiveRollPresentation = nil end
+	if Presentation.FovTween then Presentation.FovTween:Cancel() end
+
+	local Camera = Presentation.Camera
+	if Camera and Camera.Parent then
+		local RevealIntensity = if Config then math.clamp(Config.Intensity, 0.8, 2.5) else 1
+		local Kick = if Config then CrateInfo.Effects.RevealFovKick * math.sqrt(RevealIntensity) else 0
+		local KickTween = TweenService:Create(
+			Camera,
+			TweenInfo.new(if Config then 0.09 else 0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+			{ FieldOfView = Presentation.BaseFieldOfView + Kick }
+		)
+		KickTween:Play()
+		KickTween.Completed:Once(function()
+			if not Camera.Parent or (ActiveRollPresentation and ActiveRollPresentation ~= Presentation) then return end
+			TweenService:Create(
+				Camera,
+				TweenInfo.new(if Config then 0.38 else 0.2, Enum.EasingStyle.Quart, Enum.EasingDirection.Out),
+				{ FieldOfView = Presentation.BaseFieldOfView }
+			):Play()
+		end)
+	end
+
+	if Presentation.ColorEffect.Parent then
+		if Config then
+			-- The rolled reward gets stronger color, but restrained brightness prevents a white screen wash.
+			Presentation.ColorEffect.TintColor = Color3.new(1, 1, 1):Lerp(Config.Color, 0.2)
+			Presentation.ColorEffect.Brightness = CrateInfo.Effects.RevealLightingBrightness
+			Presentation.ColorEffect.Contrast = 0.16
+			Presentation.ColorEffect.Saturation = 0.24
+		end
+		TweenService:Create(Presentation.ColorEffect, TweenInfo.new(0.42), {
+			Brightness = 0,
+			Contrast = 0,
+			Saturation = 0,
+			TintColor = Color3.new(1, 1, 1),
+		}):Play()
+		Debris:AddItem(Presentation.ColorEffect, 0.45)
+	end
+	if Presentation.BloomEffect.Parent then
+		if Config then Presentation.BloomEffect.Intensity = CrateInfo.Effects.RevealBloomIntensity end
+		TweenService:Create(Presentation.BloomEffect, TweenInfo.new(0.42), { Intensity = 0 }):Play()
+		Debris:AddItem(Presentation.BloomEffect, 0.45)
+	end
+	if Config then ShakeCamera(0.075 * math.sqrt(math.clamp(Config.Intensity, 0.8, 2.5)), 0.22) end
+end
+
+local function StartRollPresentation(Reveal)
+	if Reveal.Cancelled or Reveal.RevealingPlayer ~= LocalPlayer or Reveal.RollPresentation then return end
+	if ActiveRollPresentation then
+		FinishRollPresentation(ActiveRollPresentation.Reveal, nil)
+	end
+	local Camera = Workspace.CurrentCamera
+	if not Camera then return end
+
+	local ColorEffect = Instance.new("ColorCorrectionEffect")
+	ColorEffect.Name = "LocalCrateRollColor"
+	ColorEffect.Parent = Lighting
+	local BloomEffect = Instance.new("BloomEffect")
+	BloomEffect.Name = "LocalCrateRollBloom"
+	BloomEffect.Intensity = 0
+	BloomEffect.Size = 18
+	BloomEffect.Threshold = 1.25
+	BloomEffect.Parent = Lighting
+
+	local Presentation = {
+		BaseFieldOfView = Camera.FieldOfView,
+		BloomEffect = BloomEffect,
+		Camera = Camera,
+		ColorEffect = ColorEffect,
+		Finished = false,
+		Reveal = Reveal,
+	}
+	Reveal.RollPresentation = Presentation
+	ActiveRollPresentation = Presentation
+	Presentation.FovTween = TweenService:Create(
+		Camera,
+		TweenInfo.new(0.22, Enum.EasingStyle.Quart, Enum.EasingDirection.Out),
+		{ FieldOfView = Presentation.BaseFieldOfView + CrateInfo.Effects.RollFovFocus }
+	)
+	Presentation.FovTween:Play()
+	TweenService:Create(ColorEffect, TweenInfo.new(0.2), {
+		-- Breaking begins the roll with a subdued grade; the payoff is reserved for the rolled item.
+		Brightness = CrateInfo.Effects.RollLightingBrightness,
+		Contrast = 0.045,
+		Saturation = 0.08,
+	}):Play()
+	TweenService:Create(BloomEffect, TweenInfo.new(0.2), { Intensity = CrateInfo.Effects.RollBloomIntensity }):Play()
+end
+
+local function PulseRollPresentation(Reveal, Alpha: number)
+	local Presentation = Reveal.RollPresentation
+	if not Presentation or Presentation.Finished then return end
+	local Camera = Presentation.Camera
+	if Camera and Camera.Parent then
+		if Presentation.FovTween then Presentation.FovTween:Cancel() end
+		Camera.FieldOfView = Presentation.BaseFieldOfView
+			+ CrateInfo.Effects.RollFovFocus
+			+ CrateInfo.Effects.RollTickFovPulse * (0.45 + Alpha * 0.55)
+		Presentation.FovTween = TweenService:Create(
+			Camera,
+			TweenInfo.new(0.09, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+			{ FieldOfView = Presentation.BaseFieldOfView + CrateInfo.Effects.RollFovFocus }
+		)
+		Presentation.FovTween:Play()
+	end
+	if Presentation.ColorEffect.Parent then
+		Presentation.ColorEffect.Brightness = CrateInfo.Effects.RollLightingBrightness + Alpha * 0.008
+		TweenService:Create(Presentation.ColorEffect, TweenInfo.new(0.1), {
+			Brightness = CrateInfo.Effects.RollLightingBrightness,
+		}):Play()
+	end
+end
+
+local function PlayTick(Reveal, Index, SwitchCount: number?, Force: boolean?)
+	if Reveal.RevealingPlayer ~= LocalPlayer then return end
+	local Now = os.clock()
+	if not Force and Now - (Reveal.LastTickAt or 0) < CrateInfo.Audio.RevealTickInterval then return end
+	local Camera = Workspace.CurrentCamera
+	if not Camera then return end
+	-- Keep the short ItemRevealTick on the camera long enough to register, while replacing it before copies can stack.
+	if Reveal.TickSound and Reveal.TickSound.Parent then Reveal.TickSound:Destroy() end
+	Reveal.LastTickAt = Now
+	local Sound = Sounds.Play(Reveal.Info.RevealTickSoundName, Camera)
 	if Sound then
-		local Alpha = Index / (SwitchCount or Info.PreviewSwitchCount)
+		local Alpha = math.clamp(Index / (SwitchCount or Reveal.Info.PreviewSwitchCount), 0, 1)
 		Sound.PlaybackSpeed = 0.9 + Alpha * 0.45
-		Sound.Volume *= 0.65 + Alpha * 0.35
+		Sound.Volume = CrateInfo.Audio.RevealTickStartVolume
+			+ (CrateInfo.Audio.RevealTickEndVolume - CrateInfo.Audio.RevealTickStartVolume) * Alpha
+		Reveal.TickSound = Sound
 	end
 end
 
 local function CreateRevealBurst(Position, Config)
 	local BurstDuration = 0.45 + Config.RevealEffectDuration * 0.18
-	for Index = 1, Config.ParticleCount do
+	local ParticleCount = math.max(1, math.round(Config.ParticleCount * CrateInfo.Effects.RolledEffectMultiplier))
+	for Index = 1, ParticleCount do
 		local Particle = Instance.new("Part")
 		Particle.Name = "RevealParticle"
 		Particle.Anchored = true
@@ -309,11 +479,17 @@ local function PlayScreenReveal(Position, Config)
 		else Camera.ViewportSize / 2
 	local SparkleDuration = 0.35 + Config.RevealEffectDuration * 0.22
 	local ScreenIntensity = math.min(Config.Intensity ^ 1.15 * 1.2, 3.5)
-	local VignetteOpacity = math.clamp(Config.VignetteOpacity * 1.35 + 0.04, 0, 0.92)
-	local FlashStrength = math.clamp(Config.FlashStrength * 1.3 + 0.03, 0, 0.96)
+	-- Double the readable rolled-item accents while keeping the full-screen flash deliberately dim.
+	local VignetteOpacity = math.clamp(
+		(Config.VignetteOpacity * 1.35 + 0.04) * CrateInfo.Effects.RolledEffectMultiplier,
+		0,
+		0.92
+	)
+	local FlashStrength = math.clamp(Config.FlashStrength * 0.55 + 0.015, 0, 0.42)
 
 	local Vignette = Instance.new("ImageLabel")
-	Vignette.Name = "RarityVignette"
+	-- Crate SFX are mixed down locally, so this vignette must not trigger the legacy 72% music duck.
+	Vignette.Name = "RolledItemVignette"
 	Vignette.BackgroundTransparency = 1
 	Vignette.Image = Images.Vignette
 	Vignette.ImageColor3 = Config.Color
@@ -339,7 +515,8 @@ local function PlayScreenReveal(Position, Config)
 	}):Play()
 	CreateScreenStarBurst(Config)
 
-	for Index = 1, Config.SparkleCount do
+	local SparkleCount = math.max(1, math.round(Config.SparkleCount * CrateInfo.Effects.RolledEffectMultiplier))
+	for Index = 1, SparkleCount do
 		local Sparkle = Instance.new("ImageLabel")
 		Sparkle.Name = "RevealSparkle"
 		Sparkle.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -453,7 +630,10 @@ local function PlayBreakSound(GroundCFrame, Info)
 	Anchor.Parent = RevealFolder
 	local SoundName = Info.BreakSoundNames[RandomGenerator:NextInteger(1, #Info.BreakSoundNames)]
 	local Sound = Sounds.Play(SoundName, Anchor, 75)
-	if Sound then Sound.Volume *= 0.65 end
+	if Sound then
+		Sound.Volume = CrateInfo.Audio.BreakVolume
+		Sound.PlaybackSpeed *= RandomGenerator:NextNumber(0.94, 1.04)
+	end
 	Debris:AddItem(Anchor, 3)
 end
 
@@ -504,6 +684,7 @@ end
 
 local function RunReveal(Reveal)
 	task.spawn(function()
+		StartRollPresentation(Reveal)
 		local Index = 0
 		while not Reveal.Cancelled do
 			Index += 1
@@ -523,11 +704,18 @@ local function RunReveal(Reveal)
 			local DelayIndex = math.min(Index, SwitchCount)
 			local Alpha = if SwitchCount > 1 then (DelayIndex - 1) / (SwitchCount - 1) else 1
 			local Delay = StartDelay + (EndDelay - StartDelay) * Alpha * Alpha
-			if Reveal.Model then PulseModel(Reveal.Model, Delay, PreviewScale); PlayTick(Reveal.Info, Reveal.Model, DelayIndex, SwitchCount) end
+			if Reveal.Model then
+				PulseModel(Reveal.Model, Delay, PreviewScale)
+				PlayTick(Reveal, Index, SwitchCount, IsFinalPreview)
+				PulseRollPresentation(Reveal, Alpha)
+			end
 			task.wait(Delay)
 			if IsFinalPreview then break end
 		end
-		if Reveal.Cancelled or not Reveal.ActualItemInfo then return end
+		if Reveal.Cancelled or not Reveal.ActualItemInfo then
+			FinishRollPresentation(Reveal, nil)
+			return
+		end
 		local Position = if Reveal.Model then Reveal.Model:GetPivot().Position else Reveal.GroundCFrame.Position
 		local Config = RarityInfo.Get(Reveal.ActualItemInfo.Rarity)
 		if Reveal.Model then
@@ -538,10 +726,11 @@ local function RunReveal(Reveal)
 		end
 		CreateRevealBurst(Position, Config)
 		if Reveal.RevealingPlayer == LocalPlayer then
+			FinishRollPresentation(Reveal, Config)
 			PlayScreenReveal(Position, Config)
 			local Sound = Sounds.Play(Config.RevealSoundName or Reveal.Info.RevealCompleteSoundName, Workspace.CurrentCamera, 70)
 			if Sound then
-				Sound.Volume *= Config.RevealSoundVolume
+				Sound.Volume = CrateInfo.Audio.RevealCompleteVolume * Config.RevealSoundVolume
 				Sound.PlaybackSpeed *= Config.RevealSoundPitch
 			end
 		end
@@ -586,6 +775,7 @@ function CrateController.BeginPredictedReveal(PredictionId, Model, CrateId)
 		PredictedReveals[PredictionId] = nil
 		Reveal.Cancelled = true
 		if Reveal.Model then Reveal.Model:Destroy() end
+		FinishRollPresentation(Reveal, nil)
 		RestorePredictedCrate(Reveal)
 	end)
 end
@@ -596,6 +786,7 @@ function CrateController.CancelPredictedReveal(PredictionId)
 	PredictedReveals[PredictionId] = nil
 	Reveal.Cancelled = true
 	if Reveal.Model then Reveal.Model:Destroy() end
+	FinishRollPresentation(Reveal, nil)
 	RestorePredictedCrate(Reveal)
 end
 
@@ -652,6 +843,7 @@ function CrateController.RemoveReveal(_, RewardId)
 	if not Reveal then return end
 	Reveal.Cancelled = true
 	if Reveal.Model then Reveal.Model:Destroy() end
+	FinishRollPresentation(Reveal, nil)
 	Reveals[RewardId] = nil
 end
 

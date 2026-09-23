@@ -26,6 +26,7 @@
 ## Recurring Mistakes To Avoid
 
 - Do not guess Studio asset paths; inspect `ReplicatedStorage.Assets` and use exact existing names.
+- When a sound effect needs a new name, duplicate it and rename the copy; do not rename the original, because existing references may rely on its current name.
 - Use an item's `BoundingBox` frame for persistent part-relative transforms; template and runtime model pivots may differ.
 - Before using `WaitForChild` in Studio tooling or validation code, verify the instance path and always provide a timeout so a wrong path cannot stall the task indefinitely. Try to avoid the function as everything is completely loaded in the MCP. However you can use it normally in runtime scripts.
 - Do not overscope simple tasks. Choose the right scope for a task. Make sure to think about the scope and send it so that the user can see and stop if needed.

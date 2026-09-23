@@ -32,14 +32,50 @@ local DefaultRandom = Random.new()
 
 local function CreateCrate(Info)
 	for Key, Value in SharedCrateInfo do
-		if Info[Key] == nil then Info[Key] = Value end
+		if Info[Key] == nil then
+			Info[Key] = Value
+		end
 	end
 	return Info
 end
 
 local CrateInfo = {
+	Audio = {
+		DamageVolume = 0.16,
+		BreakVolume = 0.18,
+		ImpactVolume = 0.3,
+		SwingVolume = 0.25,
+		RevealTickInterval = 0.08,
+		RevealTickStartVolume = 0.3,
+		RevealTickEndVolume = 0.45,
+		RevealCompleteVolume = 0.4,
+	},
+	-- Centralize client presentation tuning so every crate tier and rolled size gets the same relative impact.
+	Effects = {
+		ReferenceSize = 5,
+		MinimumSizeScale = 0.75,
+		MaximumSizeScale = 1.8,
+		HitScalePulse = 0.16,
+		BreakScalePulse = 0.24,
+		ImpactRotationMultiplier = 2.4,
+		HitCameraShakeStrength = 0.045,
+		HitCameraShakeDuration = 0.11,
+		BreakCameraShakeStrength = 0.14,
+		BreakCameraShakeDuration = 0.24,
+		DebrisHitCount = 8,
+		DebrisBreakCount = 22,
+		DebrisTrailLifetime = 0.15,
+		RollFovFocus = -3.5,
+		RollTickFovPulse = 1.1,
+		RevealFovKick = 5,
+		RolledEffectMultiplier = 2,
+		RollLightingBrightness = 0.01,
+		RollBloomIntensity = 0.06,
+		RevealLightingBrightness = 0.035,
+		RevealBloomIntensity = 0.16,
+	},
 	-- A rarity remains possible without its restoration tools, but its weight is reduced 2.5x.
-	MissingRequiredToolRarityWeightMultiplier = 0.4,
+	MissingRequiredToolRarityWeightMultiplier = 0.6,
 	Reset = {
 		Interval = 150,
 		SpawnBatchSize = 8,
@@ -57,7 +93,7 @@ local CrateInfo = {
 	Crates = {
 		-- Keep every rarity possible, but even high-tier crates should favor drops below the rarest items.
 		-- Preserve the four-hit Common start; higher tiers gain health alongside the bat damage progression.
-		CreateCrate({
+		CreateCrate {
 			Id = "CommonCrate",
 			DisplayName = "Common",
 			TemplateName = "CommonCrate",
@@ -73,8 +109,8 @@ local CrateInfo = {
 				Mythic = 0.0045,
 				Secret = 0.0005,
 			},
-		}),
-		CreateCrate({
+		},
+		CreateCrate {
 			Id = "UncommonCrate",
 			DisplayName = "Uncommon",
 			TemplateName = "UncommonCrate",
@@ -91,8 +127,8 @@ local CrateInfo = {
 				Mythic = 0.045,
 				Secret = 0.005,
 			},
-		}),
-		CreateCrate({
+		},
+		CreateCrate {
 			Id = "RareCrate",
 			DisplayName = "Rare",
 			TemplateName = "RareCrate",
@@ -109,8 +145,8 @@ local CrateInfo = {
 				Mythic = 0.23,
 				Secret = 0.025,
 			},
-		}),
-		CreateCrate({
+		},
+		CreateCrate {
 			Id = "EpicCrate",
 			DisplayName = "Epic",
 			TemplateName = "EpicCrate",
@@ -127,8 +163,8 @@ local CrateInfo = {
 				Mythic = 1.6,
 				Secret = 0.2,
 			},
-		}),
-		CreateCrate({
+		},
+		CreateCrate {
 			Id = "LegendaryCrate",
 			DisplayName = "Legendary",
 			TemplateName = "LegendaryCrate",
@@ -146,8 +182,8 @@ local CrateInfo = {
 				Mythic = 10,
 				Secret = 1,
 			},
-		}),
-		CreateCrate({
+		},
+		CreateCrate {
 			Id = "MythicalCrate",
 			DisplayName = "Mythical",
 			TemplateName = "MythicalCrate",
@@ -167,8 +203,8 @@ local CrateInfo = {
 			PityOnly = true,
 			PityInterval = 450,
 			DisplayColor = Color3.fromRGB(255, 48, 65),
-		}),
-		CreateCrate({
+		},
+		CreateCrate {
 			Id = "SecretCrate",
 			DisplayName = "Secret",
 			TemplateName = "SecretCrate",
@@ -188,7 +224,7 @@ local CrateInfo = {
 			PityOnly = true,
 			PityInterval = 1_200,
 			DisplayColor = Color3.fromRGB(245, 245, 245),
-		}),
+		},
 	},
 }
 
@@ -199,14 +235,18 @@ end
 
 function CrateInfo.Get(CrateId: string)
 	for _, Info in CrateInfo.Crates do
-		if Info.Id == CrateId then return Info end
+		if Info.Id == CrateId then
+			return Info
+		end
 	end
 end
 
 function CrateInfo.GetRegularCrates(): { any }
 	local Results = {}
 	for _, Info in CrateInfo.Crates do
-		if Info.PityOnly ~= true then table.insert(Results, Info) end
+		if Info.PityOnly ~= true then
+			table.insert(Results, Info)
+		end
 	end
 	return Results
 end
@@ -214,7 +254,9 @@ end
 function CrateInfo.GetPityCrates(): { any }
 	local Results = {}
 	for _, Info in CrateInfo.Crates do
-		if Info.PityOnly == true then table.insert(Results, Info) end
+		if Info.PityOnly == true then
+			table.insert(Results, Info)
+		end
 	end
 	return Results
 end
@@ -270,7 +312,7 @@ function CrateInfo.GetRandomItem(
 		local ChanceWeight = Info and Info.RarityChances and Info.RarityChances[Rarity]
 		if type(ChanceWeight) == "number" and ChanceWeight > 0 then
 			local PlayerWeightMultiplier = if type(RarityWeightMultipliers) == "table"
-				and type(RarityWeightMultipliers[Rarity]) == "number"
+					and type(RarityWeightMultipliers[Rarity]) == "number"
 				then math.max(RarityWeightMultipliers[Rarity], 0)
 				else 1
 			table.insert(RarityEntries, {
@@ -281,12 +323,19 @@ function CrateInfo.GetRandomItem(
 		end
 	end
 	-- Crate size luck uses the shared weighted-table curve so rare outcomes receive the intended boost.
-	local RarityEntry = GetRandomFromWeightedTable.GetRandomFromWeightedTable(RarityEntries, "ChanceWeight", Generator, Luck)
-	if not RarityEntry then return nil end
+	local RarityEntry =
+		GetRandomFromWeightedTable.GetRandomFromWeightedTable(RarityEntries, "ChanceWeight", Generator, Luck)
+	if not RarityEntry then
+		return nil
+	end
 
 	local Candidates = {}
 	for _, ItemInfo in ItemsInfo do
-		if ItemInfo.Rarity == RarityEntry.Rarity and type(ItemInfo.ChanceWeight) == "number" and ItemInfo.ChanceWeight > 0 then
+		if
+			ItemInfo.Rarity == RarityEntry.Rarity
+			and type(ItemInfo.ChanceWeight) == "number"
+			and ItemInfo.ChanceWeight > 0
+		then
 			table.insert(Candidates, ItemInfo)
 		end
 	end
@@ -301,10 +350,14 @@ function CrateInfo.Validate()
 		assert(type(Info.Id) == "string" and not SeenIds[Info.Id], `Invalid or duplicate crate id {tostring(Info.Id)}`)
 		assert(type(Info.Health) == "number" and Info.Health > 0, `Invalid health for crate {Info.Id}`)
 		assert(Info.Health > PreviousHealth, `Crate health must increase at {Info.Id}`)
-		assert(type(Info.ScaleStandardDeviation) == "number" and Info.ScaleStandardDeviation > 0,
-			`Invalid scale distribution for {Info.Id}`)
-		assert(type(Info.ScaleLuckStrength) == "number" and Info.ScaleLuckStrength >= 0,
-			`Invalid scale luck strength for {Info.Id}`)
+		assert(
+			type(Info.ScaleStandardDeviation) == "number" and Info.ScaleStandardDeviation > 0,
+			`Invalid scale distribution for {Info.Id}`
+		)
+		assert(
+			type(Info.ScaleLuckStrength) == "number" and Info.ScaleLuckStrength >= 0,
+			`Invalid scale luck strength for {Info.Id}`
+		)
 		local Chances = CrateInfo.GetNormalizedRarityChances(Info)
 		local TotalChance = 0
 		local ExpectedStage = 0

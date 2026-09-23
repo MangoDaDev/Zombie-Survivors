@@ -61,6 +61,17 @@ local function GetCrateInfo(CrateId)
 	end
 end
 
+local function GetCrateEffectScale(Model: Model): number
+	local _, Size = Model:GetBoundingBox()
+	local AverageSize = (Size.X + Size.Y + Size.Z) / 3
+	-- Normalize debris travel and deformation to the rendered crate, including its unbounded rolled scale.
+	return math.clamp(
+		AverageSize / CrateInfo.Effects.ReferenceSize,
+		CrateInfo.Effects.MinimumSizeScale,
+		CrateInfo.Effects.MaximumSizeScale
+	)
+end
+
 local function RenderPredictedHealth(Model, State)
 	if not Model.Parent then
 		return
@@ -100,13 +111,13 @@ local function HoldPredictedHealth(Model, State)
 	CrateController.HoldCrateHealth(Model, PredictedHealth, MaximumHealth)
 end
 
-local function ReactToCrate(Model, AttackerPosition, Info)
+local function ReactToCrate(Model, AttackerPosition, Info, IsFinalHit: boolean?)
 	if not Model.Parent then
 		return
 	end
 	local State = CrateReactions[Model]
 	if not State then
-		State = { BaseCFrame = Model:GetPivot(), ReactionId = 0 }
+		State = { BaseCFrame = Model:GetPivot(), BaseScale = Model:GetScale(), ReactionId = 0 }
 		CrateReactions[Model] = State
 		Model.Destroying:Once(function()
 			CrateReactions[Model] = nil
@@ -117,18 +128,30 @@ local function ReactToCrate(Model, AttackerPosition, Info)
 	local Direction = State.BaseCFrame.Position - AttackerPosition
 	local LocalDirection =
 		State.BaseCFrame:VectorToObjectSpace(if Direction.Magnitude > 0 then Direction.Unit else Vector3.zAxis)
-	local Angle = math.rad(Info.ImpactReactionAngleDegrees)
-	local Kick = CFrame.Angles(-LocalDirection.Z * Angle, 0, LocalDirection.X * Angle)
+	local EffectScale = GetCrateEffectScale(Model)
+	local Angle = math.rad(Info.ImpactReactionAngleDegrees * CrateInfo.Effects.ImpactRotationMultiplier)
+	local YawDirection = if LocalDirection.X >= 0 then 1 else -1
+	local Kick = CFrame.Angles(
+		-LocalDirection.Z * Angle,
+		YawDirection * Angle * 0.45,
+		LocalDirection.X * Angle
+	)
+	local ScalePulse = (if IsFinalHit then CrateInfo.Effects.BreakScalePulse else CrateInfo.Effects.HitScalePulse)
+		/ math.sqrt(EffectScale)
+	local Duration = Info.ImpactReactionDuration * (if IsFinalHit then 1.65 else 1.35)
 	task.spawn(function()
-		for Index = 1, 6 do
+		for Index = 1, 9 do
 			if not Model.Parent or CrateReactions[Model] ~= State or State.ReactionId ~= ReactionId then
 				return
 			end
-			local Weight = math.sin(Index / 6 * math.pi)
+			local Weight = math.sin(Index / 9 * math.pi)
+			-- Crate impacts compress inward before recovering; never swell outward on a hit.
+			Model:ScaleTo(State.BaseScale * (1 - ScalePulse * Weight))
 			Model:PivotTo(State.BaseCFrame:Lerp(State.BaseCFrame * Kick, Weight))
-			task.wait(Info.ImpactReactionDuration / 6)
+			task.wait(Duration / 9)
 		end
 		if Model.Parent and CrateReactions[Model] == State and State.ReactionId == ReactionId then
+			Model:ScaleTo(State.BaseScale)
 			Model:PivotTo(State.BaseCFrame)
 		end
 	end)
@@ -268,15 +291,20 @@ local function ShowPredictedImpact(Model, Handle, Info, HitMultiplier)
 		local CrateInfoEntry = GetCrateInfo(RuntimeCrate and RuntimeCrate.CrateId or Model.Name)
 		local IsPredictedFinalHit = CrateInfoEntry ~= nil
 			and PredictCrateDamage(Model, Info.CrateDamage * HitMultiplier, PredictionId, CrateInfoEntry.Health)
+		local EffectScale = GetCrateEffectScale(Model)
 		local Character = LocalPlayer.Character
 		local RootPart = Character and Character:FindFirstChild "HumanoidRootPart"
 		if RootPart and RootPart:IsA "BasePart" then
-			ReactToCrate(Model, RootPart.Position, Info)
+			ReactToCrate(Model, RootPart.Position, Info, IsPredictedFinalHit)
 		end
 		local Part = Model.PrimaryPart or Model:FindFirstChildWhichIsA "BasePart"
 		if Part then
-			if CrateInfoEntry then
-				Sounds.Play(CrateInfoEntry.DamageSoundName, Part, 80)
+			if CrateInfoEntry and not IsPredictedFinalHit then
+				local DamageSound = Sounds.Play(CrateInfoEntry.DamageSoundName, Part, 80)
+				if DamageSound then
+					DamageSound.Volume = CrateInfo.Audio.DamageVolume
+					DamageSound.PlaybackSpeed *= RandomGenerator:NextNumber(0.94, 1.08)
+				end
 			end
 			local Center = Model:GetPivot().Position
 			local Direction = RootPart and RootPart.Position - Center or Vector3.yAxis
@@ -285,19 +313,27 @@ local function ShowPredictedImpact(Model, Handle, Info, HitMultiplier)
 				if Direction.Magnitude > 0.01 then Direction.Unit else Vector3.yAxis,
 				Part.Color,
 				Part.Material,
-				IsPredictedFinalHit
+				IsPredictedFinalHit,
+				EffectScale
 			)
 		end
+		local ShakeStrength = if IsPredictedFinalHit
+			then CrateInfo.Effects.BreakCameraShakeStrength
+			else CrateInfo.Effects.HitCameraShakeStrength
+		local ShakeDuration = if IsPredictedFinalHit
+			then CrateInfo.Effects.BreakCameraShakeDuration
+			else CrateInfo.Effects.HitCameraShakeDuration
+		ShakeCamera(ShakeStrength * math.sqrt(EffectScale), ShakeDuration)
 		if IsPredictedFinalHit and CrateInfoEntry then
 			-- Keep lethal-hit break presentation client-side so latency never delays the crate disappearing.
 			CrateController.BeginPredictedReveal(PredictionId, Model, CrateInfoEntry.Id)
-			ShakeCamera(0.075, 0.14)
 			local BreakSoundNames = CrateInfoEntry and CrateInfoEntry.BreakSoundNames
 			if BreakSoundNames and #BreakSoundNames > 0 then
 				local BreakSoundName = BreakSoundNames[RandomGenerator:NextInteger(1, #BreakSoundNames)]
 				local BreakSound = Sounds.Play(BreakSoundName, Handle, 75)
 				if BreakSound then
-					BreakSound.Volume *= 0.65
+					BreakSound.Volume = CrateInfo.Audio.BreakVolume
+					BreakSound.PlaybackSpeed *= RandomGenerator:NextNumber(0.94, 1.04)
 				end
 			end
 		end
@@ -313,7 +349,8 @@ local function ShowPredictedImpact(Model, Handle, Info, HitMultiplier)
 	TweenService:Create(Highlight, TweenInfo.new(0.16), { FillTransparency = 1 }):Play()
 	Debris:AddItem(Highlight, 0.18)
 	local SoundName = Info.ImpactSoundNames[RandomGenerator:NextInteger(1, #Info.ImpactSoundNames)]
-	Sounds.Play(SoundName, Handle, 70)
+	local ImpactSound = Sounds.Play(SoundName, Handle, 70)
+	if ImpactSound then ImpactSound.Volume = CrateInfo.Audio.ImpactVolume end
 	return PredictionId
 end
 
@@ -327,7 +364,12 @@ ShakeCamera = function(Strength: number, Duration: number)
 			local Offset = Vector3.new(RandomGenerator:NextNumber(-1, 1), RandomGenerator:NextNumber(-1, 1), 0)
 				* Strength
 				* Alpha
-			Camera.CFrame *= CFrame.new(Offset)
+			local Rotation = Vector3.new(
+				RandomGenerator:NextNumber(-1, 1),
+				RandomGenerator:NextNumber(-1, 1),
+				RandomGenerator:NextNumber(-0.65, 0.65)
+			) * math.rad(Strength * 11) * Alpha
+			Camera.CFrame *= CFrame.new(Offset) * CFrame.Angles(Rotation.X, Rotation.Y, Rotation.Z)
 		end
 	end)
 end
@@ -337,9 +379,10 @@ CreateCrateDebris = function(
 	Normal: Vector3,
 	Color: Color3,
 	Material: Enum.Material,
-	IsFinalHit: boolean
+	IsFinalHit: boolean,
+	EffectScale: number
 )
-	local FragmentCount = if IsFinalHit then 18 else 7
+	local FragmentCount = if IsFinalHit then CrateInfo.Effects.DebrisBreakCount else CrateInfo.Effects.DebrisHitCount
 	for _ = 1, FragmentCount do
 		if ActiveDebrisCount >= MAXIMUM_DEBRIS_COUNT then
 			break
@@ -357,9 +400,39 @@ CreateCrateDebris = function(
 		Fragment.Material = Material
 		Fragment.CustomPhysicalProperties = PhysicalProperties.new(0.7, 0.35, 0.55, 1, 1)
 		local MaximumSize = if IsFinalHit then 1.25 else 0.9
-		local SizeScale = RandomGenerator:NextNumber(MaximumSize * 0.67, MaximumSize)
+		local SizeScale = RandomGenerator:NextNumber(MaximumSize * 0.67, MaximumSize) * EffectScale
 		Fragment.Size = Vector3.new(SizeScale, SizeScale, SizeScale)
-		Fragment.CFrame = CFrame.new(Position)
+		local SpawnJitter = Vector3.new(
+			RandomGenerator:NextNumber(-0.16, 0.16),
+			RandomGenerator:NextNumber(-0.08, 0.18),
+			RandomGenerator:NextNumber(-0.16, 0.16)
+		) * EffectScale
+		Fragment.CFrame = CFrame.new(Position + SpawnJitter)
+
+		local TrailFront = Instance.new("Attachment")
+		TrailFront.Name = "TrailFront"
+		TrailFront.Position = Vector3.new(0, SizeScale * 0.32, 0)
+		TrailFront.Parent = Fragment
+		local TrailBack = Instance.new("Attachment")
+		TrailBack.Name = "TrailBack"
+		TrailBack.Position = Vector3.new(0, -SizeScale * 0.32, 0)
+		TrailBack.Parent = Fragment
+		local Trail = Instance.new("Trail")
+		Trail.Name = "FragmentTrail"
+		Trail.Attachment0 = TrailFront
+		Trail.Attachment1 = TrailBack
+		Trail.Color = ColorSequence.new(Color:Lerp(Color3.new(1, 1, 1), 0.35), Color)
+		Trail.Transparency = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 0.08),
+			NumberSequenceKeypoint.new(0.45, 0.35),
+			NumberSequenceKeypoint.new(1, 1),
+		})
+		Trail.Lifetime = CrateInfo.Effects.DebrisTrailLifetime * math.clamp(math.sqrt(EffectScale), 0.85, 1.35)
+		Trail.LightEmission = 0.45
+		Trail.FaceCamera = true
+		Trail.MinLength = 0.04
+		Trail.WidthScale = NumberSequence.new(1, 0)
+		Trail.Parent = Fragment
 		Fragment.Parent = DebrisFolder
 		ActiveDebrisCount += 1
 		Fragment.Destroying:Once(function()
@@ -372,6 +445,7 @@ CreateCrateDebris = function(
 				RandomGenerator:NextNumber(-1.15, 1.15)
 			)
 		local Speed = RandomGenerator:NextNumber(if IsFinalHit then 24 else 16, if IsFinalHit then 38 else 27)
+			* math.sqrt(EffectScale)
 		Fragment.AssemblyLinearVelocity = RandomDirection.Unit * Speed
 		Fragment.AssemblyAngularVelocity = Vector3.new(
 			RandomGenerator:NextNumber(-18, 18),
@@ -478,6 +552,7 @@ local function PlaySwingAnimation(Tool, Info, SwingCooldown, UseGripJoint, Swing
 		Trail.Enabled = true
 	end
 	local SwingSound = Sounds.Play(Info.SwingSoundName, Handle, 70)
+	if SwingSound then SwingSound.Volume = CrateInfo.Audio.SwingVolume end
 	local ForwardTween = TweenService:Create(
 		GripTarget,
 		TweenInfo.new(Info.ImpactDelay, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
