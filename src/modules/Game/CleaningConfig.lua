@@ -137,12 +137,6 @@ local CleaningConfig = {
 			CompletionSoundName = "Reward1",
 		},
 		{
-			Id = "SprayPaint", MinimumRestorationTier = 1, Type = "Paint", IconName = "Paint",
-			DisplayName = "Restoring Paint", ToolId = "SprayPaint", TargetHP = 2,
-			DirtColor = Color3.fromRGB(88, 68, 50), DirtAmountMinimum = 0.78, DirtAmountMaximum = 0.96,
-			CompletionSoundName = "Reward1",
-		},
-		{
 			Id = "Sponge",
 			MinimumRestorationTier = 2,
 			Type = "Grease",
@@ -165,10 +159,6 @@ local CleaningConfig = {
 			DisplayName = "Blowing Debris", ToolId = "Hairdryer", TargetHP = 1, CompletionSoundName = "Swoosh",
 		},
 		{
-			Id = "Polisher", MinimumRestorationTier = 5, Type = "Polish", IconName = "Polish",
-			DisplayName = "Polishing Finish", ToolId = "Polisher", TargetHP = 2, CompletionSoundName = "Reward2",
-		},
-		{
 			Id = "Hammer", MinimumRestorationTier = 6, Type = "Bent", IconName = "Bent",
 			DisplayName = "Realigning Parts", ToolId = "Hammer", TargetHP = 5,
 			BendRotationDegrees = Vector3.new(28, -18, 12), CompletionSoundName = "MetalHitSoft",
@@ -179,6 +169,17 @@ local CleaningConfig = {
 			-- Keep Magnet particles roughly 50% denser without treating every item part as magnetic.
 			TargetDensity = 2.1, MinimumTargets = 6, MaximumTargets = 36,
 			CompletionSoundName = "MagnetUnequip",
+		},
+		-- Paint and polish must remain the final two required stages, in that order.
+		{
+			Id = "SprayPaint", MinimumRestorationTier = 1, Type = "Paint", IconName = "Paint",
+			DisplayName = "Restoring Paint", ToolId = "SprayPaint", TargetHP = 2,
+			DirtColor = Color3.fromRGB(88, 68, 50), DirtAmountMinimum = 0.78, DirtAmountMaximum = 0.96,
+			CompletionSoundName = "Reward1",
+		},
+		{
+			Id = "Polisher", MinimumRestorationTier = 5, Type = "Polish", IconName = "Polish",
+			DisplayName = "Polishing Finish", ToolId = "Polisher", TargetHP = 2, CompletionSoundName = "Reward2",
 		},
 	},
 	FullCompletion = {

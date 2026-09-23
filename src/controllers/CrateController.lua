@@ -30,6 +30,9 @@ local FirstRollPreviewItems = {}
 local STAR_BURST_COUNT = 12
 local STAR_BURST_TARGET_SIZE = 0.08
 local STAR_BURST_EDGE_MARGIN = Vector2.new(0.07, 0.09)
+-- Crate-break stars must remain subtle enough that they never obscure the revealed item.
+local STAR_BURST_MIN_TRANSPARENCY = 0.7
+local STAR_BURST_MAX_TRANSPARENCY = 0.82
 
 local FirstRollPreviewRarities = {
 	Rare = true,
@@ -271,7 +274,10 @@ local function CreateScreenStarBurst(Config)
 			Star,
 			TweenInfo.new(StarTravelDuration, Enum.EasingStyle.Quart, Enum.EasingDirection.Out),
 			{
-				ImageTransparency = RandomGenerator:NextNumber(0.02, 0.12),
+				ImageTransparency = RandomGenerator:NextNumber(
+					STAR_BURST_MIN_TRANSPARENCY,
+					STAR_BURST_MAX_TRANSPARENCY
+				),
 				Position = UDim2.fromScale(Target.X, Target.Y),
 				Rotation = Star.Rotation + RandomGenerator:NextNumber(100, 220),
 				Size = UDim2.fromScale(STAR_BURST_TARGET_SIZE, STAR_BURST_TARGET_SIZE),

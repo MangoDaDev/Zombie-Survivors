@@ -68,37 +68,54 @@ function PaintRenderer.GetPaintParts(Model: Model): { BasePart }
 	return Parts
 end
 
-local function GetCounterpart(Model: Model, Template: Model, Target: BasePart): BasePart?
-	local Path = {}
-	local Current: Instance = Target
-	while Current ~= Model do
-		local Parent = Current.Parent
-		if not Parent then return nil end
-		local Ordinal = 0
-		for _, Sibling in Parent:GetChildren() do
-			if Sibling.Name == Current.Name and Sibling.ClassName == Current.ClassName then
-				Ordinal += 1
-				if Sibling == Current then break end
-			end
+local function hasMatchingHierarchy(Model: Model, Template: Model, Target: BasePart, Candidate: BasePart): boolean
+	local TargetAncestor = Target.Parent
+	local CandidateAncestor = Candidate.Parent
+	while TargetAncestor ~= Model and CandidateAncestor ~= Template do
+		if not TargetAncestor or not CandidateAncestor
+			or TargetAncestor.Name ~= CandidateAncestor.Name
+			or TargetAncestor.ClassName ~= CandidateAncestor.ClassName
+		then
+			return false
 		end
-		table.insert(Path, 1, { ClassName = Current.ClassName, Name = Current.Name, Ordinal = Ordinal })
-		Current = Parent
+		TargetAncestor = TargetAncestor.Parent
+		CandidateAncestor = CandidateAncestor.Parent
 	end
+	return TargetAncestor == Model and CandidateAncestor == Template
+end
 
-	Current = Template
-	for _, Segment in Path do
-		local Ordinal = 0
-		local Match
-		for _, Child in Current:GetChildren() do
-			if Child.Name == Segment.Name and Child.ClassName == Segment.ClassName then
-				Ordinal += 1
-				if Ordinal == Segment.Ordinal then Match = Child; break end
-			end
+local function getReferenceCFrame(Model: Model): CFrame
+	local BoundingBox = Model:FindFirstChild("BoundingBox")
+	return if BoundingBox and BoundingBox:IsA("BasePart") then BoundingBox.CFrame else Model:GetPivot()
+end
+
+local function getCounterpart(Model: Model, Template: Model, Target: BasePart): BasePart?
+	local ModelReference = getReferenceCFrame(Model)
+	local TemplateReference = getReferenceCFrame(Template)
+	local TargetRelativeCFrame = ModelReference:ToObjectSpace(Target.CFrame)
+	local BestMatch
+	local BestScore = math.huge
+	for _, Candidate in Template:GetDescendants() do
+		if not Candidate:IsA("BasePart")
+			or Candidate.Name ~= Target.Name
+			or Candidate.ClassName ~= Target.ClassName
+			or not hasMatchingHierarchy(Model, Template, Target, Candidate)
+		then
+			continue
 		end
-		if not Match then return nil end
-		Current = Match
+		local CandidateRelativeCFrame = TemplateReference:ToObjectSpace(Candidate.CFrame)
+		local RelativeDifference = TargetRelativeCFrame:ToObjectSpace(CandidateRelativeCFrame)
+		local RotationX, RotationY, RotationZ = RelativeDifference:ToOrientation()
+		local Score = RelativeDifference.Position.Magnitude
+			+ (Candidate.Size - Target.Size).Magnitude
+			+ (math.abs(RotationX) + math.abs(RotationY) + math.abs(RotationZ)) * 0.1
+		if Score < BestScore then
+			BestMatch = Candidate
+			BestScore = Score
+		end
 	end
-	return if Current:IsA("BasePart") then Current else nil
+	-- Replicated sibling order is not stable, so geometry identifies same-named parts without borrowing another part's color.
+	return BestMatch
 end
 
 function PaintRenderer.GetOriginalAppearance(Model: Model, Part: BasePart, Template: Model?)
@@ -106,7 +123,7 @@ function PaintRenderer.GetOriginalAppearance(Model: Model, Part: BasePart, Templ
 	if State then return State.OriginalAppearance end
 	local ConfiguredAppearance = ConfiguredAppearances[Part]
 	if ConfiguredAppearance then return ConfiguredAppearance end
-	local TemplatePart = Template and GetCounterpart(Model, Template, Part)
+	local TemplatePart = Template and getCounterpart(Model, Template, Part)
 	return if TemplatePart then CaptureAppearance(TemplatePart) else nil
 end
 
