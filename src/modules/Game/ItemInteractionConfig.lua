@@ -1,4 +1,6 @@
 local ItemInteractionConfig = {
+	-- Crate rewards remain claimable for 30 seconds after their reveal finishes.
+	CrateRewardDespawnDuration = 30,
 	WorldItemDespawnDuration = 60,
 	-- Keep item identity and value billboards viewable up to 250 studs away.
 	ItemBillboardMaxDistance = 250,

@@ -24,6 +24,8 @@ local UpgradeLogic = require(ReplicatedStorage.Modules.Game.UpgradeLogic)
 local LocalPlayer = Players.LocalPlayer
 local BatController = {}
 local HookedTools: { [Tool]: boolean } = {}
+local RestingToolGrips: { [Tool]: CFrame } = {}
+local RestingJointGrips = setmetatable({}, { __mode = "k" }) :: { [Instance]: CFrame }
 local ActiveSwings: { [Tool]: any } = {}
 local RemoteSwingStates: { [Player]: any } = {}
 local CratePredictions = {}
@@ -455,8 +457,18 @@ local function PlaySwingAnimation(Tool, Info, SwingCooldown, UseGripJoint, Swing
 	if UseGripJoint and not GripJoint then return false end
 	local GripTarget = GripJoint or Tool
 	local GripProperty = if GripJoint then "C1" else "Grip"
-	local OriginalGrip = GripTarget[GripProperty]
-	local SwingGrip = OriginalGrip * CFrame.Angles(
+	local RestingGrip = if GripJoint then RestingJointGrips[GripJoint] else RestingToolGrips[Tool]
+	if not RestingGrip then
+		RestingGrip = GripTarget[GripProperty]
+		if GripJoint then
+			RestingJointGrips[GripJoint] = RestingGrip
+		else
+			RestingToolGrips[Tool] = RestingGrip
+		end
+	end
+	-- Every swing starts from the authored resting grip, never a prior tween's overshoot.
+	GripTarget[GripProperty] = RestingGrip
+	local SwingGrip = RestingGrip * CFrame.Angles(
 		math.rad(Info.SwingRotationDegrees.X),
 		math.rad(Info.SwingRotationDegrees.Y),
 		math.rad(Info.SwingRotationDegrees.Z)
@@ -475,7 +487,7 @@ local function PlaySwingAnimation(Tool, Info, SwingCooldown, UseGripJoint, Swing
 		SwingState.ForwardTween = ForwardTween
 		SwingState.GripProperty = GripProperty
 		SwingState.GripTarget = GripTarget
-		SwingState.OriginalGrip = OriginalGrip
+		SwingState.RestingGrip = RestingGrip
 		SwingState.SwingSound = SwingSound
 		SwingState.Trail = Trail
 	end
@@ -489,13 +501,20 @@ local function PlaySwingAnimation(Tool, Info, SwingCooldown, UseGripJoint, Swing
 				Enum.EasingStyle.Back,
 				Enum.EasingDirection.Out
 			),
-			{ [GripProperty] = OriginalGrip }
+			{ [GripProperty] = RestingGrip }
 		)
 		if SwingState then SwingState.ReturnTween = ReturnTween end
 		ReturnTween:Play()
 	end)
 	task.delay(SwingCooldown, function()
-		if Trail and Trail.Parent and (not SwingState or not SwingState.Cancelled) then
+		if SwingState and not SwingState.Cancelled then
+			-- Snap to the invariant resting grip so tween scheduling can never leave rotation behind.
+			SwingState.Cancelled = true
+			if SwingState.ForwardTween then SwingState.ForwardTween:Cancel() end
+			if SwingState.ReturnTween then SwingState.ReturnTween:Cancel() end
+			if GripTarget.Parent then GripTarget[GripProperty] = RestingGrip end
+		end
+		if Trail and Trail.Parent then
 			Trail.Enabled = false
 		end
 	end)
@@ -508,7 +527,7 @@ local function CancelSwingState(SwingState)
 	if SwingState.ForwardTween then SwingState.ForwardTween:Cancel() end
 	if SwingState.ReturnTween then SwingState.ReturnTween:Cancel() end
 	if SwingState.GripTarget and SwingState.GripTarget.Parent then
-		SwingState.GripTarget[SwingState.GripProperty] = SwingState.OriginalGrip
+		SwingState.GripTarget[SwingState.GripProperty] = SwingState.RestingGrip
 	end
 	if SwingState.Trail and SwingState.Trail.Parent then SwingState.Trail.Enabled = false end
 	if SwingState.SwingSound and SwingState.SwingSound.Parent then SwingState.SwingSound:Stop() end
@@ -576,12 +595,26 @@ local function HookTool(Tool)
 		return
 	end
 	HookedTools[Tool] = true
+	-- The template grip is the single source of truth for idle, equip, and post-swing orientation.
+	RestingToolGrips[Tool] = Tool.Grip
 	if IsRagdolled() then Tool.Enabled = false end
 	Tool.Equipped:Connect(function()
+		CancelSwing(Tool)
+		Tool.Grip = RestingToolGrips[Tool]
 		local Handle = Tool:FindFirstChild "Handle"
 		if Handle then
+			local Trail = Handle:FindFirstChildOfClass "Trail"
+			if Trail then Trail.Enabled = false end
 			Sounds.Play(Info.EquipSoundName, Handle, 55)
 		end
+	end)
+	Tool.Unequipped:Connect(function()
+		-- Unequipping during wind-up or return must not preserve a partial swing pose.
+		CancelSwing(Tool)
+		Tool.Grip = RestingToolGrips[Tool]
+		local Handle = Tool:FindFirstChild "Handle"
+		local Trail = Handle and Handle:FindFirstChildOfClass "Trail"
+		if Trail then Trail.Enabled = false end
 	end)
 	Tool.Activated:Connect(function()
 		Swing(Tool, Info)
@@ -590,6 +623,7 @@ local function HookTool(Tool)
 		CancelSwing(Tool)
 		ActiveSwings[Tool] = nil
 		HookedTools[Tool] = nil
+		RestingToolGrips[Tool] = nil
 	end)
 end
 
@@ -697,6 +731,7 @@ function BatController.PlaySwing(_, Player, BatId, SwingCooldown)
 	if not Character then return end
 	local Finished = false
 	local Connection
+	CancelSwingState(RemoteSwingStates[Player])
 	local SwingState = { Cancelled = false }
 	RemoteSwingStates[Player] = SwingState
 	local function TryPlay()

@@ -34,7 +34,7 @@ local Spring = Vide.spring
 
 local LocalPlayer = Players.LocalPlayer
 local ONBOARDING_START_ID = "Start"
-local ONBOARDING_UPGRADE_ID = "UnlockSponge"
+local ONBOARDING_UPGRADE_ID = "UnlockSprayPaint"
 local UPGRADE_READY_REMINDER_INTERVAL = 60
 local UPGRADE_GUIDANCE_DELAY = 30
 local MOBILE_CONTROLS_ACTION = "BlockUpgradeTreeMovement"
@@ -53,7 +53,7 @@ local StateColors = {
 local TreeCanvasSize = UpgradeConfig.CameraBounds * 2 + Vector2.one * UpgradeConfig.NodeSize * 2
 
 local function IsUpgradeVisibleDuringOnboarding(TutorialStep, UpgradeId: string): boolean
-	-- Show the owned starting node for context, while Sponge remains the only visible tutorial purchase.
+	-- Show the owned starting node for context, while Paint remains the only visible tutorial purchase.
 	return TutorialStep == TutorialConfig.CompleteStep
 		or UpgradeId == ONBOARDING_START_ID
 		or UpgradeId == ONBOARDING_UPGRADE_ID
@@ -987,12 +987,12 @@ return function(IsOpen)
 			AnchorPoint = Vector2.new(0, 0.5),
 			BackgroundColor3 = UIStyle.Colors.Blue,
 			BorderSizePixel = 0,
-			Position = UDim2.fromScale(0.018, 0.52),
+			-- Keep the persistent toggle on the left-middle edge, clear of the top-right player list and mobile controls.
+			Position = UDim2.new(0, 18, 0.5, 0),
 			-- Keep the scale values and square shape; add a few pixels to each axis.
 			Size = UDim2.new(0.06, 32, 0.105, 32),
-			Visible = function()
-				return IsUpgradeButtonVisible(TutorialStep()) and not IsOpen()
-			end,
+			-- Keep this toggle available while open so every activation changes one authoritative open-state source.
+			Visible = function() return IsUpgradeButtonVisible(TutorialStep()) end,
 			ZIndex = 25,
 			Action(function(Instance)
 				OpenButtonNotification = Notification.new("AvailableUpgrades", Instance)

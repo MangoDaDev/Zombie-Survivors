@@ -9,7 +9,6 @@ local CrateRuntime = require(ReplicatedStorage.Modules.Game.CrateRuntime)
 local DataService = require(ReplicatedStorage.Packages.dataservice).client
 local GuidanceController = require(ReplicatedStorage.Controllers.GuidanceController)
 local ItemsInfo = require(ReplicatedStorage.Modules.Game.ItemsInfo)
-local FormatNumber = require(ReplicatedStorage.Modules.Math.FormatNumber)
 local Images = require(ReplicatedStorage.Modules.UI.Images)
 local MultiplyNumberSequence = require(ReplicatedStorage.Modules.Math.MultiplyNumberSequence)
 local Networker = require(ReplicatedStorage.Packages.networker)
@@ -27,6 +26,10 @@ local ScreenEffectId = 0
 local RandomGenerator = Random.new()
 local LocalPlayer = Players.LocalPlayer
 local FirstRollPreviewItems = {}
+
+local STAR_BURST_COUNT = 12
+local STAR_BURST_TARGET_SIZE = 0.08
+local STAR_BURST_EDGE_MARGIN = Vector2.new(0.07, 0.09)
 
 local FirstRollPreviewRarities = {
 	Rare = true,
@@ -50,7 +53,7 @@ local PinwheelTemplates = {
 	Secret = "Omniscient",
 }
 
-local PurchaseFeedbackMessages = {
+local ClaimFeedbackMessages = {
 	AlreadyCarrying = function()
 		return "Deliver Item First"
 	end,
@@ -60,13 +63,10 @@ local PurchaseFeedbackMessages = {
 	Fixing = function()
 		return "Finish Cleaning"
 	end,
-	NotEnoughCash = function(_, Detail)
-		return `Need {FormatNumber(math.max(0, math.ceil(Detail or 0))) or "0"} More`
-	end,
 	NotReady = function()
 		return "Item Still Opening"
 	end,
-	PurchasedByAnother = function()
+	ClaimedByAnother = function()
 		return "Item Already Taken"
 	end,
 	Success = function()
@@ -224,6 +224,73 @@ local function CreateRevealBurst(Position, Config)
 	end
 end
 
+local function CreateScreenStarBurst(Config)
+	local StarLayer = Instance.new("Frame")
+	StarLayer.Name = "RevealStarBurst"
+	StarLayer.BackgroundTransparency = 1
+	StarLayer.ClipsDescendants = true
+	StarLayer.Size = UDim2.fromScale(1, 1)
+	StarLayer.ZIndex = 3
+	StarLayer.Parent = RevealGui
+
+	local Center = Vector2.new(0.5, 0.5)
+	local TravelDuration = math.clamp(0.55 + Config.RevealEffectDuration * 0.08, 0.6, 1)
+	local HoldDuration = 0.08
+	local FadeDuration = 0.3
+
+	-- Keep the item information clear by revealing the stars as they leave the center and stop around the screen edges.
+	for Index = 1, STAR_BURST_COUNT do
+		local Angle = (Index - 1) / STAR_BURST_COUNT * math.pi * 2 + RandomGenerator:NextNumber(-0.09, 0.09)
+		local Direction = Vector2.new(math.cos(Angle), math.sin(Angle))
+		local HorizontalDistance = (0.5 - STAR_BURST_EDGE_MARGIN.X) / math.max(math.abs(Direction.X), 0.001)
+		local VerticalDistance = (0.5 - STAR_BURST_EDGE_MARGIN.Y) / math.max(math.abs(Direction.Y), 0.001)
+		local TargetDistance = math.min(HorizontalDistance, VerticalDistance) * RandomGenerator:NextNumber(0.88, 1)
+		local Target = Center + Direction * TargetDistance
+		local Start = Center + Direction * RandomGenerator:NextNumber(0.015, 0.04)
+
+		local Star = Instance.new("ImageLabel")
+		Star.Name = "RevealStar"
+		Star.AnchorPoint = Vector2.new(0.5, 0.5)
+		Star.BackgroundTransparency = 1
+		Star.Image = Images.Sparkle
+		Star.ImageColor3 = if Index % 3 == 0 then Color3.new(1, 1, 1) else Config.Color
+		Star.ImageTransparency = 1
+		Star.Position = UDim2.fromScale(Start.X, Start.Y)
+		Star.Rotation = RandomGenerator:NextNumber(-180, 180)
+		Star.Size = UDim2.fromScale(0.02, 0.02)
+		Star.ZIndex = 3
+		Star.Parent = StarLayer
+
+		local AspectRatio = Instance.new("UIAspectRatioConstraint")
+		AspectRatio.AspectRatio = 1
+		AspectRatio.AspectType = Enum.AspectType.FitWithinMaxSize
+		AspectRatio.Parent = Star
+
+		local StarTravelDuration = TravelDuration * RandomGenerator:NextNumber(0.88, 1.08)
+		TweenService:Create(
+			Star,
+			TweenInfo.new(StarTravelDuration, Enum.EasingStyle.Quart, Enum.EasingDirection.Out),
+			{
+				ImageTransparency = RandomGenerator:NextNumber(0.02, 0.12),
+				Position = UDim2.fromScale(Target.X, Target.Y),
+				Rotation = Star.Rotation + RandomGenerator:NextNumber(100, 220),
+				Size = UDim2.fromScale(STAR_BURST_TARGET_SIZE, STAR_BURST_TARGET_SIZE),
+			}
+		):Play()
+
+		task.delay(StarTravelDuration + HoldDuration, function()
+			if not Star.Parent then return end
+			TweenService:Create(
+				Star,
+				TweenInfo.new(FadeDuration, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+				{ ImageTransparency = 1 }
+			):Play()
+		end)
+	end
+
+	Debris:AddItem(StarLayer, TravelDuration + HoldDuration + FadeDuration + 0.05)
+end
+
 local function PlayScreenReveal(Position, Config)
 	ScreenEffectId += 1
 	local EffectId = ScreenEffectId
@@ -235,7 +302,9 @@ local function PlayScreenReveal(Position, Config)
 		then Vector2.new(ViewportPosition.X, ViewportPosition.Y)
 		else Camera.ViewportSize / 2
 	local SparkleDuration = 0.35 + Config.RevealEffectDuration * 0.22
-	local ScreenIntensity = Config.Intensity ^ 1.15
+	local ScreenIntensity = math.min(Config.Intensity ^ 1.15 * 1.2, 3.5)
+	local VignetteOpacity = math.clamp(Config.VignetteOpacity * 1.35 + 0.04, 0, 0.92)
+	local FlashStrength = math.clamp(Config.FlashStrength * 1.3 + 0.03, 0, 0.96)
 
 	local Vignette = Instance.new("ImageLabel")
 	Vignette.Name = "RarityVignette"
@@ -250,18 +319,19 @@ local function PlayScreenReveal(Position, Config)
 	local Flash = Instance.new("Frame")
 	Flash.Name = "RevealFlash"
 	Flash.BackgroundColor3 = Config.Color
-	Flash.BackgroundTransparency = 1 - Config.FlashStrength
+	Flash.BackgroundTransparency = 1 - FlashStrength
 	Flash.BorderSizePixel = 0
 	Flash.Size = UDim2.fromScale(1, 1)
 	Flash.ZIndex = 2
 	Flash.Parent = RevealGui
 
 	TweenService:Create(Vignette, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-		ImageTransparency = 1 - Config.VignetteOpacity,
+		ImageTransparency = 1 - VignetteOpacity,
 	}):Play()
-	TweenService:Create(Flash, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+	TweenService:Create(Flash, TweenInfo.new(0.26, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 		BackgroundTransparency = 1,
 	}):Play()
+	CreateScreenStarBurst(Config)
 
 	for Index = 1, Config.SparkleCount do
 		local Sparkle = Instance.new("ImageLabel")
@@ -405,7 +475,7 @@ local function HandOffLocalReward(Model, Reveal)
 	}
 	RestorationVisuals.Apply(Model, Reveal.ActualItemInfo, FixingState)
 	local AuthoritativeModel = Reveal.AuthoritativeModel
-	local Prompt = AuthoritativeModel and AuthoritativeModel:FindFirstChild("PurchasePrompt", true)
+	local Prompt = AuthoritativeModel and AuthoritativeModel:FindFirstChild("ClaimPrompt", true)
 	if not Prompt or not Prompt:IsA("ProximityPrompt") then
 		Debris:AddItem(Model, 3)
 		return
@@ -594,11 +664,10 @@ function CrateController.UpdateResetState(_, NextResetTime, IsResetting)
 	CrateRuntime.SetResetState(NextResetTime, IsResetting)
 end
 
-function CrateController.PurchaseFeedback(_, Status, ItemName, Detail)
-	local GetMessage = PurchaseFeedbackMessages[Status]
+function CrateController.ClaimFeedback(_, Status, ItemName)
+	local GetMessage = ClaimFeedbackMessages[Status]
 	if type(Status) ~= "string" or type(ItemName) ~= "string" or not GetMessage then return end
-	if Detail ~= nil and type(Detail) ~= "number" then return end
-	GuidanceController.ShowLocal(GetMessage(ItemName, Detail))
+	GuidanceController.ShowLocal(GetMessage(ItemName))
 end
 
 function CrateController.Init()

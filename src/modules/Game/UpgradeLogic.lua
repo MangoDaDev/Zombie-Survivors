@@ -40,15 +40,10 @@ function UpgradeLogic.NormalizeOwnership(Value): { [string]: boolean }
 	for OwnedBatId, InsertedBatId in InsertedBatPrerequisites do
 		if Ownership[OwnedBatId] == true then Ownership[InsertedBatId] = true end
 	end
-	local ToolUnlockProgression = {
-		"UnlockSponge",
-		"UnlockSoftBrush",
-		"UnlockHairdryer",
-		"UnlockSprayPaint",
-		"UnlockPolisher",
-		"UnlockHammer",
-		"UnlockMagnet",
-	}
+	local ToolUnlockProgression = {}
+	for _, Entry in UpgradeConfig.ToolProgression do
+		table.insert(ToolUnlockProgression, Entry.UpgradeId)
+	end
 	local HighestOwnedToolIndex = 0
 	for Index, UpgradeId in ToolUnlockProgression do
 		if Ownership[UpgradeId] == true then HighestOwnedToolIndex = Index end

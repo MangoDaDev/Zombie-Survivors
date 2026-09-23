@@ -87,7 +87,8 @@ local function ResolveTarget(StepId: string, TargetKind: string?): Instance?
 	elseif StepId == "OpenUpgrades" then
 		return GetGuiTarget "OpenButton"
 	elseif StepId == "BuySponge" then
-		return GetUpgradeTarget "UnlockSponge"
+		-- BuySponge is the legacy persisted step id; the guided first purchase is now Paint.
+		return GetUpgradeTarget "UnlockSprayPaint"
 	end
 end
 

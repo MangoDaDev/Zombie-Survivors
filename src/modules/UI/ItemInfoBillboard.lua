@@ -66,7 +66,7 @@ local function createStatRow(
 	return row
 end
 
-return function(itemInfo, adornee: BasePart, fixingState): BillboardGui
+return function(itemInfo, adornee: BasePart, fixingState, displayValueOverride: number?): BillboardGui
 	local ItemModel = adornee:FindFirstAncestorOfClass "Model"
 	local BillboardRoot = ItemModel or adornee
 	-- Keep every item's identity and value information in one shared BillboardGui.
@@ -125,7 +125,7 @@ return function(itemInfo, adornee: BasePart, fixingState): BillboardGui
 	local GuestPayRow = createStatRow(Images.Binoculars, itemInfo.GuestPay, UDim2.fromScale(0, 0.5), "$", 0.24, 0.14)
 	GuestPayRow.Name = "GuestPay"
 	GuestPayRow.Parent = billboard
-	local DisplayValue = if IsCleaningComplete then itemInfo.SaleValue else itemInfo.Price
+	local DisplayValue = displayValueOverride or (if IsCleaningComplete then itemInfo.SaleValue else itemInfo.Price)
 	local PriceRow = createStatRow(Images.Cash, DisplayValue, UDim2.fromScale(0, 0.73), nil, 0.18, 0.09)
 	PriceRow.Name = "Price"
 	PriceRow.Parent = billboard

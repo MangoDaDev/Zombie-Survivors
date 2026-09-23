@@ -92,7 +92,7 @@ function GuidanceController.Advance(Player: Player, ExpectedStep: string)
 	if Step then
 		DataService:set(Player, "TutorialStep", Step.Next)
 		if Step.Next == TutorialConfig.CompleteStep then
-			-- End the visible tutorial with a brief message after the Sponge purchase.
+			-- End the visible tutorial with a brief message after the Paint purchase.
 			GuidanceController.Show(Player, TutorialConfig.CompleteText)
 		end
 	end
@@ -105,7 +105,7 @@ end
 
 function GuidanceController.OpenedUpgrades(_, Player: Player)
 	GuidanceController.Advance(Player, "OpenUpgrades")
-	if UpgradeLogic.IsToolUnlocked(DataService:get(Player, "Upgrades"), "Sponge") then
+	if UpgradeLogic.IsToolUnlocked(DataService:get(Player, "Upgrades"), "SprayPaint") then
 		GuidanceController.Advance(Player, "BuySponge")
 	end
 end
@@ -141,27 +141,6 @@ function GuidanceController.GetOnboardingReward(Player: Player)
 		}, "Dust"
 	end
 	return nil
-end
-
-function GuidanceController.PrepareOnboardingReward(Player: Player, RewardKind: string?, ItemPrice: number)
-	if RewardKind ~= "Dust" then return end
-	local Progress = CopyOnboarding(DataService:get(Player, "Onboarding"))
-	if Progress.DustFundingGranted then return end
-	local Cash = DataService:get(Player, "Cash")
-	if type(Cash) == "number" and Cash < ItemPrice then DataService:set(Player, "Cash", ItemPrice) end
-	Progress.DustFundingGranted = true
-	DataService:set(Player, "Onboarding", Progress)
-end
-
-function GuidanceController.EnsureOnboardingRewardAffordable(Player: Player, RewardKind: string?, ItemPrice: number): number?
-	local Cash = DataService:get(Player, "Cash")
-	if type(Cash) ~= "number" then return nil end
-	if RewardKind == "Dust" and Cash < ItemPrice then
-		-- Preserve the promised Dust progression even if the original reward expired or cash changed.
-		Cash = ItemPrice
-		DataService:set(Player, "Cash", Cash)
-	end
-	return Cash
 end
 
 function GuidanceController.MarkOnboardingRewardReceived(Player: Player, RewardKind: string?, GuaranteedIndex: number?)
@@ -205,7 +184,7 @@ end
 
 function GuidanceController.RefreshUpgradeRequirement(Player: Player)
 	if DataService:get(Player, "TutorialStep") == "BuySponge"
-		and UpgradeLogic.IsToolUnlocked(DataService:get(Player, "Upgrades"), "Sponge")
+		and UpgradeLogic.IsToolUnlocked(DataService:get(Player, "Upgrades"), "SprayPaint")
 	then
 		GuidanceController.Advance(Player, "BuySponge")
 	end

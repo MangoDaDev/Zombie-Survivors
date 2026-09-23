@@ -10,15 +10,12 @@ local AnalyticsController = require(ServerStorage.Controllers.AnalyticsControlle
 local CarryController = require(ServerStorage.Controllers.CarryController)
 local CrateInfo = require(ReplicatedStorage.Modules.Game.CrateInfo)
 local DirtRenderer = require(ReplicatedStorage.Modules.Game.DirtRenderer)
-local EconomyConfig = require(ReplicatedStorage.Modules.Game.EconomyConfig)
-local FormatNumber = require(ReplicatedStorage.Modules.Math.FormatNumber)
 local FormatTime = require(ReplicatedStorage.Modules.Math.FormatTime)
 local ItemInfoBillboard = require(ReplicatedStorage.Modules.UI.ItemInfoBillboard)
 local ItemDespawnCountdown = require(ReplicatedStorage.Modules.UI.ItemDespawnCountdown)
 local ItemInteractionConfig = require(ReplicatedStorage.Modules.Game.ItemInteractionConfig)
 local ItemsInfo = require(ReplicatedStorage.Modules.Game.ItemsInfo)
 local GuidanceController = require(ServerStorage.Controllers.GuidanceController)
-local MuseumController = require(ServerStorage.Controllers.MuseumController)
 local Networker = require(ReplicatedStorage.Packages.networker)
 local PlayerStateController = require(ServerStorage.Controllers.PlayerStateController)
 local RestorationVisuals = require(ReplicatedStorage.Modules.Game.RestorationVisuals)
@@ -30,7 +27,6 @@ local DataService
 local Network
 local CrateFolder: Folder
 local RewardFolder: Folder
-local ResetWall: BasePart?
 local Crates = {}
 local Rewards = {}
 local ActiveOnboardingRewards: { [Player]: { [string]: boolean } } = {}
@@ -38,23 +34,12 @@ local PityLabels = {}
 local RandomGenerator = Random.new()
 local IsResetting = false
 local NextResetTime
-local PurchaseFeedbackDistancePadding = 8
+local ClaimFeedbackDistancePadding = 8
 
 local function GetItemInfo(ItemId)
 	for _, ItemInfo in ItemsInfo do
 		if ItemInfo.Id == ItemId then return ItemInfo end
 	end
-end
-
-local function IsRecoveryEligible(Player: Player, Info): boolean
-	if not Info or Info.Id ~= EconomyConfig.RecoveryCrateId then return false end
-	local Cash = DataService:get(Player, "Cash")
-	local Inventory = DataService:get(Player, "Inventory")
-	local Displays = DataService:get(Player, "Displays")
-	return type(Cash) == "number"
-		and Cash < EconomyConfig.GetMinimumItemPrice()
-		and (type(Inventory) ~= "table" or #Inventory == 0)
-		and (type(Displays) ~= "table" or next(Displays) == nil)
 end
 
 local function GetRewardItemInfo(Player: Player, Info, Luck: number)
@@ -67,9 +52,7 @@ local function GetRewardItemInfo(Player: Player, Info, Luck: number)
 				RewardKind, GuaranteedIndex
 		end
 	end
-	-- A cash-poor player with no owned items always has a modest common-crate recovery loop.
-	if IsRecoveryEligible(Player, Info) then return GetItemInfo(EconomyConfig.RecoveryItemId), true end
-	return CrateInfo.GetRandomItem(ItemsInfo, Info, RandomGenerator, Luck), false
+	return CrateInfo.GetRandomItem(ItemsInfo, Info, RandomGenerator, Luck)
 end
 
 local function GetRevealDuration(Info, IsFirstRoll: boolean?): number
@@ -175,25 +158,25 @@ local function SetModelOnGround(Model, GroundCFrame)
 	Model:PivotTo(Model:GetPivot() + Vector3.new(0, GroundCFrame.Position.Y - BottomY, 0))
 end
 
-local function SendPurchaseFeedback(Player, Status, ItemName, Detail)
-	Network:fire(Player, "PurchaseFeedback", Status, ItemName, Detail)
+local function SendClaimFeedback(Player, Status, ItemName)
+	Network:fire(Player, "ClaimFeedback", Status, ItemName)
 end
 
 local function NotifyNearbyPlayers(Reward, Status, ExcludedPlayer)
 	local ItemInfo = GetItemInfo(Reward.ItemId)
 	if not ItemInfo or not Reward.Model or not Reward.Model.Parent then return end
 	local Position = Reward.Model:GetPivot().Position
-	local MaximumDistance = Reward.Info.PurchaseDistance + PurchaseFeedbackDistancePadding
+	local MaximumDistance = Reward.Info.ClaimDistance + ClaimFeedbackDistancePadding
 	for _, Player in Players:GetPlayers() do
 		if Player == ExcludedPlayer then continue end
 		local RootPart = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
 		if RootPart and RootPart:IsA("BasePart") and (RootPart.Position - Position).Magnitude <= MaximumDistance then
-			SendPurchaseFeedback(Player, Status, ItemInfo.Name)
+			SendClaimFeedback(Player, Status, ItemInfo.Name)
 		end
 	end
 end
 
-local function RemoveReward(RewardId, Reason, PurchasingPlayer)
+local function RemoveReward(RewardId, Reason, ClaimingPlayer)
 	local Reward = Rewards[RewardId]
 	if not Reward then return end
 	if Reward.Owner and Reward.Model then
@@ -204,8 +187,8 @@ local function RemoveReward(RewardId, Reason, PurchasingPlayer)
 		OwnerRewards[RewardId] = nil
 		if not next(OwnerRewards) then ActiveOnboardingRewards[Reward.Owner] = nil end
 	end
-	if Reason == "Purchased" then
-		NotifyNearbyPlayers(Reward, "PurchasedByAnother", PurchasingPlayer)
+	if Reason == "Claimed" then
+		NotifyNearbyPlayers(Reward, "ClaimedByAnother", ClaimingPlayer)
 	elseif Reason == "Expired" then
 		NotifyNearbyPlayers(Reward, "Expired")
 	end
@@ -215,49 +198,43 @@ local function RemoveReward(RewardId, Reason, PurchasingPlayer)
 	Network:fireAll("RemoveReveal", RewardId)
 end
 
-local function PurchaseReward(RewardId, Player)
+local function ClaimReward(RewardId, Player)
 	local Reward = Rewards[RewardId]
 	if not Reward then return end
 	local ItemInfo = GetItemInfo(Reward.ItemId)
 	if not ItemInfo then return end
-	if Reward.Purchased then SendPurchaseFeedback(Player, "PurchasedByAnother", ItemInfo.Name); return end
+	if Reward.Claimed then SendClaimFeedback(Player, "ClaimedByAnother", ItemInfo.Name); return end
 	if Reward.OnboardingRewardKind and Reward.Owner ~= Player then
-		SendPurchaseFeedback(Player, "Unavailable", ItemInfo.Name)
+		SendClaimFeedback(Player, "Unavailable", ItemInfo.Name)
 		return
 	end
-	if Workspace:GetServerTimeNow() < Reward.AvailableAt then SendPurchaseFeedback(Player, "NotReady", ItemInfo.Name); return end
-	if PlayerStateController.Get(Player, "IsFixing", false) == true then SendPurchaseFeedback(Player, "Fixing", ItemInfo.Name); return end
-	if PlayerStateController.Get(Player, "IsCarryingItem", false) == true then SendPurchaseFeedback(Player, "AlreadyCarrying", ItemInfo.Name); return end
-	if not CarryController.CanCarry(Player) then SendPurchaseFeedback(Player, "Unavailable", ItemInfo.Name); return end
+	if Workspace:GetServerTimeNow() < Reward.AvailableAt then SendClaimFeedback(Player, "NotReady", ItemInfo.Name); return end
+	if PlayerStateController.Get(Player, "IsFixing", false) == true then SendClaimFeedback(Player, "Fixing", ItemInfo.Name); return end
+	if PlayerStateController.Get(Player, "IsCarryingItem", false) == true then SendClaimFeedback(Player, "AlreadyCarrying", ItemInfo.Name); return end
+	if not CarryController.CanCarry(Player) then SendClaimFeedback(Player, "Unavailable", ItemInfo.Name); return end
 	local RootPart = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
 	local OnboardingRewardKind = if Reward.Owner == Player then Reward.OnboardingRewardKind else nil
-	local Cash = GuidanceController.EnsureOnboardingRewardAffordable(Player, OnboardingRewardKind, ItemInfo.Price)
-	if not RootPart or not RootPart:IsA("BasePart") or type(Cash) ~= "number" then SendPurchaseFeedback(Player, "Unavailable", ItemInfo.Name); return end
-	if Cash < ItemInfo.Price and Reward.IsRecovery and IsRecoveryEligible(Player, Reward.Info) then
-		Cash += EconomyConfig.GetRecoveryGrant(Cash, ItemInfo.Price)
-	end
-	if Cash < ItemInfo.Price then SendPurchaseFeedback(Player, "NotEnoughCash", ItemInfo.Name, ItemInfo.Price - Cash); return end
-	if (RootPart.Position - Reward.Model:GetPivot().Position).Magnitude > Reward.Info.PurchaseDistance then return end
-	Reward.Purchased = true
+	if not RootPart or not RootPart:IsA("BasePart") then SendClaimFeedback(Player, "Unavailable", ItemInfo.Name); return end
+	if (RootPart.Position - Reward.Model:GetPivot().Position).Magnitude > Reward.Info.ClaimDistance then return end
+	-- Revealed crate items are free; claiming is guarded only by ownership/state/range checks.
+	Reward.Claimed = true
 	if not CarryController.StartCarrying(Player, Reward.ItemId, Reward.DirtCount, nil, Reward.RestorationSteps) then
-		Reward.Purchased = false
-		SendPurchaseFeedback(Player, "Unavailable", ItemInfo.Name)
+		Reward.Claimed = false
+		SendClaimFeedback(Player, "Unavailable", ItemInfo.Name)
 		return
 	end
-	DataService:set(Player, "Cash", Cash - ItemInfo.Price)
 	GuidanceController.MarkOnboardingRewardReceived(Player, OnboardingRewardKind, Reward.GuaranteedIndex)
 	AnalyticsController.TrackItemPurchased(Player, Reward.ItemId, "Crate", Reward.AnalyticsSessionId)
-	SendPurchaseFeedback(Player, "Success", ItemInfo.Name, ItemInfo.Price)
-	RemoveReward(RewardId, "Purchased", Player)
+	SendClaimFeedback(Player, "Success", ItemInfo.Name)
+	RemoveReward(RewardId, "Claimed", Player)
 end
 
 local function CreateReward(State, Player: Player, PredictionId, AnalyticsSessionId)
 	local Info = State.Info
 	local HasRolledCrate = DataService:get(Player, "HasRolledCrate") == true
 	local IsFirstRoll = not HasRolledCrate and DataService:get(Player, "GuaranteedDropCount") == 0
-	local ItemInfo, IsRecovery, RestorationSteps, OnboardingRewardKind, GuaranteedIndex = GetRewardItemInfo(Player, Info, State.Luck)
+	local ItemInfo, _, RestorationSteps, OnboardingRewardKind, GuaranteedIndex = GetRewardItemInfo(Player, Info, State.Luck)
 	if not ItemInfo then return end
-	GuidanceController.PrepareOnboardingReward(Player, OnboardingRewardKind, ItemInfo.Price)
 	local Template = ReplicatedStorage.Assets.Models.Items:FindFirstChild(ItemInfo.AssetName)
 	if not Template or not Template:IsA("Model") then return end
 	local Model = Template:Clone()
@@ -289,16 +266,17 @@ local function CreateReward(State, Player: Player, PredictionId, AnalyticsSessio
 	end
 	Model.Parent = RewardFolder
 	local Prompt = Instance.new("ProximityPrompt")
-	Prompt.Name = "PurchasePrompt"
-	Prompt.ActionText = `Buy ${FormatNumber(ItemInfo.Price) or "0"}`
+	Prompt.Name = "ClaimPrompt"
+	Prompt.ActionText = "Claim"
 	Prompt.ObjectText = "???"
 	Prompt.HoldDuration = 0
-	Prompt.MaxActivationDistance = Info.PurchaseDistance - 3
+	Prompt.MaxActivationDistance = Info.ClaimDistance - 3
 	Prompt.RequiresLineOfSight = false
 	Prompt.Enabled = false
 	Prompt.Parent = Box
 	local RewardId = HttpService:GenerateGUID(false)
 	local RevealDuration = GetRevealDuration(Info, IsFirstRoll)
+	local AvailableAt = Workspace:GetServerTimeNow() + RevealDuration + Info.RevealFadeTime
 	-- Persist this before broadcasting so only the player's first crate uses the extended rare preview roll.
 	if not HasRolledCrate then DataService:set(Player, "HasRolledCrate", true) end
 	local Reward = {
@@ -310,10 +288,9 @@ local function CreateReward(State, Player: Player, PredictionId, AnalyticsSessio
 		FixingState = FixingState,
 		Model = Model,
 		Prompt = Prompt,
-		AvailableAt = Workspace:GetServerTimeNow() + RevealDuration + Info.RevealFadeTime,
-		ExpiresAt = Workspace:GetServerTimeNow() + RevealDuration + Info.RevealFadeTime + ItemInteractionConfig.WorldItemDespawnDuration,
-		Purchased = false,
-		IsRecovery = IsRecovery,
+		AvailableAt = AvailableAt,
+		ExpiresAt = AvailableAt + ItemInteractionConfig.CrateRewardDespawnDuration,
+		Claimed = false,
 		AnalyticsSessionId = AnalyticsSessionId,
 		RestorationSteps = RestorationSteps,
 		OnboardingRewardKind = OnboardingRewardKind,
@@ -336,7 +313,7 @@ local function CreateReward(State, Player: Player, PredictionId, AnalyticsSessio
 		Reward.Interacting = true
 		Reward.InteractionStartedAt = Workspace:GetServerTimeNow()
 		Prompt.Enabled = false
-		PurchaseReward(RewardId, Player)
+		ClaimReward(RewardId, Player)
 		if Rewards[RewardId] == Reward then
 			Reward.ExpiresAt += Workspace:GetServerTimeNow() - Reward.InteractionStartedAt
 			Reward.Interacting = false
@@ -358,7 +335,8 @@ local function CreateReward(State, Player: Player, PredictionId, AnalyticsSessio
 		task.delay(Info.RevealFadeTime, function()
 			if Rewards[RewardId] ~= Reward then return end
 			Reward.RevealTransparencies = nil
-			local Billboard = ItemInfoBillboard(ItemInfo, Box, Reward.FixingState)
+			-- Show the eventual sale value, never a purchase cost, because crate rewards are claimed for free.
+			local Billboard = ItemInfoBillboard(ItemInfo, Box, Reward.FixingState, ItemInfo.SaleValue)
 			Reward.FixingState = nil
 			Reward.CountdownRow = ItemDespawnCountdown.Create(Billboard)
 			Prompt.Enabled = true
@@ -371,7 +349,7 @@ local function UpdateRewardDespawnTimers()
 	local Now = Workspace:GetServerTimeNow()
 	local ExpiredRewardIds = {}
 	for RewardId, Reward in Rewards do
-		if Reward.Purchased or Reward.Interacting or Now < Reward.AvailableAt then continue end
+		if Reward.Claimed or Reward.Interacting or Now < Reward.AvailableAt then continue end
 		local Remaining = Reward.ExpiresAt - Now
 		if Remaining <= 0 then
 			table.insert(ExpiredRewardIds, RewardId)
@@ -444,24 +422,6 @@ function CrateController.Spawn(Info, AllowDuringReset): boolean
 	return true
 end
 
-local function IsPlayerInCrateZone(Player, Zone): boolean
-	local Character = Player.Character
-	local RootPart = Character and Character:FindFirstChild("HumanoidRootPart")
-	if not RootPart or not RootPart:IsA("BasePart") then return false end
-	local LocalPosition = Zone.CFrame:PointToObjectSpace(RootPart.Position)
-	return math.abs(LocalPosition.X) <= Zone.Size.X / 2
-		and math.abs(LocalPosition.Y) <= Zone.Size.Y / 2
-		and math.abs(LocalPosition.Z) <= Zone.Size.Z / 2
-end
-
-local function SetResetWallVisible(IsVisible)
-	if not ResetWall then return end
-	ResetWall.Transparency = if IsVisible then 0 else 1
-	ResetWall.CanCollide = IsVisible
-	ResetWall.CanQuery = IsVisible
-	ResetWall.CanTouch = IsVisible
-end
-
 local function ClearCrates()
 	-- Reset only crates; spawned rewards keep their existing despawn deadlines.
 	local Models = {}
@@ -508,21 +468,10 @@ local function ResetCrates(BoundaryTime)
 	if IsResetting then return end
 	IsResetting = true
 	Network:fireAll("UpdateResetState", NextResetTime, true)
-	SetResetWallVisible(true)
-	local ResetStartedAt = os.clock()
-	local CrateZone = MapAssets:FindFirstChild("CrateZone")
-	if CrateZone and CrateZone:IsA("BasePart") then
-		-- Anyone inside the authored crate volume is returned home before reset cleanup begins.
-		for _, Player in Players:GetPlayers() do
-			if IsPlayerInCrateZone(Player, CrateZone) then MuseumController.TeleportPlayerToMuseum(Player) end
-		end
-	end
+	-- Reset in place: players and already-revealed rewards remain untouched while only crates replenish.
 	ClearCrates()
 	GuidanceController.ResetTutorialCrates()
 	SpawnAllCrates(BoundaryTime)
-	local RemainingWallTime = CrateInfo.Reset.MinimumWallVisibleTime - (os.clock() - ResetStartedAt)
-	if RemainingWallTime > 0 then task.wait(RemainingWallTime) end
-	SetResetWallVisible(false)
 	Network:fireAll("UpdateResetState", NextResetTime, false)
 	IsResetting = false
 end
@@ -598,11 +547,7 @@ local function StartResetSchedule()
 	local PreviousBoundary = math.floor(Now / Interval) * Interval
 	NextResetTime = PreviousBoundary + Interval
 	Network:fireAll("UpdateResetState", NextResetTime, false)
-	if Now - PreviousBoundary < CrateInfo.Reset.MinimumWallVisibleTime then
-		ResetCrates(PreviousBoundary)
-	else
-		SpawnAllCrates(PreviousBoundary)
-	end
+	SpawnAllCrates(PreviousBoundary)
 	while true do
 		Now = os.time()
 		while Now < NextResetTime do
@@ -643,14 +588,6 @@ function CrateController.Init()
 	RewardFolder = Instance.new("Folder")
 	RewardFolder.Name = "CrateRewards"
 	RewardFolder.Parent = Workspace
-	local WallTemplate = MapAssets:FindFirstChild(CrateInfo.Reset.WallTemplateName)
-	if WallTemplate and WallTemplate:IsA("BasePart") then
-		ResetWall = WallTemplate:Clone()
-		ResetWall.Name = "CrateResetWall"
-		ResetWall.Anchored = true
-		ResetWall.Parent = Workspace
-		SetResetWallVisible(false)
-	end
 	Network = Networker.server.new("CrateController", CrateController, {
 		CrateController.GetRuntimeState,
 	})

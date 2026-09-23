@@ -1,7 +1,7 @@
 local TutorialConfig = {
 	InitialStep = "PickUpItem",
 	CompleteStep = "Complete",
-	-- Show this final message when the Sponge purchase completes the visible tutorial.
+	-- Show this final message when the Paint purchase completes the visible tutorial.
 	CompleteText = "Have Fun!",
 	Onboarding = {
 		-- These alternatives all receive the same guaranteed grease restoration steps.
@@ -44,10 +44,11 @@ local TutorialConfig = {
 		},
 		OpenUpgrades = {
 			Text = "Open Upgrades",
+			-- Keep this legacy step id for saved-player compatibility; it now guides the first Paint purchase.
 			Next = "BuySponge",
 		},
 		BuySponge = {
-			Text = "Buy Sponge",
+			Text = "Buy Paint",
 			Next = "Complete",
 		},
 	},

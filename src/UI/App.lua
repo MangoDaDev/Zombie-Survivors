@@ -36,7 +36,7 @@ return function()
 			Confirmation.Component(),
 		},
 		UpgradeTree(isUpgradeTreeOpen),
-		-- Keep tutorial guidance above the tree so the Sponge purchase remains clear.
+		-- Keep tutorial guidance above the tree so the guided Paint purchase remains clear.
 		GuidanceHUD(),
 	}
 end

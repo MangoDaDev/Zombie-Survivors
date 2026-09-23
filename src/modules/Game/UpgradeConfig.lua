@@ -87,7 +87,7 @@ local UpgradeConfig = {
 			Icon = "Upgrade",
 			Position = Vector2.zero,
 			Prerequisites = {},
-			ConnectedUpgrades = { "Display9", "Visitors3", "SpraySpeed1", "UnlockSponge", "StoneBat", "WalkSpeed26" },
+			ConnectedUpgrades = { "Display9", "Visitors3", "SpraySpeed1", "UnlockSprayPaint", "StoneBat", "WalkSpeed26" },
 			Branch = "Core",
 			ShortValue = "START",
 			Purchasable = false,
@@ -326,7 +326,7 @@ local UpgradeConfig = {
 			-- Keep Soft Brush near $500 so it is the clear early choice.
 			Cost = 600,
 			Icon = "SoftBrush",
-			Position = GetToolPosition(2),
+			Position = GetToolPosition(3),
 			Prerequisites = { "UnlockSponge" },
 			ConnectedUpgrades = { "UnlockHairdryer", "SoftBrushSpeed1" },
 			Branch = "Restoration",
@@ -339,9 +339,9 @@ local UpgradeConfig = {
 			Description = "Unlocks directional airflow for loose debris.",
 			Cost = 4_000,
 			Icon = "Hairdryer",
-			Position = GetToolPosition(3),
+			Position = GetToolPosition(4),
 			Prerequisites = { "UnlockSoftBrush" },
-			ConnectedUpgrades = { "UnlockSprayPaint", "HairdryerSpeed1" },
+			ConnectedUpgrades = { "UnlockPolisher", "HairdryerSpeed1" },
 			Branch = "Restoration",
 			ShortValue = "AIR",
 			Effect = { Type = "ToolUnlock", ToolId = "Hairdryer" },
@@ -380,7 +380,7 @@ local UpgradeConfig = {
 			Cost = 25_000,
 			Icon = "Polisher",
 			Position = GetToolPosition(5),
-			Prerequisites = { "UnlockSprayPaint" },
+			Prerequisites = { "UnlockHairdryer" },
 			ConnectedUpgrades = { "UnlockHammer", "PolisherSpeed1" },
 			Branch = "Restoration",
 			ShortValue = "POLISH",
@@ -429,11 +429,12 @@ local UpgradeConfig = {
 			Id = "UnlockSprayPaint",
 			Name = "Unlock Spray Paint",
 			Description = "Unlocks spray paint for restoring damaged finishes.",
-			Cost = 10_000,
+			-- Paint is the first restoration-tool purchase and must remain affordable from starting cash.
+			Cost = 200,
 			Icon = "SprayPaint",
-			Position = GetToolPosition(4),
-			Prerequisites = { "UnlockHairdryer" },
-			ConnectedUpgrades = { "UnlockPolisher", "SprayPaintSpeed1" },
+			Position = GetToolPosition(1),
+			Prerequisites = { "Start" },
+			ConnectedUpgrades = { "UnlockSponge", "SprayPaintSpeed1" },
 			Branch = "Restoration",
 			ShortValue = "PAINT",
 			Effect = { Type = "ToolUnlock", ToolId = "SprayPaint" },
@@ -444,7 +445,7 @@ local UpgradeConfig = {
 			Description = "Improves spray paint restoration speed and radius.",
 			Cost = 25_000,
 			Icon = "Auto",
-			Position = GetToolSpeedPosition(GetToolPosition(4), 1),
+			Position = GetToolSpeedPosition(GetToolPosition(1), 1),
 			Prerequisites = { "UnlockSprayPaint" },
 			ConnectedUpgrades = { "SprayPaintSpeed2" },
 			Branch = "Restoration",
@@ -457,7 +458,7 @@ local UpgradeConfig = {
 			Description = "Further improves spray paint restoration speed and radius.",
 			Cost = 120_000,
 			Icon = "Auto",
-			Position = GetToolSpeedPosition(GetToolPosition(4), 2),
+			Position = GetToolSpeedPosition(GetToolPosition(1), 2),
 			Prerequisites = { "SprayPaintSpeed1" },
 			ConnectedUpgrades = { "SprayPaintSpeed3" },
 			Branch = "Restoration",
@@ -470,7 +471,7 @@ local UpgradeConfig = {
 			Description = "Maximizes spray paint restoration speed and radius.",
 			Cost = 1_200_000,
 			Icon = "Auto",
-			Position = GetToolSpeedPosition(GetToolPosition(4), 3),
+			Position = GetToolSpeedPosition(GetToolPosition(1), 3),
 			Prerequisites = { "SprayPaintSpeed2" },
 			ConnectedUpgrades = {},
 			Branch = "Restoration",
@@ -483,8 +484,8 @@ local UpgradeConfig = {
 			Description = "Unlocks the sponge for scrubbing grease.",
 			Cost = 200,
 			Icon = "Sponge",
-			Position = GetToolPosition(1),
-			Prerequisites = { "Start" },
+			Position = GetToolPosition(2),
+			Prerequisites = { "UnlockSprayPaint" },
 			ConnectedUpgrades = { "UnlockSoftBrush", "SpongeSpeed1" },
 			Branch = "Restoration",
 			ShortValue = "SPONGE",
@@ -496,7 +497,7 @@ local UpgradeConfig = {
 			Description = "Improves the sponge's cleaning speed and radius.",
 			Cost = 900,
 			Icon = "Auto",
-			Position = GetToolSpeedPosition(GetToolPosition(1), 1),
+			Position = GetToolSpeedPosition(GetToolPosition(2), 1),
 			Prerequisites = { "UnlockSponge" },
 			ConnectedUpgrades = { "SpongeSpeed2" },
 			Branch = "Restoration",
@@ -509,7 +510,7 @@ local UpgradeConfig = {
 			Description = "Further improves the sponge's cleaning speed and radius.",
 			Cost = 7_000,
 			Icon = "Auto",
-			Position = GetToolSpeedPosition(GetToolPosition(1), 2),
+			Position = GetToolSpeedPosition(GetToolPosition(2), 2),
 			Prerequisites = { "SpongeSpeed1" },
 			ConnectedUpgrades = { "SpongeSpeed3" },
 			Branch = "Restoration",
@@ -522,7 +523,7 @@ local UpgradeConfig = {
 			Description = "Maximizes the sponge's cleaning speed and radius.",
 			Cost = 70_000,
 			Icon = "Auto",
-			Position = GetToolSpeedPosition(GetToolPosition(1), 3),
+			Position = GetToolSpeedPosition(GetToolPosition(2), 3),
 			Prerequisites = { "SpongeSpeed2" },
 			ConnectedUpgrades = {},
 			Branch = "Restoration",
@@ -535,7 +536,7 @@ local UpgradeConfig = {
 			Description = "Improves the soft brush's cleaning speed and radius.",
 			Cost = 1_500,
 			Icon = "Auto",
-			Position = GetToolSpeedPosition(GetToolPosition(2), 1),
+			Position = GetToolSpeedPosition(GetToolPosition(3), 1),
 			Prerequisites = { "UnlockSoftBrush" },
 			ConnectedUpgrades = { "SoftBrushSpeed2" },
 			Branch = "Restoration",
@@ -548,7 +549,7 @@ local UpgradeConfig = {
 			Description = "Further improves the soft brush's cleaning speed and radius.",
 			Cost = 9_000,
 			Icon = "Auto",
-			Position = GetToolSpeedPosition(GetToolPosition(2), 2),
+			Position = GetToolSpeedPosition(GetToolPosition(3), 2),
 			Prerequisites = { "SoftBrushSpeed1" },
 			ConnectedUpgrades = { "SoftBrushSpeed3" },
 			Branch = "Restoration",
@@ -561,7 +562,7 @@ local UpgradeConfig = {
 			Description = "Maximizes the soft brush's cleaning speed and radius.",
 			Cost = 90_000,
 			Icon = "Auto",
-			Position = GetToolSpeedPosition(GetToolPosition(2), 3),
+			Position = GetToolSpeedPosition(GetToolPosition(3), 3),
 			Prerequisites = { "SoftBrushSpeed2" },
 			ConnectedUpgrades = {},
 			Branch = "Restoration",
@@ -574,7 +575,7 @@ local UpgradeConfig = {
 			Description = "Improves the hairdryer's cleaning speed and radius.",
 			Cost = 6_000,
 			Icon = "Auto",
-			Position = GetToolSpeedPosition(GetToolPosition(3), 1),
+			Position = GetToolSpeedPosition(GetToolPosition(4), 1),
 			Prerequisites = { "UnlockHairdryer" },
 			ConnectedUpgrades = { "HairdryerSpeed2" },
 			Branch = "Restoration",
@@ -587,7 +588,7 @@ local UpgradeConfig = {
 			Description = "Further improves the hairdryer's cleaning speed and radius.",
 			Cost = 25_000,
 			Icon = "Auto",
-			Position = GetToolSpeedPosition(GetToolPosition(3), 2),
+			Position = GetToolSpeedPosition(GetToolPosition(4), 2),
 			Prerequisites = { "HairdryerSpeed1" },
 			ConnectedUpgrades = { "HairdryerSpeed3" },
 			Branch = "Restoration",
@@ -600,7 +601,7 @@ local UpgradeConfig = {
 			Description = "Maximizes the hairdryer's cleaning speed and radius.",
 			Cost = 250_000,
 			Icon = "Auto",
-			Position = GetToolSpeedPosition(GetToolPosition(3), 3),
+			Position = GetToolSpeedPosition(GetToolPosition(4), 3),
 			Prerequisites = { "HairdryerSpeed2" },
 			ConnectedUpgrades = {},
 			Branch = "Restoration",
@@ -1026,11 +1027,12 @@ local UpgradeConfig = {
 	},
 }
 
-local ToolProgression = {
+-- This is the authoritative restoration-tool unlock order. Keep prerequisites and tree positions aligned with it.
+UpgradeConfig.ToolProgression = {
+	{ UpgradeId = "UnlockSprayPaint", ToolId = "SprayPaint", RestorationTier = 4 },
 	{ UpgradeId = "UnlockSponge", ToolId = "Sponge", RestorationTier = 2 },
 	{ UpgradeId = "UnlockSoftBrush", ToolId = "SoftBrush", RestorationTier = 2 },
 	{ UpgradeId = "UnlockHairdryer", ToolId = "Hairdryer", RestorationTier = 3 },
-	{ UpgradeId = "UnlockSprayPaint", ToolId = "SprayPaint", RestorationTier = 4 },
 	{ UpgradeId = "UnlockPolisher", ToolId = "Polisher", RestorationTier = 4 },
 	{ UpgradeId = "UnlockHammer", ToolId = "Hammer", RestorationTier = 5 },
 	{ UpgradeId = "UnlockMagnet", ToolId = "Magnet", RestorationTier = 6 },
@@ -1074,6 +1076,8 @@ local function GetEconomyStage(Upgrade): number
 		return math.clamp(Effect.Value - 7, 1, 7)
 	end
 	if Effect.Type == "ToolUnlock" then
+		-- Paint unlocks first, while its strength branch keeps its original late-game pricing stage.
+		if Effect.ToolId == "SprayPaint" then return 1 end
 		return ToolStages[Effect.ToolId] or 1
 	end
 	if Effect.Type == "ToolStrength" then
@@ -1087,7 +1091,7 @@ for _, Upgrade in UpgradeConfig.Upgrades do
 	-- Fixed prices are explicit balancing targets and must not be changed by global economy scaling.
 	if Upgrade.FixedCost ~= true then
 		local Effect = Upgrade.Effect
-		-- Later tool unlocks follow the item prices they serve; Sponge and Soft Brush retain their authored costs.
+		-- Later tool unlocks follow the item prices they serve; Paint, Sponge, and Soft Brush retain authored costs.
 		local ToolUnlockCost = if Effect and Effect.Type == "ToolUnlock"
 			then EconomyConfig.GetToolUnlockCost(Effect.ToolId, GetEconomyStage(Upgrade))
 			else nil
@@ -1105,7 +1109,7 @@ end
 
 function UpgradeConfig.GetToolUnlockCumulativeCost(ToolId: string): number?
 	local CumulativeCost = 0
-	for _, Entry in ToolProgression do
+	for _, Entry in UpgradeConfig.ToolProgression do
 		local Upgrade = UpgradeConfig.Get(Entry.UpgradeId)
 		CumulativeCost += if Upgrade then Upgrade.Cost else 0
 		if Entry.ToolId == ToolId then
@@ -1137,7 +1141,7 @@ function UpgradeConfig.Validate()
 	end
 
 	local CumulativeCost = 0
-	for _, Entry in ToolProgression do
+	for _, Entry in UpgradeConfig.ToolProgression do
 		local Upgrade = ById[Entry.UpgradeId]
 		CumulativeCost += Upgrade.Cost
 		local MinimumItemPrice = EconomyConfig.GetMinimumPriceForRestorationTier(Entry.RestorationTier)

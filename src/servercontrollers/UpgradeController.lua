@@ -12,7 +12,7 @@ local UpgradeLogic = require(ReplicatedStorage.Modules.Game.UpgradeLogic)
 local UpgradeController = {}
 local DataService
 local PurchaseLocks: { [Player]: boolean } = {}
-local ONBOARDING_UPGRADE_ID = "UnlockSponge"
+local ONBOARDING_UPGRADE_ID = "UnlockSprayPaint"
 
 local function CopyOwnership(Value)
 	return UpgradeLogic.NormalizeOwnership(Value)
@@ -33,7 +33,7 @@ function UpgradeController.Purchase(_, Player: Player, UpgradeId: string)
 	if PurchaseLocks[Player] or Player.Parent ~= Players or type(UpgradeId) ~= "string" then return false, "Invalid request" end
 	local Upgrade = UpgradeConfig.Get(UpgradeId)
 	if not Upgrade or Upgrade.Purchasable == false then return false, "That upgrade cannot be purchased" end
-	-- Sponge is the only purchasable upgrade until the visible guided tutorial is complete.
+	-- Paint is the first tool and the only purchasable upgrade until the visible guided tutorial is complete.
 	if DataService:get(Player, "TutorialStep") ~= TutorialConfig.CompleteStep and UpgradeId ~= ONBOARDING_UPGRADE_ID then
 		return false, "Finish onboarding first"
 	end
@@ -58,6 +58,7 @@ function UpgradeController.Purchase(_, Player: Player, UpgradeId: string)
 	DataService:set(Player, "Upgrades", Ownership)
 	AnalyticsController.TrackUpgradePurchased(Player, Upgrade, PreviousOwnership)
 	if UpgradeId == ONBOARDING_UPGRADE_ID then
+		-- Keep the legacy saved step id so in-progress player data remains compatible.
 		GuidanceController.Advance(Player, "BuySponge")
 	end
 	PurchaseLocks[Player] = nil

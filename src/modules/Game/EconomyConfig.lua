@@ -25,10 +25,9 @@ local EconomyConfig = {
 	-- Each crate tier multiplies Secret-vs-Common loot odds by this amount; intermediate rarities scale smoothly.
 	CrateRarityLuckPerTier = 1.1,
 	-- Later tool unlocks cost slightly less than the cheapest item in the tier that needs them.
-	-- Sponge and Soft Brush keep their authored upgrade prices.
+	-- Paint, Sponge, and Soft Brush keep their authored upgrade prices.
 	ToolUnlockPriceRatios = {
 		Hairdryer = 0.8,
-		SprayPaint = 0.75,
 		Polisher = 0.85,
 		Hammer = 0.8,
 		Magnet = 0.8,

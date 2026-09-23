@@ -22,7 +22,7 @@ local SharedCrateInfo = {
 	FirstRollPreviewEndDelay = 0.13,
 	FirstRollPreviewScale = 1.5,
 	RevealFadeTime = 0.11,
-	PurchaseDistance = 13,
+	ClaimDistance = 13,
 	RevealTickSoundName = "ItemRevealTick",
 	RevealCompleteSoundName = "ItemRevealComplete",
 }
@@ -40,17 +40,15 @@ end
 local CrateInfo = {
 	Reset = {
 		Interval = 150,
-		MinimumWallVisibleTime = 5,
 		SpawnBatchSize = 8,
 		SpawnInterval = 0.02,
-		WallTemplateName = "ResetWall",
 	},
 	PityDisplay = {
 		PartName = "PityDisplay",
 		PixelsPerStud = 16,
 	},
 	NewPlayerDropSequence = {
-		-- Keep the two opening rewards affordable and distinct while varying the item players uncover.
+		-- Keep the two opening rewards distinct while varying the item players uncover.
 		{ ItemIds = { 1, 16, 24, 80 } },
 		{ ItemIds = { 14, 47, 64, 94 } },
 	},
