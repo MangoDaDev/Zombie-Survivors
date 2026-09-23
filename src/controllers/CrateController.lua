@@ -25,14 +25,17 @@ local RevealGui: ScreenGui
 local Reveals = {}
 local PredictedReveals = {}
 local HealthVisibilityIds = setmetatable({}, { __mode = "k" })
-local ResetCountdownRows = setmetatable({}, { __mode = "k" })
-local PendingResetCountdownConnections = setmetatable({}, { __mode = "k" })
+-- Keep strong ownership until explicit cleanup; a weak Instance key can disappear while its BillboardGui remains parented.
+local ResetCountdownRows = {}
+local PendingResetCountdownConnections = {}
 local ScreenEffectId = 0
 local ActiveRollPresentation
 local RollFieldOfViewBase: number?
 local RollFieldOfViewCamera: Camera?
 local RollFieldOfViewTween: Tween?
 local RollFieldOfViewSessionId = 0
+local ResetCountdownConnection: RBXScriptConnection?
+local ResetCountdownElapsed = 0
 local RandomGenerator = Random.new()
 local LocalPlayer = Players.LocalPlayer
 local FirstRollPreviewItems = {}
@@ -122,11 +125,31 @@ local function ClearPendingResetCountdown(Model)
 end
 
 local function CreateResetCountdown(Model): boolean
-	if ResetCountdownRows[Model] then return true end
 	local PrimaryPart = Model.PrimaryPart
 	if not Model.Parent or not PrimaryPart or not PrimaryPart.Parent then return false end
 
-	local Billboard = Instance.new("BillboardGui")
+	local Billboard
+	for _, Child in PrimaryPart:GetChildren() do
+		if Child:IsA("BillboardGui") and Child.Name == "CrateResetTimer" then
+			if Billboard then
+				Child:Destroy()
+			else
+				Billboard = Child
+			end
+		end
+	end
+
+	if Billboard then
+		local ExistingRow = Billboard:FindFirstChild("DespawnTimer")
+		if ExistingRow and ExistingRow:IsA("Frame") then
+			ExistingRow.Size = UDim2.fromScale(1, 1)
+			ResetCountdownRows[Model] = ExistingRow
+			return true
+		end
+		Billboard:Destroy()
+	end
+
+	Billboard = Instance.new("BillboardGui")
 	Billboard.Name = "CrateResetTimer"
 	Billboard.Adornee = PrimaryPart
 	Billboard.AlwaysOnTop = false
@@ -143,7 +166,11 @@ local function CreateResetCountdown(Model): boolean
 end
 
 local function TrackResetCountdown(Model)
-	if CreateResetCountdown(Model) or PendingResetCountdownConnections[Model] then return end
+	if CreateResetCountdown(Model) then
+		ClearPendingResetCountdown(Model)
+		return
+	end
+	if PendingResetCountdownConnections[Model] then return end
 
 	local Connections = {}
 	PendingResetCountdownConnections[Model] = Connections
@@ -159,6 +186,31 @@ local function TrackResetCountdown(Model)
 	TryCreate()
 end
 
+local function GetResetCountdownVisibilityDuration(Model): number
+	local State = CrateRuntime.Get(Model)
+	local Tier = 1
+	if State then
+		for Index, Info in CrateInfo.Crates do
+			if Info.Id == State.CrateId then
+				Tier = Index
+				break
+			end
+		end
+	end
+
+	local MaximumTier = math.max(#CrateInfo.Crates, 1)
+	local RarityAlpha = if MaximumTier > 1 then (Tier - 1) / (MaximumTier - 1) else 0
+	local VisibilityDuration = CrateInfo.Reset.TimerMinimumVisibilityDuration
+		+ (CrateInfo.Reset.TimerMaximumVisibilityDuration - CrateInfo.Reset.TimerMinimumVisibilityDuration)
+			* RarityAlpha
+	if State and type(State.Health) == "number" and type(State.MaximumHealth) == "number"
+		and State.Health < State.MaximumHealth
+	then
+		VisibilityDuration += CrateInfo.Reset.TimerDamagedVisibilityBonus
+	end
+	return VisibilityDuration
+end
+
 local function UpdateResetCountdowns()
 	local NextResetTime, IsResetting = CrateRuntime.GetResetState()
 	local Remaining = if type(NextResetTime) == "number" and not IsResetting
@@ -169,7 +221,9 @@ local function UpdateResetCountdowns()
 		if not Model.Parent or not Row.Parent then
 			ResetCountdownRows[Model] = nil
 		else
-			ItemDespawnCountdown.Update(Row, Remaining)
+			-- Full-health Common crates appear for the final 10 seconds; rarity scales that window to 20, and damage adds 10.
+			local VisibilityDuration = GetResetCountdownVisibilityDuration(Model)
+			ItemDespawnCountdown.Update(Row, if Remaining <= VisibilityDuration then Remaining else 0)
 		end
 	end
 end
@@ -1023,6 +1077,15 @@ function CrateController.Init()
 	RevealGui.IgnoreGuiInset = true
 	RevealGui.ResetOnSpawn = false
 	RevealGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+	if ResetCountdownConnection then ResetCountdownConnection:Disconnect() end
+	ResetCountdownElapsed = 0
+	-- Start before the runtime snapshot fetch so a delayed request cannot leave a reset label frozen at its first value.
+	ResetCountdownConnection = RunService.Heartbeat:Connect(function(DeltaTime)
+		ResetCountdownElapsed += DeltaTime
+		if ResetCountdownElapsed < CrateInfo.Reset.TimerUpdateInterval then return end
+		ResetCountdownElapsed %= CrateInfo.Reset.TimerUpdateInterval
+		UpdateResetCountdowns()
+	end)
 	local CrateNetwork = Networker.client.new("CrateController", CrateController)
 	local Snapshot = CrateNetwork:fetch("GetRuntimeState")
 
@@ -1033,13 +1096,6 @@ function CrateController.Init()
 			CrateController.UpdateCrateHealth(nil, State.Model, State.CrateId, State.Health, State.MaximumHealth)
 		end
 	end
-
-	task.spawn(function()
-		while RevealFolder.Parent do
-			UpdateResetCountdowns()
-			task.wait(CrateInfo.Reset.TimerUpdateInterval)
-		end
-	end)
 end
 
 return CrateController

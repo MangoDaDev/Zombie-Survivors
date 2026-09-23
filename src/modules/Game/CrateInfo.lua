@@ -109,6 +109,9 @@ local CrateInfo = {
 		-- Keep each crate's local reset countdown readable nearby without showing a field of timers across the map.
 		TimerMaxDistance = 50,
 		TimerUpdateInterval = 0.1,
+		TimerMinimumVisibilityDuration = 10,
+		TimerMaximumVisibilityDuration = 20,
+		TimerDamagedVisibilityBonus = 10,
 	},
 	PityDisplay = {
 		PartName = "PityDisplay",

@@ -861,5 +861,7 @@ When adding a new UI element, first determine which existing STUD Element it sho
 
 Do not create a completely different visual style for individual screens.
 
+Do not use weak-key tables as the sole ownership registry for live Instance-backed UI. Keep explicit ownership, clean it up when the Instance is removed, and deduplicate against the actual hierarchy before creating another UI instance.
+
 The final result should make every UI feel like it belongs to the same **STUD design system**, while still allowing different UI types to have layouts appropriate to their purpose.
 
