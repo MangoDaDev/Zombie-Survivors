@@ -1,3 +1,7 @@
+local UpgradeConfig = require(script.Parent.UpgradeConfig)
+
+local DefaultRandom = Random.new()
+
 local CleaningConfig = {
 	AutoCompletionThreshold = 0.85,
 	BrushRadiusScale = 0.075,
@@ -64,6 +68,10 @@ local CleaningConfig = {
 	StepHintOutlineTransparency = 0.08,
 	StepTransitionDelay = 0.3,
 	FullCompletionDelay = 1.2,
+	-- New item copies favor restoration tools that are affordable earlier, without hard-locking damage types to that order.
+	RestorationStepMinimumChance = 0.08,
+	RestorationStepMaximumChance = 0.92,
+	RestorationStepCostCurveExponent = 0.75,
 	DirtDamageSoundName = "Hooked",
 	Tools = {
 		{
@@ -188,6 +196,32 @@ function CleaningConfig.GetStep(StepId: string)
 	for _, StepInfo in CleaningConfig.Steps do
 		if StepInfo.Id == StepId then return StepInfo end
 	end
+end
+
+function CleaningConfig.RollRestorationSteps(ItemInfo, RandomGenerator: Random?): { string }
+	local Generator = RandomGenerator or DefaultRandom
+	local ItemPrice = if type(ItemInfo) == "table" and type(ItemInfo.Price) == "number"
+		then math.max(ItemInfo.Price, 1)
+		else 1
+	local StepIds = {}
+
+	for _, StepInfo in CleaningConfig.Steps do
+		if StepInfo.ToolId == "Spray" then
+			table.insert(StepIds, StepInfo.Id)
+			continue
+		end
+
+		local UnlockCost = UpgradeConfig.GetToolUnlockCumulativeCost(StepInfo.ToolId)
+		if type(UnlockCost) ~= "number" then continue end
+		local ItemFactor = ItemPrice ^ CleaningConfig.RestorationStepCostCurveExponent
+		local CostFactor = math.max(UnlockCost, 1) ^ CleaningConfig.RestorationStepCostCurveExponent
+		local Affordability = ItemFactor / (ItemFactor + CostFactor)
+		local Chance = CleaningConfig.RestorationStepMinimumChance
+			+ (CleaningConfig.RestorationStepMaximumChance - CleaningConfig.RestorationStepMinimumChance) * Affordability
+		if Generator:NextNumber() <= Chance then table.insert(StepIds, StepInfo.Id) end
+	end
+
+	return StepIds
 end
 
 function CleaningConfig.GetStepsForItem(ItemInfo, FixingState): { any }

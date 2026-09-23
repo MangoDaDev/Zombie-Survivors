@@ -18,10 +18,10 @@ local EconomyConfig = {
 	UpgradeLateGameCurveMultiplier = 1.356,
 	-- Smoothly adjusts rarity weights after Rare without disturbing early-game drops.
 	-- EndMultiplier is reached at Secret; Exponent controls how late the curve accelerates.
-	LateGameRarityCurveStartStage = 3,
+	LateGameRarityCurveStartStage = 1,
 	LateGameRarityCurveEndStage = 7,
-	LateGameRarityCurveEndMultiplier = 0.9,
-	LateGameRarityCurveExponent = 2,
+	LateGameRarityCurveEndMultiplier = 0.7,
+	LateGameRarityCurveExponent = 1.2,
 	-- Each crate tier multiplies Secret-vs-Common loot odds by this amount; intermediate rarities scale smoothly.
 	CrateRarityLuckPerTier = 1.1,
 	-- Later tool unlocks cost slightly less than the cheapest item in their configured progression tier.

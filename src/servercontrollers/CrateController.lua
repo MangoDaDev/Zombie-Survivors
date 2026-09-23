@@ -8,6 +8,7 @@ local Workspace = game:GetService("Workspace")
 
 local AnalyticsController = require(ServerStorage.Controllers.AnalyticsController)
 local CarryController = require(ServerStorage.Controllers.CarryController)
+local CleaningConfig = require(ReplicatedStorage.Modules.Game.CleaningConfig)
 local CrateInfo = require(ReplicatedStorage.Modules.Game.CrateInfo)
 local DirtRenderer = require(ReplicatedStorage.Modules.Game.DirtRenderer)
 local FormatTime = require(ReplicatedStorage.Modules.Math.FormatTime)
@@ -236,6 +237,8 @@ local function CreateReward(State, Player: Player, PredictionId, AnalyticsSessio
 	local IsFirstRoll = not HasRolledCrate and DataService:get(Player, "GuaranteedDropCount") == 0
 	local ItemInfo, RestorationSteps, OnboardingRewardKind, GuaranteedIndex = GetRewardItemInfo(Player, Info, State.Luck)
 	if not ItemInfo then return end
+	-- Roll once per reward so cheaper restoration tools are more common while each physical copy keeps its own mix.
+	if not RestorationSteps then RestorationSteps = CleaningConfig.RollRestorationSteps(ItemInfo, RandomGenerator) end
 	local Template = ReplicatedStorage.Assets.Models.Items:FindFirstChild(ItemInfo.AssetName)
 	if not Template or not Template:IsA("Model") then return end
 	local Model = Template:Clone()

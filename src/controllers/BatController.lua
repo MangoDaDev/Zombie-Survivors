@@ -596,11 +596,12 @@ local function HookTool(Tool)
 	end
 	HookedTools[Tool] = true
 	-- The template grip is the single source of truth for idle, equip, and post-swing orientation.
-	RestingToolGrips[Tool] = Tool.Grip
+	local RestingGrip = Tool.Grip
+	RestingToolGrips[Tool] = RestingGrip
 	if IsRagdolled() then Tool.Enabled = false end
 	Tool.Equipped:Connect(function()
 		CancelSwing(Tool)
-		Tool.Grip = RestingToolGrips[Tool]
+		Tool.Grip = RestingGrip
 		local Handle = Tool:FindFirstChild "Handle"
 		if Handle then
 			local Trail = Handle:FindFirstChildOfClass "Trail"
@@ -609,9 +610,9 @@ local function HookTool(Tool)
 		end
 	end)
 	Tool.Unequipped:Connect(function()
-		-- Unequipping during wind-up or return must not preserve a partial swing pose.
+		-- Keep the closure grip available if Unequipped fires after Destroying clears the shared cache.
 		CancelSwing(Tool)
-		Tool.Grip = RestingToolGrips[Tool]
+		Tool.Grip = RestingGrip
 		local Handle = Tool:FindFirstChild "Handle"
 		local Trail = Handle and Handle:FindFirstChildOfClass "Trail"
 		if Trail then Trail.Enabled = false end

@@ -528,6 +528,8 @@ function CarryController.StartCarrying(
 		end
 		if #ResolvedRestorationSteps == 0 then ResolvedRestorationSteps = nil end
 	end
+	-- Conveyor and legacy items without an authored mix receive the same price-weighted restoration selection.
+	if not ResolvedRestorationSteps then ResolvedRestorationSteps = CleaningConfig.RollRestorationSteps(ItemInfo) end
 	local ResolvedOwnershipId = if Ownership and type(Ownership.OwnershipId) == "string" and Ownership.OwnershipId ~= ""
 		then Ownership.OwnershipId
 		else HttpService:GenerateGUID(false)
