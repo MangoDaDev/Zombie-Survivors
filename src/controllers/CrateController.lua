@@ -10,6 +10,7 @@ local CrateInfo = require(ReplicatedStorage.Modules.Game.CrateInfo)
 local CrateRuntime = require(ReplicatedStorage.Modules.Game.CrateRuntime)
 local DataService = require(ReplicatedStorage.Packages.dataservice).client
 local GuidanceController = require(ReplicatedStorage.Controllers.GuidanceController)
+local ItemDespawnCountdown = require(ReplicatedStorage.Modules.UI.ItemDespawnCountdown)
 local ItemsInfo = require(ReplicatedStorage.Modules.Game.ItemsInfo)
 local Images = require(ReplicatedStorage.Modules.UI.Images)
 local MultiplyNumberSequence = require(ReplicatedStorage.Modules.Math.MultiplyNumberSequence)
@@ -24,6 +25,8 @@ local RevealGui: ScreenGui
 local Reveals = {}
 local PredictedReveals = {}
 local HealthVisibilityIds = setmetatable({}, { __mode = "k" })
+local ResetCountdownRows = setmetatable({}, { __mode = "k" })
+local PendingResetCountdownConnections = setmetatable({}, { __mode = "k" })
 local ScreenEffectId = 0
 local ActiveRollPresentation
 local RollFieldOfViewBase: number?
@@ -37,6 +40,8 @@ local FirstRollPreviewItems = {}
 local STAR_BURST_COUNT = 24
 local STAR_BURST_TARGET_SIZE = 0.08
 local STAR_BURST_EDGE_MARGIN = Vector2.new(0.07, 0.09)
+local RESET_TIMER_BILLBOARD_SIZE = UDim2.fromScale(5, 1)
+local RESET_TIMER_HEIGHT_OFFSET = 2
 -- Crate-break stars must remain subtle enough that they never obscure the revealed item.
 local STAR_BURST_MIN_TRANSPARENCY = 0.7
 local STAR_BURST_MAX_TRANSPARENCY = 0.82
@@ -106,6 +111,66 @@ local function GetHealthInterface(Model)
 		return Group, Fill, HealthLabel
 	end
 	return nil, nil, nil
+end
+
+local function ClearPendingResetCountdown(Model)
+	local Connections = PendingResetCountdownConnections[Model]
+	if not Connections then return end
+	PendingResetCountdownConnections[Model] = nil
+	for _, Connection in Connections do Connection:Disconnect() end
+end
+
+local function CreateResetCountdown(Model): boolean
+	if ResetCountdownRows[Model] then return true end
+	local PrimaryPart = Model.PrimaryPart
+	if not Model.Parent or not PrimaryPart or not PrimaryPart.Parent then return false end
+
+	local Billboard = Instance.new("BillboardGui")
+	Billboard.Name = "CrateResetTimer"
+	Billboard.Adornee = PrimaryPart
+	Billboard.AlwaysOnTop = false
+	-- Crate reset timers must stay local and distance-culled so the shared reset deadline does not clutter the map.
+	Billboard.MaxDistance = CrateInfo.Reset.TimerMaxDistance
+	Billboard.Size = RESET_TIMER_BILLBOARD_SIZE
+	Billboard.StudsOffsetWorldSpace = Vector3.new(0, Model:GetExtentsSize().Y / 2 + RESET_TIMER_HEIGHT_OFFSET, 0)
+	Billboard.Parent = PrimaryPart
+
+	local Row = ItemDespawnCountdown.Create(Billboard)
+	Row.Size = UDim2.fromScale(1, 1)
+	ResetCountdownRows[Model] = Row
+	return true
+end
+
+local function TrackResetCountdown(Model)
+	if CreateResetCountdown(Model) or PendingResetCountdownConnections[Model] then return end
+
+	local Connections = {}
+	PendingResetCountdownConnections[Model] = Connections
+	local function TryCreate()
+		if CreateResetCountdown(Model) then ClearPendingResetCountdown(Model) end
+	end
+	-- A replicated Model can arrive before its PrimaryPart descendant, so listen instead of assuming an atomic hierarchy.
+	table.insert(Connections, Model:GetPropertyChangedSignal("PrimaryPart"):Connect(TryCreate))
+	table.insert(Connections, Model.DescendantAdded:Connect(TryCreate))
+	table.insert(Connections, Model.AncestryChanged:Connect(function(_, Parent)
+		if not Parent then ClearPendingResetCountdown(Model) end
+	end))
+	TryCreate()
+end
+
+local function UpdateResetCountdowns()
+	local NextResetTime, IsResetting = CrateRuntime.GetResetState()
+	local Remaining = if type(NextResetTime) == "number" and not IsResetting
+		then NextResetTime - Workspace:GetServerTimeNow()
+		else 0
+
+	for Model, Row in ResetCountdownRows do
+		if not Model.Parent or not Row.Parent then
+			ResetCountdownRows[Model] = nil
+		else
+			ItemDespawnCountdown.Update(Row, Remaining)
+		end
+	end
 end
 
 function CrateController.RenderCrateHealth(Model, Health, MaximumHealth, CrateId)
@@ -931,12 +996,14 @@ function CrateController.UpdateCrateHealth(_, Model, CrateId, Health, MaximumHea
 	-- Render authoritative health locally before prediction reconciliation so delayed server updates cannot rewind the bar.
 	CrateController.RenderCrateHealth(Model, Health, MaximumHealth, CrateId)
 	CrateRuntime.Set(Model, CrateId, Health, MaximumHealth)
+	TrackResetCountdown(Model)
 end
 
 function CrateController.UpdateResetState(_, NextResetTime, IsResetting)
 	if NextResetTime ~= nil and type(NextResetTime) ~= "number" then return end
 
 	CrateRuntime.SetResetState(NextResetTime, IsResetting)
+	UpdateResetCountdowns()
 end
 
 function CrateController.ClaimFeedback(_, Status, ItemName)
@@ -965,6 +1032,13 @@ function CrateController.Init()
 			CrateController.UpdateCrateHealth(nil, State.Model, State.CrateId, State.Health, State.MaximumHealth)
 		end
 	end
+
+	task.spawn(function()
+		while RevealFolder.Parent do
+			UpdateResetCountdowns()
+			task.wait(CrateInfo.Reset.TimerUpdateInterval)
+		end
+	end)
 end
 
 return CrateController

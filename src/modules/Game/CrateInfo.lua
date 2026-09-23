@@ -106,6 +106,9 @@ local CrateInfo = {
 		Interval = 150,
 		SpawnBatchSize = 8,
 		SpawnInterval = 0.02,
+		-- Keep each crate's local reset countdown readable nearby without showing a field of timers across the map.
+		TimerMaxDistance = 50,
+		TimerUpdateInterval = 0.1,
 	},
 	PityDisplay = {
 		PartName = "PityDisplay",
