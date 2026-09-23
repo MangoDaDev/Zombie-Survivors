@@ -503,7 +503,14 @@ function CarryController.EquipCleaningTool(Player: Player, ToolId: string)
 	end
 end
 
-function CarryController.StartCarrying(player: Player, itemId: number, DirtCount: number?, Ownership: OwnershipState?, RestorationSteps): boolean
+function CarryController.StartCarrying(
+	player: Player,
+	itemId: number,
+	DirtCount: number?,
+	Ownership: OwnershipState?,
+	RestorationSteps,
+	playPickupSound: boolean?
+): boolean
 	local ItemInfo = getItemInfo(itemId)
 	if not CarryController.CanCarry(player) or not ItemInfo then
 		return false
@@ -569,7 +576,7 @@ function CarryController.StartCarrying(player: Player, itemId: number, DirtCount
 	PlayerStateController.Set(player, "IsCarryingItem", true)
 	ApplyCarryMovement(player)
 	GuidanceController.Advance(player, "PickUpItem")
-	PlaySound(player, "Buy")
+	if playPickupSound ~= false then PlaySound(player, "Buy") end
 	return true
 end
 

@@ -323,7 +323,6 @@ local UpgradeConfig = {
 			Id = "UnlockSoftBrush",
 			Name = "Unlock Soft Brush",
 			Description = "Unlocks gentle brushing for light surface dust.",
-			-- Keep Soft Brush near $500 so it is the clear early choice.
 			Cost = 600,
 			Icon = "SoftBrush",
 			Position = GetToolPosition(3),
@@ -482,7 +481,7 @@ local UpgradeConfig = {
 			Id = "UnlockSponge",
 			Name = "Unlock Sponge",
 			Description = "Unlocks the sponge for scrubbing grease.",
-			Cost = 200,
+			Cost = 600,
 			Icon = "Sponge",
 			Position = GetToolPosition(2),
 			Prerequisites = { "UnlockSprayPaint" },
@@ -1031,11 +1030,11 @@ local UpgradeConfig = {
 UpgradeConfig.ToolProgression = {
 	{ UpgradeId = "UnlockSprayPaint", ToolId = "SprayPaint", RestorationTier = 4 },
 	{ UpgradeId = "UnlockSponge", ToolId = "Sponge", RestorationTier = 2 },
-	{ UpgradeId = "UnlockSoftBrush", ToolId = "SoftBrush", RestorationTier = 2 },
-	{ UpgradeId = "UnlockHairdryer", ToolId = "Hairdryer", RestorationTier = 3 },
-	{ UpgradeId = "UnlockPolisher", ToolId = "Polisher", RestorationTier = 4 },
-	{ UpgradeId = "UnlockHammer", ToolId = "Hammer", RestorationTier = 5 },
-	{ UpgradeId = "UnlockMagnet", ToolId = "Magnet", RestorationTier = 6 },
+	{ UpgradeId = "UnlockSoftBrush", ToolId = "SoftBrush", RestorationTier = 3 },
+	{ UpgradeId = "UnlockHairdryer", ToolId = "Hairdryer", RestorationTier = 4 },
+	{ UpgradeId = "UnlockPolisher", ToolId = "Polisher", RestorationTier = 5 },
+	{ UpgradeId = "UnlockHammer", ToolId = "Hammer", RestorationTier = 6 },
+	{ UpgradeId = "UnlockMagnet", ToolId = "Magnet", RestorationTier = 7 },
 }
 
 local ToolStages = {
@@ -1047,6 +1046,17 @@ local ToolStages = {
 	Polisher = 4,
 	Hammer = 5,
 	Magnet = 6,
+}
+
+-- Unlock prices advance one economy tier per tool after the authored Paint and Sponge entry prices.
+local ToolUnlockStages = {
+	SprayPaint = 1,
+	Sponge = 1,
+	SoftBrush = 3,
+	Hairdryer = 4,
+	Polisher = 5,
+	Hammer = 6,
+	Magnet = 7,
 }
 
 local function GetEconomyStage(Upgrade): number
@@ -1076,9 +1086,7 @@ local function GetEconomyStage(Upgrade): number
 		return math.clamp(Effect.Value - 7, 1, 7)
 	end
 	if Effect.Type == "ToolUnlock" then
-		-- Paint unlocks first, while its strength branch keeps its original late-game pricing stage.
-		if Effect.ToolId == "SprayPaint" then return 1 end
-		return ToolStages[Effect.ToolId] or 1
+		return ToolUnlockStages[Effect.ToolId] or 1
 	end
 	if Effect.Type == "ToolStrength" then
 		local SpeedLevel = tonumber(string.match(Upgrade.Id, "%d+$")) or 1
@@ -1091,7 +1099,7 @@ for _, Upgrade in UpgradeConfig.Upgrades do
 	-- Fixed prices are explicit balancing targets and must not be changed by global economy scaling.
 	if Upgrade.FixedCost ~= true then
 		local Effect = Upgrade.Effect
-		-- Later tool unlocks follow the item prices they serve; Paint, Sponge, and Soft Brush retain authored costs.
+		-- Paint and Sponge retain authored entry prices; every later unlock advances through the economy tiers.
 		local ToolUnlockCost = if Effect and Effect.Type == "ToolUnlock"
 			then EconomyConfig.GetToolUnlockCost(Effect.ToolId, GetEconomyStage(Upgrade))
 			else nil
@@ -1133,7 +1141,15 @@ function UpgradeConfig.Validate()
 		for _, PrerequisiteId in Upgrade.Prerequisites do
 			local Prerequisite = ById[PrerequisiteId]
 			assert(Prerequisite, `Upgrade {Upgrade.Id} has missing prerequisite {PrerequisiteId}`)
-			assert(Upgrade.Cost >= Prerequisite.Cost, `Upgrade cost decreases from {PrerequisiteId} to {Upgrade.Id}`)
+			local IsOptionalToolBranch = Upgrade.Effect
+				and Upgrade.Effect.Type == "ToolStrength"
+				and Prerequisite.Effect
+				and Prerequisite.Effect.Type == "ToolUnlock"
+				and Upgrade.Effect.ToolId == Prerequisite.Effect.ToolId
+			-- Speed branches keep their own balance curve even when the parent tool unlock moves to a later price tier.
+			if not IsOptionalToolBranch then
+				assert(Upgrade.Cost >= Prerequisite.Cost, `Upgrade cost decreases from {PrerequisiteId} to {Upgrade.Id}`)
+			end
 		end
 		for _, ConnectedId in Upgrade.ConnectedUpgrades do
 			assert(ById[ConnectedId], `Upgrade {Upgrade.Id} has missing connection {ConnectedId}`)

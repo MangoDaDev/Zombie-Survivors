@@ -124,7 +124,7 @@ Quick reference for the project's first-party Luau scripts. Generated Wally depe
 | --- | --- | --- |
 | `src/modules/UI/Images.lua` | Images | Catalogs named image asset IDs, including dedicated icon entries for every bat tier, for project interfaces and upgrade nodes. |
 | `src/modules/UI/FixingInterface.lua` | FixingInterface | Bridges Fixing HUD actions to the client Fixing controller. |
-| `src/modules/UI/ItemInfoBillboard.lua` | ItemInfoBillboard | Creates the single size-aware world-item billboard containing identity, rarity, value, restoration steps, and optional despawn information. |
+| `src/modules/UI/ItemInfoBillboard.lua` | ItemInfoBillboard | Creates the single size-aware world-item billboard containing identity, rarity, always-visible guest pay, restoration steps, optional despawn information, and sale value only after restoration is complete. |
 | `src/modules/UI/ItemDespawnCountdown.lua` | ItemDespawnCountdown | Creates and updates the real-time despawn label inside each unclaimed world item's unified information billboard. |
 | `src/modules/UI/NotificationManager.lua` | NotificationManager | Provides reusable transient text alerts with optional duration and color plus keyed inactive-to-active transition suppression. |
 | `src/modules/UI/PlayVFX.lua` | PlayVFX | Clones, starts, and cleans up reusable visual and sound effects. |

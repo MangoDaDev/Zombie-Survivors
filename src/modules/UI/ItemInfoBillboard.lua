@@ -66,7 +66,7 @@ local function createStatRow(
 	return row
 end
 
-return function(itemInfo, adornee: BasePart, fixingState, displayValueOverride: number?): BillboardGui
+return function(itemInfo, adornee: BasePart, fixingState): BillboardGui
 	local ItemModel = adornee:FindFirstAncestorOfClass "Model"
 	local BillboardRoot = ItemModel or adornee
 	-- Keep every item's identity and value information in one shared BillboardGui.
@@ -125,10 +125,12 @@ return function(itemInfo, adornee: BasePart, fixingState, displayValueOverride: 
 	local GuestPayRow = createStatRow(Images.Binoculars, itemInfo.GuestPay, UDim2.fromScale(0, 0.5), "$", 0.24, 0.14)
 	GuestPayRow.Name = "GuestPay"
 	GuestPayRow.Parent = billboard
-	local DisplayValue = displayValueOverride or (if IsCleaningComplete then itemInfo.SaleValue else itemInfo.Price)
-	local PriceRow = createStatRow(Images.Cash, DisplayValue, UDim2.fromScale(0, 0.73), nil, 0.18, 0.09)
-	PriceRow.Name = "Price"
-	PriceRow.Parent = billboard
+	-- Keep an item's worth hidden until restoration is complete; guest pay remains visible above.
+	if IsCleaningComplete then
+		local PriceRow = createStatRow(Images.Cash, itemInfo.SaleValue, UDim2.fromScale(0, 0.73), nil, 0.18, 0.09)
+		PriceRow.Name = "Price"
+		PriceRow.Parent = billboard
+	end
 	local RequiredSteps = CleaningConfig.GetStepsForItem(itemInfo, fixingState)
 	if fixingState and fixingState.Completed ~= true and #RequiredSteps > 0 and Images.FixIcons then
 		local fixRow = Instance.new "Frame"

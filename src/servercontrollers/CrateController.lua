@@ -48,7 +48,7 @@ local function GetRewardItemInfo(Player: Player, Info, Luck: number)
 		local GuaranteedItemInfo = GuaranteedReward and GetItemInfo(GuaranteedReward.ItemId)
 		if GuaranteedItemInfo then
 			local RestorationSteps = GuaranteedReward.RestorationSteps
-			return GuaranteedItemInfo, false, if RestorationSteps then table.clone(RestorationSteps) else nil,
+			return GuaranteedItemInfo, if RestorationSteps then table.clone(RestorationSteps) else nil,
 				RewardKind, GuaranteedIndex
 		end
 	end
@@ -218,7 +218,8 @@ local function ClaimReward(RewardId, Player)
 	if (RootPart.Position - Reward.Model:GetPivot().Position).Magnitude > Reward.Info.ClaimDistance then return end
 	-- Revealed crate items are free; claiming is guarded only by ownership/state/range checks.
 	Reward.Claimed = true
-	if not CarryController.StartCarrying(Player, Reward.ItemId, Reward.DirtCount, nil, Reward.RestorationSteps) then
+	-- Free crate claims must not play the cash/purchase pickup sound.
+	if not CarryController.StartCarrying(Player, Reward.ItemId, Reward.DirtCount, nil, Reward.RestorationSteps, false) then
 		Reward.Claimed = false
 		SendClaimFeedback(Player, "Unavailable", ItemInfo.Name)
 		return
@@ -233,7 +234,7 @@ local function CreateReward(State, Player: Player, PredictionId, AnalyticsSessio
 	local Info = State.Info
 	local HasRolledCrate = DataService:get(Player, "HasRolledCrate") == true
 	local IsFirstRoll = not HasRolledCrate and DataService:get(Player, "GuaranteedDropCount") == 0
-	local ItemInfo, _, RestorationSteps, OnboardingRewardKind, GuaranteedIndex = GetRewardItemInfo(Player, Info, State.Luck)
+	local ItemInfo, RestorationSteps, OnboardingRewardKind, GuaranteedIndex = GetRewardItemInfo(Player, Info, State.Luck)
 	if not ItemInfo then return end
 	local Template = ReplicatedStorage.Assets.Models.Items:FindFirstChild(ItemInfo.AssetName)
 	if not Template or not Template:IsA("Model") then return end
@@ -276,7 +277,6 @@ local function CreateReward(State, Player: Player, PredictionId, AnalyticsSessio
 	Prompt.Parent = Box
 	local RewardId = HttpService:GenerateGUID(false)
 	local RevealDuration = GetRevealDuration(Info, IsFirstRoll)
-	local AvailableAt = Workspace:GetServerTimeNow() + RevealDuration + Info.RevealFadeTime
 	-- Persist this before broadcasting so only the player's first crate uses the extended rare preview roll.
 	if not HasRolledCrate then DataService:set(Player, "HasRolledCrate", true) end
 	local Reward = {
@@ -288,8 +288,9 @@ local function CreateReward(State, Player: Player, PredictionId, AnalyticsSessio
 		FixingState = FixingState,
 		Model = Model,
 		Prompt = Prompt,
-		AvailableAt = AvailableAt,
-		ExpiresAt = AvailableAt + ItemInteractionConfig.CrateRewardDespawnDuration,
+		AvailableAt = math.huge,
+		ExpiresAt = math.huge,
+		Revealed = false,
 		Claimed = false,
 		AnalyticsSessionId = AnalyticsSessionId,
 		RestorationSteps = RestorationSteps,
@@ -311,13 +312,10 @@ local function CreateReward(State, Player: Player, PredictionId, AnalyticsSessio
 	Reward.Connection = Prompt.Triggered:Connect(function(Player)
 		if Rewards[RewardId] ~= Reward or Reward.Interacting then return end
 		Reward.Interacting = true
-		Reward.InteractionStartedAt = Workspace:GetServerTimeNow()
 		Prompt.Enabled = false
 		ClaimReward(RewardId, Player)
 		if Rewards[RewardId] == Reward then
-			Reward.ExpiresAt += Workspace:GetServerTimeNow() - Reward.InteractionStartedAt
 			Reward.Interacting = false
-			Reward.InteractionStartedAt = nil
 			Prompt.Enabled = Workspace:GetServerTimeNow() >= Reward.AvailableAt
 		end
 	end)
@@ -335,10 +333,13 @@ local function CreateReward(State, Player: Player, PredictionId, AnalyticsSessio
 		task.delay(Info.RevealFadeTime, function()
 			if Rewards[RewardId] ~= Reward then return end
 			Reward.RevealTransparencies = nil
-			-- Show the eventual sale value, never a purchase cost, because crate rewards are claimed for free.
-			local Billboard = ItemInfoBillboard(ItemInfo, Box, Reward.FixingState, ItemInfo.SaleValue)
+			local Billboard = ItemInfoBillboard(ItemInfo, Box, Reward.FixingState)
 			Reward.FixingState = nil
 			Reward.CountdownRow = ItemDespawnCountdown.Create(Billboard)
+			-- Start exactly one 30-second lifetime only after the authoritative reveal has finished.
+			Reward.AvailableAt = Workspace:GetServerTimeNow()
+			Reward.ExpiresAt = Reward.AvailableAt + ItemInteractionConfig.CrateRewardDespawnDuration
+			Reward.Revealed = true
 			Prompt.Enabled = true
 			AnalyticsController.TrackItemRevealed(Player, ItemInfo.Id, Info, AnalyticsSessionId)
 		end)
@@ -349,7 +350,7 @@ local function UpdateRewardDespawnTimers()
 	local Now = Workspace:GetServerTimeNow()
 	local ExpiredRewardIds = {}
 	for RewardId, Reward in Rewards do
-		if Reward.Claimed or Reward.Interacting or Now < Reward.AvailableAt then continue end
+		if not Reward.Revealed or Reward.Claimed or Reward.Interacting then continue end
 		local Remaining = Reward.ExpiresAt - Now
 		if Remaining <= 0 then
 			table.insert(ExpiredRewardIds, RewardId)
