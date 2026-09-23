@@ -4,14 +4,9 @@ local TutorialConfig = {
 	-- Show this final message when the Paint purchase completes the visible tutorial.
 	CompleteText = "Have Fun!",
 	Onboarding = {
-		-- The first item after Paint is purchased must require Paint, regardless of its normal tier.
-		PaintItemIds = { 14, 47, 64, 94 },
+		-- Force only restoration requirements; the crate must still roll the item itself normally.
 		PaintRestorationSteps = { "Spray", "SprayPaint" },
-		-- These alternatives all receive the same guaranteed grease restoration steps.
-		DirtGreaseItemIds = { 5, 20, 95, 18 },
 		DirtGreaseRestorationSteps = { "Spray", "Sponge" },
-		-- These alternatives all receive the same guaranteed Dust restoration steps.
-		DustItemIds = { 6, 91, 100 },
 		DustRestorationSteps = { "Spray", "SoftBrush" },
 		SoftBrushUpgradeId = "UnlockSoftBrush",
 		SoftBrushCashBuffer = 150,

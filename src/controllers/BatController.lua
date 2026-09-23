@@ -323,7 +323,10 @@ local function ShowPredictedImpact(Model, Handle, Info, HitMultiplier)
 		local ShakeDuration = if IsPredictedFinalHit
 			then CrateInfo.Effects.BreakCameraShakeDuration
 			else CrateInfo.Effects.HitCameraShakeDuration
-		ShakeCamera(ShakeStrength * math.sqrt(EffectScale), ShakeDuration)
+		local RarityMultiplier = if IsPredictedFinalHit and CrateInfoEntry
+			then CrateInfo.Effects.BreakShakeMultipliers[CrateInfoEntry.Id] or 0.25
+			else 1
+		ShakeCamera(ShakeStrength * RarityMultiplier * math.sqrt(EffectScale), ShakeDuration)
 		if IsPredictedFinalHit and CrateInfoEntry then
 			-- Keep lethal-hit break presentation client-side so latency never delays the crate disappearing.
 			CrateController.BeginPredictedReveal(PredictionId, Model, CrateInfoEntry.Id)

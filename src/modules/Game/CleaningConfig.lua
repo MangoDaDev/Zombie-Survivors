@@ -30,6 +30,8 @@ local CleaningConfig = {
 	MobileTouchAimOffsetScale = 0.08,
 	ItemPresentationRotationDegrees = -8,
 	ItemSurfaceOffset = 0.03,
+	-- Surface-contact tools get the same fixed margin on every face, so small parts are easier to reach without size-based inflation.
+	SurfaceContactHitboxPadding = 0.2,
 	SprayVFXWidthScale = 1,
 	SprayEndpointResponsiveness = 24,
 	ToolPositionResponsiveness = 24,

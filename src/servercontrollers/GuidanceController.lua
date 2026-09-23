@@ -15,11 +15,6 @@ local TutorialCrates: { [Player]: Model } = {}
 local CompletedTutorialCrates: { [Player]: boolean } = {}
 local TutorialRewards: { [Player]: Model } = {}
 local ONBOARDING = TutorialConfig.Onboarding
-local RandomGenerator = Random.new()
-
-local function ChooseOnboardingItem(ItemIds): number
-	return ItemIds[RandomGenerator:NextInteger(1, #ItemIds)]
-end
 
 local function CopyOnboarding(Value)
 	local Progress = if type(Value) == "table" then table.clone(Value) else {}
@@ -45,9 +40,9 @@ local function HasRestorationSteps(State, RequiredSteps): boolean
 	return true
 end
 
-local function HasOnboardingRestoration(Fixing, ItemIds, RequiredSteps): boolean
-	for _, ItemId in ItemIds do
-		if HasRestorationSteps(Fixing[tostring(ItemId)], RequiredSteps) then return true end
+local function HasOnboardingRestoration(Fixing, RequiredSteps): boolean
+	for _, State in Fixing do
+		if HasRestorationSteps(State, RequiredSteps) then return true end
 	end
 	return false
 end
@@ -113,12 +108,11 @@ end
 
 function GuidanceController.GetOnboardingReward(Player: Player)
 	local Progress = CopyOnboarding(DataService:get(Player, "Onboarding"))
-	-- Paint's forced reward stays ahead of later tools so buying both cannot skip either item.
+	-- Paint's forced steps stay ahead of later tools so buying both cannot skip either requirement.
 	if not Progress.PaintItemReceived
 		and UpgradeLogic.IsToolUnlocked(DataService:get(Player, "Upgrades"), "SprayPaint")
 	then
 		return {
-			ItemId = ChooseOnboardingItem(ONBOARDING.PaintItemIds),
 			RestorationSteps = ONBOARDING.PaintRestorationSteps,
 		}, "Paint"
 	end
@@ -127,7 +121,6 @@ function GuidanceController.GetOnboardingReward(Player: Player)
 		and UpgradeLogic.IsToolUnlocked(DataService:get(Player, "Upgrades"), "Sponge")
 	then
 		return {
-			ItemId = ChooseOnboardingItem(ONBOARDING.DirtGreaseItemIds),
 			RestorationSteps = ONBOARDING.DirtGreaseRestorationSteps,
 		}, "DirtGrease"
 	end
@@ -140,13 +133,12 @@ function GuidanceController.GetOnboardingReward(Player: Player)
 	GuaranteedDropCount = if type(GuaranteedDropCount) == "number" then math.max(0, math.floor(GuaranteedDropCount)) else 0
 	local GuaranteedReward = CrateInfo.NewPlayerDropSequence[GuaranteedDropCount + 1]
 	if GuaranteedReward then
-		return { ItemId = ChooseOnboardingItem(GuaranteedReward.ItemIds) }, "Guaranteed", GuaranteedDropCount + 1
+		return { RestorationSteps = GuaranteedReward.RestorationSteps }, "Guaranteed", GuaranteedDropCount + 1
 	end
 
 	if Progress.DirtGreaseItemDisplayed and HasSoftBrush(Player) and not Progress.DustItemReceived then
-		-- The first forced reward after confirmed Soft Brush ownership must contain Dust.
+		-- The first forced restoration after confirmed Soft Brush ownership must contain Dust.
 		return {
-			ItemId = ChooseOnboardingItem(ONBOARDING.DustItemIds),
 			RestorationSteps = ONBOARDING.DustRestorationSteps,
 		}, "Dust"
 	end
@@ -181,10 +173,13 @@ function GuidanceController.MarkOnboardingRewardReceived(Player: Player, RewardK
 	DataService:set(Player, "Onboarding", Progress)
 end
 
-function GuidanceController.MarkOnboardingItemDisplayed(Player: Player, ItemId: number)
-	if not table.find(ONBOARDING.DirtGreaseItemIds, ItemId) then return end
+function GuidanceController.MarkOnboardingItemDisplayed(Player: Player, ItemKey: string): boolean
 	local Progress = CopyOnboarding(DataService:get(Player, "Onboarding"))
-	if not Progress.DirtGreaseItemReceived or Progress.DirtGreaseItemDisplayed then return end
+	if not Progress.DirtGreaseItemReceived or Progress.DirtGreaseItemDisplayed then return false end
+	local Fixing = DataService:get(Player, "Fixing")
+	local FixingState = type(Fixing) == "table" and Fixing[ItemKey] or nil
+	-- Match the displayed physical copy by its forced steps; its catalog item is deliberately unrestricted.
+	if not HasRestorationSteps(FixingState, ONBOARDING.DirtGreaseRestorationSteps) then return false end
 	Progress.DirtGreaseItemDisplayed = true
 	if not Progress.SoftBrushFundingGranted then
 		local Upgrade = UpgradeConfig.Get(ONBOARDING.SoftBrushUpgradeId)
@@ -194,6 +189,7 @@ function GuidanceController.MarkOnboardingItemDisplayed(Player: Player, ItemId: 
 		Progress.SoftBrushFundingGranted = true
 	end
 	DataService:set(Player, "Onboarding", Progress)
+	return true
 end
 
 function GuidanceController.RefreshUpgradeRequirement(Player: Player)
@@ -268,11 +264,11 @@ function GuidanceController.OnPlayerAdded(Player: Player)
 	local Fixing = DataService:get(Player, "Fixing")
 	if type(Fixing) == "table" then
 		Progress.PaintItemReceived = Progress.PaintItemReceived
-			or HasOnboardingRestoration(Fixing, ONBOARDING.PaintItemIds, ONBOARDING.PaintRestorationSteps)
+			or HasOnboardingRestoration(Fixing, ONBOARDING.PaintRestorationSteps)
 		Progress.DirtGreaseItemReceived = Progress.DirtGreaseItemReceived
-			or HasOnboardingRestoration(Fixing, ONBOARDING.DirtGreaseItemIds, ONBOARDING.DirtGreaseRestorationSteps)
+			or HasOnboardingRestoration(Fixing, ONBOARDING.DirtGreaseRestorationSteps)
 		Progress.DustItemReceived = Progress.DustItemReceived
-			or HasOnboardingRestoration(Fixing, ONBOARDING.DustItemIds, ONBOARDING.DustRestorationSteps)
+			or HasOnboardingRestoration(Fixing, ONBOARDING.DustRestorationSteps)
 	end
 	Progress.DiscreteProgressionActive = Progress.DiscreteProgressionActive
 		or WasVisibleExtensionStep
@@ -293,11 +289,11 @@ function GuidanceController.OnPlayerAdded(Player: Player)
 	if ReconciledDropCount ~= GuaranteedDropCount then DataService:set(Player, "GuaranteedDropCount", ReconciledDropCount) end
 	local Displays = DataService:get(Player, "Displays")
 	if Progress.DirtGreaseItemReceived and type(Displays) == "table" then
-		for _, ItemId in Displays do
-			if table.find(ONBOARDING.DirtGreaseItemIds, ItemId) then
-				GuidanceController.MarkOnboardingItemDisplayed(Player, ItemId)
-				break
-			end
+		local DisplayItemKeys = DataService:get(Player, "DisplayItemKeys")
+		for SlotId in Displays do
+			local ItemKey = type(DisplayItemKeys) == "table" and DisplayItemKeys[tostring(SlotId)] or nil
+			if type(ItemKey) ~= "string" then continue end
+			if GuidanceController.MarkOnboardingItemDisplayed(Player, ItemKey) then break end
 		end
 	end
 	GuidanceController.RefreshUpgradeRequirement(Player)

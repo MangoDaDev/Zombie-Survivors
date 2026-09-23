@@ -25,6 +25,7 @@ local SharedCrateInfo = {
 	ClaimDistance = 13,
 	RevealTickSoundName = "ItemRevealTick",
 	RevealCompleteSoundName = "ItemRevealComplete",
+	RevealFireworksSoundName = "Fireworks",
 }
 
 local RarityOrder = EconomyConfig.RarityOrder
@@ -40,6 +41,7 @@ local function CreateCrate(Info)
 end
 
 local CrateInfo = {
+	-- Absolute mix levels keep crate feedback audible beside 0.5-volume music without letting layered hits overpower it.
 	Audio = {
 		DamageVolume = 0.16,
 		BreakVolume = 0.18,
@@ -49,6 +51,8 @@ local CrateInfo = {
 		RevealTickStartVolume = 0.3,
 		RevealTickEndVolume = 0.45,
 		RevealCompleteVolume = 0.4,
+		MythicFireworksVolume = 0.32,
+		SecretFireworksVolume = 0.52,
 	},
 	-- Centralize client presentation tuning so every crate tier and rolled size gets the same relative impact.
 	Effects = {
@@ -62,6 +66,28 @@ local CrateInfo = {
 		HitCameraShakeDuration = 0.11,
 		BreakCameraShakeStrength = 0.14,
 		BreakCameraShakeDuration = 0.24,
+		-- Full break shake begins at Legendary; lower crate tiers step up gradually instead of sharing the peak.
+		BreakShakeMultipliers = {
+			CommonCrate = 0.25,
+			UncommonCrate = 0.35,
+			RareCrate = 0.5,
+			EpicCrate = 0.7,
+			LegendaryCrate = 1,
+			MythicalCrate = 1.08,
+			SecretCrate = 1.15,
+		},
+		RevealCameraShakeStrength = 0.11,
+		RevealCameraShakeDuration = 0.22,
+		-- Secret is the only full-strength item reveal; every lower rarity remains proportionally calmer.
+		RevealShakeMultipliers = {
+			Common = 0.16,
+			Uncommon = 0.22,
+			Rare = 0.3,
+			Epic = 0.42,
+			Legendary = 0.58,
+			Mythic = 0.78,
+			Secret = 1,
+		},
 		DebrisHitCount = 8,
 		DebrisBreakCount = 22,
 		DebrisTrailLifetime = 0.15,
@@ -86,9 +112,9 @@ local CrateInfo = {
 		PixelsPerStud = 16,
 	},
 	NewPlayerDropSequence = {
-		-- Keep the two opening rewards distinct while varying the item players uncover.
-		{ ItemIds = { 1, 16, 24, 80 } },
-		{ ItemIds = { 14, 47, 64, 94 } },
+		-- Keep the two opening rewards Spray-only without replacing the crate's normal item roll.
+		{ RestorationSteps = { "Spray" } },
+		{ RestorationSteps = { "Spray" } },
 	},
 	Crates = {
 		-- Keep every rarity possible, but even high-tier crates should favor drops below the rarest items.

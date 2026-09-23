@@ -283,7 +283,14 @@ local function FinishRollPresentation(Reveal, Config)
 		TweenService:Create(Presentation.BloomEffect, TweenInfo.new(0.42), { Intensity = 0 }):Play()
 		Debris:AddItem(Presentation.BloomEffect, 0.45)
 	end
-	if Config then ShakeCamera(0.075 * math.sqrt(math.clamp(Config.Intensity, 0.8, 2.5)), 0.22) end
+	if Config then
+		local Rarity = Reveal.ActualItemInfo and Reveal.ActualItemInfo.Rarity
+		local RarityMultiplier = CrateInfo.Effects.RevealShakeMultipliers[Rarity] or 0.16
+		ShakeCamera(
+			CrateInfo.Effects.RevealCameraShakeStrength * RarityMultiplier,
+			CrateInfo.Effects.RevealCameraShakeDuration
+		)
+	end
 end
 
 local function StartRollPresentation(Reveal)
@@ -732,6 +739,16 @@ local function RunReveal(Reveal)
 			if Sound then
 				Sound.Volume = CrateInfo.Audio.RevealCompleteVolume * Config.RevealSoundVolume
 				Sound.PlaybackSpeed *= Config.RevealSoundPitch
+			end
+			local Rarity = Reveal.ActualItemInfo.Rarity
+			if Rarity == "Mythic" or Rarity == "Secret" then
+				-- Only the top two rarities receive fireworks, with Secret deliberately louder than Mythic.
+				local Fireworks = Sounds.Play(Reveal.Info.RevealFireworksSoundName, Workspace.CurrentCamera)
+				if Fireworks then
+					Fireworks.Volume = if Rarity == "Secret"
+						then CrateInfo.Audio.SecretFireworksVolume
+						else CrateInfo.Audio.MythicFireworksVolume
+				end
 			end
 		end
 		if Reveal.RewardId then Reveals[Reveal.RewardId] = nil end

@@ -2,6 +2,10 @@ FOLLOW THIS UI STYLE: **"STUD" UI STYLE**
 
 When using a UIAspectRatioConstraint, keep meaningful nonzero responsive Size values on both axes unless a zero axis is explicitly required.
 
+Avoid UITextSizeConstraint and UISizeConstraint where practical; UIAspectRatioConstraint is fine when preserving proportions is useful.
+
+Use a mix of relative Scale values and pixel offsets in UI sizes and positions. Do not design layouts using only pixels or only Scale.
+
 Avoid creating CanvasGroups unless they are needed for scrolling UI. Use Frames or other suitable GuiObjects for ordinary UI, including notifications.
 
 local function WhiteRectangularButtonExample()

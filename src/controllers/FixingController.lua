@@ -85,6 +85,8 @@ local HammerStrikeApplied = false
 local HammerStrikeAimPosition: Vector3?
 local HammerStrikeSurfaceNormal: Vector3?
 local HammerInputHeld = false
+local SurfaceHitboxModel: Model?
+local SurfaceHitboxParts: { BasePart } = {}
 local CameraEntryId = 0
 local BaseCameraCFrame: CFrame?
 local OriginalCameraCFrame: CFrame?
@@ -469,6 +471,8 @@ local function Restore(Instant: boolean?)
 	HammerStrikeAimPosition = nil
 	HammerStrikeSurfaceNormal = nil
 	HammerInputHeld = false
+	SurfaceHitboxModel = nil
+	SurfaceHitboxParts = {}
 end
 
 local function GetScreenWorldPosition(Camera, ScreenPosition, Depth): Vector3
@@ -701,6 +705,135 @@ local function RaycastFixingItem(
 	return Workspace:Raycast(Ray.Origin, Ray.Direction * RayLength, Parameters)
 end
 
+local function IntersectRayAxis(
+	Origin: number,
+	Direction: number,
+	HalfExtent: number,
+	MinimumDistance: number,
+	MaximumDistance: number
+): (number?, number?)
+	if math.abs(Direction) < 0.000001 then
+		if math.abs(Origin) > HalfExtent then return nil, nil end
+		return MinimumDistance, MaximumDistance
+	end
+	local NearDistance = (-HalfExtent - Origin) / Direction
+	local FarDistance = (HalfExtent - Origin) / Direction
+	if NearDistance > FarDistance then NearDistance, FarDistance = FarDistance, NearDistance end
+	MinimumDistance = math.max(MinimumDistance, NearDistance)
+	MaximumDistance = math.min(MaximumDistance, FarDistance)
+	if MinimumDistance > MaximumDistance then return nil, nil end
+	return MinimumDistance, MaximumDistance
+end
+
+local function GetExpandedPartRayDistance(
+	RayOrigin: Vector3,
+	RayDirection: Vector3,
+	RayLength: number,
+	Part: BasePart
+): number?
+	local LocalOrigin = Part.CFrame:PointToObjectSpace(RayOrigin)
+	local LocalDirection = Part.CFrame:VectorToObjectSpace(RayDirection)
+	-- This fixed per-face amount deliberately does not scale with the part, keeping every part equally forgiving.
+	local HalfSize = Part.Size / 2 + Vector3.one * CleaningConfig.SurfaceContactHitboxPadding
+	local MinimumDistance = 0
+	local MaximumDistance = RayLength
+	MinimumDistance, MaximumDistance = IntersectRayAxis(
+		LocalOrigin.X,
+		LocalDirection.X,
+		HalfSize.X,
+		MinimumDistance,
+		MaximumDistance
+	)
+	if not MinimumDistance then return nil end
+	MinimumDistance, MaximumDistance = IntersectRayAxis(
+		LocalOrigin.Y,
+		LocalDirection.Y,
+		HalfSize.Y,
+		MinimumDistance,
+		MaximumDistance :: number
+	)
+	if not MinimumDistance then return nil end
+	MinimumDistance = IntersectRayAxis(
+		LocalOrigin.Z,
+		LocalDirection.Z,
+		HalfSize.Z,
+		MinimumDistance,
+		MaximumDistance :: number
+	)
+	return MinimumDistance
+end
+
+local function GetBoxSurfacePoint(Part: BasePart, WorldPosition: Vector3): (Vector3, Vector3)
+	local LocalPosition = Part.CFrame:PointToObjectSpace(WorldPosition)
+	local HalfSize = Part.Size / 2
+	local ClampedPosition = Vector3.new(
+		math.clamp(LocalPosition.X, -HalfSize.X, HalfSize.X),
+		math.clamp(LocalPosition.Y, -HalfSize.Y, HalfSize.Y),
+		math.clamp(LocalPosition.Z, -HalfSize.Z, HalfSize.Z)
+	)
+	local AxisDistances = Vector3.new(
+		math.abs(LocalPosition.X) - HalfSize.X,
+		math.abs(LocalPosition.Y) - HalfSize.Y,
+		math.abs(LocalPosition.Z) - HalfSize.Z
+	)
+	local LocalNormal
+	if AxisDistances.X >= AxisDistances.Y and AxisDistances.X >= AxisDistances.Z then
+		LocalNormal = Vector3.new(if LocalPosition.X >= 0 then 1 else -1, 0, 0)
+	elseif AxisDistances.Y >= AxisDistances.Z then
+		LocalNormal = Vector3.new(0, if LocalPosition.Y >= 0 then 1 else -1, 0)
+	else
+		LocalNormal = Vector3.new(0, 0, if LocalPosition.Z >= 0 then 1 else -1)
+	end
+	return Part.CFrame:PointToWorldSpace(ClampedPosition), Part.CFrame:VectorToWorldSpace(LocalNormal)
+end
+
+local function GetExpandedSurfaceHit(
+	Camera: Camera,
+	ScreenPosition: Vector2,
+	SurfaceParts: { BasePart },
+	RayLength: number
+): (Vector3?, BasePart?, Vector3?)
+	local Ray = Camera:ViewportPointToRay(ScreenPosition.X, ScreenPosition.Y)
+	local RayDirection = Ray.Direction.Unit
+	local NearestDistance = math.huge
+	local NearestPart
+	for _, Part in SurfaceParts do
+		local Distance = GetExpandedPartRayDistance(Ray.Origin, RayDirection, RayLength, Part)
+		if Distance and Distance < NearestDistance then
+			NearestDistance = Distance
+			NearestPart = Part
+		end
+	end
+	if not NearestPart then return nil, nil, nil end
+
+	local ExpandedHitPosition = Ray.Origin + RayDirection * NearestDistance
+	local InwardDirection = NearestPart.Position - ExpandedHitPosition
+	if InwardDirection.Magnitude > 0.001 then
+		local Parameters = RaycastParams.new()
+		Parameters.FilterType = Enum.RaycastFilterType.Include
+		Parameters.FilterDescendantsInstances = { NearestPart }
+		-- Resolve the forgiving box hit against real geometry so the visible tool still rests on the item.
+		local SurfaceResult = Workspace:Raycast(ExpandedHitPosition, InwardDirection, Parameters)
+		if SurfaceResult then return SurfaceResult.Position, NearestPart, SurfaceResult.Normal end
+	end
+	local ClosestSurfacePosition = NearestPart:GetClosestPointOnSurface(ExpandedHitPosition)
+	local SurfaceOffset = ExpandedHitPosition - ClosestSurfacePosition
+	if SurfaceOffset.Magnitude > 0.001 then
+		return ClosestSurfacePosition, NearestPart, SurfaceOffset.Unit
+	end
+	local SurfacePosition, SurfaceNormal = GetBoxSurfacePoint(NearestPart, ExpandedHitPosition)
+	return SurfacePosition, NearestPart, SurfaceNormal
+end
+
+local function GetSurfaceHitboxParts(FixingItem: Model): { BasePart }
+	if SurfaceHitboxModel ~= FixingItem then
+		SurfaceHitboxModel = FixingItem
+		-- The item's real visible geometry is stable for the session; restoration overlays are intentionally excluded.
+		SurfaceHitboxParts = PaintRenderer.GetPaintParts(FixingItem)
+	end
+	return SurfaceHitboxParts
+end
+
 local function GetAimPosition(ToolInfo): (Vector3?, BasePart?, Vector3?)
 	local Camera = Workspace.CurrentCamera
 	local MousePosition = GetCursorPosition()
@@ -713,19 +846,23 @@ local function GetAimPosition(ToolInfo): (Vector3?, BasePart?, Vector3?)
 	local RayLength = if Box and Box:IsA("BasePart")
 		then (Camera.CFrame.Position - Box.Position).Magnitude + Box.Size.Magnitude
 		else 30
-	local Result = RaycastFixingItem(Camera, MousePosition, Parameters, RayLength)
-	if not Result then return nil, nil, nil end
 	if not ToolInfo or not IsSurfaceContactTool(ToolInfo) then
+		local Result = RaycastFixingItem(Camera, MousePosition, Parameters, RayLength)
+		if not Result then return nil, nil, nil end
 		return Result.Position, if Result.Instance:IsA("BasePart") then Result.Instance else nil, Result.Normal
 	end
+	local SurfaceParts = GetSurfaceHitboxParts(FixingItem)
+	local AimPosition, AimPart, AimNormal = GetExpandedSurfaceHit(Camera, MousePosition, SurfaceParts, RayLength)
+	if not AimPosition or not AimPart or not AimNormal then return nil, nil, nil end
+	Parameters.FilterDescendantsInstances = SurfaceParts
 
 	-- Average only genuinely nearby geometry so layered parts at different depths cannot shake the tool.
 	local ScreenRadius = GetToolRadiusScale(ToolInfo)
 		* Camera.ViewportSize.Y
 		* CleaningConfig.SurfaceNormalSampleRadiusMultiplier
-	local WorldRadius = GetWorldToolRadius(Camera, ToolInfo, Result.Position)
+	local WorldRadius = GetWorldToolRadius(Camera, ToolInfo, AimPosition)
 		* CleaningConfig.SurfaceNormalSampleRadiusMultiplier
-	local NormalSum = Result.Normal * CleaningConfig.SurfaceNormalCenterWeight
+	local NormalSum = AimNormal * CleaningConfig.SurfaceNormalCenterWeight
 	local TotalWeight = CleaningConfig.SurfaceNormalCenterWeight
 	for SampleIndex = 1, CleaningConfig.SurfaceNormalSampleCount do
 		local RadiusAlpha = math.sqrt(SampleIndex / CleaningConfig.SurfaceNormalSampleCount)
@@ -733,7 +870,7 @@ local function GetAimPosition(ToolInfo): (Vector3?, BasePart?, Vector3?)
 		local SampleOffset = Vector2.new(math.cos(Angle), math.sin(Angle)) * ScreenRadius * RadiusAlpha
 		local SampleResult = RaycastFixingItem(Camera, MousePosition + SampleOffset, Parameters, RayLength)
 		if SampleResult then
-			local Distance = (SampleResult.Position - Result.Position).Magnitude
+			local Distance = (SampleResult.Position - AimPosition).Magnitude
 			if Distance <= WorldRadius then
 				local DistanceAlpha = Distance / math.max(WorldRadius, 0.001)
 				local Weight = CleaningConfig.SurfaceNormalMinimumSampleWeight
@@ -744,8 +881,8 @@ local function GetAimPosition(ToolInfo): (Vector3?, BasePart?, Vector3?)
 		end
 	end
 	local AverageNormal = NormalSum / TotalWeight
-	if AverageNormal.Magnitude < 0.01 then AverageNormal = Result.Normal end
-	return Result.Position, if Result.Instance:IsA("BasePart") then Result.Instance else nil, AverageNormal.Unit
+	if AverageNormal.Magnitude < 0.01 then AverageNormal = AimNormal end
+	return AimPosition, AimPart, AverageNormal.Unit
 end
 
 local function GetAirflowDirection(AimPosition: Vector3, Origin: Vector3): Vector3?

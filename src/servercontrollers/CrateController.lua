@@ -71,20 +71,13 @@ local function GetRarityToolWeightMultipliers(Player: Player): { [string]: numbe
 end
 
 local function GetRewardItemInfo(Player: Player, Info, Luck: number)
-	local GuaranteedReward, RewardKind, GuaranteedIndex = GuidanceController.GetOnboardingReward(Player)
-	if GuaranteedReward then
-		local GuaranteedItemInfo = GuaranteedReward and GetItemInfo(GuaranteedReward.ItemId)
-		if GuaranteedItemInfo then
-			-- Ungated opening rewards stay Spray-only; later guided rewards author their required tool explicitly.
-			local RestorationSteps = GuaranteedReward.RestorationSteps or { "Spray" }
-			return GuaranteedItemInfo, if RestorationSteps then table.clone(RestorationSteps) else nil,
-				RewardKind, GuaranteedIndex
-		end
-	end
-	-- GetRandomItem also returns roll diagnostics; do not let those values masquerade as restoration metadata.
+	local OnboardingReward, RewardKind, GuaranteedIndex = GuidanceController.GetOnboardingReward(Player)
+	-- Forced restoration requirements must never force the catalog item; every crate keeps its normal item roll.
 	local RarityWeightMultipliers = GetRarityToolWeightMultipliers(Player)
 	local ItemInfo = CrateInfo.GetRandomItem(ItemsInfo, Info, RandomGenerator, Luck, RarityWeightMultipliers)
-	return ItemInfo, nil, nil, nil
+	local RestorationSteps = OnboardingReward and OnboardingReward.RestorationSteps
+	return ItemInfo, if RestorationSteps then table.clone(RestorationSteps) else nil,
+		RewardKind, GuaranteedIndex
 end
 
 local function GetRevealDuration(Info, IsFirstRoll: boolean?): number

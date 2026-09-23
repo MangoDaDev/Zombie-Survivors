@@ -79,7 +79,7 @@ return function(itemInfo, adornee: BasePart, fixingState): BillboardGui
 	local billboard = Instance.new "BillboardGui"
 	billboard.Name = "ItemInfo"
 	billboard.Adornee = adornee
-	billboard.AlwaysOnTop = true
+	billboard.AlwaysOnTop = false
 	-- Let MaxDistance alone control when this item information is rendered.
 	billboard.MaxDistance = ItemInteractionConfig.ItemBillboardMaxDistance
 	billboard.Size = BILLBOARD_SIZE

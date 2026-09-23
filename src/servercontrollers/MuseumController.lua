@@ -259,7 +259,7 @@ local function PlaceEquippedItem(Player: Player, Assignment: MuseumAssignment, D
 	DataService:arrayRemove(Player, "Inventory", InventoryPosition)
 	DataService:arrayRemove(Player, "InventoryKeys", InventoryPosition)
 	AnalyticsController.TrackItemDisplayed(Player, ItemId, DisplayState.index, DisplayState.levelNumber)
-	GuidanceController.MarkOnboardingItemDisplayed(Player, ItemId)
+	GuidanceController.MarkOnboardingItemDisplayed(Player, ItemKey)
 	Tool:Destroy(); GuidanceController.Advance(Player, "DisplayItem"); Sounds.Play("Equip", DisplayState.itemCFrame, SFX_MAX_DISTANCE)
 end
 
