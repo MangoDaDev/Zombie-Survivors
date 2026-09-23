@@ -26,6 +26,10 @@ local PredictedReveals = {}
 local HealthVisibilityIds = setmetatable({}, { __mode = "k" })
 local ScreenEffectId = 0
 local ActiveRollPresentation
+local RollFieldOfViewBase: number?
+local RollFieldOfViewCamera: Camera?
+local RollFieldOfViewTween: Tween?
+local RollFieldOfViewSessionId = 0
 local RandomGenerator = Random.new()
 local LocalPlayer = Players.LocalPlayer
 local FirstRollPreviewItems = {}
@@ -232,7 +236,7 @@ local function ShakeCamera(Strength: number, Duration: number)
 	end)
 end
 
-local function FinishRollPresentation(Reveal, Config)
+local function FinishRollPresentation(Reveal, Config, PreserveFieldOfViewBase: boolean?)
 	if Reveal.TickSound and Reveal.TickSound.Parent then Reveal.TickSound:Destroy() end
 	Reveal.TickSound = nil
 	local Presentation = Reveal.RollPresentation
@@ -241,25 +245,65 @@ local function FinishRollPresentation(Reveal, Config)
 	Reveal.RollPresentation = nil
 	if ActiveRollPresentation == Presentation then ActiveRollPresentation = nil end
 	if Presentation.FovTween then Presentation.FovTween:Cancel() end
+	if RollFieldOfViewTween then
+		RollFieldOfViewTween:Cancel()
+		RollFieldOfViewTween = nil
+	end
 
 	local Camera = Presentation.Camera
 	if Camera and Camera.Parent then
-		local RevealIntensity = if Config then math.clamp(Config.Intensity, 0.8, 2.5) else 1
-		local Kick = if Config then CrateInfo.Effects.RevealFovKick * math.sqrt(RevealIntensity) else 0
-		local KickTween = TweenService:Create(
-			Camera,
-			TweenInfo.new(if Config then 0.09 else 0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-			{ FieldOfView = Presentation.BaseFieldOfView + Kick }
-		)
-		KickTween:Play()
-		KickTween.Completed:Once(function()
-			if not Camera.Parent or (ActiveRollPresentation and ActiveRollPresentation ~= Presentation) then return end
-			TweenService:Create(
+		if Config then
+			local RevealIntensity = math.clamp(Config.Intensity, 0.8, 2.5)
+			local Kick = CrateInfo.Effects.RevealFovKick * math.sqrt(RevealIntensity)
+			local KickTween = TweenService:Create(
 				Camera,
-				TweenInfo.new(if Config then 0.38 else 0.2, Enum.EasingStyle.Quart, Enum.EasingDirection.Out),
-				{ FieldOfView = Presentation.BaseFieldOfView }
-			):Play()
-		end)
+				TweenInfo.new(0.09, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+				{ FieldOfView = Presentation.BaseFieldOfView + Kick }
+			)
+			RollFieldOfViewTween = KickTween
+			KickTween:Play()
+			KickTween.Completed:Once(function(PlaybackState)
+				if
+					PlaybackState ~= Enum.PlaybackState.Completed
+					or RollFieldOfViewSessionId ~= Presentation.FieldOfViewSessionId
+					or ActiveRollPresentation
+					or not Camera.Parent
+				then
+					return
+				end
+				local RestoreTween = TweenService:Create(
+					Camera,
+					TweenInfo.new(0.38, Enum.EasingStyle.Quart, Enum.EasingDirection.Out),
+					{ FieldOfView = Presentation.BaseFieldOfView }
+				)
+				RollFieldOfViewTween = RestoreTween
+				RestoreTween:Play()
+				RestoreTween.Completed:Once(function(RestorePlaybackState)
+					if
+						RestorePlaybackState ~= Enum.PlaybackState.Completed
+						or RollFieldOfViewSessionId ~= Presentation.FieldOfViewSessionId
+						or ActiveRollPresentation
+					then
+						return
+					end
+					-- Snap to the captured baseline so tween cancellation or floating-point drift cannot strand the FOV.
+					if Camera.Parent then Camera.FieldOfView = Presentation.BaseFieldOfView end
+					RollFieldOfViewTween = nil
+					RollFieldOfViewBase = nil
+					RollFieldOfViewCamera = nil
+				end)
+			end)
+		else
+			-- Cancellation restores immediately; a later roll must never capture an in-progress effect as its baseline.
+			Camera.FieldOfView = Presentation.BaseFieldOfView
+			if not PreserveFieldOfViewBase and RollFieldOfViewSessionId == Presentation.FieldOfViewSessionId then
+				RollFieldOfViewBase = nil
+				RollFieldOfViewCamera = nil
+			end
+		end
+	elseif not PreserveFieldOfViewBase and RollFieldOfViewSessionId == Presentation.FieldOfViewSessionId then
+		RollFieldOfViewBase = nil
+		RollFieldOfViewCamera = nil
 	end
 
 	if Presentation.ColorEffect.Parent then
@@ -296,10 +340,23 @@ end
 local function StartRollPresentation(Reveal)
 	if Reveal.Cancelled or Reveal.RevealingPlayer ~= LocalPlayer or Reveal.RollPresentation then return end
 	if ActiveRollPresentation then
-		FinishRollPresentation(ActiveRollPresentation.Reveal, nil)
+		FinishRollPresentation(ActiveRollPresentation.Reveal, nil, true)
 	end
 	local Camera = Workspace.CurrentCamera
 	if not Camera then return end
+	RollFieldOfViewSessionId += 1
+	if RollFieldOfViewTween then
+		RollFieldOfViewTween:Cancel()
+		RollFieldOfViewTween = nil
+	end
+	if RollFieldOfViewCamera and RollFieldOfViewCamera ~= Camera and RollFieldOfViewBase then
+		if RollFieldOfViewCamera.Parent then RollFieldOfViewCamera.FieldOfView = RollFieldOfViewBase end
+		RollFieldOfViewBase = nil
+	end
+	if not RollFieldOfViewBase then RollFieldOfViewBase = Camera.FieldOfView end
+	RollFieldOfViewCamera = Camera
+	-- Begin every roll from the one stable pre-effect value, including rolls started during a prior reveal's restore.
+	Camera.FieldOfView = RollFieldOfViewBase
 
 	local ColorEffect = Instance.new("ColorCorrectionEffect")
 	ColorEffect.Name = "LocalCrateRollColor"
@@ -312,10 +369,11 @@ local function StartRollPresentation(Reveal)
 	BloomEffect.Parent = Lighting
 
 	local Presentation = {
-		BaseFieldOfView = Camera.FieldOfView,
+		BaseFieldOfView = RollFieldOfViewBase,
 		BloomEffect = BloomEffect,
 		Camera = Camera,
 		ColorEffect = ColorEffect,
+		FieldOfViewSessionId = RollFieldOfViewSessionId,
 		Finished = false,
 		Reveal = Reveal,
 	}
@@ -326,6 +384,7 @@ local function StartRollPresentation(Reveal)
 		TweenInfo.new(0.22, Enum.EasingStyle.Quart, Enum.EasingDirection.Out),
 		{ FieldOfView = Presentation.BaseFieldOfView + CrateInfo.Effects.RollFovFocus }
 	)
+	RollFieldOfViewTween = Presentation.FovTween
 	Presentation.FovTween:Play()
 	TweenService:Create(ColorEffect, TweenInfo.new(0.2), {
 		-- Breaking begins the roll with a subdued grade; the payoff is reserved for the rolled item.
@@ -350,6 +409,7 @@ local function PulseRollPresentation(Reveal, Alpha: number)
 			TweenInfo.new(0.09, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
 			{ FieldOfView = Presentation.BaseFieldOfView + CrateInfo.Effects.RollFovFocus }
 		)
+		RollFieldOfViewTween = Presentation.FovTween
 		Presentation.FovTween:Play()
 	end
 	if Presentation.ColorEffect.Parent then
