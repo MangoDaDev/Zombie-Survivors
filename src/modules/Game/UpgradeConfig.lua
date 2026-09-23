@@ -1127,6 +1127,16 @@ function UpgradeConfig.GetToolUnlockCumulativeCost(ToolId: string): number?
 	return nil
 end
 
+function UpgradeConfig.GetToolUnlockCost(ToolId: string): number?
+	for _, Entry in UpgradeConfig.ToolProgression do
+		if Entry.ToolId == ToolId then
+			local Upgrade = UpgradeConfig.Get(Entry.UpgradeId)
+			return Upgrade and Upgrade.Cost or nil
+		end
+	end
+	return nil
+end
+
 function UpgradeConfig.Validate()
 	local ById = {}
 	for _, Upgrade in UpgradeConfig.Upgrades do

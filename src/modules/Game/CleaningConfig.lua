@@ -68,10 +68,11 @@ local CleaningConfig = {
 	StepHintOutlineTransparency = 0.08,
 	StepTransitionDelay = 0.3,
 	FullCompletionDelay = 1.2,
-	-- New item copies favor restoration tools that are affordable earlier, without hard-locking damage types to that order.
-	RestorationStepMinimumChance = 0.08,
+	-- New item copies strongly favor cheaper tools, without hard-locking damage types to that order.
+	RestorationStepMinimumChance = 0.02,
 	RestorationStepMaximumChance = 0.92,
 	RestorationStepCostCurveExponent = 0.75,
+	RestorationStepPriceWeightExponent = 0.4,
 	DirtDamageSoundName = "Hooked",
 	Tools = {
 		{
@@ -204,6 +205,17 @@ function CleaningConfig.RollRestorationSteps(ItemInfo, RandomGenerator: Random?)
 		then math.max(ItemInfo.Price, 1)
 		else 1
 	local StepIds = {}
+	local UnlockCosts = {}
+	local MinimumUnlockCost = math.huge
+
+	for _, StepInfo in CleaningConfig.Steps do
+		if StepInfo.ToolId == "Spray" then continue end
+		local UnlockCost = UpgradeConfig.GetToolUnlockCost(StepInfo.ToolId)
+		if type(UnlockCost) == "number" then
+			UnlockCosts[StepInfo.Id] = UnlockCost
+			MinimumUnlockCost = math.min(MinimumUnlockCost, UnlockCost)
+		end
+	end
 
 	for _, StepInfo in CleaningConfig.Steps do
 		if StepInfo.ToolId == "Spray" then
@@ -211,13 +223,16 @@ function CleaningConfig.RollRestorationSteps(ItemInfo, RandomGenerator: Random?)
 			continue
 		end
 
-		local UnlockCost = UpgradeConfig.GetToolUnlockCumulativeCost(StepInfo.ToolId)
+		local UnlockCost = UnlockCosts[StepInfo.Id]
 		if type(UnlockCost) ~= "number" then continue end
 		local ItemFactor = ItemPrice ^ CleaningConfig.RestorationStepCostCurveExponent
 		local CostFactor = math.max(UnlockCost, 1) ^ CleaningConfig.RestorationStepCostCurveExponent
 		local Affordability = ItemFactor / (ItemFactor + CostFactor)
-		local Chance = CleaningConfig.RestorationStepMinimumChance
-			+ (CleaningConfig.RestorationStepMaximumChance - CleaningConfig.RestorationStepMinimumChance) * Affordability
+		local PriceWeight = (MinimumUnlockCost / math.max(UnlockCost, 1))
+			^ CleaningConfig.RestorationStepPriceWeightExponent
+		local BaseChance = CleaningConfig.RestorationStepMinimumChance
+			+ (CleaningConfig.RestorationStepMaximumChance - CleaningConfig.RestorationStepMinimumChance) * PriceWeight
+		local Chance = BaseChance + (CleaningConfig.RestorationStepMaximumChance - BaseChance) * Affordability
 		if Generator:NextNumber() <= Chance then table.insert(StepIds, StepInfo.Id) end
 	end
 
