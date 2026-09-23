@@ -15,6 +15,8 @@ local TutorialConfig = {
 		PickUpItem = {
 			Text = "Pick Up Item",
 			Next = "BringItemHome",
+			-- The opening tutorial must always point players to the configured crate tier.
+			CrateId = "CommonCrate",
 		},
 		BringItemHome = {
 			Text = "Bring Item Home",

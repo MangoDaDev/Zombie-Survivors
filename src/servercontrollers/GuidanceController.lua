@@ -15,6 +15,8 @@ local TutorialCrates: { [Player]: Model } = {}
 local CompletedTutorialCrates: { [Player]: boolean } = {}
 local TutorialRewards: { [Player]: Model } = {}
 local ONBOARDING = TutorialConfig.Onboarding
+local TUTORIAL_CRATE_ID = TutorialConfig.Steps[TutorialConfig.InitialStep].CrateId
+local TUTORIAL_CRATE_STEP = TutorialConfig.InitialStep
 
 local function CopyOnboarding(Value)
 	local Progress = if type(Value) == "table" then table.clone(Value) else {}
@@ -47,7 +49,7 @@ local function HasOnboardingRestoration(Fixing, RequiredSteps): boolean
 	return false
 end
 
-local function FindClosestCommonCrate(Player: Player): Model?
+local function FindClosestTutorialCrate(Player: Player): Model?
 	local Character = Player.Character
 	local RootPart = Character and Character:FindFirstChild("HumanoidRootPart")
 	local CrateFolder = Workspace:FindFirstChild("Crates")
@@ -56,7 +58,7 @@ local function FindClosestCommonCrate(Player: Player): Model?
 	local ClosestCrate: Model?
 	local ClosestDistance = math.huge
 	for _, Crate in CrateFolder:GetChildren() do
-		if not Crate:IsA("Model") or Crate.Name ~= "CommonCrate" then continue end
+		if not Crate:IsA("Model") or Crate.Name ~= TUTORIAL_CRATE_ID then continue end
 		local Distance = (Crate:GetPivot().Position - RootPart.Position).Magnitude
 		if Distance < ClosestDistance then
 			ClosestCrate = Crate
@@ -67,7 +69,7 @@ local function FindClosestCommonCrate(Player: Player): Model?
 end
 
 local function GetTutorialCrateForPlayer(Player: Player): Model?
-	if DataService:get(Player, "TutorialStep") ~= "PickUpItem" then
+	if DataService:get(Player, "TutorialStep") ~= TUTORIAL_CRATE_STEP then
 		TutorialCrates[Player] = nil
 		CompletedTutorialCrates[Player] = nil
 		TutorialRewards[Player] = nil
@@ -77,7 +79,7 @@ local function GetTutorialCrateForPlayer(Player: Player): Model?
 
 	local Crate = TutorialCrates[Player]
 	if Crate and Crate.Parent then return Crate end
-	Crate = FindClosestCommonCrate(Player)
+	Crate = FindClosestTutorialCrate(Player)
 	TutorialCrates[Player] = Crate
 	return Crate
 end
@@ -205,7 +207,7 @@ function GuidanceController.GetTutorialCrate(_, Player: Player): Model?
 end
 
 function GuidanceController.GetTutorialTarget(_, Player: Player): Model?
-	if DataService:get(Player, "TutorialStep") ~= "PickUpItem" then return nil end
+	if DataService:get(Player, "TutorialStep") ~= TUTORIAL_CRATE_STEP then return nil end
 	local Reward = TutorialRewards[Player]
 	if Reward and Reward.Parent then return Reward end
 	return GetTutorialCrateForPlayer(Player)
@@ -222,7 +224,7 @@ end
 
 function GuidanceController.MarkTutorialRewardCreated(Player: Player, Crate: Model, Reward: Model)
 	-- Any crate can complete the first break; guide pickup to its own reward.
-	if DataService:get(Player, "TutorialStep") ~= "PickUpItem" or TutorialRewards[Player] then return end
+	if DataService:get(Player, "TutorialStep") ~= TUTORIAL_CRATE_STEP or TutorialRewards[Player] then return end
 	TutorialCrates[Player] = Crate
 	TutorialRewards[Player] = Reward
 end
@@ -236,7 +238,7 @@ end
 
 function GuidanceController.ResetTutorialCrates()
 	for _, Player in Players:GetPlayers() do
-		if DataService:get(Player, "TutorialStep") ~= "PickUpItem" then continue end
+		if DataService:get(Player, "TutorialStep") ~= TUTORIAL_CRATE_STEP then continue end
 		TutorialCrates[Player] = nil
 		if not TutorialRewards[Player] then CompletedTutorialCrates[Player] = nil end
 	end

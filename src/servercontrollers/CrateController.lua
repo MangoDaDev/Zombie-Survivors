@@ -20,6 +20,7 @@ local GuidanceController = require(ServerStorage.Controllers.GuidanceController)
 local Networker = require(ReplicatedStorage.Packages.networker)
 local PlayerStateController = require(ServerStorage.Controllers.PlayerStateController)
 local RestorationVisuals = require(ReplicatedStorage.Modules.Game.RestorationVisuals)
+local TutorialConfig = require(ReplicatedStorage.Modules.Game.TutorialConfig)
 local UIStyle = require(ReplicatedStorage.Modules.UI.UIStyle)
 local UpgradeLogic = require(ReplicatedStorage.Modules.Game.UpgradeLogic)
 
@@ -630,6 +631,17 @@ function CrateController.Init()
 		while true do UpdatePityDisplay(); task.wait(1) end
 	end)
 	task.spawn(StartResetSchedule)
+end
+
+function CrateController.OnPlayerAdded(Player: Player)
+	local TutorialStep = TutorialConfig.GetStep(DataService:get(Player, "TutorialStep"))
+	local CrateId = TutorialStep and TutorialStep.CrateId
+	if not CrateId or GetActiveCrateCount(CrateId) > 0 then return end
+
+	local Info = CrateInfo.Get(CrateId)
+	if not Info then return end
+	-- A joining player must always have the crate required by their tutorial step, including during a reset.
+	CrateController.Spawn(Info, true)
 end
 
 function CrateController.OnPlayerRemoving(Player: Player)
