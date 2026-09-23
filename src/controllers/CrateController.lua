@@ -40,7 +40,8 @@ local FirstRollPreviewItems = {}
 local STAR_BURST_COUNT = 24
 local STAR_BURST_TARGET_SIZE = 0.08
 local STAR_BURST_EDGE_MARGIN = Vector2.new(0.07, 0.09)
-local RESET_TIMER_BILLBOARD_SIZE = UDim2.fromScale(5, 1)
+-- Match the item countdown's roughly 0.7-stud-tall row instead of stretching its scaled text to a full stud.
+local RESET_TIMER_BILLBOARD_SIZE = UDim2.fromScale(5, 0.7)
 local RESET_TIMER_HEIGHT_OFFSET = 2
 -- Crate-break stars must remain subtle enough that they never obscure the revealed item.
 local STAR_BURST_MIN_TRANSPARENCY = 0.7
