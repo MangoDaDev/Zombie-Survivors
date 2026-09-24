@@ -6,6 +6,7 @@ local Confirmation = require(script.Parent.Classes.Confirmation)
 local CoinsDisplay = require(script.Parent.HUD.CoinsDisplay)
 local Notifications = require(script.Parent.HUD.Notifications)
 local RageBar = require(script.Parent.HUD.RageBar)
+local RollControls = require(script.Parent.HUD.RollControls)
 local RollInterface = require(script.Parent.HUD.RollInterface)
 local create = vide.create
 
@@ -21,6 +22,7 @@ return function()
 		Notifications(),
 		RageBar(),
 		RollInterface(),
+		RollControls(),
 		AbilityInterface(),
 		Confirmation.Component(),
 	}

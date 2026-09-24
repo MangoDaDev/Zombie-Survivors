@@ -1,4 +1,5 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
 
 local ZombieProtocol = require(ReplicatedStorage.Modules.Game.Zombies.ZombieProtocol)
 local ProceduralAnimator = require(script.Parent.ProceduralAnimator)
@@ -28,6 +29,8 @@ function ZombieView.new(
 	attackStartedAt,
 	scale,
 	animationSpeedMultiplier,
+	health,
+	maximumHealth,
 	serverTime,
 	parent
 )
@@ -61,6 +64,55 @@ function ZombieView.new(
 	model:PivotTo(initialCFrame)
 	model.Parent = parent
 
+	local anchorPart = model.PrimaryPart or model:FindFirstChildWhichIsA("BasePart", true)
+	local healthBar
+	local healthFill
+	if anchorPart then
+		healthBar = Instance.new("BillboardGui")
+		healthBar.Name = "HealthBar"
+		healthBar.Adornee = anchorPart
+		healthBar.AlwaysOnTop = true
+		healthBar.LightInfluence = 0
+		healthBar.MaxDistance = 90
+		healthBar.Size = UDim2.fromOffset(76, 11)
+		healthBar.StudsOffsetWorldSpace = Vector3.new(0, boundingSize.Y * 0.5 + 0.85, 0)
+		healthBar.Parent = model
+
+		local backing = Instance.new("Frame")
+		backing.Name = "Backing"
+		backing.BackgroundColor3 = Color3.fromRGB(24, 28, 36)
+		backing.BorderSizePixel = 0
+		backing.Size = UDim2.fromScale(1, 1)
+		backing.Parent = healthBar
+		local backingCorner = Instance.new("UICorner")
+		backingCorner.CornerRadius = UDim.new(1, 0)
+		backingCorner.Parent = backing
+		local backingStroke = Instance.new("UIStroke")
+		backingStroke.Color = Color3.fromRGB(8, 10, 14)
+		backingStroke.Thickness = 2
+		backingStroke.Parent = backing
+
+		healthFill = Instance.new("Frame")
+		healthFill.Name = "Fill"
+		healthFill.BackgroundColor3 = Color3.fromRGB(82, 226, 108)
+		healthFill.BorderSizePixel = 0
+		healthFill.Size = UDim2.fromScale(1, 1)
+		healthFill.Parent = backing
+		local fillCorner = Instance.new("UICorner")
+		fillCorner.CornerRadius = UDim.new(1, 0)
+		fillCorner.Parent = healthFill
+	end
+
+	local hitHighlight = Instance.new("Highlight")
+	hitHighlight.Name = "DamageFlash"
+	hitHighlight.Adornee = model
+	hitHighlight.DepthMode = Enum.HighlightDepthMode.Occluded
+	hitHighlight.FillColor = Color3.new(1, 1, 1)
+	hitHighlight.FillTransparency = 1
+	hitHighlight.OutlineColor = Color3.new(1, 1, 1)
+	hitHighlight.OutlineTransparency = 1
+	hitHighlight.Parent = model
+
 	local self = setmetatable({}, ZombieView)
 	self.id = id
 	self.typeName = typeName
@@ -78,6 +130,15 @@ function ZombieView.new(
 	self.attackSequence = attackSequence
 	self.attackStartedAt = if type(attackStartedAt) == "number" then attackStartedAt else -math.huge
 	self.animationSpeedMultiplier = math.clamp(animationSpeedMultiplier, 0.5, 2)
+	self.health = if type(health) == "number" then health else definition.MaxHealth
+	self.maximumHealth = if type(maximumHealth) == "number" then maximumHealth else definition.MaxHealth
+	self.healthBar = healthBar
+	self.healthFill = healthFill
+	self.healthTween = nil
+	self.hitHighlight = hitHighlight
+	self.hitFlashTween = nil
+	self.recoilOffset = Vector3.zero
+	self.lastRenderAt = os.clock()
 
 	return self
 end
@@ -87,7 +148,7 @@ function ZombieView:GetRenderCFrame(now)
 	return self.fromCFrame:Lerp(self.targetCFrame, alpha)
 end
 
-function ZombieView:Update(targetCFrame, state, attackSequence, attackStartedAt, serverTime, receivedAt)
+function ZombieView:Update(targetCFrame, state, attackSequence, attackStartedAt, health, maximumHealth, serverTime, receivedAt)
 	self.fromCFrame = self:GetRenderCFrame(receivedAt)
 	self.targetCFrame = targetCFrame
 	self.interpolationStartedAt = receivedAt
@@ -106,6 +167,61 @@ function ZombieView:Update(targetCFrame, state, attackSequence, attackStartedAt,
 	end
 	if type(attackStartedAt) == "number" then
 		self.attackStartedAt = attackStartedAt
+	end
+	self:SetHealth(health, maximumHealth, false)
+end
+
+function ZombieView:SetHealth(health, maximumHealth, animate: boolean)
+	if type(health) ~= "number" or type(maximumHealth) ~= "number" or maximumHealth <= 0 then
+		return
+	end
+	self.health = math.clamp(health, 0, maximumHealth)
+	self.maximumHealth = maximumHealth
+	if not self.healthFill then
+		return
+	end
+
+	local ratio = self.health / maximumHealth
+	local goal = {
+		Size = UDim2.fromScale(ratio, 1),
+		BackgroundColor3 = if ratio > 0.55
+			then Color3.fromRGB(82, 226, 108)
+			elseif ratio > 0.25 then Color3.fromRGB(255, 190, 54)
+			else Color3.fromRGB(255, 76, 76),
+	}
+	if self.healthTween then
+		self.healthTween:Cancel()
+	end
+	if animate then
+		self.healthTween = TweenService:Create(
+			self.healthFill,
+			TweenInfo.new(0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+			goal
+		)
+		self.healthTween:Play()
+	else
+		self.healthFill.Size = goal.Size
+		self.healthFill.BackgroundColor3 = goal.BackgroundColor3
+	end
+end
+
+function ZombieView:ApplyDamage(health, maximumHealth, knockbackDirection, knockbackImpulse)
+	self:SetHealth(health, maximumHealth, true)
+	if self.hitFlashTween then
+		self.hitFlashTween:Cancel()
+	end
+	self.hitHighlight.FillTransparency = 0.08
+	self.hitHighlight.OutlineTransparency = 0.12
+	self.hitFlashTween = TweenService:Create(
+		self.hitHighlight,
+		TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+		{ FillTransparency = 1, OutlineTransparency = 1 }
+	)
+	self.hitFlashTween:Play()
+
+	if typeof(knockbackDirection) == "Vector3" and type(knockbackImpulse) == "number" then
+		-- Immediate client recoil bridges the short interval before the authoritative knockback snapshot arrives.
+		self.recoilOffset += knockbackDirection * math.clamp(knockbackImpulse * 0.055, 0, 1.15)
 	end
 end
 
@@ -128,6 +244,10 @@ end
 
 function ZombieView:AppendRender(parts, cframes, camera, localNow, serverNow)
 	local renderCFrame = self:GetRenderCFrame(localNow)
+	local renderDelta = math.clamp(localNow - self.lastRenderAt, 0, 0.1)
+	self.lastRenderAt = localNow
+	self.recoilOffset *= math.exp(-15 * renderDelta)
+	renderCFrame += self.recoilOffset
 	if not self:IsVisible(camera, renderCFrame) then
 		return
 	end
@@ -148,7 +268,19 @@ function ZombieView:AppendRender(parts, cframes, camera, localNow, serverNow)
 	end
 end
 
-function ZombieView:Destroy()
+function ZombieView:Destroy(delayDuration: number?)
+	if self.healthTween then
+		self.healthTween:Cancel()
+	end
+	if delayDuration and delayDuration > 0 then
+		task.delay(delayDuration, function()
+			self.model:Destroy()
+		end)
+		return
+	end
+	if self.hitFlashTween then
+		self.hitFlashTween:Cancel()
+	end
 	self.model:Destroy()
 end
 

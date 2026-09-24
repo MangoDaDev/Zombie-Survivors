@@ -61,6 +61,7 @@ local dagger = {
 		Cooldown = 1.25,
 		Range = 100,
 		ProjectileSpeed = 115,
+		Knockback = 15,
 	},
 	Rage = {
 		RagePerHit = 7,
@@ -70,6 +71,7 @@ local dagger = {
 		AdditionalDaggers = 3,
 		MaximumDaggers = 8,
 		ProjectileScaleMultiplier = 1.28,
+		KnockbackMultiplier = 1.35,
 		VolleyStagger = 0.04,
 	},
 	Milestones = {
@@ -165,6 +167,7 @@ local orbitingSwords = {
 		ReleaseDamageMultiplier = 0.8,
 		ReleaseRange = 30,
 		ReleaseTravelDuration = 0.34,
+		Knockback = 8,
 	},
 	Rage = {
 		RagePerHit = 3,
@@ -172,6 +175,7 @@ local orbitingSwords = {
 		ScaleMultiplier = 1.2,
 		RotationSpeedMultiplier = 2.4,
 		AdditionalSwords = 2,
+		KnockbackMultiplier = 1.4,
 	},
 	Milestones = {
 		{ Level = 5, Description = "Twin Blades - adds a second sword opposite the first" },

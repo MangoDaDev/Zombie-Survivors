@@ -11,6 +11,10 @@
 - Use `cleanup` for RBXScriptConnections, callbacks, threads, and resources created manually inside a Vide scope.
 - Keep components small and composable. Prefer typed props and reactive state over OOP-style `new`, `Enable`, `Disable`, and `Destroy` APIs.
 - Keep pressed interaction higher priority than hover state, and ensure interaction state cannot remain stuck after input ends, the pointer leaves, or a control becomes disabled.
+- For controls animated with `UIScale` inside layouts, keep an unscaled layout slot and center the scaled visual child with `AnchorPoint` and `Position` at `(0.5, 0.5)`.
+- Keep undiscovered collection entries visually anonymous and non-interactive; do not leak their authored name or icon before discovery.
+- Put frequent item actions directly on collection cards when space permits so they do not require opening a secondary detail view.
+- Keep persistent HUD control rows in their own stable frame; presentation overlays must not move or own them.
 - Reuse `Classes/Button.lua` before introducing another general-purpose button.
 - Reuse suitable Studio-owned assets when they exist instead of duplicating them, but do not make the reusable UI root depend on optional asset folders.
 - Clone sounds before playback and parent runtime copies appropriately so concurrent UI interactions do not fight over one shared Sound instance. Clean up each clone after playback.

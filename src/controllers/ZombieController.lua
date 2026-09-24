@@ -19,7 +19,7 @@ local function addZombie(packet, serverTime)
 		return
 	end
 
-	local id, typeName, initialCFrame, state, attackSequence, attackStartedAt, scale, animationSpeedMultiplier =
+	local id, typeName, initialCFrame, state, attackSequence, attackStartedAt, scale, animationSpeedMultiplier, health, maximumHealth =
 		table.unpack(packet)
 	if type(id) ~= "number" or type(typeName) ~= "string" or typeof(initialCFrame) ~= "CFrame" then
 		return
@@ -34,7 +34,16 @@ local function addZombie(packet, serverTime)
 
 	local existing = zombieViews[id]
 	if existing then
-		existing:Update(initialCFrame, state, attackSequence, attackStartedAt, serverTime, os.clock())
+		existing:Update(
+			initialCFrame,
+			state,
+			attackSequence,
+			attackStartedAt,
+			health,
+			maximumHealth,
+			serverTime,
+			os.clock()
+		)
 		return
 	end
 
@@ -49,6 +58,8 @@ local function addZombie(packet, serverTime)
 		attackStartedAt,
 		scale,
 		animationSpeedMultiplier,
+		health,
+		maximumHealth,
 		serverTime,
 		renderFolder
 	)
@@ -59,10 +70,17 @@ local function updateZombie(packet, serverTime, receivedAt)
 		return
 	end
 
-	local id, targetCFrame, state, attackSequence, attackStartedAt = table.unpack(packet)
+	local id, targetCFrame, state, attackSequence, attackStartedAt, health, maximumHealth = table.unpack(packet)
 	local view = type(id) == "number" and zombieViews[id]
 	if view and typeof(targetCFrame) == "CFrame" and type(state) == "number" then
-		view:Update(targetCFrame, state, attackSequence, attackStartedAt, serverTime, receivedAt)
+		view:Update(targetCFrame, state, attackSequence, attackStartedAt, health, maximumHealth, serverTime, receivedAt)
+	end
+end
+
+function ZombieController.ZombieDamaged(_, id, health, maximumHealth, knockbackDirection, knockbackImpulse)
+	local view = type(id) == "number" and zombieViews[id]
+	if view then
+		view:ApplyDamage(health, maximumHealth, knockbackDirection, knockbackImpulse)
 	end
 end
 
@@ -95,7 +113,8 @@ function ZombieController.RemoveZombies(_, ids)
 	for _, id in ids do
 		local view = zombieViews[id]
 		if view then
-			view:Destroy()
+			-- Keep a lethal hit visible for one brief beat so its flash and empty health bar can register.
+			view:Destroy(if view.health <= 0 then 0.16 else 0)
 			zombieViews[id] = nil
 		end
 	end

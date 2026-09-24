@@ -7,9 +7,8 @@ RollDefinitions.TotalRollsDataKey = "TotalRolls"
 
 -- These timings are shared only so the authoritative server cadence stays aligned with the client presentation.
 RollDefinitions.Timing = {
-	ReelDuration = 2.6,
+	ReelDuration = 2.85,
 	ResultHoldDuration = 0.8,
-	BonusActivationDuration = 0.72,
 	AutoRollDelay = 0.45,
 	DiscoveryAutoResumeDelay = 5,
 }

@@ -262,9 +262,28 @@ function ZombieController.GetSnapshot(_, _player)
 	return { now, packets }
 end
 
-function ZombieController.DamageZombie(id, amount)
+function ZombieController.DamageZombie(id, amount, hitOrigin: Vector3?, knockbackImpulse: number?)
 	local zombie = zombies[id]
-	local damaged = zombie ~= nil and zombie:TakeDamage(amount)
+	local damaged = zombie ~= nil and zombie:TakeDamage(amount, hitOrigin, knockbackImpulse)
+	if damaged then
+		local direction = Vector3.zero
+		if typeof(hitOrigin) == "Vector3" then
+			local offset = zombie.cframe.Position - hitOrigin
+			local horizontalOffset = Vector3.new(offset.X, 0, offset.Z)
+			if horizontalOffset.Magnitude > 0.001 then
+				direction = horizontalOffset.Unit
+			end
+		end
+		-- Damage feedback is replicated immediately instead of waiting for the next movement snapshot.
+		zombieNetwork:fireAll(
+			"ZombieDamaged",
+			id,
+			zombie.health,
+			zombie.definition.MaxHealth,
+			direction,
+			knockbackImpulse or 0
+		)
+	end
 	return damaged, damaged and zombie:IsDead()
 end
 

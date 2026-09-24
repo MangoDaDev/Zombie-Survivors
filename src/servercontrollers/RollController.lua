@@ -36,18 +36,32 @@ local function isCurrentState(player: Player, state: PlayerRollState, token: num
 	return player.Parent == Players and states[player] == state and state.token == token
 end
 
-local function selectItem(player: Player, state: PlayerRollState, excludeAbilities: boolean)
+local function selectItem(player: Player, state: PlayerRollState, excludeAbilities: boolean, luckMultiplier: number)
 	local eligibleItems = {}
 	local discoveryPending = excludeAbilities or next(state.pendingDiscoveries) ~= nil
+	local hasUndiscoveredAbility = false
+	-- Preserve unique discovery progression while anything remains locked, then keep the generic
+	-- roller usable by allowing already-owned abilities to appear as cosmetic results.
+	if not discoveryPending then
+		for _, item in RollDefinitions.Items do
+			if item.AbilityId and not AbilityController.IsOwned(player, item.AbilityId) then
+				hasUndiscoveredAbility = true
+				break
+			end
+		end
+	end
 	for _, item in RollDefinitions.Items do
 		if not item.AbilityId
-			or (not discoveryPending and not AbilityController.IsOwned(player, item.AbilityId))
+			or (
+				not discoveryPending
+				and (not AbilityController.IsOwned(player, item.AbilityId) or not hasUndiscoveredAbility)
+			)
 		then
 			table.insert(eligibleItems, item)
 		end
 	end
-	-- Reuse the project's diminishing-returns luck curve; bonus checks use a separate random draw below.
-	return GetRandomFromWeightedTable(eligibleItems, "Weight", random, state.luck)
+	-- Clover luck affects only this server-side weighted selection and can never be submitted by the client.
+	return GetRandomFromWeightedTable(eligibleItems, "Weight", random, state.luck * luckMultiplier)
 end
 
 local function incrementTotalRolls(player: Player)
@@ -61,6 +75,12 @@ end
 
 local function awardItem(player: Player, state: PlayerRollState, item, amount: number): (boolean, string?)
 	if item.AbilityId then
+		if AbilityController.IsOwned(player, item.AbilityId) then
+			-- Once the catalog is complete, owned abilities remain valid cosmetic roll results without
+			-- duplicating persistent ownership or replaying discovery rewards.
+			incrementTotalRolls(player)
+			return true, nil
+		end
 		local discovered = AbilityController.TryDiscover(player, item.AbilityId, state.autoRollEnabled)
 		if discovered then
 			incrementTotalRolls(player)
@@ -151,28 +171,49 @@ startSequence = function(player: Player, state: PlayerRollState): boolean
 	local token = state.token
 
 	task.spawn(function()
-		local multiplier = 1
+		local luckMultiplier = 1
 		local reelIndex = 1
 		local sequenceId = 1
-		local discoveredAbilityThisSequence = false
 
 		while isCurrentState(player, state, token) do
-			local item = selectItem(player, state, discoveredAbilityThisSequence)
+			local nextCloverLuck = if luckMultiplier == 1
+				then RollServerConfig.StartingCloverLuck
+				else luckMultiplier * RollServerConfig.CloverLuckGrowth
+			local cloverChance = if luckMultiplier == 1
+				then RollServerConfig.FirstCloverChance
+				else RollServerConfig.ChainedCloverChance
+			local rolledClover = nextCloverLuck <= RollServerConfig.MaximumCloverLuck
+				and random:NextNumber() < cloverChance
+
+			if rolledClover then
+				luckMultiplier = nextCloverLuck
+				rollNetwork:fire(player, "RollStarted", {
+					rollId = rollId,
+					sequenceId = sequenceId,
+					reelIndex = reelIndex,
+					kind = "Clover",
+					luckMultiplier = luckMultiplier,
+				})
+
+				task.wait(RollDefinitions.Timing.ReelDuration + RollDefinitions.Timing.ResultHoldDuration)
+				if not isCurrentState(player, state, token) then
+					return
+				end
+				reelIndex += 1
+				sequenceId += 1
+				continue
+			end
+
+			local item = selectItem(player, state, false, luckMultiplier)
 			local awarded = false
 			local discoveredAbilityId
 			if item then
-				awarded, discoveredAbilityId = awardItem(player, state, item, multiplier)
-			elseif state.autoRollEnabled then
-				-- With only unique abilities in the catalog, stop Auto Roll once everything obtainable is owned.
-				state.autoRollEnabled = false
-				state.autoScheduleId += 1
-				rollNetwork:fire(player, "AutoRollChanged", false)
+				awarded, discoveredAbilityId = awardItem(player, state, item, 1)
 			end
 			if not item or not awarded then
 				break
 			end
 			if discoveredAbilityId then
-				discoveredAbilityThisSequence = true
 				pauseAutoRollForDiscovery(player, state, discoveredAbilityId)
 			end
 
@@ -181,8 +222,9 @@ startSequence = function(player: Player, state: PlayerRollState): boolean
 				rollId = rollId,
 				sequenceId = sequenceId,
 				reelIndex = reelIndex,
+				kind = "Item",
 				itemId = item.Id,
-				multiplier = multiplier,
+				luckMultiplier = luckMultiplier,
 			})
 
 			task.wait(RollDefinitions.Timing.ReelDuration + RollDefinitions.Timing.ResultHoldDuration)
@@ -190,26 +232,7 @@ startSequence = function(player: Player, state: PlayerRollState): boolean
 				return
 			end
 
-			local nextMultiplier = if multiplier == 1
-				then RollServerConfig.StartingBonusMultiplier
-				else multiplier * RollServerConfig.MultiplierGrowth
-			local canContinue = multiplier < RollServerConfig.MaximumMultiplier
-				and nextMultiplier <= RollServerConfig.MaximumMultiplier
-				and random:NextNumber() < RollServerConfig.BaseBonusChance
-			if not canContinue then
-				break
-			end
-
-			multiplier = nextMultiplier
-			reelIndex += 1
-			sequenceId += 1
-			rollNetwork:fire(player, "BonusActivated", {
-				rollId = rollId,
-				sequenceId = sequenceId,
-				reelIndex = reelIndex,
-				multiplier = multiplier,
-			})
-			task.wait(RollDefinitions.Timing.BonusActivationDuration)
+			break
 		end
 
 		if not isCurrentState(player, state, token) then
@@ -235,7 +258,7 @@ function RollController.RequestRoll(_, player: Player)
 		return
 	end
 	state.lastRollRequestAt = now
-	-- The request carries no result, luck, reward, bonus, or multiplier data by design.
+	-- The request carries no result, luck, reward, clover, or multiplier data by design.
 	startSequence(player, state)
 end
 

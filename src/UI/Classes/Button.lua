@@ -9,7 +9,7 @@ local read, source, spring = Vide.read, Vide.source, Vide.spring
 
 local LocalPlayer = Players.LocalPlayer
 local BLACK = Color3.new(0, 0, 0)
-local DARK_TINT_ALPHA = 0.18
+local DARK_TINT_ALPHA = 0.42
 
 type Reactive<T> = T | (() -> T)
 export type Props = {
@@ -35,6 +35,9 @@ return function(props: Props)
 	end)
 	local tintedBlack = derive(function()
 		return BLACK:Lerp(buttonColor(), DARK_TINT_ALPHA)
+	end)
+	local outlineColor = derive(function()
+		return BLACK:Lerp(buttonColor(), 0.56)
 	end)
 	local scale = spring(
 		derive(function()
@@ -64,13 +67,8 @@ return function(props: Props)
 	end)
 
 	return create "Frame" {
-		Name = "Button",
-		BackgroundColor3 = function()
-			return if enabled() then tintedBlack() else BLACK:Lerp(buttonColor(), 0.08)
-		end,
-		BackgroundTransparency = function()
-			return if enabled() then 0 else 0.45
-		end,
+		Name = "ButtonSlot",
+		BackgroundTransparency = 1,
 		BorderSizePixel = 0,
 		LayoutOrder = function()
 			return readOr(props.LayoutOrder, 0)
@@ -78,14 +76,28 @@ return function(props: Props)
 		Size = function()
 			return readOr(props.Size, UDim2.fromScale(0.3, 1))
 		end,
-		create "UICorner" { CornerRadius = UIStyle.CornerRadius },
-		create "UIStroke" {
-			ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-			-- Keep the silhouette crisp even though the other dark details inherit the button color.
-			Color = BLACK,
-			Thickness = UIStyle.OutlineThickness,
-		},
-		create "UIScale" { Scale = scale },
+		create "Frame" {
+			Name = "Button",
+			-- Keep layout sizing on the unscaled slot; the visual button is centered so hover/press springs
+			-- expand around its middle instead of pulling away from the top-left corner.
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.fromScale(0.5, 0.5),
+			Size = UDim2.fromScale(1, 1),
+			BackgroundColor3 = function()
+				return if enabled() then tintedBlack() else BLACK:Lerp(buttonColor(), 0.2)
+			end,
+			BackgroundTransparency = function()
+				return if enabled() then 0 else 0.45
+			end,
+			BorderSizePixel = 0,
+			create "UICorner" { CornerRadius = UIStyle.CornerRadius },
+			create "UIStroke" {
+				ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+				-- Keep the silhouette crisp even though the other dark details inherit the button color.
+				Color = outlineColor,
+				Thickness = UIStyle.OutlineThickness,
+			},
+			create "UIScale" { Scale = scale },
 		create "ImageLabel" {
 			Name = "Glow",
 			AnchorPoint = Vector2.new(0.5, 0.5),
@@ -128,7 +140,9 @@ return function(props: Props)
 			},
 			create "UIStroke" {
 				ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-				Color = UIStyle.Colors.Paper,
+				Color = function()
+					return buttonColor():Lerp(UIStyle.Colors.Paper, 0.38)
+				end,
 				Thickness = UIStyle.OutlineThickness,
 				Transparency = UIStyle.InsideStrokeTransparency,
 			},
@@ -144,7 +158,7 @@ return function(props: Props)
 			TextScaled = true,
 			ZIndex = 3,
 			create "UIStroke" {
-				Color = tintedBlack,
+				Color = outlineColor,
 				StrokeSizingMode = Enum.StrokeSizingMode.ScaledSize,
 				Thickness = 0.055,
 			},
@@ -199,6 +213,7 @@ return function(props: Props)
 					props.OnActivated()
 				end
 			end,
+			},
 		},
 	}
 end

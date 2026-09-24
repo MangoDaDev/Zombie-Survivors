@@ -61,24 +61,31 @@ local function studTexture(zIndex: number)
 end
 
 local function abilityIcon(ability, zIndex: number, visible)
+	local function isVisible(): boolean
+		return if visible == nil then true elseif type(visible) == "function" then visible() else visible
+	end
+
 	return create "ImageLabel" {
 		Name = ability.Name .. "Icon",
 		BackgroundTransparency = 1,
-		Image = ability.Icon,
+		-- Do not even assign the authored asset while locked; hidden entries must remain anonymous.
+		Image = function()
+			return if isVisible() then ability.Icon else ""
+		end,
 		ScaleType = Enum.ScaleType.Fit,
 		Size = UDim2.fromScale(1, 1),
-		Visible = if visible == nil then true else visible,
+		Visible = isVisible,
 		ZIndex = zIndex,
 	}
 end
 
 local function abilityCard(ability, state, category, selectedId)
 	local hovered = source(false)
-	local selected = derive(function()
-		return selectedId() == ability.Id
-	end)
 	local owned = derive(function()
 		return isOwned(state(), ability.Id)
+	end)
+	local selected = derive(function()
+		return owned() and selectedId() == ability.Id
 	end)
 	local equipped = derive(function()
 		return isEquipped(state(), ability)
@@ -90,6 +97,9 @@ local function abilityCard(ability, state, category, selectedId)
 	return create "Frame" {
 		Name = ability.Id .. "Card",
 		BackgroundColor3 = function()
+			if not owned() then
+				return UIStyle.Colors.InkSoft
+			end
 			if equipped() then
 				return UIStyle.Colors.Green:Lerp(UIStyle.Colors.Ink, 0.42)
 			end
@@ -100,7 +110,7 @@ local function abilityCard(ability, state, category, selectedId)
 		end,
 		BorderSizePixel = 0,
 		LayoutOrder = ability.Roll.RarityRank,
-		Size = UDim2.new(1, -10, 0, 118),
+		Size = UDim2.new(1, -10, 0, 154),
 		Visible = function()
 			return category() == ability.Category
 		end,
@@ -109,6 +119,9 @@ local function abilityCard(ability, state, category, selectedId)
 		create "UIScale" { Scale = cardScale },
 		create "UIStroke" {
 			Color = function()
+				if not owned() then
+					return UIStyle.Colors.Muted
+				end
 				return if equipped() then Color3.fromRGB(137, 255, 158) else ability.Color
 			end,
 			Thickness = function()
@@ -125,7 +138,21 @@ local function abilityCard(ability, state, category, selectedId)
 			Position = UDim2.fromOffset(9, 9),
 			Size = UDim2.fromOffset(100, 100),
 			ZIndex = 328,
-			abilityIcon(ability, 328),
+			abilityIcon(ability, 328, owned),
+			create "TextLabel" {
+				Name = "UnknownPreview",
+				BackgroundTransparency = 1,
+				FontFace = UIStyle.Font,
+				Size = UDim2.fromScale(1, 1),
+				Text = "???",
+				TextColor3 = UIStyle.Colors.Muted,
+				TextScaled = true,
+				Visible = function()
+					return not owned()
+				end,
+				ZIndex = 329,
+				textStroke(),
+			},
 		},
 		create "TextLabel" {
 			Name = "AbilityName",
@@ -133,8 +160,12 @@ local function abilityCard(ability, state, category, selectedId)
 			FontFace = UIStyle.Font,
 			Position = UDim2.new(0, 120, 0, 10),
 			Size = UDim2.new(1, -130, 0, 33),
-			Text = ability.Name,
-			TextColor3 = ability.Color,
+			Text = function()
+				return if owned() then ability.Name else "???"
+			end,
+			TextColor3 = function()
+				return if owned() then ability.Color else UIStyle.Colors.Muted
+			end,
 			TextScaled = true,
 			TextXAlignment = Enum.TextXAlignment.Left,
 			ZIndex = 329,
@@ -147,7 +178,7 @@ local function abilityCard(ability, state, category, selectedId)
 			Position = UDim2.new(0, 120, 0, 49),
 			Size = UDim2.new(1, -130, 0, 23),
 			Text = function()
-				return if owned() then string.format("LEVEL %d", getLevel(state(), ability.Id)) else "NOT DISCOVERED"
+				return if owned() then string.format("LEVEL %d", getLevel(state(), ability.Id)) else "???"
 			end,
 			TextColor3 = function()
 				return if owned() then UIStyle.Colors.Paper else UIStyle.Colors.Muted
@@ -163,7 +194,9 @@ local function abilityCard(ability, state, category, selectedId)
 			FontFace = UIStyle.Font,
 			Position = UDim2.new(0, 120, 0, 78),
 			Size = UDim2.new(1, -130, 0, 23),
-			Text = ability.Category:upper() .. " ABILITY",
+			Text = function()
+				return if owned() then ability.Category:upper() .. " ABILITY" else "???"
+			end,
 			TextColor3 = UIStyle.Colors.PaperShadow,
 			TextScaled = true,
 			TextXAlignment = Enum.TextXAlignment.Left,
@@ -197,7 +230,7 @@ local function abilityCard(ability, state, category, selectedId)
 			BackgroundTransparency = 1,
 			Image = Images.Lock,
 			ImageColor3 = UIStyle.Colors.Muted,
-			Position = UDim2.new(1, -9, 1, -9),
+			Position = UDim2.new(0, 102, 0, 102),
 			Size = UDim2.fromOffset(28, 28),
 			Visible = function()
 				return not owned()
@@ -208,20 +241,77 @@ local function abilityCard(ability, state, category, selectedId)
 			Name = "Sensor",
 			AutoButtonColor = false,
 			BackgroundTransparency = 1,
-			Size = UDim2.fromScale(1, 1),
+			Active = owned,
+			Selectable = owned,
+			Size = UDim2.new(1, 0, 0, 106),
 			Text = "",
 			ZIndex = 340,
 			MouseEnter = function()
-				hovered(true)
-				Sounds.Play("HoverStart", localPlayer.PlayerGui)
+				if owned() then
+					hovered(true)
+					Sounds.Play("HoverStart", localPlayer.PlayerGui)
+				end
 			end,
 			MouseLeave = function()
 				hovered(false)
 			end,
 			Activated = function()
-				selectedId(ability.Id)
-				Sounds.Play("Click", localPlayer.PlayerGui)
+				if owned() then
+					selectedId(ability.Id)
+					Sounds.Play("Click", localPlayer.PlayerGui)
+				end
 			end,
+		},
+		create "Frame" {
+			Name = "QuickActions",
+			BackgroundTransparency = 1,
+			Position = UDim2.new(0, 116, 1, -45),
+			Size = UDim2.new(1, -126, 0, 37),
+			Visible = owned,
+			ZIndex = 342,
+			create "UIListLayout" {
+				FillDirection = Enum.FillDirection.Horizontal,
+				Padding = UDim.new(0, 8),
+				SortOrder = Enum.SortOrder.LayoutOrder,
+			},
+			Button({
+				Text = function()
+					return if equipped() then "UNEQUIP" else "EQUIP"
+				end,
+				Size = UDim2.new(0.48, -4, 1, 0),
+				BackgroundColor3 = function()
+					return if equipped() then UIStyle.Colors.Red else UIStyle.Colors.Green
+				end,
+				LayoutOrder = 1,
+				OnActivated = function()
+					if not owned() then
+						return
+					end
+					if equipped() then
+						AbilityController.UnequipAbility(ability.Id)
+					else
+						AbilityController.EquipAbility(ability.Id)
+					end
+				end,
+			}),
+			Button({
+				Text = function()
+					local level = getLevel(state(), ability.Id)
+					local cost = AbilityDefinitions.GetUpgradeCost(ability, level)
+					return if cost then string.format("UPGRADE %d", cost) else "MAX LEVEL"
+				end,
+				Size = UDim2.new(0.52, -4, 1, 0),
+				Enabled = function()
+					return owned() and getLevel(state(), ability.Id) < ability.MaxLevel
+				end,
+				BackgroundColor3 = UIStyle.Colors.Gold,
+				LayoutOrder = 2,
+				OnActivated = function()
+					if owned() then
+						AbilityController.UpgradeAbility(ability.Id)
+					end
+				end,
+			}),
 		},
 	}
 end
@@ -304,8 +394,15 @@ return function()
 	end
 
 	local function showDiscovery(abilityId: string, autoRollWasPaused: boolean)
+		local ability = AbilityDefinitions.ById[abilityId]
+		if not ability then
+			return
+		end
 		discoveryToken += 1
 		local token = discoveryToken
+		-- Select the newly revealed card so opening the inventory immediately shows the discovery.
+		selectedId(abilityId)
+		category(ability.Category)
 		discoveryId(abilityId)
 		discoveryAutoPaused(autoRollWasPaused)
 		Sounds.Play("NewRarest", localPlayer.PlayerGui)
@@ -378,7 +475,7 @@ return function()
 	for _, ability in AbilityDefinitions.List do
 		table.insert(cards, abilityCard(ability, state, category, selectedId))
 		table.insert(detailPreviews, abilityIcon(ability, 324, function()
-			return selectedId() == ability.Id
+			return selectedId() == ability.Id and isOwned(state(), ability.Id)
 		end))
 		table.insert(discoveryPreviews, abilityIcon(ability, 416, function()
 			return discoveryId() == ability.Id
@@ -542,7 +639,8 @@ return function()
 					Position = UDim2.new(0.44, 4, 0, 78),
 					Size = UDim2.new(0.56, -22, 1, -96),
 					Visible = function()
-						return category() == selectedAbility().Category
+						local ability = selectedAbility()
+						return category() == ability.Category and isOwned(state(), ability.Id)
 					end,
 					ZIndex = 320,
 					create "UICorner" { CornerRadius = UIStyle.CornerRadius },
@@ -717,12 +815,13 @@ return function()
 					FontFace = UIStyle.Font,
 					Position = UDim2.new(0.48, 0, 0.36, 0),
 					Size = UDim2.new(0.46, 0, 0.22, 0),
-					Text = "No abilities in this category yet.\nFuture discoveries will appear here.",
+					Text = "Discover an ability to reveal its details.\nLocked abilities remain completely hidden.",
 					TextColor3 = UIStyle.Colors.PaperShadow,
 					TextScaled = true,
 					TextWrapped = true,
 					Visible = function()
-						return category() ~= selectedAbility().Category
+						local ability = selectedAbility()
+						return category() ~= ability.Category or not isOwned(state(), ability.Id)
 					end,
 					ZIndex = 322,
 				},
@@ -778,7 +877,7 @@ return function()
 					FontFace = UIStyle.Font,
 					Position = UDim2.fromScale(0.05, 0.035),
 					Size = UDim2.fromScale(0.9, 0.12),
-					Text = "NEW ABILITY DISCOVERED",
+					Text = "ABILITY DISCOVERED!",
 					TextColor3 = Color3.fromRGB(181, 231, 255),
 					TextScaled = true,
 					ZIndex = 415,

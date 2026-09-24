@@ -10,11 +10,9 @@ local rollNetwork: Networker.Client?
 local ready = false
 local latestRollId = 0
 local latestStartedSequenceId = 0
-local latestBonusSequenceId = 1
 local autoRollEnabled = false
 
 local rollStarted = Signal.new()
-local bonusActivated = Signal.new()
 local rollFinished = Signal.new()
 local autoRollChanged = Signal.new()
 
@@ -27,9 +25,10 @@ function RollController.RollStarted(_, packet)
 		or not isValidInteger(packet.rollId, 1)
 		or not isValidInteger(packet.sequenceId, 1)
 		or not isValidInteger(packet.reelIndex, 1)
-		or not isValidInteger(packet.multiplier, 1)
-		or type(packet.itemId) ~= "string"
-		or RollDefinitions.ById[packet.itemId] == nil
+		or (packet.kind ~= "Item" and packet.kind ~= "Clover")
+		or not isValidInteger(packet.luckMultiplier, 1)
+		or (packet.kind == "Item" and (type(packet.itemId) ~= "string" or RollDefinitions.ById[packet.itemId] == nil))
+		or (packet.kind == "Clover" and packet.itemId ~= nil)
 	then
 		return
 	end
@@ -41,27 +40,10 @@ function RollController.RollStarted(_, packet)
 	end
 	if packet.rollId > latestRollId then
 		latestStartedSequenceId = 0
-		latestBonusSequenceId = 1
 	end
 	latestRollId = packet.rollId
 	latestStartedSequenceId = packet.sequenceId
 	rollStarted:Fire(packet)
-end
-
-function RollController.BonusActivated(_, packet)
-	if type(packet) ~= "table"
-		or packet.rollId ~= latestRollId
-		or not isValidInteger(packet.sequenceId, 2)
-		or not isValidInteger(packet.reelIndex, 2)
-		or not isValidInteger(packet.multiplier, 2)
-		or packet.sequenceId ~= latestStartedSequenceId + 1
-		or packet.sequenceId <= latestBonusSequenceId
-	then
-		return
-	end
-
-	latestBonusSequenceId = packet.sequenceId
-	bonusActivated:Fire(packet)
 end
 
 function RollController.RollFinished(_, rollId, willAutoRoll)
@@ -102,10 +84,6 @@ end
 
 function RollController.GetRollStartedSignal()
 	return rollStarted
-end
-
-function RollController.GetBonusActivatedSignal()
-	return bonusActivated
 end
 
 function RollController.GetRollFinishedSignal()

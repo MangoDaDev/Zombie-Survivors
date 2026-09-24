@@ -131,9 +131,10 @@ local function sendResult(player: Player, success: boolean, message: string, mil
 	abilityNetwork:fire(player, "ActionResult", success, message, milestone == true)
 end
 
-local function damageZombie(player: Player, definition, targetId: number, damage: number)
-	-- Abilities intentionally do not own zombie health; a future health API only changes this adapter.
-	local damaged = ZombieController.DamageZombie(targetId, damage)
+local function damageZombie(player: Player, definition, targetId: number, damage: number, hitOrigin: Vector3, isRage: boolean)
+	local knockback = definition.Combat.Knockback
+		* (if isRage then definition.Rage.KnockbackMultiplier or 1 else 1)
+	local damaged = ZombieController.DamageZombie(targetId, damage, hitOrigin, knockback)
 	if damaged and definition.Rage then
 		-- Rage is earned only from server-confirmed combat, never from projectile presentation or client input.
 		RageController.AddCombatRage(player, definition.Rage.RagePerHit)
@@ -185,7 +186,7 @@ local function fireDaggerVolley(player: Player, definition, level: number): bool
 
 		task.delay(launchDelay + duration, function()
 			if player.Parent == Players then
-				damageZombie(player, definition, target.id, stats.Damage)
+				damageZombie(player, definition, target.id, stats.Damage, startPosition, stats.IsRage == true)
 			end
 		end)
 	end

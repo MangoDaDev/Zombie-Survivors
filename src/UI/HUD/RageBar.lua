@@ -142,7 +142,8 @@ return function()
 			AnchorPoint = Vector2.new(0.5, 1),
 			BackgroundTransparency = 1,
 			Position = UDim2.new(0.5, 0, 1, -106),
-			Size = UDim2.new(0.46, 180, 0.052, 18),
+			-- Keep Rage readable without competing with the primary bottom controls.
+			Size = UDim2.new(0.42, 140, 0.024, 8),
 			ZIndex = 76,
 			create "UIScale" {
 				Scale = 1,

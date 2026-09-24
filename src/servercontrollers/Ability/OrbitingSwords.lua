@@ -105,14 +105,29 @@ local function sendVisualState(player: Player, runtime: Runtime, stats, level: n
 	})
 end
 
-local function applySwordDamage(player: Player, runtime: Runtime, stats, targetId: number, baseDamage: number, now: number)
+local function applySwordDamage(
+	player: Player,
+	runtime: Runtime,
+	stats,
+	targetId: number,
+	baseDamage: number,
+	now: number,
+	hitOrigin: Vector3
+)
 	local definition = AbilityDefinitions.ById[ABILITY_ID]
 	local damage = baseDamage
 	if stats.Wounded and (runtime.woundedUntil[targetId] or 0) > now then
 		damage *= definition.Combat.WoundDamageMultiplier
 	end
 
-	local damaged, killed = ZombieController.DamageZombie(targetId, math.floor(damage + 0.5))
+	local knockback = definition.Combat.Knockback
+		* (if stats.IsRage then definition.Rage.KnockbackMultiplier or 1 else 1)
+	local damaged, killed = ZombieController.DamageZombie(
+		targetId,
+		math.floor(damage + 0.5),
+		hitOrigin,
+		knockback
+	)
 	if not damaged then
 		return
 	end
@@ -155,7 +170,7 @@ local function hitWithSword(
 			and now - (swordHits[target.id] or -math.huge) >= stats.HitCooldown
 		then
 			swordHits[target.id] = now
-			applySwordDamage(player, runtime, stats, target.id, stats.Damage * damageMultiplier, now)
+			applySwordDamage(player, runtime, stats, target.id, stats.Damage * damageMultiplier, now, swordPosition)
 			hitsThisStep += 1
 			if hitsThisStep >= maximumHits then
 				break
@@ -195,7 +210,8 @@ local function fireReleasedBlade(player: Player, runtime: Runtime, stats, root: 
 					stats,
 					target.id,
 					stats.Damage * definition.Combat.ReleaseDamageMultiplier,
-					workspace:GetServerTimeNow()
+					workspace:GetServerTimeNow(),
+					origin
 				)
 			end
 		end)

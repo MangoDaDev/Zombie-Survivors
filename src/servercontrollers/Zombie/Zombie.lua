@@ -5,6 +5,8 @@ local ZombieBehaviors = require(script.Parent.ZombieBehaviors)
 
 local TARGET_REFRESH_INTERVAL = 0.5
 local TARGET_HYSTERESIS = 1.15
+local KNOCKBACK_DECAY = 9
+local MAXIMUM_KNOCKBACK_SPEED = 28
 
 local Zombie = {}
 Zombie.__index = Zombie
@@ -22,6 +24,7 @@ function Zombie.new(id, typeName, definition, spawnCFrame, areaId, variation)
 	self.moveSpeedMultiplier = variation.MoveSpeed
 	self.turnSpeedMultiplier = variation.TurnSpeed
 	self.animationSpeedMultiplier = variation.AnimationSpeed
+	self.knockbackVelocity = Vector3.zero
 	self.state = ZombieProtocol.State.Idle
 	self.target = nil
 	self.attackSequence = 0
@@ -80,6 +83,15 @@ function Zombie:Step(deltaTime, candidates, candidateLookup, now)
 		return
 	end
 
+	-- Damage applies an impulse to this server-owned CFrame simulation instead of relying on client
+	-- physics. The fast exponential decay produces a readable shove without permanently kiting enemies.
+	if self.knockbackVelocity.Magnitude > 0.02 then
+		self.cframe += self.knockbackVelocity * deltaTime
+		self.knockbackVelocity *= math.exp(-KNOCKBACK_DECAY * deltaTime)
+	else
+		self.knockbackVelocity = Vector3.zero
+	end
+
 	local targetCandidate = self.target and candidateLookup[self.target]
 	if now >= self.nextTargetRefreshAt or not targetCandidate then
 		targetCandidate = self:_refreshTarget(candidates, candidateLookup, now)
@@ -121,12 +133,22 @@ function Zombie:Step(deltaTime, candidates, candidateLookup, now)
 	self.state = ZombieProtocol.State.Moving
 end
 
-function Zombie:TakeDamage(amount)
+function Zombie:TakeDamage(amount, hitOrigin, knockbackImpulse)
 	if type(amount) ~= "number" or amount <= 0 or self.health <= 0 then
 		return false
 	end
 
 	self.health = math.max(self.health - amount, 0)
+	if typeof(hitOrigin) == "Vector3" and type(knockbackImpulse) == "number" and knockbackImpulse > 0 then
+		local offset = self.cframe.Position - hitOrigin
+		local horizontalOffset = Vector3.new(offset.X, 0, offset.Z)
+		if horizontalOffset.Magnitude > 0.001 then
+			self.knockbackVelocity += horizontalOffset.Unit * knockbackImpulse
+			if self.knockbackVelocity.Magnitude > MAXIMUM_KNOCKBACK_SPEED then
+				self.knockbackVelocity = self.knockbackVelocity.Unit * MAXIMUM_KNOCKBACK_SPEED
+			end
+		end
+	end
 	return true
 end
 
@@ -149,6 +171,8 @@ function Zombie:GetSpawnPacket()
 		self.attackStartedAt,
 		self.scale,
 		self.animationSpeedMultiplier,
+		self.health,
+		self.definition.MaxHealth,
 	}
 end
 
@@ -159,6 +183,8 @@ function Zombie:GetUpdatePacket()
 		self.state,
 		self.attackSequence,
 		self.attackStartedAt,
+		self.health,
+		self.definition.MaxHealth,
 	}
 end
 
