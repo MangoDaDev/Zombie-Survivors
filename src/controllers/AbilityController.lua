@@ -73,8 +73,8 @@ local function emitAt(position: Vector3, flashCount: number, sparkCount: number,
 	if rage then
 		local light = Instance.new("PointLight")
 		light.Color = Color3.fromRGB(255, 101, 42)
-		light.Brightness = 1.2
-		light.Range = 6
+		light.Brightness = 1.6
+		light.Range = 6.5
 		light.Parent = holder
 	end
 	Debris:AddItem(holder, 2)
@@ -111,11 +111,11 @@ local function addTrail(model: Model, rage: boolean)
 	trail.Color = if rage
 		then ColorSequence.new(Color3.fromRGB(255, 238, 105), Color3.fromRGB(255, 58, 25))
 		else ColorSequence.new(Color3.fromRGB(205, 236, 255), Color3.fromRGB(95, 183, 255))
-	trail.LightEmission = if rage then 0.72 else 0.8
+	trail.LightEmission = if rage then 0.82 else 0.8
 	trail.Lifetime = if rage then 0.2 else 0.12
 	trail.MinLength = 0.05
 	trail.Transparency = NumberSequence.new(0.18, 1)
-	trail.WidthScale = if rage then NumberSequence.new(1.18, 0) else NumberSequence.new(1, 0)
+	trail.WidthScale = if rage then NumberSequence.new(1.28, 0) else NumberSequence.new(1, 0)
 	trail.Parent = primaryPart
 end
 
@@ -147,9 +147,9 @@ local function spawnDagger(packet)
 		highlight.Adornee = model
 		highlight.DepthMode = Enum.HighlightDepthMode.Occluded
 		highlight.FillColor = Color3.fromRGB(255, 91, 35)
-		highlight.FillTransparency = 0.76
+		highlight.FillTransparency = 0.7
 		highlight.OutlineColor = Color3.fromRGB(255, 231, 117)
-		highlight.OutlineTransparency = 0.35
+		highlight.OutlineTransparency = 0.25
 		highlight.Parent = model
 	end
 	model:PivotTo(getFlightCFrame(packet.startPosition, packet.targetPosition, 0))
@@ -184,7 +184,7 @@ local function renderProjectiles(deltaTime: number)
 			local impactEffect = emitAt(
 				projectile.targetPosition,
 				1,
-				if projectile.rage then 9 else 8,
+				if projectile.rage then 11 else 8,
 				projectile.rage
 			)
 			if impactEffect and projectile.daggerIndex == 1 then

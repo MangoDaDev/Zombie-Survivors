@@ -4,6 +4,8 @@ local RollDefinitions = {}
 
 RollDefinitions.InventoryDataKey = "RollInventory"
 RollDefinitions.TotalRollsDataKey = "TotalRolls"
+RollDefinitions.AutoRollEnabledDataKey = "AutoRollEnabled"
+RollDefinitions.PresentationHiddenDataKey = "RollPresentationHidden"
 
 -- These timings are shared only so the authoritative server cadence stays aligned with the client presentation.
 RollDefinitions.Timing = {

@@ -2,6 +2,7 @@ return {
 	RollCooldown = 0.75,
 	RollRequestCooldown = 0.15,
 	AutoToggleCooldown = 0.2,
+	PresentationToggleCooldown = 0.2,
 
 	-- Persistent luck is combined with temporary clover luck only for the final item selection.
 	DefaultLuck = 1,

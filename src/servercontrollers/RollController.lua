@@ -16,11 +16,14 @@ type PlayerRollState = {
 	autoRollEnabled: boolean,
 	autoScheduleId: number,
 	lastAutoToggleAt: number,
+	lastPresentationToggleAt: number,
 	lastRollRequestAt: number,
 	luck: number,
 	nextRollAt: number,
 	pendingDiscoveries: { [string]: number },
+	presentationHidden: boolean,
 	rollId: number,
+	settingsRequested: boolean,
 	token: number,
 }
 
@@ -30,7 +33,18 @@ local dataService
 local rollNetwork
 local random = Random.new()
 local states: { [Player]: PlayerRollState } = {}
+local settingsRequestedPlayers: { [Player]: boolean } = {}
 local startSequence: (Player, PlayerRollState) -> boolean
+
+local function getBooleanPreference(player: Player, dataKey: string): boolean
+	local value = dataService:get(player, dataKey)
+	if type(value) == "boolean" then
+		return value
+	end
+
+	dataService:set(player, dataKey, false)
+	return false
+end
 
 local function isCurrentState(player: Player, state: PlayerRollState, token: number): boolean
 	return player.Parent == Players and states[player] == state and state.token == token
@@ -241,6 +255,32 @@ function RollController.RequestRoll(_, player: Player)
 	startSequence(player, state)
 end
 
+function RollController.GetSettings(_, player: Player)
+	local state = states[player]
+	if not state then
+		-- DataService can release the client just before lifecycle dispatch reaches this controller.
+		-- Remember that the listener is ready so OnPlayerAdded can publish and resume the real saved state.
+		settingsRequestedPlayers[player] = true
+		return {
+			autoRollEnabled = false,
+			presentationHidden = false,
+		}
+	end
+
+	if not state.settingsRequested then
+		state.settingsRequested = true
+		-- Resume saved Auto Roll only after the client controller is listening for the resulting roll events.
+		if state.autoRollEnabled then
+			scheduleAutoRoll(player, state)
+		end
+	end
+
+	return {
+		autoRollEnabled = state.autoRollEnabled,
+		presentationHidden = state.presentationHidden,
+	}
+end
+
 function RollController.SetAutoRoll(_, player: Player, enabled: any)
 	local state = states[player]
 	if not state or type(enabled) ~= "boolean" then
@@ -252,13 +292,39 @@ function RollController.SetAutoRoll(_, player: Player, enabled: any)
 		return
 	end
 	state.lastAutoToggleAt = now
+	if state.autoRollEnabled == enabled then
+		return
+	end
 	state.autoRollEnabled = enabled
 	state.autoScheduleId += 1
+	-- Accepted roll preferences are persisted immediately so leaving between rolls cannot revert them.
+	dataService:set(player, RollDefinitions.AutoRollEnabledDataKey, enabled)
 	rollNetwork:fire(player, "AutoRollChanged", enabled)
 
-	if enabled then
+	if enabled and state.settingsRequested then
 		scheduleAutoRoll(player, state)
 	end
+end
+
+function RollController.SetPresentationHidden(_, player: Player, hidden: any)
+	local state = states[player]
+	if not state or type(hidden) ~= "boolean" then
+		return
+	end
+
+	local now = workspace:GetServerTimeNow()
+	if now - state.lastPresentationToggleAt < RollServerConfig.PresentationToggleCooldown then
+		return
+	end
+	state.lastPresentationToggleAt = now
+	if state.presentationHidden == hidden then
+		return
+	end
+
+	state.presentationHidden = hidden
+	-- The server owns the saved display preference even though hiding the reel is presentation-only.
+	dataService:set(player, RollDefinitions.PresentationHiddenDataKey, hidden)
+	rollNetwork:fire(player, "PresentationHiddenChanged", hidden)
 end
 
 function RollController.GetLuck(player: Player): number?
@@ -284,24 +350,42 @@ end
 function RollController.Init()
 	AbilityController.SetDiscoveryAcknowledgedCallback(acknowledgeDiscovery)
 	rollNetwork = Networker.server.new("RollController", RollController, {
+		RollController.GetSettings,
 		RollController.RequestRoll,
 		RollController.SetAutoRoll,
+		RollController.SetPresentationHidden,
 	})
 end
 
 function RollController.OnPlayerAdded(player: Player)
-	states[player] = {
+	local autoRollEnabled = getBooleanPreference(player, RollDefinitions.AutoRollEnabledDataKey)
+	local presentationHidden = getBooleanPreference(player, RollDefinitions.PresentationHiddenDataKey)
+	local settingsRequested = settingsRequestedPlayers[player] == true
+	settingsRequestedPlayers[player] = nil
+
+	local state: PlayerRollState = {
 		active = false,
-		autoRollEnabled = false,
+		autoRollEnabled = autoRollEnabled,
 		autoScheduleId = 0,
 		lastAutoToggleAt = -math.huge,
+		lastPresentationToggleAt = -math.huge,
 		lastRollRequestAt = -math.huge,
 		luck = RollServerConfig.DefaultLuck,
 		nextRollAt = 0,
 		pendingDiscoveries = {},
+		presentationHidden = presentationHidden,
 		rollId = 0,
+		settingsRequested = settingsRequested,
 		token = 0,
 	}
+	states[player] = state
+	if settingsRequested then
+		rollNetwork:fire(player, "AutoRollChanged", autoRollEnabled)
+		rollNetwork:fire(player, "PresentationHiddenChanged", presentationHidden)
+		if autoRollEnabled then
+			scheduleAutoRoll(player, state)
+		end
+	end
 
 	local inventory = dataService:get(player, RollDefinitions.InventoryDataKey)
 	if type(inventory) ~= "table" then
@@ -320,6 +404,7 @@ function RollController.OnPlayerRemoving(player: Player)
 		state.autoScheduleId += 1
 	end
 	states[player] = nil
+	settingsRequestedPlayers[player] = nil
 end
 
 return RollController

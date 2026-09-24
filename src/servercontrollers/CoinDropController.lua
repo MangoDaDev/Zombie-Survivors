@@ -5,7 +5,7 @@ local ServerStorage = game:GetService("ServerStorage")
 
 local Networker = require(ReplicatedStorage.Packages.networker)
 local CoinDropConfig = require(ReplicatedStorage.Modules.Game.CoinDropConfig)
-local CoinsController = require(ServerStorage.Controllers.CoinsController)
+local RunRewardsController = require(ServerStorage.Controllers.RunRewardsController)
 
 local UPDATE_INTERVAL = 0.1
 local MERGE_INTERVAL = 0.3
@@ -236,7 +236,7 @@ local function finishCollections(now: number)
 		local player = coin.collectingPlayer
 		if player and coin.collectAt and now >= coin.collectAt then
 			if player.Parent == Players and getLiveRoot(player) then
-				CoinsController.Add(player, coin.value)
+				RunRewardsController.AddCoins(player, coin.value)
 				coins[id] = nil
 				activeCount -= 1
 				coinNetwork:fireAll("CoinCollected", id, player.UserId, coin.value)

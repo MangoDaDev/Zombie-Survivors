@@ -6,6 +6,7 @@ local Confirmation = require(script.Parent.Classes.Confirmation)
 local CoinsDisplay = require(script.Parent.HUD.CoinsDisplay)
 local Notifications = require(script.Parent.HUD.Notifications)
 local RageBar = require(script.Parent.HUD.RageBar)
+local RunRewardsDisplay = require(script.Parent.HUD.RunRewardsDisplay)
 local RollControls = require(script.Parent.HUD.RollControls)
 local RollInterface = require(script.Parent.HUD.RollInterface)
 local create = vide.create
@@ -19,6 +20,7 @@ return function()
 		ResetOnSpawn = false,
 		ScreenInsets = Enum.ScreenInsets.None,
 		CoinsDisplay(),
+		RunRewardsDisplay(),
 		Notifications(),
 		RageBar(),
 		RollInterface(),

@@ -54,11 +54,11 @@ local function addSpectralTrail(model: Model, rage: boolean, inner: boolean)
 		elseif inner
 		then ColorSequence.new(Color3.fromRGB(164, 245, 255), Color3.fromRGB(88, 126, 255))
 		else ColorSequence.new(Color3.fromRGB(220, 205, 255), Color3.fromRGB(116, 91, 255))
-	trail.LightEmission = if rage then 0.65 else 0.8
-	trail.Lifetime = if rage then 0.24 else 0.16
+	trail.LightEmission = if rage then 0.78 else 0.8
+	trail.Lifetime = if rage then 0.27 else 0.16
 	trail.MinLength = 0.08
 	trail.Transparency = NumberSequence.new(0.2, 1)
-	trail.WidthScale = NumberSequence.new(if inner then 0.7 else 1, 0)
+	trail.WidthScale = NumberSequence.new(if inner then 0.7 else if rage then 1.2 else 1, 0)
 	trail.Parent = primaryPart
 end
 
@@ -96,9 +96,9 @@ local function cloneSword(scale: number, rage: boolean, inner: boolean, temporar
 	highlight.Adornee = model
 	highlight.DepthMode = Enum.HighlightDepthMode.Occluded
 	highlight.FillColor = if rage then Color3.fromRGB(255, 75, 32) else Color3.fromRGB(125, 105, 255)
-	highlight.FillTransparency = if temporary then 0.74 else 0.8
+	highlight.FillTransparency = if temporary then 0.68 else if rage then 0.75 else 0.8
 	highlight.OutlineColor = if rage then Color3.fromRGB(255, 231, 124) else Color3.fromRGB(207, 235, 255)
-	highlight.OutlineTransparency = if rage then 0.34 else 0.24
+	highlight.OutlineTransparency = if rage then 0.26 else 0.24
 	highlight.Parent = model
 	model.Parent = effectsFolder
 	return model
@@ -159,7 +159,7 @@ local function emitReleaseImpact(position: Vector3, rage: boolean)
 				then ColorSequence.new(Color3.fromRGB(255, 230, 100), Color3.fromRGB(255, 65, 32))
 				else ColorSequence.new(Color3.fromRGB(211, 200, 255), Color3.fromRGB(105, 91, 255))
 			emitter.Parent = holder
-			emitter:Emit(if child.Name == "Flash" then 1 else 8)
+			emitter:Emit(if child.Name == "Flash" then 1 else if rage then 10 else 8)
 		end
 	end
 	Sounds.Play("BulletHit", holder, 110)

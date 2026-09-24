@@ -3,6 +3,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Button = require(script.Parent.Parent.Classes.Button)
 local AbilityController = require(ReplicatedStorage.Controllers.AbilityController)
 local RollController = require(ReplicatedStorage.Controllers.RollController)
+local RunRewardsController = require(ReplicatedStorage.Controllers.RunRewardsController)
 local UIStyle = require(ReplicatedStorage.Modules.UI.UIStyle)
 local Vide = require(ReplicatedStorage.Packages.vide)
 
@@ -15,6 +16,7 @@ return function()
 	local sequenceRunning = false
 	local autoEnabled = source(RollController.IsAutoRollEnabled())
 	local hidden = source(RollController.IsPresentationHidden())
+	local inSafeArea = source(RunRewardsController.IsInSafeArea())
 	local connections = {}
 
 	table.insert(connections, RollController.GetRollStartedSignal():Connect(function()
@@ -37,6 +39,12 @@ return function()
 	end))
 	table.insert(connections, RollController.GetPresentationHiddenChangedSignal():Connect(function(value)
 		hidden(value)
+	end))
+	table.insert(connections, RunRewardsController.GetSafeAreaChangedSignal():Connect(function(value)
+		inSafeArea(value)
+		if not value then
+			AbilityController.SetInventoryOpen(false)
+		end
 	end))
 	cleanup(function()
 		for _, connection in connections do
@@ -95,14 +103,24 @@ return function()
 				LayoutOrder = 2,
 				OnActivated = toggleAuto,
 			}),
-			Button({
-				Text = "ABILITIES",
-				BackgroundColor3 = UIStyle.Colors.Gold,
+			create "Frame" {
+				Name = "AbilitiesSlot",
+				BackgroundTransparency = 1,
 				LayoutOrder = 3,
-				OnActivated = function()
-					AbilityController.SetInventoryOpen(true)
-				end,
-			}),
+				Size = UDim2.fromScale(0.3, 1),
+				-- Roll and Auto Roll remain available during a run; only base management leaves this row.
+				Visible = inSafeArea,
+				Button({
+					Text = "ABILITIES",
+					BackgroundColor3 = UIStyle.Colors.Gold,
+					Size = UDim2.fromScale(1, 1),
+					OnActivated = function()
+						if inSafeArea() then
+							AbilityController.SetInventoryOpen(true)
+						end
+					end,
+				}),
+			},
 		},
 	}
 end

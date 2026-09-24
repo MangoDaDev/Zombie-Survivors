@@ -19,10 +19,11 @@ Quick reference for the reusable first-party Luau foundation. Generated Wally de
 | `src/controllers/Ability/ActiveWeaponEffects.lua` | Renders Fireball, Lightning, and latency-corrected Boomerang presentation from authoritative server packets. |
 | `src/controllers/Ability/OrbitingSwordsView.lua` | Renders smoothly reconciled spectral sword orbits, Rage blades, trails, and released-blade return flights. |
 | `src/controllers/CoinsController.lua` | Exposes the replicated, read-only local coin balance and its change signal. |
-| `src/controllers/CoinDropController.lua` | Renders lit, world-sized BillboardGui coin bursts, trails, smooth merges, expiration, and accelerating server-directed collection. |
+| `src/controllers/RunRewardsController.lua` | Mirrors server-held run earnings and safe-area membership, and requests an authoritative return-to-base claim. |
+| `src/controllers/CoinDropController.lua` | Renders lit, world-sized BillboardGui coin bursts, trails, smooth merges, expiration, and curved collection into the live backpack opening. |
 | `src/controllers/RageController.lua` | Validates authoritative Rage snapshots, predicts activation presentation, and owns local character Rage VFX. |
 | `src/controllers/PlayerStateController.lua` | Receives generic server runtime-state snapshots and updates. |
-| `src/controllers/RollController.lua` | Sends roll intent and validates authoritative item/clover, auto-roll, and completion events for presentation. |
+| `src/controllers/RollController.lua` | Restores saved roll preferences, sends roll intent, and validates authoritative item/clover, auto-roll, and completion events for presentation. |
 | `src/controllers/ZombieController.lua` | Receives compact zombie snapshots/damage events and drives the single client render loop. |
 | `src/controllers/Zombie/ProceduralAnimator.lua` | Produces type-specific procedural movement and attack poses without animation tracks. |
 | `src/controllers/Zombie/ZombieView.lua` | Owns one client-rendered zombie model, interpolation, health/hit feedback, visibility, and cosmetic death ragdolls. |
@@ -33,11 +34,13 @@ Quick reference for the reusable first-party Luau foundation. Generated Wally de
 | `src/servercontrollers/Ability/PassiveEffects.lua` | Applies Heart and Boots through named stat modifiers and owns their server-authoritative milestone behavior. |
 | `src/servercontrollers/CollisionController.lua` | Assigns avatar parts to a generic non-colliding player-character collision group. |
 | `src/servercontrollers/CoinsController.lua` | Validates and owns persistent server-authoritative coin balance operations. |
+| `src/servercontrollers/BackpackController.lua` | Equips the authored non-physical backpack stages and updates them from authoritative carried run coins. |
+| `src/servercontrollers/RunRewardsController.lua` | Holds unbanked run earnings, tracks safe-area membership, and authoritatively returns and claims rewards. |
 | `src/servercontrollers/CoinDropController.lua` | Owns zombie coin values, spread, lifetime cleanup, capped spatial merging, proximity claims, and authoritative collection awards. |
 | `src/servercontrollers/RageController.lua` | Owns the server-timed Rage charge cycle, activation validation, duration, death resets, and replication. |
 | `src/servercontrollers/PlayerStateController.lua` | Owns generic per-player runtime state and replicates requested state updates. |
 | `src/servercontrollers/PlayerStatController.lua` | Composes named player health/speed modifiers, preserves gained health, and applies the final movement-speed limit. |
-| `src/servercontrollers/RollController.lua` | Owns per-player duplicate-inclusive ability rolls, cooldowns, clover luck chains, rewards, and auto-roll scheduling. |
+| `src/servercontrollers/RollController.lua` | Owns per-player duplicate-inclusive ability rolls, cooldowns, clover luck chains, rewards, auto-roll scheduling, and saved roll preferences. |
 | `src/servercontrollers/Roll/RollServerConfig.lua` | Defines server-only luck, cooldown, and clover-chain balance values. |
 | `src/servercontrollers/ZombieController.lua` | Runs grouped area spawning, batched authoritative simulation, damage feedback, death rewards, and compact replication. |
 | `src/servercontrollers/Zombie/Zombie.lua` | Defines authoritative targeting, area-bounded movement, attacks, health, and knockback per zombie. |
@@ -64,12 +67,13 @@ These modules provide shared game configuration, persistent player-data defaults
 | Path | Responsibility |
 | --- | --- |
 | `src/modules/Game/CoinsConfig.lua` | Defines the shared coin data key, default, and exact-integer balance limit. |
+| `src/modules/Game/BackpackConfig.lua` | Maps carried-coin thresholds to the five authored backpack stages and inspected mount offsets. |
 | `src/modules/Game/CoinDropConfig.lua` | Defines shared coin pickup distance, timing, and client-prediction batching limits. |
 | `src/modules/Game/Abilities/AbilityDefinitions.lua` | Defines expandable ability metadata, equip limits, upgrade costs, per-level stats, visible milestones, and ability-specific Rage tuning, including Fireball, Lightning, and Boomerang. |
 | `src/modules/Game/Stats/PlayerStatConfig.lua` | Defines fallback player base stats and the global final movement-speed limit. |
 | `src/modules/Game/Rage/RageConfig.lua` | Defines shared Rage capacity, 30-second charge, 10-second duration, keybind, and request cadence. |
 | `src/modules/Game/DataTemplate.lua` | Supplies DataService's JSON-compatible persisted player-data defaults. |
-| `src/modules/Game/Rolls/RollDefinitions.lua` | Builds the weighted roll catalog from obtainable abilities and defines data keys and presentation timing. |
+| `src/modules/Game/Rolls/RollDefinitions.lua` | Builds the weighted roll catalog from obtainable abilities and defines inventory, total-roll, preference, and presentation timing keys. |
 | `src/modules/Game/RuntimeState.lua` | Stores generic transient per-player state and change signals. |
 | `src/modules/Game/Zombies/ZombieAreas.lua` | Defines progression-scaled spawn volumes, caps, group sizes, and weighted zombie pools. |
 | `src/modules/Game/Zombies/ZombieDefinitions.lua` | Defines expandable per-type combat, movement, coin reward, asset, and animation configuration. |
@@ -118,11 +122,12 @@ These modules provide shared game configuration, persistent player-data defaults
 | `src/UI/Classes/Confirmation.lua` | Provides a reusable modal confirmation component. |
 | `src/UI/Effects/HoverExpand.lua` | Provides reusable hover scaling for GuiObjects. |
 | `src/UI/Effects/Notification.lua` | Provides a reusable counted attention badge. |
-| `src/UI/HUD/CoinsDisplay.lua` | Renders the responsive left-side coin balance display from replicated data. |
-| `src/UI/HUD/AbilityInterface.lua` | Renders equipped-first ability lists, concealed locked entries, direct card actions, details, and discovery. |
+| `src/UI/HUD/CoinsDisplay.lua` | Renders the responsive base-only coin balance display from replicated data. |
+| `src/UI/HUD/RunRewardsDisplay.lua` | Shows unbanked run coins and the persistent return-to-base claim action. |
+| `src/UI/HUD/AbilityInterface.lua` | Renders base-only ability management plus roll-discovery presentation, equipped-first lists, concealed locked entries, and direct actions. |
 | `src/UI/HUD/RageBar.lua` | Renders the responsive STUD-style Rage meter, ready/active states, activation control, and screen pulse. |
 | `src/UI/HUD/Notifications.lua` | Renders transient notifications from NotificationManager. |
-| `src/UI/HUD/RollControls.lua` | Renders independent bottom-aligned Roll/Hide/Show, Auto Roll, and Abilities controls. |
+| `src/UI/HUD/RollControls.lua` | Keeps Roll/Hide/Show and Auto Roll available everywhere while showing the Abilities control only at base. |
 | `src/UI/HUD/RollInterface.lua` | Renders the full-screen or compact top-center item/clover reel chain with distance-based center scaling and selection feedback. |
 | `src/modules/UI/NotificationManager.lua` | Emits reusable transient notification events. |
 | `src/modules/UI/PlayVFX.lua` | Clones, starts, and cleans up reusable effects and sounds. |

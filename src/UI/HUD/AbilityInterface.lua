@@ -4,6 +4,7 @@ local TweenService = game:GetService("TweenService")
 
 local Button = require(script.Parent.Parent.Classes.Button)
 local AbilityController = require(ReplicatedStorage.Controllers.AbilityController)
+local RunRewardsController = require(ReplicatedStorage.Controllers.RunRewardsController)
 local AbilityDefinitions = require(ReplicatedStorage.Modules.Game.Abilities.AbilityDefinitions)
 local Images = require(ReplicatedStorage.Modules.UI.Images)
 local SafeArea = require(ReplicatedStorage.Modules.UI.SafeArea)
@@ -323,6 +324,7 @@ end
 return function()
 	local state = source(AbilityController.GetState())
 	local open = source(AbilityController.IsInventoryOpen())
+	local inSafeArea = source(RunRewardsController.IsInSafeArea())
 	local category = source(AbilityDefinitions.Categories.Weapon)
 	local topOffset = source(SafeArea.GetTopOffset(0))
 	local selectedId = source(AbilityDefinitions.List[1].Id)
@@ -424,6 +426,13 @@ return function()
 	table.insert(connections, AbilityController.GetInventoryOpenChangedSignal():Connect(function(isOpen)
 		open(isOpen)
 	end))
+	table.insert(connections, RunRewardsController.GetSafeAreaChangedSignal():Connect(function(value)
+		inSafeArea(value)
+		if not value then
+			-- Ability management is base-only; leaving closes it so no invisible interactive overlay remains.
+			AbilityController.SetInventoryOpen(false)
+		end
+	end))
 	table.insert(connections, AbilityController.GetAbilityDiscoveredSignal():Connect(showDiscovery))
 	table.insert(connections, AbilityController.GetActionResultSignal():Connect(function(success, message, milestone)
 		statusToken += 1
@@ -503,7 +512,9 @@ return function()
 			BackgroundTransparency = 0.22,
 			BorderSizePixel = 0,
 			Size = UDim2.fromScale(1, 1),
-			Visible = open,
+			Visible = function()
+				return open() and inSafeArea()
+			end,
 			ZIndex = 300,
 			create "Frame" {
 				Name = "InventoryPanel",

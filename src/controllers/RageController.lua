@@ -79,15 +79,15 @@ local function addCharacterEffect()
 	highlight.Adornee = character
 	highlight.DepthMode = Enum.HighlightDepthMode.Occluded
 	highlight.FillColor = Color3.fromRGB(255, 91, 39)
-	highlight.FillTransparency = 0.55
+	highlight.FillTransparency = 0.45
 	highlight.OutlineColor = Color3.fromRGB(255, 213, 92)
-	highlight.OutlineTransparency = 0.18
+	highlight.OutlineTransparency = 0.12
 	highlight.Parent = character
 	activeHighlight = highlight
 	TweenService:Create(
 		highlight,
 		TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-		{ FillTransparency = 0.86, OutlineTransparency = 0.5 }
+		{ FillTransparency = 0.82, OutlineTransparency = 0.42 }
 	):Play()
 
 	local attachment = Instance.new("Attachment")
@@ -102,13 +102,13 @@ local function addCharacterEffect()
 			local emitter = child:Clone()
 			emitter.Name = "Rage" .. child.Name
 			emitter.Color = ColorSequence.new(Color3.fromRGB(255, 220, 85), Color3.fromRGB(255, 64, 28))
-			emitter.LightEmission = 0.55
-			emitter.Rate = 3
-			emitter.Speed = NumberRange.new(1.25, 3.2)
+			emitter.LightEmission = 0.7
+			emitter.Rate = 4
+			emitter.Speed = NumberRange.new(1.4, 3.6)
 			emitter.Lifetime = NumberRange.new(0.35, 0.75)
 			emitter.Enabled = true
 			emitter.Parent = attachment
-			emitter:Emit(if child.Name == "Flash" then 2 else 8)
+			emitter:Emit(if child.Name == "Flash" then 2 else 11)
 		end
 	end
 	Sounds.Play("FlameBurst", root, 140)

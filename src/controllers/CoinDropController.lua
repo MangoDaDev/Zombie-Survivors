@@ -4,6 +4,7 @@ local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
 local Networker = require(ReplicatedStorage.Packages.networker)
+local BackpackConfig = require(ReplicatedStorage.Modules.Game.BackpackConfig)
 local CoinDropConfig = require(ReplicatedStorage.Modules.Game.CoinDropConfig)
 local Images = require(ReplicatedStorage.Modules.UI.Images)
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
@@ -14,7 +15,11 @@ local IDLE_BOB_SPEED = 2.8
 local MERGE_EASE_POWER = 2.4
 local MAGNET_EASE_POWER = 3.4
 local MAGNET_INITIAL_PULL = 0.22
-local COLLECTED_POP_DURATION = 0.16
+local MAGNET_SIDE_SWING = 0.8
+local MAGNET_MIN_ARC_HEIGHT = 1.25
+local MAGNET_MAX_ARC_HEIGHT = 3.5
+local COLLECTED_SINK_DISTANCE = 0.35
+local COLLECTED_SINK_DURATION = 0.14
 
 type CoinView = {
 	id: number,
@@ -33,6 +38,8 @@ type CoinView = {
 	startAt: number,
 	duration: number,
 	arcHeight: number,
+	curveSide: Vector3,
+	startScale: number,
 	playerUserId: number?,
 	bobOffset: number,
 }
@@ -201,6 +208,8 @@ local function createView(id: number, value: number, position: Vector3, scale: n
 		startAt = 0,
 		duration = 0,
 		arcHeight = 0,
+		curveSide = Vector3.zero,
+		startScale = scale,
 		playerUserId = nil,
 		bobOffset = (id % 11) * 0.47,
 	}
@@ -221,12 +230,54 @@ local function getPlayerRoot(userId: number?): BasePart?
 	return if humanoid and humanoid.Health > 0 and root and root:IsA("BasePart") then root else nil
 end
 
+local function getBackpackOpening(userId: number?): Vector3?
+	if not userId then
+		return nil
+	end
+	local player = Players:GetPlayerByUserId(userId)
+	local character = player and player.Character
+	local backpack = character and character:FindFirstChild(BackpackConfig.ModelName)
+	local targetPart = backpack and backpack:FindFirstChild(BackpackConfig.TargetPartName)
+	if not targetPart or not targetPart:IsA("BasePart") then
+		return nil
+	end
+
+	-- GatheredNeck is the inspected mouth of every authored stage, so this tracks the actual opening after swaps.
+	return targetPart.CFrame:PointToWorldSpace(Vector3.new(0, targetPart.Size.Y * 0.5, 0))
+end
+
+local function cubicBezier(startPosition: Vector3, control1: Vector3, control2: Vector3, destination: Vector3, alpha: number): Vector3
+	local inverse = 1 - alpha
+	return startPosition * inverse ^ 3
+		+ control1 * (3 * inverse ^ 2 * alpha)
+		+ control2 * (3 * inverse * alpha ^ 2)
+		+ destination * alpha ^ 3
+end
+
 local function startMagnet(view: CoinView, userId: number, startAt: number, duration: number)
 	view.phase = "Magnet"
 	view.startPosition = view.holder.Position
 	view.startAt = startAt
 	view.duration = math.max(duration, 0.05)
 	view.playerUserId = userId
+	local destination = getBackpackOpening(userId)
+	if destination then
+		view.targetPosition = destination
+	end
+	local flatDirection = Vector3.new(
+		view.targetPosition.X - view.startPosition.X,
+		0,
+		view.targetPosition.Z - view.startPosition.Z
+	)
+	local sideDirection = if flatDirection.Magnitude > 0.001
+		then Vector3.yAxis:Cross(flatDirection.Unit)
+		else Vector3.xAxis
+	view.curveSide = sideDirection * (if view.id % 2 == 0 then 1 else -1)
+	view.arcHeight = math.clamp(
+		(view.targetPosition - view.startPosition).Magnitude * 0.28,
+		MAGNET_MIN_ARC_HEIGHT,
+		MAGNET_MAX_ARC_HEIGHT
+	)
 	view.trail.Enabled = true
 end
 
@@ -269,19 +320,25 @@ local function renderView(view: CoinView, now: number)
 			destroyView(view.id)
 		end
 	elseif view.phase == "Magnet" then
-		local root = getPlayerRoot(view.playerUserId)
-		if root then
+		local destination = getBackpackOpening(view.playerUserId)
+		if destination then
 			local alpha = math.clamp((now - view.startAt) / view.duration, 0, 1)
 			-- Start moving immediately, then hand off to the stronger power curve for a responsive accelerating snap.
 			local eased = alpha * MAGNET_INITIAL_PULL + alpha ^ MAGNET_EASE_POWER * (1 - MAGNET_INITIAL_PULL)
-			local destination = root.Position + Vector3.new(0, 1.25, 0)
-			view.position = view.startPosition:Lerp(destination, eased)
+			view.targetPosition = destination
+			local sideOffset = view.curveSide * MAGNET_SIDE_SWING
+			local control1 = view.startPosition + Vector3.new(0, view.arcHeight, 0) + sideOffset
+			local control2 = destination + Vector3.new(0, view.arcHeight * 0.35, 0) + sideOffset * 0.25
+			view.position = cubicBezier(view.startPosition, control1, control2, destination, eased)
 			view.holder.Position = view.position
 			setGuiScale(view, view.scale * (1 + math.sin(alpha * math.pi) * 0.18))
 		end
 	elseif view.phase == "Collected" then
-		local alpha = math.clamp((now - view.startAt) / COLLECTED_POP_DURATION, 0, 1)
-		setGuiScale(view, view.scale * (1 + alpha * 0.48))
+		local alpha = math.clamp((now - view.startAt) / COLLECTED_SINK_DURATION, 0, 1)
+		local destination = getBackpackOpening(view.playerUserId) or view.targetPosition
+		view.targetPosition = destination
+		view.holder.Position = view.startPosition:Lerp(destination - Vector3.new(0, COLLECTED_SINK_DISTANCE, 0), alpha ^ 2)
+		setGuiScale(view, view.startScale * math.max(0.02, 1 - alpha))
 		view.image.ImageTransparency = alpha
 		view.valueLabel.TextTransparency = alpha
 		view.valueLabel.TextStrokeTransparency = alpha
@@ -388,6 +445,13 @@ function CoinDropController.CoinCollected(_, id, userId, _value)
 	end
 	view.phase = "Collected"
 	view.startAt = Workspace:GetServerTimeNow()
+	view.startPosition = view.holder.Position
+	view.startScale = view.displayScale
+	view.playerUserId = if type(userId) == "number" then userId else view.playerUserId
+	local destination = getBackpackOpening(view.playerUserId)
+	if destination then
+		view.targetPosition = destination
+	end
 	view.trail.Enabled = false
 	if userId == Players.LocalPlayer.UserId then
 		Sounds.Play("CoinCollect", Players.LocalPlayer.PlayerGui)

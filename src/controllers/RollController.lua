@@ -18,6 +18,22 @@ local rollFinished = Signal.new()
 local autoRollChanged = Signal.new()
 local presentationHiddenChanged = Signal.new()
 
+local function setAutoRollEnabled(enabled: any)
+	if type(enabled) ~= "boolean" or autoRollEnabled == enabled then
+		return
+	end
+	autoRollEnabled = enabled
+	autoRollChanged:Fire(enabled)
+end
+
+local function setPresentationHidden(hidden: any)
+	if type(hidden) ~= "boolean" or presentationHidden == hidden then
+		return
+	end
+	presentationHidden = hidden
+	presentationHiddenChanged:Fire(hidden)
+end
+
 local function isValidInteger(value: any, minimum: number): boolean
 	return type(value) == "number" and value == value and value % 1 == 0 and value >= minimum
 end
@@ -57,15 +73,20 @@ function RollController.RollFinished(_, rollId, willAutoRoll)
 end
 
 function RollController.AutoRollChanged(_, enabled)
-	if type(enabled) ~= "boolean" then
-		return
-	end
-	autoRollEnabled = enabled
-	autoRollChanged:Fire(enabled)
+	setAutoRollEnabled(enabled)
+end
+
+function RollController.PresentationHiddenChanged(_, hidden)
+	setPresentationHidden(hidden)
 end
 
 function RollController.Init()
 	rollNetwork = Networker.client.new("RollController", RollController)
+	local settings = (rollNetwork :: Networker.Client):fetch("GetSettings")
+	if type(settings) == "table" then
+		setAutoRollEnabled(settings.autoRollEnabled)
+		setPresentationHidden(settings.presentationHidden)
+	end
 	ready = true
 end
 
@@ -86,11 +107,9 @@ function RollController.IsAutoRollEnabled(): boolean
 end
 
 function RollController.SetPresentationHidden(hidden: boolean)
-	if type(hidden) ~= "boolean" or presentationHidden == hidden then
-		return
+	if ready and type(hidden) == "boolean" and presentationHidden ~= hidden then
+		(rollNetwork :: Networker.Client):fire("SetPresentationHidden", hidden)
 	end
-	presentationHidden = hidden
-	presentationHiddenChanged:Fire(hidden)
 end
 
 function RollController.IsPresentationHidden(): boolean

@@ -59,6 +59,10 @@ local Images = {
 		Fireball = "rbxassetid://84367243209042",
 		Lightning = "rbxassetid://84367243209042",
 		Boomerang = "rbxassetid://84367243209042",
+		-- These semantic entries keep each passive on one stable icon across rolls, inventory, slots, and upgrades.
+		Blast = "rbxassetid://86050971312005",
+		Burn = "rbxassetid://86050971312005",
+		Thorns = "rbxassetid://84367243209042",
 	},
 }
 

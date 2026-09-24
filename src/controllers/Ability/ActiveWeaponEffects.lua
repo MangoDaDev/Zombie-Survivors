@@ -66,11 +66,11 @@ local function addTrail(part: BasePart, rage: boolean, fire: boolean): Trail
 		elseif rage
 		then ColorSequence.new(Color3.fromRGB(255, 242, 116), Color3.fromRGB(255, 105, 38))
 		else ColorSequence.new(Color3.fromRGB(255, 230, 130), Color3.fromRGB(255, 157, 55))
-	trail.LightEmission = 0.75
+	trail.LightEmission = if rage then 0.85 else 0.75
 	trail.Lifetime = if rage then 0.3 else 0.2
 	trail.MinLength = 0.05
 	trail.Transparency = NumberSequence.new(0.12, 1)
-	trail.WidthScale = NumberSequence.new(if rage then 1.2 else 1, 0)
+	trail.WidthScale = NumberSequence.new(if rage then 1.3 else 1, 0)
 	trail.Parent = part
 	return trail
 end
@@ -98,9 +98,9 @@ local function createFireballModel(scale: number, rage: boolean): Model?
 	highlight.Adornee = model
 	highlight.DepthMode = Enum.HighlightDepthMode.Occluded
 	highlight.FillColor = if rage then Color3.fromRGB(255, 68, 18) else Color3.fromRGB(255, 126, 31)
-	highlight.FillTransparency = if rage then 0.55 else 0.58
+	highlight.FillTransparency = if rage then 0.46 else 0.58
 	highlight.OutlineColor = Color3.fromRGB(255, 239, 126)
-	highlight.OutlineTransparency = if rage then 0.3 else 0.2
+	highlight.OutlineTransparency = if rage then 0.22 else 0.2
 	highlight.Parent = model
 	model.Parent = effectsFolder
 	return model
@@ -158,8 +158,8 @@ local function createBoomerangModel(scale: number, rage: boolean): Model?
 	if rage then
 		local light = Instance.new("PointLight")
 		light.Color = Color3.fromRGB(255, 126, 35)
-		light.Brightness = 0.9
-		light.Range = 5
+		light.Brightness = 1.2
+		light.Range = 5.5
 		light.Parent = primaryPart
 	end
 	model.Parent = effectsFolder
@@ -209,8 +209,8 @@ local function playExplosion(position: Vector3, radius: number, rage: boolean, e
 	if flash then
 		local light = Instance.new("PointLight")
 		light.Color = color
-		light.Brightness = if rage or empowered then 2.6 else 2
-		light.Range = radius * 1.35
+		light.Brightness = if rage or empowered then 3.2 else 2
+		light.Range = radius * 1.5
 		light.Parent = flash
 		TweenService:Create(
 			flash,
@@ -366,8 +366,8 @@ local function playLightningImpact(position: Vector3, rage: boolean, final: bool
 	if flash then
 		local light = Instance.new("PointLight")
 		light.Color = flash.Color
-		light.Brightness = if final then 3 else if rage then 2.2 else 2
-		light.Range = if final then 8 else 6
+		light.Brightness = if final then 3.4 else if rage then 2.6 else 2
+		light.Range = if final then 8.5 else 6.5
 		light.Parent = flash
 		TweenService:Create(flash, TweenInfo.new(0.16), {
 			Size = Vector3.one * (if final then 4.2 else 2.5),
@@ -579,8 +579,8 @@ function ActiveWeaponEffects.FireballGroundCreated(packet)
 	area.Parent = effectsFolder
 	local light = Instance.new("PointLight")
 	light.Color = area.Color
-	light.Brightness = if packet.rage then 0.9 else 0.65
-	light.Range = packet.radius
+	light.Brightness = if packet.rage then 1.15 else 0.65
+	light.Range = packet.radius * (if packet.rage then 1.15 else 1)
 	light.Parent = area
 	grounds[packet.id] = {
 		part = area,

@@ -1,6 +1,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local CoinsController = require(ReplicatedStorage.Controllers.CoinsController)
+local RunRewardsController = require(ReplicatedStorage.Controllers.RunRewardsController)
 local FormatNumber = require(ReplicatedStorage.Modules.Math.FormatNumber)
 local Images = require(ReplicatedStorage.Modules.UI.Images)
 local UIStyle = require(ReplicatedStorage.Modules.UI.UIStyle)
@@ -15,14 +16,19 @@ local FACE_GOLD = Color3.fromRGB(241, 180, 67)
 
 return function()
 	local balance = source(CoinsController.Get())
+	local inSafeArea = source(RunRewardsController.IsInSafeArea())
 	local balanceConnection = CoinsController.GetChangedSignal():Connect(function(newBalance)
 		if type(newBalance) == "number" then
 			balance(newBalance)
 		end
 	end)
+	local safeAreaConnection = RunRewardsController.GetSafeAreaChangedSignal():Connect(function(value)
+		inSafeArea(value)
+	end)
 
 	cleanup(function()
 		balanceConnection:Disconnect()
+		safeAreaConnection:Disconnect()
 	end)
 
 	return create "Frame" {
@@ -32,6 +38,8 @@ return function()
 		BorderSizePixel = 0,
 		Position = UDim2.new(0, 18, 0.5, 0),
 		Size = UDim2.new(0.1, 120, 0.052, 20),
+		-- Persistent balance is base-management information; run earnings remain visible in combat instead.
+		Visible = inSafeArea,
 		ZIndex = 10,
 		create "UICorner" {
 			CornerRadius = UIStyle.CornerRadius,
