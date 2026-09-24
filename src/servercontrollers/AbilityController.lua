@@ -133,10 +133,14 @@ local function sendResult(player: Player, success: boolean, message: string, mil
 	abilityNetwork:fire(player, "ActionResult", success, message, milestone == true)
 end
 
-local function damageZombie(_player: Player, definition, targetId: number, damage: number, hitOrigin: Vector3, isRage: boolean)
+local function damageZombie(player: Player, definition, targetId: number, damage: number, hitOrigin: Vector3, isRage: boolean)
 	local knockback = definition.Combat.Knockback
 		* (if isRage then definition.Rage.KnockbackMultiplier or 1 else 1)
-	ZombieController.DamageZombie(targetId, damage, hitOrigin, knockback)
+	ZombieController.DamageZombie(targetId, damage, hitOrigin, knockback, {
+		player = player,
+		source = definition.Id,
+		canApplyHitPassives = true,
+	})
 end
 
 local function fireDaggerVolley(player: Player, definition, level: number): boolean
@@ -385,7 +389,7 @@ function AbilityController.Init()
 	})
 	ActiveWeapons.Init(abilityNetwork, getData)
 	OrbitingSwords.Init(abilityNetwork, getData)
-	PassiveEffects.Init(getData)
+	PassiveEffects.Init(abilityNetwork, getData)
 	RageController.GetActivatedSignal():Connect(function(player: Player)
 		local runtime = runtimes[player]
 		if runtime then

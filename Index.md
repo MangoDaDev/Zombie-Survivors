@@ -15,9 +15,10 @@ Quick reference for the reusable first-party Luau foundation. Generated Wally de
 | Path | Responsibility |
 | --- | --- |
 | `src/controllers/CharacterController.lua` | Requests server-authorized character spawning and manages local camera and respawn behavior. |
-| `src/controllers/AbilityController.lua` | Mirrors authoritative ability state and dispatches validated weapon presentation events. |
+| `src/controllers/AbilityController.lua` | Mirrors authoritative ability state and dispatches validated weapon and passive presentation events. |
 | `src/controllers/Ability/ActiveWeaponEffects.lua` | Renders Fireball, Lightning, and latency-corrected Boomerang presentation from authoritative server packets. |
 | `src/controllers/Ability/OrbitingSwordsView.lua` | Renders smoothly reconciled spectral sword orbits, Rage blades, trails, and released-blade return flights. |
+| `src/controllers/Ability/PassiveEffectsView.lua` | Renders lightweight Blast, Burn, and Thorns feedback from authoritative server packets. |
 | `src/controllers/CoinsController.lua` | Exposes the replicated, read-only local coin balance and its change signal. |
 | `src/controllers/RunRewardsController.lua` | Mirrors server-held run earnings and safe-area membership, and requests an authoritative return-to-base claim. |
 | `src/controllers/CoinDropController.lua` | Renders lit, world-sized BillboardGui coin bursts, trails, smooth merges, expiration, and curved collection into the live backpack opening. |
@@ -31,7 +32,7 @@ Quick reference for the reusable first-party Luau foundation. Generated Wally de
 | `src/servercontrollers/AbilityController.lua` | Owns ability discovery, loadouts, coin upgrades, Dagger scheduling, active/passive refreshes, ability-specific Rage behavior, and authoritative damage requests. |
 | `src/servercontrollers/Ability/ActiveWeapons.lua` | Runs the shared authoritative Fireball, Lightning, and Boomerang scheduler, projectile hits, status ticks, area caps, Rage variants, and cleanup. |
 | `src/servercontrollers/Ability/OrbitingSwords.lua` | Simulates authoritative sword orbits, hit cooldowns, Wounded, momentum, inner blades, releases, and Rage behavior. |
-| `src/servercontrollers/Ability/PassiveEffects.lua` | Applies Heart and Boots through named stat modifiers and owns their server-authoritative milestone behavior. |
+| `src/servercontrollers/Ability/PassiveEffects.lua` | Owns Heart, Boots, Blast, Burn, and Thorns effects, milestone behavior, status cleanup, and authoritative passive combat reactions. |
 | `src/servercontrollers/CollisionController.lua` | Assigns avatar parts to a generic non-colliding player-character collision group. |
 | `src/servercontrollers/CoinsController.lua` | Validates and owns persistent server-authoritative coin balance operations. |
 | `src/servercontrollers/BackpackController.lua` | Equips the authored non-physical backpack stages and updates them from authoritative carried run coins. |
@@ -42,7 +43,7 @@ Quick reference for the reusable first-party Luau foundation. Generated Wally de
 | `src/servercontrollers/PlayerStatController.lua` | Composes named player health/speed modifiers, preserves gained health, and applies the final movement-speed limit. |
 | `src/servercontrollers/RollController.lua` | Owns per-player duplicate-inclusive ability rolls, cooldowns, clover luck chains, rewards, auto-roll scheduling, and saved roll preferences. |
 | `src/servercontrollers/Roll/RollServerConfig.lua` | Defines server-only luck, cooldown, and clover-chain balance values. |
-| `src/servercontrollers/ZombieController.lua` | Runs grouped area spawning, batched authoritative simulation, damage feedback, death rewards, and compact replication. |
+| `src/servercontrollers/ZombieController.lua` | Runs grouped area spawning, batched authoritative simulation, contextual damage signals, death rewards, and compact replication. |
 | `src/servercontrollers/Zombie/Zombie.lua` | Defines authoritative targeting, area-bounded movement, attacks, health, and knockback per zombie. |
 | `src/servercontrollers/Zombie/ZombieBehaviors.lua` | Provides definition-selected movement and attack strategies without type checks in core logic. |
 | `src/servercontrollers/Zombie/ZombieSeparation.lua` | Applies throttled spatial-hash separation so dense crowds do not occupy identical positions. |
@@ -69,7 +70,7 @@ These modules provide shared game configuration, persistent player-data defaults
 | `src/modules/Game/CoinsConfig.lua` | Defines the shared coin data key, default, and exact-integer balance limit. |
 | `src/modules/Game/BackpackConfig.lua` | Maps carried-coin thresholds to the five authored backpack stages and inspected mount offsets. |
 | `src/modules/Game/CoinDropConfig.lua` | Defines shared coin pickup distance, timing, and client-prediction batching limits. |
-| `src/modules/Game/Abilities/AbilityDefinitions.lua` | Defines expandable ability metadata, equip limits, upgrade costs, per-level stats, visible milestones, and ability-specific Rage tuning, including Fireball, Lightning, and Boomerang. |
+| `src/modules/Game/Abilities/AbilityDefinitions.lua` | Defines expandable ability metadata, equip limits, upgrade costs, per-level stats, visible milestones, Rage tuning, and configurable Blast, Burn, and Thorns progression. |
 | `src/modules/Game/Stats/PlayerStatConfig.lua` | Defines fallback player base stats and the global final movement-speed limit. |
 | `src/modules/Game/Rage/RageConfig.lua` | Defines shared Rage capacity, 30-second charge, 10-second duration, keybind, and request cadence. |
 | `src/modules/Game/DataTemplate.lua` | Supplies DataService's JSON-compatible persisted player-data defaults. |
@@ -123,7 +124,7 @@ These modules provide shared game configuration, persistent player-data defaults
 | `src/UI/Effects/HoverExpand.lua` | Provides reusable hover scaling for GuiObjects. |
 | `src/UI/Effects/Notification.lua` | Provides a reusable counted attention badge. |
 | `src/UI/HUD/CoinsDisplay.lua` | Renders the responsive base-only coin balance display from replicated data. |
-| `src/UI/HUD/RunRewardsDisplay.lua` | Shows unbanked run coins and the persistent return-to-base claim action. |
+| `src/UI/HUD/RunRewardsDisplay.lua` | Shows a compact pending-coin claim prompt and animates confirmed coins from the backpack into the balance HUD. |
 | `src/UI/HUD/AbilityInterface.lua` | Renders base-only ability management plus roll-discovery presentation, equipped-first lists, concealed locked entries, and direct actions. |
 | `src/UI/HUD/RageBar.lua` | Renders the responsive STUD-style Rage meter, ready/active states, activation control, and screen pulse. |
 | `src/UI/HUD/Notifications.lua` | Renders transient notifications from NotificationManager. |

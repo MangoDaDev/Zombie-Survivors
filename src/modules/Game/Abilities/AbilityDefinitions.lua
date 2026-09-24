@@ -941,7 +941,354 @@ function boots.GetStatsText(level: number): string
 	return table.concat(lines, "\n")
 end
 
-AbilityDefinitions.List = { dagger, orbitingSwords, fireball, lightning, boomerang, heart, boots }
+local blast = {
+	Id = "Blast",
+	Name = "Blast",
+	Category = AbilityDefinitions.Categories.Passive,
+	Description = "Kills sometimes make the defeated zombie explode and damage nearby zombies.",
+	UpgradeDescription = "Every level improves explosion chance, damage, and radius.",
+	Icon = Images.Abilities.Blast,
+	Color = Color3.fromRGB(255, 142, 55),
+	MaxLevel = 50,
+	BaseUpgradeCost = 105,
+	UpgradeCostGrowth = 1.145,
+	Roll = {
+		BaseOdds = 9,
+		Rarity = "Rare",
+		RarityRank = 3,
+	},
+	Config = {
+		BaseChancePercent = 8,
+		ChancePercentPerLevel = 0.35,
+		BaseDamage = 18,
+		DamagePerLevel = 2,
+		BaseRadius = 4.8,
+		RadiusPerLevel = 0.035,
+		MaximumTargets = 30,
+		BiggerBlast = {
+			Level = 5,
+			RadiusBonus = 1.5,
+		},
+		StrongBlast = {
+			Level = 10,
+			DamageBonus = 14,
+		},
+		ChainBlast = {
+			Level = 20,
+			ChancePercent = 14,
+			MaximumDepth = 2,
+			MaximumExplosionsPerReaction = 8,
+		},
+		DoubleBlast = {
+			Level = 35,
+			ChancePercent = 12,
+			DamageMultiplier = 0.75,
+			RadiusMultiplier = 1.2,
+			Delay = 0.08,
+		},
+		MegaBlast = {
+			Level = 50,
+			ChanceBonusPercent = 4,
+			DamageBonus = 30,
+			RadiusBonus = 1,
+		},
+	},
+	Milestones = {
+		{ Level = 5, Description = "Bigger Blast - noticeably increases explosion radius" },
+		{ Level = 10, Description = "Strong Blast - substantially increases explosion damage" },
+		{ Level = 20, Description = "Chain Blast - Blast kills can trigger another capped Blast" },
+		{ Level = 35, Description = "Double Blast - sometimes creates a second, larger explosion" },
+		{ Level = 50, Description = "Mega Blast - higher chance, damage, and radius" },
+	},
+}
+
+function blast.GetStats(level: number)
+	local clampedLevel = math.clamp(math.floor(level), 1, blast.MaxLevel)
+	local config = blast.Config
+	local chancePercent = config.BaseChancePercent + (clampedLevel - 1) * config.ChancePercentPerLevel
+	local damage = config.BaseDamage + (clampedLevel - 1) * config.DamagePerLevel
+	local radius = config.BaseRadius + (clampedLevel - 1) * config.RadiusPerLevel
+	if clampedLevel >= config.BiggerBlast.Level then
+		radius += config.BiggerBlast.RadiusBonus
+	end
+	if clampedLevel >= config.StrongBlast.Level then
+		damage += config.StrongBlast.DamageBonus
+	end
+	if clampedLevel >= config.MegaBlast.Level then
+		chancePercent += config.MegaBlast.ChanceBonusPercent
+		damage += config.MegaBlast.DamageBonus
+		radius += config.MegaBlast.RadiusBonus
+	end
+
+	return {
+		ChancePercent = chancePercent,
+		Damage = math.floor(damage + 0.5),
+		Radius = radius,
+		ChainUnlocked = clampedLevel >= config.ChainBlast.Level,
+		ChainChancePercent = config.ChainBlast.ChancePercent,
+		DoubleUnlocked = clampedLevel >= config.DoubleBlast.Level,
+		DoubleChancePercent = config.DoubleBlast.ChancePercent,
+	}
+end
+
+function blast.GetDescription(level: number): string
+	local stats = blast.GetStats(level)
+	return string.format("Kills have a %.1f%% chance to explode for %d damage.", stats.ChancePercent, stats.Damage)
+end
+
+function blast.GetStatsText(level: number): string
+	local clampedLevel = math.clamp(math.floor(level), 1, blast.MaxLevel)
+	local current = blast.GetStats(clampedLevel)
+	local lines = {}
+	if clampedLevel >= blast.MaxLevel then
+		table.insert(lines, string.format("Explosion Chance  %.1f%%", current.ChancePercent))
+		table.insert(lines, string.format("Explosion Damage  %d", current.Damage))
+		table.insert(lines, string.format("Explosion Radius  %.2f", current.Radius))
+	else
+		local nextStats = blast.GetStats(clampedLevel + 1)
+		table.insert(lines, string.format("Explosion Chance  %.1f%%  >  %.1f%%", current.ChancePercent, nextStats.ChancePercent))
+		table.insert(lines, string.format("Explosion Damage  %d  >  %d", current.Damage, nextStats.Damage))
+		table.insert(lines, string.format("Explosion Radius  %.2f  >  %.2f", current.Radius, nextStats.Radius))
+	end
+	if current.ChainUnlocked then
+		table.insert(lines, string.format("Chain Blast  %.0f%% chance", current.ChainChancePercent))
+	end
+	if current.DoubleUnlocked then
+		table.insert(lines, string.format("Double Blast  %.0f%% chance", current.DoubleChancePercent))
+	end
+	return table.concat(lines, "\n")
+end
+
+local burn = {
+	Id = "Burn",
+	Name = "Burn",
+	Category = AbilityDefinitions.Categories.Passive,
+	Description = "Damaging ability hits sometimes ignite a zombie for periodic damage.",
+	UpgradeDescription = "Every level improves Burn chance, tick damage, and duration.",
+	Icon = Images.Abilities.Burn,
+	Color = Color3.fromRGB(255, 91, 38),
+	MaxLevel = 50,
+	BaseUpgradeCost = 100,
+	UpgradeCostGrowth = 1.145,
+	Roll = {
+		BaseOdds = 8,
+		Rarity = "Rare",
+		RarityRank = 3,
+	},
+	Config = {
+		BaseChancePercent = 8,
+		ChancePercentPerLevel = 0.3,
+		BaseTickDamage = 4,
+		TickDamagePerLevel = 0.55,
+		BaseDuration = 3,
+		DurationPerLevel = 0.03,
+		TickInterval = 0.75,
+		Hotter = {
+			Level = 5,
+			DamageBonus = 2,
+		},
+		LongerBurn = {
+			Level = 10,
+			DurationBonus = 0.75,
+		},
+		Spread = {
+			Level = 20,
+			ChancePercent = 18,
+			Radius = 8,
+		},
+		StrongBurn = {
+			Level = 35,
+			DamageMultiplier = 1.35,
+		},
+		Inferno = {
+			Level = 50,
+			ChanceBonusPercent = 4,
+			DamageBonus = 6,
+			DurationBonus = 0.75,
+			SpreadChancePercent = 30,
+		},
+	},
+	Milestones = {
+		{ Level = 5, Description = "Hotter - increases Burn tick damage" },
+		{ Level = 10, Description = "Longer Burn - increases Burn duration" },
+		{ Level = 20, Description = "Spread - burning deaths can ignite one nearby zombie" },
+		{ Level = 35, Description = "Strong Burn - substantially increases tick damage" },
+		{ Level = 50, Description = "Inferno - higher chance, damage, duration, and spread chance" },
+	},
+}
+
+function burn.GetStats(level: number)
+	local clampedLevel = math.clamp(math.floor(level), 1, burn.MaxLevel)
+	local config = burn.Config
+	local chancePercent = config.BaseChancePercent + (clampedLevel - 1) * config.ChancePercentPerLevel
+	local tickDamage = config.BaseTickDamage + (clampedLevel - 1) * config.TickDamagePerLevel
+	local duration = config.BaseDuration + (clampedLevel - 1) * config.DurationPerLevel
+	if clampedLevel >= config.Hotter.Level then
+		tickDamage += config.Hotter.DamageBonus
+	end
+	if clampedLevel >= config.LongerBurn.Level then
+		duration += config.LongerBurn.DurationBonus
+	end
+	if clampedLevel >= config.StrongBurn.Level then
+		tickDamage *= config.StrongBurn.DamageMultiplier
+	end
+	if clampedLevel >= config.Inferno.Level then
+		chancePercent += config.Inferno.ChanceBonusPercent
+		tickDamage += config.Inferno.DamageBonus
+		duration += config.Inferno.DurationBonus
+	end
+
+	return {
+		ChancePercent = chancePercent,
+		TickDamage = math.floor(tickDamage * 10 + 0.5) / 10,
+		Duration = duration,
+		SpreadUnlocked = clampedLevel >= config.Spread.Level,
+		SpreadChancePercent = if clampedLevel >= config.Inferno.Level
+			then config.Inferno.SpreadChancePercent
+			else config.Spread.ChancePercent,
+	}
+end
+
+function burn.GetDescription(level: number): string
+	local stats = burn.GetStats(level)
+	return string.format(
+		"Ability hits have a %.1f%% chance to Burn for %.1f damage per tick.",
+		stats.ChancePercent,
+		stats.TickDamage
+	)
+end
+
+function burn.GetStatsText(level: number): string
+	local clampedLevel = math.clamp(math.floor(level), 1, burn.MaxLevel)
+	local current = burn.GetStats(clampedLevel)
+	local lines = {}
+	if clampedLevel >= burn.MaxLevel then
+		table.insert(lines, string.format("Burn Chance  %.1f%%", current.ChancePercent))
+		table.insert(lines, string.format("Burn Damage  %.1f / tick", current.TickDamage))
+		table.insert(lines, string.format("Burn Duration  %.2fs", current.Duration))
+	else
+		local nextStats = burn.GetStats(clampedLevel + 1)
+		table.insert(lines, string.format("Burn Chance  %.1f%%  >  %.1f%%", current.ChancePercent, nextStats.ChancePercent))
+		table.insert(lines, string.format("Burn Damage  %.1f  >  %.1f", current.TickDamage, nextStats.TickDamage))
+		table.insert(lines, string.format("Burn Duration  %.2fs  >  %.2fs", current.Duration, nextStats.Duration))
+	end
+	if current.SpreadUnlocked then
+		table.insert(lines, string.format("Spread  %.0f%% chance on death", current.SpreadChancePercent))
+	end
+	return table.concat(lines, "\n")
+end
+
+local thorns = {
+	Id = "Thorns",
+	Name = "Thorns",
+	Category = AbilityDefinitions.Categories.Passive,
+	Description = "Zombies that successfully damage you immediately take reflected damage.",
+	UpgradeDescription = "Every level increases the percentage of actual damage reflected.",
+	Icon = Images.Abilities.Thorns,
+	Color = Color3.fromRGB(117, 214, 137),
+	MaxLevel = 50,
+	BaseUpgradeCost = 100,
+	UpgradeCostGrowth = 1.145,
+	Roll = {
+		BaseOdds = 7,
+		Rarity = "Uncommon",
+		RarityRank = 2,
+	},
+	Config = {
+		BaseReflectionPercent = 20,
+		ReflectionPercentPerLevel = 1.2,
+		MaximumBurstTargets = 15,
+		SharpThorns = {
+			Level = 5,
+			ReflectionBonusPercent = 8,
+		},
+		ThornBurst = {
+			Level = 10,
+			Radius = 4.5,
+			DamagePercent = 20,
+		},
+		StrongThorns = {
+			Level = 20,
+			ReflectionBonusPercent = 15,
+		},
+		Revenge = {
+			Level = 35,
+			Duration = 4,
+			BonusPercent = 35,
+		},
+		ThornArmor = {
+			Level = 50,
+			ReflectionBonusPercent = 20,
+			BurstRadiusBonus = 1.5,
+			BurstDamagePercent = 30,
+			RevengeBonusPercent = 55,
+		},
+	},
+	Milestones = {
+		{ Level = 5, Description = "Sharp Thorns - increases reflected damage" },
+		{ Level = 10, Description = "Thorn Burst - also damages zombies very close to you" },
+		{ Level = 20, Description = "Strong Thorns - substantially increases reflected damage" },
+		{ Level = 35, Description = "Revenge - recent hits temporarily strengthen reflection" },
+		{ Level = 50, Description = "Thorn Armor - stronger reflection, burst, and Revenge" },
+	},
+}
+
+function thorns.GetStats(level: number)
+	local clampedLevel = math.clamp(math.floor(level), 1, thorns.MaxLevel)
+	local config = thorns.Config
+	local reflectionPercent = config.BaseReflectionPercent
+		+ (clampedLevel - 1) * config.ReflectionPercentPerLevel
+	if clampedLevel >= config.SharpThorns.Level then
+		reflectionPercent += config.SharpThorns.ReflectionBonusPercent
+	end
+	if clampedLevel >= config.StrongThorns.Level then
+		reflectionPercent += config.StrongThorns.ReflectionBonusPercent
+	end
+	if clampedLevel >= config.ThornArmor.Level then
+		reflectionPercent += config.ThornArmor.ReflectionBonusPercent
+	end
+
+	return {
+		ReflectionPercent = reflectionPercent,
+		BurstUnlocked = clampedLevel >= config.ThornBurst.Level,
+		BurstRadius = config.ThornBurst.Radius
+			+ (if clampedLevel >= config.ThornArmor.Level then config.ThornArmor.BurstRadiusBonus else 0),
+		BurstDamagePercent = if clampedLevel >= config.ThornArmor.Level
+			then config.ThornArmor.BurstDamagePercent
+			else config.ThornBurst.DamagePercent,
+		RevengeUnlocked = clampedLevel >= config.Revenge.Level,
+		RevengeDuration = config.Revenge.Duration,
+		RevengeBonusPercent = if clampedLevel >= config.ThornArmor.Level
+			then config.ThornArmor.RevengeBonusPercent
+			else config.Revenge.BonusPercent,
+	}
+end
+
+function thorns.GetDescription(level: number): string
+	local stats = thorns.GetStats(level)
+	return string.format("Reflect %.1f%% of valid zombie hit damage back to the attacker.", stats.ReflectionPercent)
+end
+
+function thorns.GetStatsText(level: number): string
+	local clampedLevel = math.clamp(math.floor(level), 1, thorns.MaxLevel)
+	local current = thorns.GetStats(clampedLevel)
+	local lines = {}
+	if clampedLevel >= thorns.MaxLevel then
+		table.insert(lines, string.format("Reflected Damage  %.1f%%", current.ReflectionPercent))
+	else
+		local nextStats = thorns.GetStats(clampedLevel + 1)
+		table.insert(lines, string.format("Reflected Damage  %.1f%%  >  %.1f%%", current.ReflectionPercent, nextStats.ReflectionPercent))
+	end
+	if current.BurstUnlocked then
+		table.insert(lines, string.format("Thorn Burst  %.1f radius", current.BurstRadius))
+	end
+	if current.RevengeUnlocked then
+		table.insert(lines, string.format("Revenge  +%.0f%% for %.1fs", current.RevengeBonusPercent, current.RevengeDuration))
+	end
+	return table.concat(lines, "\n")
+end
+
+AbilityDefinitions.List = { dagger, orbitingSwords, fireball, lightning, boomerang, heart, boots, blast, burn, thorns }
 AbilityDefinitions.ById = {
 	[dagger.Id] = dagger,
 	[orbitingSwords.Id] = orbitingSwords,
@@ -950,6 +1297,9 @@ AbilityDefinitions.ById = {
 	[boomerang.Id] = boomerang,
 	[heart.Id] = heart,
 	[boots.Id] = boots,
+	[blast.Id] = blast,
+	[burn.Id] = burn,
+	[thorns.Id] = thorns,
 }
 
 function AbilityDefinitions.GetUpgradeCost(ability, currentLevel: number): number?

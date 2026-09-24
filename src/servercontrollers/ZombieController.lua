@@ -3,6 +3,7 @@ local ReplicatedStorage = game:GetService "ReplicatedStorage"
 local RunService = game:GetService "RunService"
 local ServerStorage = game:GetService "ServerStorage"
 local Networker = require(ReplicatedStorage.Packages.networker)
+local Signal = require(ReplicatedStorage.Packages.signal)
 local CoinDropController = require(ServerStorage.Controllers.CoinDropController)
 local GetRandomFromWeightedTable =
 	require(ReplicatedStorage.Modules.Math.GetRandomFromWeightedTable).GetRandomFromWeightedTable
@@ -29,6 +30,21 @@ local areaRuntime = {}
 local groundOffsets = {}
 local boundaryRadii = {}
 local maximumBoundaryRadius = 0
+local zombieDamaged = Signal.new()
+local playerDamagedByZombie = Signal.new()
+
+type DamageContext = {
+	player: Player?,
+	source: string?,
+	canApplyHitPassives: boolean?,
+	chainDepth: number?,
+	chainState: any?,
+}
+
+local function onZombieDamagedPlayer(zombie, player: Player, actualDamage: number)
+	-- This server-only signal carries the exact attacker and post-mitigation health loss to defensive passives.
+	playerDamagedByZombie:Fire(player, zombie.id, zombie.cframe.Position, actualDamage)
+end
 
 local function createVariation()
 	-- Independent subtle rolls prevent whole groups from sharing the same silhouette and cadence.
@@ -121,7 +137,16 @@ local function createZombie(area, typeName, surfacePosition)
 	local spawnPosition = surfacePosition + Vector3.yAxis * groundOffset * variation.Scale
 	local spawnYaw = random:NextNumber(-math.pi, math.pi)
 	local spawnCFrame = CFrame.new(spawnPosition) * CFrame.Angles(0, spawnYaw, 0)
-	local zombie = Zombie.new(nextZombieId, typeName, definition, spawnCFrame, area, variation, boundaryRadius)
+	local zombie = Zombie.new(
+		nextZombieId,
+		typeName,
+		definition,
+		spawnCFrame,
+		area,
+		variation,
+		boundaryRadius,
+		onZombieDamagedPlayer
+	)
 	zombies[zombie.id] = zombie
 	areaRuntime[area.Id].count += 1
 
@@ -260,10 +285,20 @@ function ZombieController.GetSnapshot(_, _player)
 	return { now, packets }
 end
 
-function ZombieController.DamageZombie(id, amount, hitOrigin: Vector3?, knockbackImpulse: number?)
+function ZombieController.DamageZombie(
+	id,
+	amount,
+	hitOrigin: Vector3?,
+	knockbackImpulse: number?,
+	damageContext: DamageContext?
+)
 	local zombie = zombies[id]
+	local healthBefore = if zombie then zombie.health else 0
 	local damaged = zombie ~= nil and zombie:TakeDamage(amount, hitOrigin, knockbackImpulse)
 	if damaged then
+		local actualDamage = math.max(healthBefore - zombie.health, 0)
+		local killed = zombie:IsDead()
+		local position = zombie.cframe.Position
 		local direction = Vector3.zero
 		if typeof(hitOrigin) == "Vector3" then
 			local offset = zombie.cframe.Position - hitOrigin
@@ -281,8 +316,20 @@ function ZombieController.DamageZombie(id, amount, hitOrigin: Vector3?, knockbac
 			direction,
 			knockbackImpulse or 0
 		)
+		-- Every authored damage source reports through this one server pipeline so kill credit and hit
+		-- passives cannot be forged by clients or accidentally applied twice by individual abilities.
+		zombieDamaged:Fire(id, position, actualDamage, killed, damageContext)
+		return true, killed
 	end
-	return damaged, damaged and zombie:IsDead()
+	return false, false
+end
+
+function ZombieController.GetZombieDamagedSignal()
+	return zombieDamaged
+end
+
+function ZombieController.GetPlayerDamagedByZombieSignal()
+	return playerDamagedByZombie
 end
 
 function ZombieController.GetZombiesInRadius(position: Vector3, maximumDistance: number, maximumCount: number?)

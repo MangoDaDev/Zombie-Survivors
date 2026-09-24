@@ -22,7 +22,14 @@ function ZombieBehaviors.Attack.Contact(zombie, targetCandidate, now, distance)
 				and targetCandidate.humanoid.Health > 0
 				and distance <= zombie.definition.AttackRange * 1.15
 			then
+				local healthBefore = targetCandidate.humanoid.Health
 				targetCandidate.humanoid:TakeDamage(zombie.definition.AttackDamage)
+				local actualDamage = math.max(healthBefore - targetCandidate.humanoid.Health, 0)
+				-- Only health actually removed by this authoritative zombie strike counts as a successful hit.
+				-- ForceFields and future shields that fully block the hit therefore cannot trigger Thorns.
+				if actualDamage > 0 and zombie.onPlayerDamaged then
+					zombie.onPlayerDamaged(zombie, targetCandidate.player, actualDamage)
+				end
 			end
 			zombie.attackDamageApplied = true
 		end

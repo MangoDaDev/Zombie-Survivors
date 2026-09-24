@@ -126,7 +126,12 @@ local function applySwordDamage(
 		targetId,
 		math.floor(damage + 0.5),
 		hitOrigin,
-		knockback
+		knockback,
+		{
+			player = player,
+			source = ABILITY_ID,
+			canApplyHitPassives = true,
+		}
 	)
 	if not damaged then
 		return

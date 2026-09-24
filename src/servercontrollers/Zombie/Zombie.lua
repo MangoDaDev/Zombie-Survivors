@@ -11,7 +11,7 @@ local MAXIMUM_KNOCKBACK_SPEED = 28
 local Zombie = {}
 Zombie.__index = Zombie
 
-function Zombie.new(id, typeName, definition, spawnCFrame, area, variation, boundaryRadius)
+function Zombie.new(id, typeName, definition, spawnCFrame, area, variation, boundaryRadius, onPlayerDamaged)
 	local self = setmetatable({}, Zombie)
 
 	self.id = id
@@ -36,6 +36,7 @@ function Zombie.new(id, typeName, definition, spawnCFrame, area, variation, boun
 	self.attackInProgress = false
 	self.attackDamageApplied = false
 	self.nextAttackAt = 0
+	self.onPlayerDamaged = onPlayerDamaged
 	self.movementBehavior = ZombieBehaviors.Movement[definition.MovementBehavior]
 		or ZombieBehaviors.Movement.DirectChase
 	self.attackBehavior = ZombieBehaviors.Attack[definition.AttackBehavior]

@@ -12,6 +12,7 @@ local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
 local UIStyle = require(ReplicatedStorage.Modules.UI.UIStyle)
 local ActiveWeaponEffects = require(script.Parent.Ability.ActiveWeaponEffects)
 local OrbitingSwordsView = require(script.Parent.Ability.OrbitingSwordsView)
+local PassiveEffectsView = require(script.Parent.Ability.PassiveEffectsView)
 
 local AbilityController = {}
 
@@ -196,6 +197,7 @@ local function renderProjectiles(deltaTime: number)
 	end
 	ActiveWeaponEffects.Render(now, deltaTime)
 	OrbitingSwordsView.Render(now, deltaTime)
+	PassiveEffectsView.Render()
 end
 
 function AbilityController.AbilityDiscovered(_, abilityId, revealAt, autoRollWasPaused)
@@ -277,6 +279,52 @@ function AbilityController.FireballBurnEnded(_, targetId)
 	ActiveWeaponEffects.FireballBurnEnded(targetId)
 end
 
+function AbilityController.BlastTriggered(_, packet)
+	if type(packet) ~= "table"
+		or typeof(packet.position) ~= "Vector3"
+		or not isFiniteNumber(packet.radius)
+		or packet.radius <= 0
+		or packet.radius > 20
+		or type(packet.secondary) ~= "boolean"
+	then
+		return
+	end
+	PassiveEffectsView.BlastTriggered(packet)
+end
+
+function AbilityController.PassiveBurnApplied(_, packet)
+	if type(packet) ~= "table"
+		or type(packet.targetId) ~= "number"
+		or packet.targetId % 1 ~= 0
+		or packet.targetId < 1
+		or not isFiniteNumber(packet.duration)
+		or packet.duration <= 0
+		or packet.duration > 15
+	then
+		return
+	end
+	PassiveEffectsView.BurnApplied(packet)
+end
+
+function AbilityController.PassiveBurnEnded(_, targetId)
+	if type(targetId) == "number" and targetId % 1 == 0 and targetId >= 1 then
+		PassiveEffectsView.BurnEnded(targetId)
+	end
+end
+
+function AbilityController.ThornsTriggered(_, packet)
+	if type(packet) ~= "table"
+		or typeof(packet.playerPosition) ~= "Vector3"
+		or typeof(packet.attackerPosition) ~= "Vector3"
+		or not isFiniteNumber(packet.burstRadius)
+		or packet.burstRadius < 0
+		or packet.burstRadius > 15
+	then
+		return
+	end
+	PassiveEffectsView.ThornsTriggered(packet)
+end
+
 function AbilityController.FireballGroundCreated(_, packet)
 	ActiveWeaponEffects.FireballGroundCreated(packet)
 end
@@ -320,6 +368,7 @@ function AbilityController.Init()
 	effectsFolder.Parent = Workspace
 	ActiveWeaponEffects.Init(effectsFolder)
 	OrbitingSwordsView.Init(effectsFolder)
+	PassiveEffectsView.Init(effectsFolder)
 	renderConnection = RunService.RenderStepped:Connect(renderProjectiles)
 	dataService:getChangedSignal(AbilityDefinitions.DataKey):Connect(function()
 		stateChanged:Fire(AbilityController.GetState())

@@ -60,9 +60,19 @@ local function getPointToSegmentDistance(point: Vector3, segmentStart: Vector3, 
 	return (point - segmentStart:Lerp(segmentEnd, alpha)).Magnitude
 end
 
-local function damageZombie(_player: Player, definition, stats, targetId: number, amount: number, origin: Vector3, knockback: number): boolean
+local function damageZombie(player: Player, definition, stats, targetId: number, amount: number, origin: Vector3, knockback: number): boolean
 	local rageMultiplier = if stats.IsRage then definition.Rage.KnockbackMultiplier or 1 else 1
-	local damaged = ZombieController.DamageZombie(targetId, math.max(1, math.floor(amount + 0.5)), origin, knockback * rageMultiplier)
+	local damaged = ZombieController.DamageZombie(
+		targetId,
+		math.max(1, math.floor(amount + 0.5)),
+		origin,
+		knockback * rageMultiplier,
+		{
+			player = player,
+			source = definition.Id,
+			canApplyHitPassives = true,
+		}
+	)
 	-- Damage remains authoritative even though projectile presentation is latency-compensated on clients.
 	return damaged
 end
