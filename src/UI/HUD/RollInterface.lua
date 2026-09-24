@@ -1,9 +1,9 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
-local Workspace = game:GetService("Workspace")
 
 local Button = require(script.Parent.Parent.Classes.Button)
+local AbilityController = require(ReplicatedStorage.Controllers.AbilityController)
 local RollController = require(ReplicatedStorage.Controllers.RollController)
 local RollDefinitions = require(ReplicatedStorage.Modules.Game.Rolls.RollDefinitions)
 local GetRandomFromWeightedTable = require(ReplicatedStorage.Modules.Math.GetRandomFromWeightedTable)
@@ -22,43 +22,11 @@ local source = Vide.source
 local localPlayer = Players.LocalPlayer
 local visualRandom = Random.new()
 
-local REEL_WIDTH = 216
-local REEL_HEIGHT = 330
-local REEL_GAP = 12
-local ENTRY_HEIGHT = 78
-local ENTRY_STRIDE = 84
-local ENTRY_COUNT = 28
+local ENTRY_HEIGHT_SCALE = 0.29
+local ENTRY_STRIDE_SCALE = 0.34
+local ENTRY_COUNT = 31
+local RESULT_INDEX = 27
 local FULL_TINT_TRANSPARENCY = 0.34
-local FULL_VERTICAL_FRACTION = 0.25
-
-local function addCorner(parent: Instance, radius: UDim?)
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = radius or UIStyle.CornerRadius
-	corner.Parent = parent
-end
-
-local function addStroke(parent: Instance, color: Color3, thickness: number, transparency: number?)
-	local stroke = Instance.new("UIStroke")
-	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-	stroke.Color = color
-	stroke.Thickness = thickness
-	stroke.Transparency = transparency or 0
-	stroke.Parent = parent
-	return stroke
-end
-
-local function addStudTexture(parent: Instance, zIndex: number)
-	local texture = Instance.new("ImageLabel")
-	texture.Name = "StudTexture"
-	texture.BackgroundTransparency = 1
-	texture.Image = UIStyle.StudTexture
-	texture.ImageTransparency = UIStyle.StudTransparency
-	texture.ScaleType = Enum.ScaleType.Tile
-	texture.Size = UDim2.fromScale(1, 1)
-	texture.TileSize = UDim2.fromOffset(54, 54)
-	texture.ZIndex = zIndex
-	texture.Parent = parent
-end
 
 local function createText(parent: Instance, name: string, text: string, zIndex: number): TextLabel
 	local label = Instance.new("TextLabel")
@@ -70,6 +38,13 @@ local function createText(parent: Instance, name: string, text: string, zIndex: 
 	label.TextScaled = true
 	label.ZIndex = zIndex
 	label.Parent = parent
+
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = UIStyle.Colors.Ink
+	stroke.StrokeSizingMode = Enum.StrokeSizingMode.ScaledSize
+	stroke.Thickness = 0.065
+	stroke.Transparency = 0.04
+	stroke.Parent = label
 	return label
 end
 
@@ -77,145 +52,119 @@ local function formatOdds(baseOdds: number): string
 	return string.format("1 / %d", baseOdds)
 end
 
-local function createEntry(parent: Instance, item, index: number, isResult: boolean): Frame
+local function createEntry(parent: Instance, item, index: number, isResult: boolean): (Frame, UIScale)
 	local entry = Instance.new("Frame")
 	entry.Name = if isResult then "ServerResult" else "PassingItem"
-	entry.BackgroundColor3 = item.Color:Lerp(UIStyle.Colors.Ink, 0.78)
-	entry.BackgroundTransparency = if isResult then 0.08 else 0.24
+	entry.AnchorPoint = Vector2.new(0.5, 0)
+	entry.BackgroundTransparency = 1
 	entry.BorderSizePixel = 0
-	entry.Position = UDim2.fromOffset(7, (index - 1) * ENTRY_STRIDE)
-	entry.Size = UDim2.new(1, -14, 0, ENTRY_HEIGHT)
+	entry.Position = UDim2.fromScale(0.5, (index - 1) * ENTRY_STRIDE_SCALE)
+	entry.Size = UDim2.fromScale(0.94, ENTRY_HEIGHT_SCALE)
 	entry.ZIndex = 125
 	entry.Parent = parent
-	addCorner(entry, UIStyle.SmallCornerRadius)
-	addStroke(entry, item.Color, if isResult then 3 else 1.5, if isResult then 0.05 else 0.52)
+
+	local resultScale = Instance.new("UIScale")
+	resultScale.Name = "ResultScale"
+	resultScale.Scale = if isResult then 1.12 else 1
+	resultScale.Parent = entry
 
 	local icon = Instance.new("ImageLabel")
 	icon.Name = "Icon"
-	icon.AnchorPoint = Vector2.new(0, 0.5)
+	icon.AnchorPoint = Vector2.new(0.5, 0.5)
 	icon.BackgroundTransparency = 1
 	icon.Image = item.Image
-	icon.Position = UDim2.new(0, 8, 0.5, 0)
+	icon.ImageTransparency = if isResult then 0 else 0.08
+	icon.Position = UDim2.fromScale(0.5, 0.5)
 	icon.ScaleType = Enum.ScaleType.Fit
-	icon.Size = UDim2.fromOffset(58, 58)
+	icon.Size = UDim2.fromScale(0.78, 0.92)
 	icon.ZIndex = 126
 	icon.Parent = entry
+	local iconAspect = Instance.new("UIAspectRatioConstraint")
+	iconAspect.AspectRatio = 1
+	iconAspect.Parent = icon
 
-	local nameLabel = createText(entry, "ItemName", item.Name, 126)
-	nameLabel.Position = UDim2.new(0, 74, 0, 8)
-	nameLabel.Size = UDim2.new(1, -82, 0, 34)
-	nameLabel.TextXAlignment = Enum.TextXAlignment.Left
+	local nameLabel = createText(entry, "ItemName", item.Name, 127)
+	nameLabel.AnchorPoint = Vector2.new(0.5, 0)
+	nameLabel.Position = UDim2.fromScale(0.5, 0.015)
+	nameLabel.Size = UDim2.fromScale(0.9, 0.24)
 	nameLabel.TextColor3 = item.Color
-	local nameStroke = Instance.new("UIStroke")
-	nameStroke.Color = UIStyle.Colors.Ink
-	nameStroke.StrokeSizingMode = Enum.StrokeSizingMode.ScaledSize
-	nameStroke.Thickness = 0.055
-	nameStroke.Parent = nameLabel
+	nameLabel.TextXAlignment = Enum.TextXAlignment.Center
 
-	local oddsLabel = createText(entry, "Odds", formatOdds(item.BaseOdds), 126)
-	oddsLabel.Position = UDim2.new(0, 74, 0, 43)
-	oddsLabel.Size = UDim2.new(1, -82, 0, 23)
-	oddsLabel.TextTransparency = 0.13
-	oddsLabel.TextXAlignment = Enum.TextXAlignment.Left
-	return entry
+	local oddsLabel = createText(entry, "Odds", formatOdds(item.BaseOdds), 127)
+	oddsLabel.AnchorPoint = Vector2.new(0.5, 1)
+	oddsLabel.Position = UDim2.fromScale(0.5, 0.985)
+	oddsLabel.Size = UDim2.fromScale(0.72, 0.2)
+	oddsLabel.TextXAlignment = Enum.TextXAlignment.Center
+	return entry, resultScale
 end
 
 local function createReel(parent: Frame, packet, resultItem)
 	local reel = Instance.new("Frame")
 	reel.Name = string.format("Reel%d", packet.reelIndex)
-	reel.BackgroundColor3 = resultItem.Color:Lerp(UIStyle.Colors.Ink, 0.72)
+	reel.BackgroundTransparency = 1
 	reel.BorderSizePixel = 0
 	reel.LayoutOrder = packet.reelIndex
-	reel.Size = UDim2.fromOffset(REEL_WIDTH, REEL_HEIGHT)
+	reel.Size = UDim2.fromScale(1, 1)
 	reel.ZIndex = 118
 	reel.Parent = parent
-	addCorner(reel)
-	local activeStroke = addStroke(reel, resultItem.Color, 3, 0.02)
-	activeStroke.Name = "ActiveStroke"
 
-	local punchScale = Instance.new("UIScale")
-	punchScale.Name = "PunchScale"
-	punchScale.Parent = reel
+	local reelScale = Instance.new("UIScale")
+	reelScale.Name = "ReelScale"
+	reelScale.Parent = reel
 
-	local glow = Instance.new("ImageLabel")
-	glow.Name = "Glow"
-	glow.AnchorPoint = Vector2.new(0.5, 0.5)
-	glow.BackgroundTransparency = 1
-	glow.Image = UIStyle.GlowTexture
-	glow.ImageColor3 = resultItem.Color
-	glow.ImageTransparency = 0.78
-	glow.Position = UDim2.fromScale(0.5, 0.52)
-	glow.Size = UDim2.fromScale(1.28, 1.18)
-	glow.ZIndex = 117
-	glow.Parent = reel
-
-	local multiplierText = if packet.multiplier == 1 then "ORIGINAL" else string.format("x%d", packet.multiplier)
+	local isAbilityResult = resultItem.AbilityId ~= nil
+	local hasHeader = isAbilityResult or packet.multiplier > 1
+	local multiplierText = if isAbilityResult
+		then "NEW ABILITY"
+		elseif packet.multiplier == 1 then "ORIGINAL"
+		else string.format("x%d", packet.multiplier)
 	local multiplier = createText(reel, "Multiplier", multiplierText, 123)
 	multiplier.AnchorPoint = Vector2.new(0.5, 0)
-	multiplier.Position = UDim2.new(0.5, 0, 0, 8)
-	multiplier.Size = UDim2.new(0.82, 0, 0, 35)
-	multiplier.TextColor3 = if packet.multiplier == 1 then UIStyle.Colors.Paper else UIStyle.Colors.Gold
-	addStroke(multiplier, UIStyle.Colors.Ink, 1.5, 0.08)
+	multiplier.Position = UDim2.fromScale(0.5, 0)
+	multiplier.Size = UDim2.fromScale(0.82, 0.075)
+	multiplier.TextColor3 = if isAbilityResult
+		then resultItem.Color
+		elseif packet.multiplier == 1 then UIStyle.Colors.Paper
+		else UIStyle.Colors.Gold
+	multiplier.Visible = hasHeader
 
 	local window = Instance.new("Frame")
 	window.Name = "Window"
-	window.BackgroundColor3 = UIStyle.Colors.InkSoft
+	window.BackgroundTransparency = 1
 	window.BorderSizePixel = 0
 	window.ClipsDescendants = true
-	window.Position = UDim2.fromOffset(10, 50)
-	window.Size = UDim2.new(1, -20, 1, -62)
+	window.Position = UDim2.fromScale(0, if hasHeader then 0.075 else 0)
+	window.Size = UDim2.fromScale(1, if hasHeader then 0.925 else 1)
 	window.ZIndex = 120
 	window.Parent = reel
-	addCorner(window)
-	addStroke(window, UIStyle.Colors.Ink, 2)
-	addStudTexture(window, 121)
 
-	local centerY = math.floor((REEL_HEIGHT - 62) / 2)
+	local centerY = 0.5
 	local track = Instance.new("Frame")
 	track.Name = "Track"
 	track.BackgroundTransparency = 1
-	track.Position = UDim2.fromOffset(0, centerY - ENTRY_HEIGHT / 2)
-	track.Size = UDim2.new(1, 0, 0, ENTRY_COUNT * ENTRY_STRIDE)
+	track.Position = UDim2.fromScale(0, centerY - ENTRY_HEIGHT_SCALE / 2)
+	track.Size = UDim2.fromScale(1, 1)
 	track.ZIndex = 124
 	track.Parent = window
 
+	local resultScale
 	for index = 1, ENTRY_COUNT do
-		-- Passing entries are cosmetic decoys; the last entry is always the server-selected result.
-		local item = if index == ENTRY_COUNT
+		-- Trailing decoys remain after the authoritative result so the stopped reel still shows what follows it.
+		local item = if index == RESULT_INDEX
 			then resultItem
 			else GetRandomFromWeightedTable(RollDefinitions.Items, "Weight", visualRandom, 1)
-		createEntry(track, item, index, index == ENTRY_COUNT)
-	end
-
-	local highlight = Instance.new("Frame")
-	highlight.Name = "SelectionHighlight"
-	highlight.BackgroundColor3 = resultItem.Color
-	highlight.BackgroundTransparency = 0.88
-	highlight.BorderSizePixel = 0
-	highlight.Position = UDim2.fromOffset(0, centerY - ENTRY_HEIGHT / 2 - 3)
-	highlight.Size = UDim2.new(1, 0, 0, ENTRY_HEIGHT + 6)
-	highlight.ZIndex = 130
-	highlight.Parent = window
-	addStroke(highlight, resultItem.Color, 3, 0.08)
-
-	for _, y in { centerY - ENTRY_HEIGHT / 2 - 5, centerY + ENTRY_HEIGHT / 2 + 3 } do
-		local line = Instance.new("Frame")
-		line.Name = "SelectionLine"
-		line.BackgroundColor3 = UIStyle.Colors.Paper
-		line.BorderSizePixel = 0
-		line.Position = UDim2.fromOffset(4, y)
-		line.Size = UDim2.new(1, -8, 0, 2)
-		line.ZIndex = 131
-		line.Parent = window
+		local _, entryScale = createEntry(track, item, index, index == RESULT_INDEX)
+		if index == RESULT_INDEX then
+			resultScale = entryScale
+		end
 	end
 
 	return {
 		frame = reel,
-		glow = glow,
-		punchScale = punchScale,
-		stroke = activeStroke,
+		reelScale = reelScale,
 		track = track,
 		resultItem = resultItem,
+		resultScale = resultScale,
 		centerY = centerY,
 	}
 end
@@ -231,7 +180,7 @@ return function()
 	local root: Frame?
 	local tint: Frame?
 	local chain: Frame?
-	local chainScale: UIScale?
+	local chainLayout: UIListLayout?
 	local expandedControls: Frame?
 	local minimizedControls: Frame?
 	local bonusIndicator: Frame?
@@ -252,38 +201,30 @@ return function()
 		end
 	end
 
-	local function getViewportSize(): Vector2
-		local camera = Workspace.CurrentCamera
-		return if camera then camera.ViewportSize else Vector2.new(1280, 720)
-	end
-
 	local function layoutChain()
-		if not chain or not chainScale or not root then
+		if not chain or not chainLayout or not root then
 			return
 		end
 		local count = math.max(#reels, 1)
-		local naturalWidth = count * REEL_WIDTH + (count - 1) * REEL_GAP
-		local viewport = getViewportSize()
-		local widthScale = (viewport.X * 0.9) / naturalWidth
-		local scale
+		local gapScale = if minimized then 0.014 else 0.018
+		local chainWidth
 		if minimized then
-			scale = math.min(0.46, widthScale)
-			chain.Position = UDim2.new(0.5, 0, 0, SafeArea.GetTopOffset(10))
+			chainWidth = math.min(0.76, 0.22 * count + gapScale * (count - 1))
+			chain.Position = UDim2.new(0.5, 0, 0, SafeArea.GetTopOffset(6))
+			chain.Size = UDim2.fromScale(chainWidth, 0.28)
 		else
-			local heightScale = (viewport.Y * 0.56) / REEL_HEIGHT
-			scale = math.min(1.05, widthScale, heightScale)
-			chain.Position = UDim2.new(0.5, 0, FULL_VERTICAL_FRACTION, 0)
+			chainWidth = math.min(0.94, 0.38 * count + gapScale * (count - 1))
+			chain.Position = UDim2.fromScale(0.5, 0.08)
+			chain.Size = UDim2.fromScale(chainWidth, 0.8)
 		end
-		chain.Size = UDim2.fromOffset(naturalWidth, REEL_HEIGHT)
-		chainScale.Scale = scale
+		chainLayout.Padding = UDim.new(gapScale, 0)
+		local reelWidth = math.max((1 - gapScale * (count - 1)) / count, 0.08)
+		for _, reelState in reels do
+			reelState.frame.Size = UDim2.fromScale(reelWidth, 1)
+		end
 
 		if minimizedControls then
-			minimizedControls.Position = UDim2.new(
-				0.5,
-				0,
-				0,
-				SafeArea.GetTopOffset(16) + math.floor(REEL_HEIGHT * scale)
-			)
+			minimizedControls.Position = UDim2.new(0.5, 0, 0.3, SafeArea.GetTopOffset(8))
 		end
 	end
 
@@ -334,14 +275,14 @@ return function()
 			localPlayer.PlayerGui
 		)
 		local punchOut = TweenService:Create(
-			reelState.punchScale,
+			reelState.resultScale,
 			TweenInfo.new(0.11, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
-			{ Scale = if reelState.resultItem.RarityRank >= 5 then 1.12 else 1.07 }
+			{ Scale = if reelState.resultItem.RarityRank >= 5 then 1.28 else 1.2 }
 		)
 		local settle = TweenService:Create(
-			reelState.punchScale,
+			reelState.resultScale,
 			TweenInfo.new(0.16, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
-			{ Scale = 1 }
+			{ Scale = 1.12 }
 		)
 		punchOut:Play()
 		punchOut.Completed:Once(function()
@@ -349,11 +290,6 @@ return function()
 				settle:Play()
 			end
 		end)
-		TweenService:Create(
-			reelState.glow,
-			TweenInfo.new(0.18, Enum.EasingStyle.Sine, Enum.EasingDirection.Out, 0, true),
-			{ ImageTransparency = if reelState.resultItem.RarityRank >= 5 then 0.28 else 0.5 }
-		):Play()
 	end
 
 	local function animateReel(packet)
@@ -366,8 +302,8 @@ return function()
 		end
 
 		for _, oldReel in reels do
-			oldReel.glow.ImageTransparency = 0.94
-			oldReel.stroke.Transparency = 0.5
+			oldReel.reelScale.Scale = 0.92
+			oldReel.resultScale.Scale = 1
 		end
 
 		local reelState = createReel(chain, packet, resultItem)
@@ -378,7 +314,10 @@ return function()
 		local lastCrossed = 1
 		reelState.tickConnection = reelState.track:GetPropertyChangedSignal("Position"):Connect(function()
 			local crossed = math.clamp(
-				math.floor((reelState.centerY - ENTRY_HEIGHT / 2 - reelState.track.Position.Y.Offset) / ENTRY_STRIDE) + 1,
+				math.floor(
+					(reelState.centerY - ENTRY_HEIGHT_SCALE / 2 - reelState.track.Position.Y.Scale)
+						/ ENTRY_STRIDE_SCALE
+				) + 1,
 				1,
 				ENTRY_COUNT
 			)
@@ -388,11 +327,13 @@ return function()
 			end
 		end)
 
-		local targetY = reelState.centerY - ENTRY_HEIGHT / 2 - (ENTRY_COUNT - 1) * ENTRY_STRIDE
+		local targetY = reelState.centerY
+			- ENTRY_HEIGHT_SCALE / 2
+			- (RESULT_INDEX - 1) * ENTRY_STRIDE_SCALE
 		local tween = TweenService:Create(
 			reelState.track,
 			TweenInfo.new(RollDefinitions.Timing.ReelDuration, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
-			{ Position = UDim2.fromOffset(0, targetY) }
+			{ Position = UDim2.fromScale(0, targetY) }
 		)
 		table.insert(reelTweens, tween)
 		tween.Completed:Once(function(playbackState)
@@ -445,7 +386,7 @@ return function()
 		bonusIndicator.Position = if minimized
 			then UDim2.new(0.5, 0, 0, SafeArea.GetTopOffset(18))
 			else UDim2.fromScale(0.5, 0.08)
-		bonusIndicator.Size = if minimized then UDim2.fromOffset(180, 72) else UDim2.fromOffset(390, 145)
+		bonusIndicator.Size = if minimized then UDim2.fromScale(0.3, 0.1) else UDim2.fromScale(0.42, 0.18)
 		bonusIcon.ImageTransparency = 0
 		bonusText.TextTransparency = 0
 		bonusText.Text = string.format("BONUS!  x%d", packet.multiplier)
@@ -526,28 +467,11 @@ return function()
 	end))
 	table.insert(connections, SafeArea.GetChangedSignal():Connect(layoutChain))
 
-	local cameraConnection: RBXScriptConnection?
-	local function connectCamera()
-		if cameraConnection then
-			cameraConnection:Disconnect()
-		end
-		local camera = Workspace.CurrentCamera
-		cameraConnection = camera and camera:GetPropertyChangedSignal("ViewportSize"):Connect(layoutChain) or nil
-	end
-	connectCamera()
-	table.insert(connections, Workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
-		connectCamera()
-		layoutChain()
-	end))
-
 	cleanup(function()
 		setHudVisible(true)
 		clearReels()
 		for _, connection in connections do
 			connection:Disconnect()
-		end
-		if cameraConnection then
-			cameraConnection:Disconnect()
 		end
 	end)
 
@@ -566,6 +490,7 @@ return function()
 		end),
 		create "Frame" {
 			Name = "Tint",
+			Active = true,
 			BackgroundColor3 = Color3.fromRGB(9, 13, 25),
 			BackgroundTransparency = 1,
 			BorderSizePixel = 0,
@@ -581,7 +506,7 @@ return function()
 			AnchorPoint = Vector2.new(0.5, 1),
 			BackgroundTransparency = 1,
 			Position = UDim2.new(0.5, 0, 1, -24),
-			Size = UDim2.new(0.36, 190, 0.065, 24),
+			Size = UDim2.new(0.5, 220, 0.065, 24),
 			Visible = function()
 				return not active()
 			end,
@@ -609,32 +534,37 @@ return function()
 				LayoutOrder = 2,
 				OnActivated = toggleAuto,
 			}),
+			Button({
+				Text = "ABILITIES",
+				BackgroundColor3 = UIStyle.Colors.Gold,
+				LayoutOrder = 3,
+				OnActivated = function()
+					AbilityController.SetInventoryOpen(true)
+				end,
+			}),
 		},
 		create "Frame" {
 			Name = "ReelChain",
 			AnchorPoint = Vector2.new(0.5, 0),
 			BackgroundTransparency = 1,
-			Position = UDim2.new(0.5, 0, FULL_VERTICAL_FRACTION, 0),
-			Size = UDim2.fromOffset(REEL_WIDTH, REEL_HEIGHT),
+			Position = UDim2.fromScale(0.5, 0.08),
+			Size = UDim2.fromScale(0.38, 0.8),
 			Visible = active,
 			ZIndex = 115,
 			action(function(instance)
 				chain = instance :: Frame
 				layoutChain()
 			end),
-			create "UIScale" {
-				Scale = 1,
-				action(function(instance)
-					chainScale = instance :: UIScale
-					layoutChain()
-				end),
-			},
 			create "UIListLayout" {
 				FillDirection = Enum.FillDirection.Horizontal,
-				HorizontalAlignment = Enum.HorizontalAlignment.Left,
-				Padding = UDim.new(0, REEL_GAP),
+				HorizontalAlignment = Enum.HorizontalAlignment.Center,
+				Padding = UDim.new(0.018, 0),
 				SortOrder = Enum.SortOrder.LayoutOrder,
 				VerticalAlignment = Enum.VerticalAlignment.Center,
+				action(function(instance)
+					chainLayout = instance :: UIListLayout
+					layoutChain()
+				end),
 			},
 		},
 		create "Frame" {
@@ -642,7 +572,7 @@ return function()
 			AnchorPoint = Vector2.new(0.5, 0),
 			BackgroundTransparency = 1,
 			Position = UDim2.fromScale(0.5, 0.08),
-			Size = UDim2.fromOffset(390, 145),
+			Size = UDim2.fromScale(0.42, 0.18),
 			Visible = false,
 			ZIndex = 160,
 			action(function(instance)
@@ -693,7 +623,7 @@ return function()
 			AnchorPoint = Vector2.new(0.5, 1),
 			BackgroundTransparency = 1,
 			Position = UDim2.new(0.5, 0, 1, -24),
-			Size = UDim2.new(0.32, 160, 0.058, 20),
+			Size = UDim2.new(0.46, 200, 0.058, 20),
 			Visible = false,
 			ZIndex = 150,
 			action(function(instance)
@@ -722,13 +652,21 @@ return function()
 				LayoutOrder = 2,
 				OnActivated = toggleAuto,
 			}),
+			Button({
+				Text = "ABILITIES",
+				BackgroundColor3 = UIStyle.Colors.Gold,
+				LayoutOrder = 3,
+				OnActivated = function()
+					AbilityController.SetInventoryOpen(true)
+				end,
+			}),
 		},
 		create "Frame" {
 			Name = "MinimizedControls",
 			AnchorPoint = Vector2.new(0.5, 0),
 			BackgroundTransparency = 1,
-			Position = UDim2.new(0.5, 0, 0, SafeArea.GetTopOffset(170)),
-			Size = UDim2.fromOffset(360, 48),
+			Position = UDim2.new(0.5, 0, 0.3, SafeArea.GetTopOffset(8)),
+			Size = UDim2.new(0.48, 180, 0.052, 16),
 			Visible = false,
 			ZIndex = 150,
 			action(function(instance)
@@ -757,6 +695,14 @@ return function()
 				end,
 				LayoutOrder = 2,
 				OnActivated = toggleAuto,
+			}),
+			Button({
+				Text = "ABILITIES",
+				BackgroundColor3 = UIStyle.Colors.Gold,
+				LayoutOrder = 3,
+				OnActivated = function()
+					AbilityController.SetInventoryOpen(true)
+				end,
 			}),
 		},
 	}

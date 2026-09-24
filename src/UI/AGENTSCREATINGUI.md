@@ -8,6 +8,8 @@ Use a mix of relative Scale values and pixel offsets in UI sizes and positions. 
 
 Avoid creating CanvasGroups unless they are needed for scrolling UI. Use Frames or other suitable GuiObjects for ordinary UI, including notifications.
 
+Not everything has to have a background! Only have buttons and stuff with the button background. If no background have stroke.
+
 local function WhiteRectangularButtonExample()
 	return
     create "Frame" {

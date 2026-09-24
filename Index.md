@@ -15,6 +15,7 @@ Quick reference for the reusable first-party Luau foundation. Generated Wally de
 | Path | Responsibility |
 | --- | --- |
 | `src/controllers/CharacterController.lua` | Requests server-authorized character spawning and manages local camera and respawn behavior. |
+| `src/controllers/AbilityController.lua` | Mirrors authoritative ability state and renders Dagger projectiles, sounds, and VFX from validated server casts. |
 | `src/controllers/CoinsController.lua` | Exposes the replicated, read-only local coin balance and its change signal. |
 | `src/controllers/PlayerStateController.lua` | Receives generic server runtime-state snapshots and updates. |
 | `src/controllers/RollController.lua` | Sends roll intent and validates authoritative roll, bonus, auto-roll, and completion events for presentation. |
@@ -22,6 +23,7 @@ Quick reference for the reusable first-party Luau foundation. Generated Wally de
 | `src/controllers/Zombie/ProceduralAnimator.lua` | Produces type-specific procedural movement and attack poses without animation tracks. |
 | `src/controllers/Zombie/ZombieView.lua` | Owns one client-rendered zombie model, interpolation state, and 8-corner visibility checks. |
 | `src/servercontrollers/CharacterController.lua` | Rate-limits and authorizes character spawn requests while `CharacterAutoLoads` is disabled. |
+| `src/servercontrollers/AbilityController.lua` | Owns ability discovery, loadouts, coin upgrades, Dagger scheduling, and authoritative damage requests. |
 | `src/servercontrollers/CollisionController.lua` | Assigns avatar parts to a generic non-colliding player-character collision group. |
 | `src/servercontrollers/CoinsController.lua` | Validates and owns persistent server-authoritative coin balance operations. |
 | `src/servercontrollers/PlayerStateController.lua` | Owns generic per-player runtime state and replicates requested state updates. |
@@ -52,6 +54,7 @@ These modules provide shared game configuration, persistent player-data defaults
 | Path | Responsibility |
 | --- | --- |
 | `src/modules/Game/CoinsConfig.lua` | Defines the shared coin data key, default, and exact-integer balance limit. |
+| `src/modules/Game/Abilities/AbilityDefinitions.lua` | Defines expandable ability metadata, equip limits, upgrade costs, stats, milestones, and roll presentation. |
 | `src/modules/Game/DataTemplate.lua` | Supplies DataService's JSON-compatible persisted player-data defaults. |
 | `src/modules/Game/Rolls/RollDefinitions.lua` | Defines replaceable placeholder roll rewards, base odds, rarity visuals, data keys, and presentation timing. |
 | `src/modules/Game/RuntimeState.lua` | Stores generic transient per-player state and change signals. |
@@ -103,6 +106,7 @@ These modules provide shared game configuration, persistent player-data defaults
 | `src/UI/Effects/HoverExpand.lua` | Provides reusable hover scaling for GuiObjects. |
 | `src/UI/Effects/Notification.lua` | Provides a reusable counted attention badge. |
 | `src/UI/HUD/CoinsDisplay.lua` | Renders the responsive left-side coin balance display from replicated data. |
+| `src/UI/HUD/AbilityInterface.lua` | Renders the categorized ability inventory, loadout and upgrade details, 3D previews, and discovery overlay. |
 | `src/UI/HUD/Notifications.lua` | Renders transient notifications from NotificationManager. |
 | `src/UI/HUD/RollInterface.lua` | Renders compact controls and the responsive fullscreen/minimized vertical reel and bonus-chain presentation. |
 | `src/modules/UI/NotificationManager.lua` | Emits reusable transient notification events. |

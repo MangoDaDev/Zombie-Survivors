@@ -1,7 +1,9 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerStorage = game:GetService("ServerStorage")
 
 local Networker = require(ReplicatedStorage.Packages.networker)
+local AbilityController = require(ServerStorage.Controllers.AbilityController)
 local GetRandomFromWeightedTable = require(ReplicatedStorage.Modules.Math.GetRandomFromWeightedTable)
 	.GetRandomFromWeightedTable
 local RollDefinitions = require(ReplicatedStorage.Modules.Game.Rolls.RollDefinitions)
@@ -14,8 +16,10 @@ type PlayerRollState = {
 	autoRollEnabled: boolean,
 	autoScheduleId: number,
 	lastAutoToggleAt: number,
+	lastRollRequestAt: number,
 	luck: number,
 	nextRollAt: number,
+	pendingDiscoveries: { [string]: number },
 	rollId: number,
 	token: number,
 }
@@ -32,14 +36,40 @@ local function isCurrentState(player: Player, state: PlayerRollState, token: num
 	return player.Parent == Players and states[player] == state and state.token == token
 end
 
-local function selectItem(luck: number)
+local function selectItem(player: Player, state: PlayerRollState, excludeAbilities: boolean)
+	local eligibleItems = {}
+	local discoveryPending = excludeAbilities or next(state.pendingDiscoveries) ~= nil
+	for _, item in RollDefinitions.Items do
+		if not item.AbilityId
+			or (not discoveryPending and not AbilityController.IsOwned(player, item.AbilityId))
+		then
+			table.insert(eligibleItems, item)
+		end
+	end
 	-- Reuse the project's diminishing-returns luck curve; bonus checks use a separate random draw below.
-	return GetRandomFromWeightedTable(RollDefinitions.Items, "Weight", random, luck)
+	return GetRandomFromWeightedTable(eligibleItems, "Weight", random, state.luck)
 end
 
-local function awardItem(player: Player, itemId: string, amount: number): boolean
+local function incrementTotalRolls(player: Player)
+	dataService:update(player, RollDefinitions.TotalRollsDataKey, function(currentTotal)
+		local validTotal = if type(currentTotal) == "number" and currentTotal >= 0 and currentTotal % 1 == 0
+			then currentTotal
+			else 0
+		return math.min(validTotal + 1, MAX_PERSISTED_COUNT)
+	end)
+end
+
+local function awardItem(player: Player, state: PlayerRollState, item, amount: number): (boolean, string?)
+	if item.AbilityId then
+		local discovered = AbilityController.TryDiscover(player, item.AbilityId, state.autoRollEnabled)
+		if discovered then
+			incrementTotalRolls(player)
+		end
+		return discovered, if discovered then item.AbilityId else nil
+	end
+
 	local inventory = dataService:get(player, RollDefinitions.InventoryDataKey)
-	local currentAmount = type(inventory) == "table" and inventory[itemId] or 0
+	local currentAmount = type(inventory) == "table" and inventory[item.Id] or 0
 	if type(currentAmount) ~= "number" or currentAmount < 0 or currentAmount % 1 ~= 0 then
 		currentAmount = 0
 	end
@@ -49,23 +79,17 @@ local function awardItem(player: Player, itemId: string, amount: number): boolea
 
 	dataService:update(player, RollDefinitions.InventoryDataKey, function(currentInventory)
 		local updatedInventory = if type(currentInventory) == "table" then table.clone(currentInventory) else {}
-		updatedInventory[itemId] = currentAmount + amount
+		updatedInventory[item.Id] = currentAmount + amount
 		return updatedInventory
 	end)
-
-	dataService:update(player, RollDefinitions.TotalRollsDataKey, function(currentTotal)
-		local validTotal = if type(currentTotal) == "number" and currentTotal >= 0 and currentTotal % 1 == 0
-			then currentTotal
-			else 0
-		return math.min(validTotal + 1, MAX_PERSISTED_COUNT)
-	end)
-	return true
+	incrementTotalRolls(player)
+	return true, nil
 end
 
 local function scheduleAutoRoll(player: Player, state: PlayerRollState)
 	state.autoScheduleId += 1
 	local scheduleId = state.autoScheduleId
-	if not state.autoRollEnabled or state.active then
+	if not state.autoRollEnabled or state.active or next(state.pendingDiscoveries) ~= nil then
 		return
 	end
 
@@ -83,6 +107,33 @@ local function scheduleAutoRoll(player: Player, state: PlayerRollState)
 			startSequence(player, state)
 		end
 	end)
+end
+
+local function pauseAutoRollForDiscovery(player: Player, state: PlayerRollState, abilityId: string)
+	if not state.autoRollEnabled then
+		return
+	end
+
+	state.autoScheduleId += 1
+	local pauseId = state.autoScheduleId
+	state.pendingDiscoveries[abilityId] = pauseId
+	-- Auto Roll remains logically enabled; only its scheduler pauses until acknowledgement or this safety timeout.
+	task.delay(RollDefinitions.Timing.ReelDuration + RollDefinitions.Timing.DiscoveryAutoResumeDelay, function()
+		if states[player] ~= state or state.pendingDiscoveries[abilityId] ~= pauseId then
+			return
+		end
+		state.pendingDiscoveries[abilityId] = nil
+		scheduleAutoRoll(player, state)
+	end)
+end
+
+local function acknowledgeDiscovery(player: Player, abilityId: string)
+	local state = states[player]
+	if not state or not state.pendingDiscoveries[abilityId] then
+		return
+	end
+	state.pendingDiscoveries[abilityId] = nil
+	scheduleAutoRoll(player, state)
 end
 
 startSequence = function(player: Player, state: PlayerRollState): boolean
@@ -103,11 +154,21 @@ startSequence = function(player: Player, state: PlayerRollState): boolean
 		local multiplier = 1
 		local reelIndex = 1
 		local sequenceId = 1
+		local discoveredAbilityThisSequence = false
 
 		while isCurrentState(player, state, token) do
-			local item = selectItem(state.luck)
-			if not item or not awardItem(player, item.Id, multiplier) then
+			local item = selectItem(player, state, discoveredAbilityThisSequence)
+			local awarded = false
+			local discoveredAbilityId
+			if item then
+				awarded, discoveredAbilityId = awardItem(player, state, item, multiplier)
+			end
+			if not item or not awarded then
 				break
+			end
+			if discoveredAbilityId then
+				discoveredAbilityThisSequence = true
+				pauseAutoRollForDiscovery(player, state, discoveredAbilityId)
 			end
 
 			-- Reward first, then notify the owning client; animation events can never duplicate the grant.
@@ -117,7 +178,6 @@ startSequence = function(player: Player, state: PlayerRollState): boolean
 				reelIndex = reelIndex,
 				itemId = item.Id,
 				multiplier = multiplier,
-				luck = state.luck,
 			})
 
 			task.wait(RollDefinitions.Timing.ReelDuration + RollDefinitions.Timing.ResultHoldDuration)
@@ -125,7 +185,9 @@ startSequence = function(player: Player, state: PlayerRollState): boolean
 				return
 			end
 
-			local nextMultiplier = multiplier * RollServerConfig.MultiplierGrowth
+			local nextMultiplier = if multiplier == 1
+				then RollServerConfig.StartingBonusMultiplier
+				else multiplier * RollServerConfig.MultiplierGrowth
 			local canContinue = multiplier < RollServerConfig.MaximumMultiplier
 				and nextMultiplier <= RollServerConfig.MaximumMultiplier
 				and random:NextNumber() < RollServerConfig.BaseBonusChance
@@ -159,10 +221,17 @@ end
 
 function RollController.RequestRoll(_, player: Player)
 	local state = states[player]
-	if state then
-		-- The request carries no result, luck, reward, bonus, or multiplier data by design.
-		startSequence(player, state)
+	if not state then
+		return
 	end
+
+	local now = workspace:GetServerTimeNow()
+	if now - state.lastRollRequestAt < RollServerConfig.RollRequestCooldown then
+		return
+	end
+	state.lastRollRequestAt = now
+	-- The request carries no result, luck, reward, bonus, or multiplier data by design.
+	startSequence(player, state)
 end
 
 function RollController.SetAutoRoll(_, player: Player, enabled: any)
@@ -183,13 +252,6 @@ function RollController.SetAutoRoll(_, player: Player, enabled: any)
 	if enabled then
 		scheduleAutoRoll(player, state)
 	end
-end
-
-function RollController.GetState(_, player: Player)
-	local state = states[player]
-	return {
-		autoRollEnabled = state ~= nil and state.autoRollEnabled or false,
-	}
 end
 
 function RollController.GetLuck(player: Player): number?
@@ -213,10 +275,10 @@ function RollController.SetDataService(service)
 end
 
 function RollController.Init()
+	AbilityController.SetDiscoveryAcknowledgedCallback(acknowledgeDiscovery)
 	rollNetwork = Networker.server.new("RollController", RollController, {
 		RollController.RequestRoll,
 		RollController.SetAutoRoll,
-		RollController.GetState,
 	})
 end
 
@@ -226,8 +288,10 @@ function RollController.OnPlayerAdded(player: Player)
 		autoRollEnabled = false,
 		autoScheduleId = 0,
 		lastAutoToggleAt = -math.huge,
+		lastRollRequestAt = -math.huge,
 		luck = RollServerConfig.DefaultLuck,
 		nextRollAt = 0,
+		pendingDiscoveries = {},
 		rollId = 0,
 		token = 0,
 	}

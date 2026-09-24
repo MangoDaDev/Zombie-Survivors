@@ -1,4 +1,5 @@
 local Images = require(script.Parent.Parent.Parent.UI.Images)
+local AbilityDefinitions = require(script.Parent.Parent.Abilities.AbilityDefinitions)
 
 local RollDefinitions = {}
 
@@ -11,6 +12,7 @@ RollDefinitions.Timing = {
 	ResultHoldDuration = 0.8,
 	BonusActivationDuration = 0.72,
 	AutoRollDelay = 0.45,
+	DiscoveryAutoResumeDelay = 5,
 }
 
 -- BaseOdds becomes a relative weight (1 / BaseOdds). Replace this table to ship real rewards;
@@ -80,6 +82,21 @@ RollDefinitions.Items = {
 		Color = Color3.fromRGB(255, 83, 202),
 	},
 }
+
+for _, ability in AbilityDefinitions.List do
+	if ability.Roll then
+		table.insert(RollDefinitions.Items, {
+			Id = "Ability_" .. ability.Id,
+			Name = ability.Name,
+			Image = ability.Icon,
+			BaseOdds = ability.Roll.BaseOdds,
+			Rarity = ability.Roll.Rarity,
+			RarityRank = ability.Roll.RarityRank,
+			Color = ability.Color,
+			AbilityId = ability.Id,
+		})
+	end
+end
 
 RollDefinitions.ById = {}
 for _, item in RollDefinitions.Items do

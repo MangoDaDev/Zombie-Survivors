@@ -1,6 +1,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local vide = require(ReplicatedStorage.Packages.vide)
+local AbilityInterface = require(script.Parent.HUD.AbilityInterface)
 local Confirmation = require(script.Parent.Classes.Confirmation)
 local CoinsDisplay = require(script.Parent.HUD.CoinsDisplay)
 local Notifications = require(script.Parent.HUD.Notifications)
@@ -18,6 +19,7 @@ return function()
 		CoinsDisplay(),
 		Notifications(),
 		RollInterface(),
+		AbilityInterface(),
 		Confirmation.Component(),
 	}
 end

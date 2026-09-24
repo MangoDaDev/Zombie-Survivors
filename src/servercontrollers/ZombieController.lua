@@ -267,6 +267,29 @@ function ZombieController.DamageZombie(id, amount)
 	return zombie ~= nil and zombie:TakeDamage(amount)
 end
 
+function ZombieController.GetNearestZombies(position: Vector3, maximumDistance: number, maximumCount: number)
+	local candidates = {}
+	for id, zombie in zombies do
+		if not zombie:IsDead() then
+			local distance = (zombie.cframe.Position - position).Magnitude
+			if distance <= maximumDistance then
+				table.insert(candidates, {
+					id = id,
+					position = zombie.cframe.Position,
+					distance = distance,
+				})
+			end
+		end
+	end
+	table.sort(candidates, function(left, right)
+		return left.distance < right.distance
+	end)
+	for index = #candidates, maximumCount + 1, -1 do
+		table.remove(candidates, index)
+	end
+	return candidates
+end
+
 function ZombieController.Init()
 	buildGroundOffsets()
 	for _, area in ZombieAreas do

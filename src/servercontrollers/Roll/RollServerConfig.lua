@@ -1,5 +1,6 @@
 return {
 	RollCooldown = 0.75,
+	RollRequestCooldown = 0.15,
 	AutoToggleCooldown = 0.2,
 
 	-- Item luck and bonus chance deliberately remain separate random systems.

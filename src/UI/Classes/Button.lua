@@ -18,6 +18,7 @@ export type Props = {
 	Enabled: Reactive<boolean>?,
 	BackgroundColor3: Reactive<Color3>?,
 	LayoutOrder: Reactive<number>?,
+	Size: Reactive<UDim2>?,
 }
 
 local function readOr<T>(value: Reactive<T>?, default: T): T
@@ -74,7 +75,9 @@ return function(props: Props)
 		LayoutOrder = function()
 			return readOr(props.LayoutOrder, 0)
 		end,
-		Size = UDim2.fromScale(0.3, 1),
+		Size = function()
+			return readOr(props.Size, UDim2.fromScale(0.3, 1))
+		end,
 		create "UICorner" { CornerRadius = UIStyle.CornerRadius },
 		create "UIStroke" {
 			ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
