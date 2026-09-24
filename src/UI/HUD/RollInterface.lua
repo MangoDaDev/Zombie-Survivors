@@ -193,7 +193,7 @@ return function()
 		if not screenGui then
 			return
 		end
-		for _, childName in { "CoinsDisplay", "Notifications" } do
+		for _, childName in { "CoinsDisplay", "Notifications", "RageBar" } do
 			local child = screenGui:FindFirstChild(childName)
 			if child and child:IsA("GuiObject") then
 				child.Visible = visible

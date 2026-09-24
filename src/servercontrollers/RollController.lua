@@ -162,6 +162,11 @@ startSequence = function(player: Player, state: PlayerRollState): boolean
 			local discoveredAbilityId
 			if item then
 				awarded, discoveredAbilityId = awardItem(player, state, item, multiplier)
+			elseif state.autoRollEnabled then
+				-- With only unique abilities in the catalog, stop Auto Roll once everything obtainable is owned.
+				state.autoRollEnabled = false
+				state.autoScheduleId += 1
+				rollNetwork:fire(player, "AutoRollChanged", false)
 			end
 			if not item or not awarded then
 				break

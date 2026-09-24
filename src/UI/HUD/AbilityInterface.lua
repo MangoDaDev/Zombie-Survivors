@@ -60,42 +60,15 @@ local function studTexture(zIndex: number)
 	}
 end
 
-local function abilityViewport(ability, zIndex: number, visible)
-	return create "ViewportFrame" {
-		Name = ability.Name .. "Preview",
-		Ambient = Color3.fromRGB(125, 145, 170),
-		BackgroundColor3 = ability.Color:Lerp(UIStyle.Colors.Ink, 0.78),
-		BackgroundTransparency = 0.12,
-		BorderSizePixel = 0,
-		LightColor = Color3.fromRGB(245, 249, 255),
-		LightDirection = Vector3.new(-1, -0.8, -0.5),
+local function abilityIcon(ability, zIndex: number, visible)
+	return create "ImageLabel" {
+		Name = ability.Name .. "Icon",
+		BackgroundTransparency = 1,
+		Image = ability.Icon,
+		ScaleType = Enum.ScaleType.Fit,
 		Size = UDim2.fromScale(1, 1),
-		Visible = visible or true,
+		Visible = if visible == nil then true else visible,
 		ZIndex = zIndex,
-		create "UICorner" { CornerRadius = UIStyle.CornerRadius },
-		create "UIStroke" { Color = ability.Color, Thickness = 2, Transparency = 0.16 },
-		action(function(viewport)
-			local asset = ReplicatedStorage.Assets.Models.Abilities:FindFirstChild(ability.AssetName)
-			if not asset or not asset:IsA("Model") then
-				return
-			end
-
-			local world = Instance.new("WorldModel")
-			world.Parent = viewport
-			local model = asset:Clone()
-			model:PivotTo(CFrame.Angles(math.rad(-18), math.rad(-28), math.rad(32)))
-			model.Parent = world
-			local boundingCFrame, size = model:GetBoundingBox()
-			local focus = boundingCFrame.Position
-			local camera = Instance.new("Camera")
-			camera.CFrame = CFrame.lookAt(
-				focus + Vector3.new(0, 0.2, math.max(size.Magnitude * 1.25, 4)),
-				focus
-			)
-			camera.FieldOfView = 34
-			camera.Parent = viewport
-			viewport.CurrentCamera = camera
-		end),
 	}
 end
 
@@ -152,7 +125,7 @@ local function abilityCard(ability, state, category, selectedId)
 			Position = UDim2.fromOffset(9, 9),
 			Size = UDim2.fromOffset(100, 100),
 			ZIndex = 328,
-			abilityViewport(ability, 328),
+			abilityIcon(ability, 328),
 		},
 		create "TextLabel" {
 			Name = "AbilityName",
@@ -379,25 +352,7 @@ return function()
 			return "Roll to discover this ability and reveal its stats."
 		end
 		local level = getLevel(state(), ability.Id)
-		local current = ability.GetStats(level)
-		local nextStats = ability.GetStats(math.min(level + 1, ability.MaxLevel))
-		if level >= ability.MaxLevel then
-			return string.format(
-				"Damage  %d\nProjectile Size  %d%%\nDaggers per Volley  %d",
-				current.Damage,
-				math.floor(current.ProjectileScale / 0.22 * 100 + 0.5),
-				current.DaggerCount
-			)
-		end
-		return string.format(
-			"Damage  %d  >  %d\nProjectile Size  %d%%  >  %d%%\nDaggers per Volley  %d  >  %d",
-			current.Damage,
-			nextStats.Damage,
-			math.floor(current.ProjectileScale / 0.22 * 100 + 0.5),
-			math.floor(nextStats.ProjectileScale / 0.22 * 100 + 0.5),
-			current.DaggerCount,
-			nextStats.DaggerCount
-		)
+		return ability.GetStatsText(level)
 	end
 
 	local milestoneText = function()
@@ -422,10 +377,10 @@ return function()
 	local discoveryPreviews = {}
 	for _, ability in AbilityDefinitions.List do
 		table.insert(cards, abilityCard(ability, state, category, selectedId))
-		table.insert(detailPreviews, abilityViewport(ability, 324, function()
+		table.insert(detailPreviews, abilityIcon(ability, 324, function()
 			return selectedId() == ability.Id
 		end))
-		table.insert(discoveryPreviews, abilityViewport(ability, 416, function()
+		table.insert(discoveryPreviews, abilityIcon(ability, 416, function()
 			return discoveryId() == ability.Id
 		end))
 	end

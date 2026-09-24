@@ -6,7 +6,9 @@ local Networker = require(ReplicatedStorage.Packages.networker)
 local AbilityDefinitions = require(ReplicatedStorage.Modules.Game.Abilities.AbilityDefinitions)
 local RollDefinitions = require(ReplicatedStorage.Modules.Game.Rolls.RollDefinitions)
 local CoinsController = require(ServerStorage.Controllers.CoinsController)
+local RageController = require(ServerStorage.Controllers.RageController)
 local ZombieController = require(ServerStorage.Controllers.ZombieController)
+local OrbitingSwords = require(script.Parent.Ability.OrbitingSwords)
 
 local REQUEST_COOLDOWN = 0.12
 local VOLLEY_NETWORK_LEAD = 0.06
@@ -129,9 +131,13 @@ local function sendResult(player: Player, success: boolean, message: string, mil
 	abilityNetwork:fire(player, "ActionResult", success, message, milestone == true)
 end
 
-local function damageZombie(targetId: number, damage: number)
+local function damageZombie(player: Player, definition, targetId: number, damage: number)
 	-- Abilities intentionally do not own zombie health; a future health API only changes this adapter.
-	ZombieController.DamageZombie(targetId, damage)
+	local damaged = ZombieController.DamageZombie(targetId, damage)
+	if damaged and definition.Rage then
+		-- Rage is earned only from server-confirmed combat, never from projectile presentation or client input.
+		RageController.AddCombatRage(player, definition.Rage.RagePerHit)
+	end
 end
 
 local function fireDaggerVolley(player: Player, definition, level: number): boolean
@@ -142,9 +148,15 @@ local function fireDaggerVolley(player: Player, definition, level: number): bool
 		return false
 	end
 
-	local stats = definition.GetStats(level)
+	local rageActive = RageController.IsActive(player)
+	local stats = if rageActive and definition.GetRageStats
+		then definition.GetRageStats(level)
+		else definition.GetStats(level)
+	local range = stats.Range or definition.Combat.Range
+	local projectileSpeed = stats.ProjectileSpeed or definition.Combat.ProjectileSpeed
+	local volleyStagger = stats.VolleyStagger or VOLLEY_STAGGER
 	local origin = root.Position + Vector3.new(0, 1.7, 0)
-	local targets = ZombieController.GetNearestZombies(origin, definition.Combat.Range, stats.DaggerCount)
+	local targets = ZombieController.GetNearestZombies(origin, range, stats.DaggerCount)
 	if #targets == 0 then
 		return false
 	end
@@ -154,9 +166,9 @@ local function fireDaggerVolley(player: Player, definition, level: number): bool
 		local spacing = (daggerIndex - (stats.DaggerCount + 1) / 2) * 0.72
 		local startPosition = origin + root.CFrame.RightVector * spacing
 		local distance = (target.position - startPosition).Magnitude
-		local duration = math.clamp(distance / definition.Combat.ProjectileSpeed, 0.12, 0.72)
+		local duration = math.clamp(distance / projectileSpeed, 0.1, 0.72)
 		-- A tiny shared lead lets every client begin the cosmetic projectile at the same smooth timestamp.
-		local launchDelay = VOLLEY_NETWORK_LEAD + (daggerIndex - 1) * VOLLEY_STAGGER
+		local launchDelay = VOLLEY_NETWORK_LEAD + (daggerIndex - 1) * volleyStagger
 		local launchAt = workspace:GetServerTimeNow() + launchDelay
 
 		abilityNetwork:fireAll("DaggerThrown", {
@@ -168,11 +180,12 @@ local function fireDaggerVolley(player: Player, definition, level: number): bool
 			scale = stats.ProjectileScale,
 			daggerIndex = daggerIndex,
 			daggerCount = stats.DaggerCount,
+			rage = stats.IsRage == true,
 		})
 
 		task.delay(launchDelay + duration, function()
 			if player.Parent == Players then
-				damageZombie(target.id, stats.Damage)
+				damageZombie(player, definition, target.id, stats.Damage)
 			end
 		end)
 	end
@@ -209,8 +222,11 @@ local function refreshAttacks(player: Player)
 
 			local definition = AbilityDefinitions.ById.Dagger
 			local level = currentData.Levels.Dagger or 1
+			local rageActive = RageController.IsActive(player)
+			local rageStats = if rageActive and definition.GetRageStats then definition.GetRageStats(level) else nil
+			local cooldown = rageStats and rageStats.Cooldown or definition.Combat.Cooldown
 			local attacked = fireDaggerVolley(player, definition, level)
-			local retryDelay = if attacked then definition.Combat.Cooldown else math.min(definition.Combat.Cooldown, 0.35)
+			local retryDelay = if attacked then cooldown else math.min(cooldown, 0.35)
 			-- This timestamp survives equip toggles so clients cannot reset the authoritative attack cooldown.
 			runtime.nextDaggerAt = workspace:GetServerTimeNow() + retryDelay
 		end
@@ -269,6 +285,7 @@ function AbilityController.EquipAbility(_, player: Player, abilityId: any)
 	table.insert(equipped, abilityId)
 	dataService:set(player, AbilityDefinitions.DataKey, data)
 	refreshAttacks(player)
+	OrbitingSwords.Refresh(player)
 	sendResult(player, true, definition.Name .. " equipped!")
 end
 
@@ -290,6 +307,7 @@ function AbilityController.UnequipAbility(_, player: Player, abilityId: any)
 	table.remove(equipped, index)
 	dataService:set(player, AbilityDefinitions.DataKey, data)
 	refreshAttacks(player)
+	OrbitingSwords.Refresh(player)
 	sendResult(player, true, definition.Name .. " unequipped.")
 end
 
@@ -320,6 +338,9 @@ function AbilityController.UpgradeAbility(_, player: Player, abilityId: any)
 	local newLevel = currentLevel + 1
 	data.Levels[abilityId] = newLevel
 	dataService:set(player, AbilityDefinitions.DataKey, data)
+	if abilityId == "OrbitingSwords" then
+		OrbitingSwords.ForceSync(player)
+	end
 	-- Active attack loops read the new level before their next volley; upgrades must not reset attack cooldowns.
 	local reachedMilestone = false
 	for _, milestone in definition.Milestones do
@@ -348,6 +369,16 @@ function AbilityController.Init()
 		AbilityController.UpgradeAbility,
 		AbilityController.AcknowledgeDiscovery,
 	})
+	OrbitingSwords.Init(abilityNetwork, getData)
+	RageController.GetActivatedSignal():Connect(function(player: Player)
+		local runtime = runtimes[player]
+		if runtime then
+			-- Activation immediately starts the ability's Rage cadence instead of waiting out its normal cooldown.
+			runtime.nextDaggerAt = workspace:GetServerTimeNow() + 0.06
+			refreshAttacks(player)
+			OrbitingSwords.ForceSync(player)
+		end
+	end)
 end
 
 function AbilityController.OnPlayerAdded(player: Player)
@@ -362,11 +393,13 @@ function AbilityController.OnPlayerAdded(player: Player)
 	if not deepEqual(rawData, normalized) then
 		dataService:set(player, AbilityDefinitions.DataKey, normalized)
 	end
+	OrbitingSwords.OnPlayerAdded(player)
 	refreshAttacks(player)
 end
 
 function AbilityController.OnCharacterAdded(player: Player, _character: Model)
 	refreshAttacks(player)
+	OrbitingSwords.Restart(player)
 end
 
 function AbilityController.OnPlayerRemoving(player: Player)
@@ -374,6 +407,7 @@ function AbilityController.OnPlayerRemoving(player: Player)
 	if runtime then
 		runtime.attackToken += 1
 	end
+	OrbitingSwords.OnPlayerRemoving(player)
 	runtimes[player] = nil
 end
 

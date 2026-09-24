@@ -5,6 +5,7 @@ local AbilityInterface = require(script.Parent.HUD.AbilityInterface)
 local Confirmation = require(script.Parent.Classes.Confirmation)
 local CoinsDisplay = require(script.Parent.HUD.CoinsDisplay)
 local Notifications = require(script.Parent.HUD.Notifications)
+local RageBar = require(script.Parent.HUD.RageBar)
 local RollInterface = require(script.Parent.HUD.RollInterface)
 local create = vide.create
 
@@ -18,6 +19,7 @@ return function()
 		ScreenInsets = Enum.ScreenInsets.None,
 		CoinsDisplay(),
 		Notifications(),
+		RageBar(),
 		RollInterface(),
 		AbilityInterface(),
 		Confirmation.Component(),

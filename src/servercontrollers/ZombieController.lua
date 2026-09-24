@@ -264,7 +264,31 @@ end
 
 function ZombieController.DamageZombie(id, amount)
 	local zombie = zombies[id]
-	return zombie ~= nil and zombie:TakeDamage(amount)
+	local damaged = zombie ~= nil and zombie:TakeDamage(amount)
+	return damaged, damaged and zombie:IsDead()
+end
+
+function ZombieController.GetZombiesInRadius(position: Vector3, maximumDistance: number, maximumCount: number?)
+	local candidates = {}
+	local countLimit = maximumCount or math.huge
+	for id, zombie in zombies do
+		if not zombie:IsDead() then
+			local zombiePosition = zombie.cframe.Position
+			local offset = zombiePosition - position
+			-- Orbiting weapons operate around the player's ground plane; a generous vertical check avoids
+			-- missing visually intersecting zombies on small slopes without turning this into global damage.
+			if math.abs(offset.Y) <= 7 and Vector2.new(offset.X, offset.Z).Magnitude <= maximumDistance then
+				table.insert(candidates, {
+					id = id,
+					position = zombiePosition,
+				})
+				if #candidates >= countLimit then
+					break
+				end
+			end
+		end
+	end
+	return candidates
 end
 
 function ZombieController.GetNearestZombies(position: Vector3, maximumDistance: number, maximumCount: number)

@@ -50,6 +50,13 @@ local Images = {
 		Metal = "rbxassetid://91240324179971",
 		Polish = "rbxassetid://119830985868329",
 	},
+
+	Abilities = {
+		Dagger = "rbxassetid://74070337315898",
+		Sword = "rbxassetid://84367243209042",
+		Heart = "rbxassetid://84367243209042",
+		Boots = "rbxassetid://84367243209042",
+	},
 }
 
 return Images

@@ -10,6 +10,7 @@ local AbilityDefinitions = require(ReplicatedStorage.Modules.Game.Abilities.Abil
 local NotificationManager = require(ReplicatedStorage.Modules.UI.NotificationManager)
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
 local UIStyle = require(ReplicatedStorage.Modules.UI.UIStyle)
+local OrbitingSwordsView = require(script.Parent.Ability.OrbitingSwordsView)
 
 local AbilityController = {}
 
@@ -40,7 +41,7 @@ local function isFiniteNumber(value: any): boolean
 	return type(value) == "number" and value == value and math.abs(value) < math.huge
 end
 
-local function emitAt(position: Vector3, flashCount: number, sparkCount: number)
+local function emitAt(position: Vector3, flashCount: number, sparkCount: number, rage: boolean?)
 	if not effectsFolder then
 		return nil
 	end
@@ -60,9 +61,20 @@ local function emitAt(position: Vector3, flashCount: number, sparkCount: number)
 	for _, child in template:GetChildren() do
 		if child:IsA("ParticleEmitter") then
 			local emitter = child:Clone()
+			if rage then
+				emitter.Color = ColorSequence.new(Color3.fromRGB(255, 225, 92), Color3.fromRGB(255, 67, 28))
+				emitter.LightEmission = 1
+			end
 			emitter.Parent = holder
 			emitter:Emit(if child.Name == "Flash" then flashCount else sparkCount)
 		end
+	end
+	if rage then
+		local light = Instance.new("PointLight")
+		light.Color = Color3.fromRGB(255, 101, 42)
+		light.Brightness = 2.5
+		light.Range = 8
+		light.Parent = holder
 	end
 	Debris:AddItem(holder, 2)
 	return holder
@@ -77,7 +89,7 @@ local function getFlightCFrame(position: Vector3, targetPosition: Vector3, spin:
 	return CFrame.lookAt(position, position + direction) * CFrame.Angles(-math.pi / 2, 0, 0) * CFrame.Angles(0, spin, 0)
 end
 
-local function addTrail(model: Model)
+local function addTrail(model: Model, rage: boolean)
 	local primaryPart = model.PrimaryPart
 	if not primaryPart then
 		return
@@ -95,11 +107,14 @@ local function addTrail(model: Model)
 	trail.Name = "FlightTrail"
 	trail.Attachment0 = front
 	trail.Attachment1 = back
-	trail.Color = ColorSequence.new(Color3.fromRGB(205, 236, 255), Color3.fromRGB(95, 183, 255))
-	trail.LightEmission = 0.8
-	trail.Lifetime = 0.12
+	trail.Color = if rage
+		then ColorSequence.new(Color3.fromRGB(255, 238, 105), Color3.fromRGB(255, 58, 25))
+		else ColorSequence.new(Color3.fromRGB(205, 236, 255), Color3.fromRGB(95, 183, 255))
+	trail.LightEmission = if rage then 1 else 0.8
+	trail.Lifetime = if rage then 0.2 else 0.12
 	trail.MinLength = 0.05
 	trail.Transparency = NumberSequence.new(0.18, 1)
+	trail.WidthScale = if rage then NumberSequence.new(1.35, 0) else NumberSequence.new(1, 0)
 	trail.Parent = primaryPart
 end
 
@@ -124,12 +139,23 @@ local function spawnDagger(packet)
 		end
 	end
 	model:ScaleTo(packet.scale)
-	addTrail(model)
+	addTrail(model, packet.rage)
+	if packet.rage then
+		local highlight = Instance.new("Highlight")
+		highlight.Name = "RageDaggerGlow"
+		highlight.Adornee = model
+		highlight.DepthMode = Enum.HighlightDepthMode.Occluded
+		highlight.FillColor = Color3.fromRGB(255, 91, 35)
+		highlight.FillTransparency = 0.68
+		highlight.OutlineColor = Color3.fromRGB(255, 231, 117)
+		highlight.OutlineTransparency = 0.15
+		highlight.Parent = model
+	end
 	model:PivotTo(getFlightCFrame(packet.startPosition, packet.targetPosition, 0))
 	model.Parent = effectsFolder
 
-	local launchEffect = emitAt(packet.startPosition, 0, 3)
-	if launchEffect then
+	local launchEffect = emitAt(packet.startPosition, if packet.rage then 1 else 0, if packet.rage then 6 else 3, packet.rage)
+	if launchEffect and packet.daggerIndex == 1 then
 		Sounds.Play("Swoosh", launchEffect, 120)
 	end
 	table.insert(projectiles, {
@@ -138,6 +164,8 @@ local function spawnDagger(packet)
 		targetPosition = packet.targetPosition,
 		launchAt = packet.launchAt,
 		duration = packet.duration,
+		rage = packet.rage,
+		daggerIndex = packet.daggerIndex,
 	})
 end
 
@@ -152,14 +180,20 @@ local function renderProjectiles()
 		projectile.model:PivotTo(getFlightCFrame(position, projectile.targetPosition, spin))
 
 		if alpha >= 1 then
-			local impactEffect = emitAt(projectile.targetPosition, 1, 8)
-			if impactEffect then
+			local impactEffect = emitAt(
+				projectile.targetPosition,
+				if projectile.rage then 2 else 1,
+				if projectile.rage then 14 else 8,
+				projectile.rage
+			)
+			if impactEffect and projectile.daggerIndex == 1 then
 				Sounds.Play("BulletHit", impactEffect, 120)
 			end
 			projectile.model:Destroy()
 			table.remove(projectiles, index)
 		end
 	end
+	OrbitingSwordsView.Render(now)
 end
 
 function AbilityController.AbilityDiscovered(_, abilityId, revealAt, autoRollWasPaused)
@@ -203,6 +237,10 @@ function AbilityController.DaggerThrown(_, packet)
 		or not isFiniteNumber(packet.scale)
 		or packet.scale <= 0
 		or packet.scale > 1
+		or type(packet.rage) ~= "boolean"
+		or type(packet.daggerIndex) ~= "number"
+		or packet.daggerIndex % 1 ~= 0
+		or packet.daggerIndex < 1
 	then
 		return
 	end
@@ -211,6 +249,14 @@ function AbilityController.DaggerThrown(_, packet)
 	task.delay(delayDuration, function()
 		spawnDagger(packet)
 	end)
+end
+
+function AbilityController.OrbitingSwordsState(_, packet)
+	OrbitingSwordsView.ApplyState(packet)
+end
+
+function AbilityController.SwordReleased(_, packet)
+	OrbitingSwordsView.SpawnReleased(packet)
 end
 
 function AbilityController.SetDataService(service)
@@ -222,6 +268,7 @@ function AbilityController.Init()
 	effectsFolder = Instance.new("Folder")
 	effectsFolder.Name = "AbilityEffects"
 	effectsFolder.Parent = Workspace
+	OrbitingSwordsView.Init(effectsFolder)
 	renderConnection = RunService.RenderStepped:Connect(renderProjectiles)
 	dataService:getChangedSignal(AbilityDefinitions.DataKey):Connect(function()
 		stateChanged:Fire(AbilityController.GetState())

@@ -8,7 +8,7 @@ return {
 	MinimumLuck = 0.1,
 	MaximumLuck = 100,
 
-	-- Kept intentionally common while placeholders are being tested; rebalance this one value for release.
+	-- Bonus cadence is independent from catalog contents so future abilities can rebalance it in one place.
 	BaseBonusChance = 0.15,
 	StartingBonusMultiplier = 2,
 	MultiplierGrowth = 2,
