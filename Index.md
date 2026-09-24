@@ -15,7 +15,8 @@ Quick reference for the reusable first-party Luau foundation. Generated Wally de
 | Path | Responsibility |
 | --- | --- |
 | `src/controllers/CharacterController.lua` | Requests server-authorized character spawning and manages local camera and respawn behavior. |
-| `src/controllers/AbilityController.lua` | Mirrors authoritative ability state and dispatches validated Dagger and Orbiting Swords presentation events. |
+| `src/controllers/AbilityController.lua` | Mirrors authoritative ability state and dispatches validated weapon presentation events. |
+| `src/controllers/Ability/ActiveWeaponEffects.lua` | Renders Fireball projectiles/explosions/burns, Lightning chains, and outbound/returning Boomerang effects from server packets. |
 | `src/controllers/Ability/OrbitingSwordsView.lua` | Renders synchronized horizontal spectral sword orbits, Rage blades, trails, and released-blade return flights. |
 | `src/controllers/CoinsController.lua` | Exposes the replicated, read-only local coin balance and its change signal. |
 | `src/controllers/CoinDropController.lua` | Renders lit, world-sized BillboardGui coin bursts, trails, smooth merges, expiration, and accelerating server-directed collection. |
@@ -26,7 +27,8 @@ Quick reference for the reusable first-party Luau foundation. Generated Wally de
 | `src/controllers/Zombie/ProceduralAnimator.lua` | Produces type-specific procedural movement and attack poses without animation tracks. |
 | `src/controllers/Zombie/ZombieView.lua` | Owns one client-rendered zombie model, interpolation, health/hit feedback, visibility, and cosmetic death ragdolls. |
 | `src/servercontrollers/CharacterController.lua` | Rate-limits and authorizes character spawn requests while `CharacterAutoLoads` is disabled. |
-| `src/servercontrollers/AbilityController.lua` | Owns ability discovery, loadouts, coin upgrades, Dagger scheduling, passive refreshes, ability-specific Rage behavior, and authoritative damage requests. |
+| `src/servercontrollers/AbilityController.lua` | Owns ability discovery, loadouts, coin upgrades, Dagger scheduling, active/passive refreshes, ability-specific Rage behavior, and authoritative damage requests. |
+| `src/servercontrollers/Ability/ActiveWeapons.lua` | Runs the shared authoritative Fireball, Lightning, and Boomerang scheduler, projectile hits, status ticks, area caps, Rage variants, and cleanup. |
 | `src/servercontrollers/Ability/OrbitingSwords.lua` | Simulates authoritative sword orbits, hit cooldowns, Wounded, momentum, inner blades, releases, and Rage behavior. |
 | `src/servercontrollers/Ability/PassiveEffects.lua` | Applies Heart and Boots through named stat modifiers and owns their server-authoritative milestone behavior. |
 | `src/servercontrollers/CollisionController.lua` | Assigns avatar parts to a generic non-colliding player-character collision group. |
@@ -62,7 +64,7 @@ These modules provide shared game configuration, persistent player-data defaults
 | Path | Responsibility |
 | --- | --- |
 | `src/modules/Game/CoinsConfig.lua` | Defines the shared coin data key, default, and exact-integer balance limit. |
-| `src/modules/Game/Abilities/AbilityDefinitions.lua` | Defines expandable ability metadata, equip limits, upgrade costs, per-level stats, milestones, and ability-specific Rage tuning. |
+| `src/modules/Game/Abilities/AbilityDefinitions.lua` | Defines expandable ability metadata, equip limits, upgrade costs, per-level stats, visible milestones, and ability-specific Rage tuning, including Fireball, Lightning, and Boomerang. |
 | `src/modules/Game/Stats/PlayerStatConfig.lua` | Defines fallback player base stats and the global final movement-speed limit. |
 | `src/modules/Game/Rage/RageConfig.lua` | Defines shared Rage capacity, duration, keybind, and request cadence. |
 | `src/modules/Game/DataTemplate.lua` | Supplies DataService's JSON-compatible persisted player-data defaults. |
