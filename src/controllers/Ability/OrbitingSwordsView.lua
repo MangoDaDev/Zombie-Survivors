@@ -6,6 +6,7 @@ local Workspace = game:GetService("Workspace")
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
 
 local TAU = math.pi * 2
+local HORIZONTAL_ORIENTATION = CFrame.Angles(math.rad(90), 0, 0)
 
 local OrbitingSwordsView = {}
 
@@ -295,7 +296,8 @@ function OrbitingSwordsView.Render(now: number)
 				local radial = Vector3.new(math.cos(swordAngle), 0, math.sin(swordAngle))
 				local tangent = Vector3.new(-radial.Z, 0, radial.X)
 				local position = center + radial * radius
-				sword.model:PivotTo(CFrame.lookAt(position, position + tangent))
+				-- The authored sword's blade runs along local Y; pitch it onto the ground plane while orbiting.
+				sword.model:PivotTo(CFrame.lookAt(position, position + tangent) * HORIZONTAL_ORIENTATION)
 			end
 		end
 	end

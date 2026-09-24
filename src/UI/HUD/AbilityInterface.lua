@@ -109,7 +109,10 @@ local function abilityCard(ability, state, category, selectedId)
 			return if owned() then 0 else 0.22
 		end,
 		BorderSizePixel = 0,
-		LayoutOrder = ability.Roll.RarityRank,
+		LayoutOrder = function()
+			-- Equipped abilities always sort ahead of unequipped entries in the same category.
+			return (if equipped() then 0 else 1000) + ability.Roll.RarityRank
+		end,
 		Size = UDim2.new(1, -10, 0, 154),
 		Visible = function()
 			return category() == ability.Category
@@ -454,9 +457,14 @@ return function()
 
 	local milestoneText = function()
 		local ability = selectedAbility()
-		local milestone = AbilityDefinitions.GetNextMilestone(ability, getLevel(state(), ability.Id))
+		local level = getLevel(state(), ability.Id)
+		local milestone = AbilityDefinitions.GetNextMilestone(ability, level)
 		return if milestone
-			then string.format("NEXT MILESTONE - LEVEL %d\n%s", milestone.Level, milestone.Description)
+			then string.format(
+				if milestone.Level == level + 1 then "NEW AT LEVEL %d\n%s" else "NEXT MILESTONE - LEVEL %d\n%s",
+				milestone.Level,
+				milestone.Description
+			)
 			else "ALL MILESTONES UNLOCKED"
 	end
 
@@ -626,9 +634,7 @@ return function()
 						TextColor3 = UIStyle.Colors.Muted,
 						TextScaled = true,
 						TextWrapped = true,
-						Visible = function()
-							return category() == AbilityDefinitions.Categories.Passive
-						end,
+						Visible = false,
 						ZIndex = 325,
 					},
 				},
@@ -694,7 +700,8 @@ return function()
 						Size = UDim2.new(0.53, 0, 0.14, 0),
 						Text = function()
 							local ability = selectedAbility()
-							return ability.Description .. "\n" .. ability.UpgradeDescription
+							local level = getLevel(state(), ability.Id)
+							return AbilityDefinitions.GetDescription(ability, level) .. "\n" .. ability.UpgradeDescription
 						end,
 						TextColor3 = UIStyle.Colors.Ink,
 						TextScaled = true,
@@ -914,7 +921,9 @@ return function()
 					Size = UDim2.fromScale(0.84, 0.095),
 					Text = function()
 						local ability = discoveryId() and AbilityDefinitions.ById[discoveryId()]
-						return ability and (ability.Category:upper() .. " ABILITY  -  " .. ability.Description) or ""
+						return ability
+							and (ability.Category:upper() .. " ABILITY  -  " .. AbilityDefinitions.GetDescription(ability, 1))
+							or ""
 					end,
 					TextColor3 = UIStyle.Colors.Paper,
 					TextScaled = true,

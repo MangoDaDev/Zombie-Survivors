@@ -15,6 +15,7 @@
 - Keep undiscovered collection entries visually anonymous and non-interactive; do not leak their authored name or icon before discovery.
 - Put frequent item actions directly on collection cards when space permits so they do not require opening a secondary detail view.
 - Keep persistent HUD control rows in their own stable frame; presentation overlays must not move or own them.
+- For reel or carousel focus effects, derive every entry's scale from its live distance to the focus point so neighboring entries cannot retain stale emphasis.
 - Reuse `Classes/Button.lua` before introducing another general-purpose button.
 - Reuse suitable Studio-owned assets when they exist instead of duplicating them, but do not make the reusable UI root depend on optional asset folders.
 - Clone sounds before playback and parent runtime copies appropriately so concurrent UI interactions do not fight over one shared Sound instance. Clean up each clone after playback.

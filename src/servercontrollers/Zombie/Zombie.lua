@@ -11,13 +11,14 @@ local MAXIMUM_KNOCKBACK_SPEED = 28
 local Zombie = {}
 Zombie.__index = Zombie
 
-function Zombie.new(id, typeName, definition, spawnCFrame, areaId, variation)
+function Zombie.new(id, typeName, definition, spawnCFrame, area, variation)
 	local self = setmetatable({}, Zombie)
 
 	self.id = id
 	self.typeName = typeName
 	self.definition = definition
-	self.areaId = areaId
+	self.areaId = area.Id
+	self.area = area
 	self.cframe = spawnCFrame
 	self.health = definition.MaxHealth
 	self.scale = variation.Scale
@@ -46,6 +47,20 @@ end
 
 local function getHorizontalOffset(fromPosition, toPosition)
 	return Vector3.new(toPosition.X - fromPosition.X, 0, toPosition.Z - fromPosition.Z)
+end
+
+function Zombie:_constrainToArea()
+	local area = self.area
+	local localPosition = area.CFrame:PointToObjectSpace(self.cframe.Position)
+	local margin = self.definition.SeparationRadius * self.scale
+	local halfSize = area.Size * 0.5
+	local clampedLocalPosition = Vector3.new(
+		math.clamp(localPosition.X, -halfSize.X + margin, halfSize.X - margin),
+		localPosition.Y,
+		math.clamp(localPosition.Z, -halfSize.Y + margin, halfSize.Y - margin)
+	)
+	local clampedWorldPosition = area.CFrame:PointToWorldSpace(clampedLocalPosition)
+	self.cframe = CFrame.new(clampedWorldPosition) * self.cframe.Rotation
 end
 
 function Zombie:_refreshTarget(candidates, candidateLookup, now)
@@ -91,6 +106,7 @@ function Zombie:Step(deltaTime, candidates, candidateLookup, now)
 	else
 		self.knockbackVelocity = Vector3.zero
 	end
+	self:_constrainToArea()
 
 	local targetCandidate = self.target and candidateLookup[self.target]
 	if now >= self.nextTargetRefreshAt or not targetCandidate then
@@ -130,6 +146,7 @@ function Zombie:Step(deltaTime, candidates, candidateLookup, now)
 
 	-- The authoritative enemy has no physics body; its complete movement state is a CFrame.
 	self.movementBehavior(self, direction, distance, deltaTime, facing)
+	self:_constrainToArea()
 	self.state = ZombieProtocol.State.Moving
 end
 
@@ -159,6 +176,7 @@ end
 function Zombie:ApplySeparation(displacement)
 	-- Separation remains CFrame-only and never creates a physical zombie assembly.
 	self.cframe += displacement
+	self:_constrainToArea()
 end
 
 function Zombie:GetSpawnPacket()

@@ -113,8 +113,11 @@ function ZombieController.RemoveZombies(_, ids)
 	for _, id in ids do
 		local view = zombieViews[id]
 		if view then
-			-- Keep a lethal hit visible for one brief beat so its flash and empty health bar can register.
-			view:Destroy(if view.health <= 0 then 0.16 else 0)
+			if view.health <= 0 then
+				view:Ragdoll()
+			else
+				view:Destroy()
+			end
 			zombieViews[id] = nil
 		end
 	end

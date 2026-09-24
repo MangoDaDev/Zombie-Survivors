@@ -3,6 +3,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local Networker = require(ReplicatedStorage.Packages.networker)
+local CoinDropController = require(ServerStorage.Controllers.CoinDropController)
 local GetRandomFromWeightedTable = require(ReplicatedStorage.Modules.Math.GetRandomFromWeightedTable)
 	.GetRandomFromWeightedTable
 local ZombieAreas = require(ReplicatedStorage.Modules.Game.Zombies.ZombieAreas)
@@ -136,7 +137,7 @@ local function createZombie(area, typeName, surfacePosition)
 	local spawnPosition = surfacePosition + Vector3.yAxis * groundOffset * variation.Scale
 	local spawnYaw = random:NextNumber(-math.pi, math.pi)
 	local spawnCFrame = CFrame.new(spawnPosition) * CFrame.Angles(0, spawnYaw, 0)
-	local zombie = Zombie.new(nextZombieId, typeName, definition, spawnCFrame, area.Id, variation)
+	local zombie = Zombie.new(nextZombieId, typeName, definition, spawnCFrame, area, variation)
 	zombies[zombie.id] = zombie
 	areaRuntime[area.Id].count += 1
 
@@ -228,6 +229,9 @@ local function stepSimulation(deltaTime)
 	for id, zombie in zombies do
 		zombie:Step(deltaTime, candidates, candidateLookup, now)
 		if zombie:IsDead() then
+			-- The simulation CFrame is the model pivot, so rewards launch from the body but land at its floor.
+			local landingHeight = zombie.cframe.Position.Y - groundOffsets[zombie.typeName] * zombie.scale
+			CoinDropController.SpawnBurst(zombie.cframe.Position, zombie.definition.CoinValue, landingHeight)
 			table.insert(deadIds, id)
 		end
 	end

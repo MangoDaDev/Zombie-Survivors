@@ -1,3 +1,4 @@
+local Debris = game:GetService("Debris")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
@@ -17,6 +18,35 @@ local CORNER_SIGNS = {
 
 local ZombieView = {}
 ZombieView.__index = ZombieView
+
+local function connectRagdollPart(torso: BasePart, part: BasePart)
+	local jointPosition = (torso.Position + part.Position) * 0.5
+	local torsoAttachment = Instance.new("Attachment")
+	torsoAttachment.Name = part.Name .. "RagdollTorsoAttachment"
+	torsoAttachment.Position = torso.CFrame:PointToObjectSpace(jointPosition)
+	torsoAttachment.Parent = torso
+	local partAttachment = Instance.new("Attachment")
+	partAttachment.Name = "RagdollAttachment"
+	partAttachment.Position = part.CFrame:PointToObjectSpace(jointPosition)
+	partAttachment.Parent = part
+
+	local socket = Instance.new("BallSocketConstraint")
+	socket.Name = part.Name .. "RagdollSocket"
+	socket.Attachment0 = torsoAttachment
+	socket.Attachment1 = partAttachment
+	socket.LimitsEnabled = true
+	socket.UpperAngle = if part.Name == "Head" then 35 else 65
+	socket.TwistLimitsEnabled = true
+	socket.TwistLowerAngle = -40
+	socket.TwistUpperAngle = 40
+	socket.Parent = torso
+
+	local noCollision = Instance.new("NoCollisionConstraint")
+	noCollision.Name = part.Name .. "RagdollNoCollision"
+	noCollision.Part0 = torso
+	noCollision.Part1 = part
+	noCollision.Parent = torso
+end
 
 function ZombieView.new(
 	id,
@@ -138,6 +168,8 @@ function ZombieView.new(
 	self.hitHighlight = hitHighlight
 	self.hitFlashTween = nil
 	self.recoilOffset = Vector3.zero
+	self.lastHitDirection = Vector3.zero
+	self.lastKnockbackImpulse = 0
 	self.lastRenderAt = os.clock()
 
 	return self
@@ -222,6 +254,8 @@ function ZombieView:ApplyDamage(health, maximumHealth, knockbackDirection, knock
 	if typeof(knockbackDirection) == "Vector3" and type(knockbackImpulse) == "number" then
 		-- Immediate client recoil bridges the short interval before the authoritative knockback snapshot arrives.
 		self.recoilOffset += knockbackDirection * math.clamp(knockbackImpulse * 0.055, 0, 1.15)
+		self.lastHitDirection = knockbackDirection
+		self.lastKnockbackImpulse = knockbackImpulse
 	end
 end
 
@@ -268,15 +302,63 @@ function ZombieView:AppendRender(parts, cframes, camera, localNow, serverNow)
 	end
 end
 
-function ZombieView:Destroy(delayDuration: number?)
+function ZombieView:Ragdoll()
 	if self.healthTween then
 		self.healthTween:Cancel()
 	end
-	if delayDuration and delayDuration > 0 then
-		task.delay(delayDuration, function()
-			self.model:Destroy()
-		end)
+	if self.healthBar then
+		self.healthBar.Enabled = false
+	end
+
+	local parts = {}
+	for _, record in self.partRecords do
+		parts[record.name] = record.part
+	end
+	local torso = parts.Torso
+	if not torso then
+		self.model:Destroy()
 		return
+	end
+
+	-- Rendered zombies are segmented anchored models. On authoritative death, convert the visible
+	-- pose into a short-lived local physics assembly; this cannot influence server combat state.
+	for _, descendant in self.model:GetDescendants() do
+		if descendant:IsA("JointInstance") then
+			descendant:Destroy()
+		end
+	end
+	for _, name in { "Head", "Left Arm", "Right Arm", "Left Leg", "Right Leg" } do
+		local part = parts[name]
+		if part then
+			connectRagdollPart(torso, part)
+		end
+	end
+	local root = parts.Root
+	if root then
+		root:Destroy()
+	end
+	for name, part in parts do
+		if name ~= "Root" and part.Parent then
+			part.Anchored = false
+			part.CanCollide = true
+			part.CanQuery = false
+			part.CanTouch = false
+		end
+	end
+
+	local impulseDirection = self.lastHitDirection
+	if impulseDirection.Magnitude < 0.001 then
+		impulseDirection = -torso.CFrame.LookVector
+	end
+	torso.AssemblyLinearVelocity = impulseDirection.Unit * math.clamp(self.lastKnockbackImpulse * 0.7, 5, 14)
+		+ Vector3.new(0, 7, 0)
+	torso.AssemblyAngularVelocity = Vector3.new(2.5, 1.5, -2)
+	Debris:AddItem(self.model, 2.6)
+end
+
+function ZombieView:Destroy()
+	if self.healthTween then
+		self.healthTween:Cancel()
 	end
 	if self.hitFlashTween then
 		self.hitFlashTween:Cancel()

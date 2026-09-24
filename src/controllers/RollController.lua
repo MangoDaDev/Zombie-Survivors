@@ -11,10 +11,12 @@ local ready = false
 local latestRollId = 0
 local latestStartedSequenceId = 0
 local autoRollEnabled = false
+local presentationHidden = false
 
 local rollStarted = Signal.new()
 local rollFinished = Signal.new()
 local autoRollChanged = Signal.new()
+local presentationHiddenChanged = Signal.new()
 
 local function isValidInteger(value: any, minimum: number): boolean
 	return type(value) == "number" and value == value and value % 1 == 0 and value >= minimum
@@ -82,6 +84,18 @@ function RollController.IsAutoRollEnabled(): boolean
 	return autoRollEnabled
 end
 
+function RollController.SetPresentationHidden(hidden: boolean)
+	if type(hidden) ~= "boolean" or presentationHidden == hidden then
+		return
+	end
+	presentationHidden = hidden
+	presentationHiddenChanged:Fire(hidden)
+end
+
+function RollController.IsPresentationHidden(): boolean
+	return presentationHidden
+end
+
 function RollController.GetRollStartedSignal()
 	return rollStarted
 end
@@ -92,6 +106,10 @@ end
 
 function RollController.GetAutoRollChangedSignal()
 	return autoRollChanged
+end
+
+function RollController.GetPresentationHiddenChangedSignal()
+	return presentationHiddenChanged
 end
 
 return RollController

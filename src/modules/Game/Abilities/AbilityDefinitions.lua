@@ -85,7 +85,7 @@ local dagger = {
 function dagger.GetStats(level: number)
 	local clampedLevel = math.clamp(math.floor(level), 1, dagger.MaxLevel)
 	return {
-		Damage = math.floor(15 + (clampedLevel - 1) * 2.35 + 0.5),
+		Damage = math.floor(22 + (clampedLevel - 1) * 3.1 + 0.5),
 		ProjectileScale = 0.22 + (clampedLevel - 1) * 0.0035,
 		DaggerCount = getDaggerCount(clampedLevel),
 	}
@@ -149,11 +149,11 @@ local orbitingSwords = {
 		SimulationInterval = 1 / 15,
 		MaximumCandidates = 80,
 		MaximumHitsPerSwordStep = 12,
-		BaseDamage = 12,
+		BaseDamage = 18,
 		BaseScale = 0.3,
-		BaseRotationSpeed = 1.45,
+		BaseRotationSpeed = 1.9,
 		BaseHitCooldown = 0.72,
-		BaseRadius = 6.2,
+		BaseRadius = 7.5,
 		HitRadius = 1.65,
 		WoundDuration = 2.5,
 		WoundDamageMultiplier = 1.18,
@@ -256,10 +256,229 @@ function orbitingSwords.GetStatsText(level: number): string
 	)
 end
 
-AbilityDefinitions.List = { dagger, orbitingSwords }
+local heart = {
+	Id = "Heart",
+	Name = "Heart",
+	Category = AbilityDefinitions.Categories.Passive,
+	Description = "Increases maximum health and preserves the gained health when equipped or upgraded.",
+	UpgradeDescription = "Every level increases Max Health. Milestones add simple recovery effects.",
+	Icon = Images.Abilities.Heart,
+	Color = Color3.fromRGB(255, 104, 128),
+	MaxLevel = 50,
+	BaseUpgradeCost = 95,
+	UpgradeCostGrowth = 1.14,
+	Roll = {
+		BaseOdds = 5,
+		Rarity = "Uncommon",
+		RarityRank = 2,
+	},
+	Config = {
+		BaseMaxHealthPercent = 10,
+		MaxHealthPercentPerLevel = 2,
+		StrongHeart = {
+			Level = 5,
+			AdditionalPercentPerLevel = 0.25,
+		},
+		Recovery = {
+			Level = 10,
+			DelayAfterDamage = 6,
+			PercentPerSecond = 0.8,
+			TickInterval = 0.5,
+		},
+		Healthy = {
+			Level = 20,
+			BonusPercent = 12,
+		},
+		SecondWind = {
+			Level = 35,
+			ThresholdPercent = 30,
+			RegenPercentPerSecond = 4,
+			Duration = 4,
+			TickInterval = 0.25,
+		},
+		GiantHeart = {
+			Level = 50,
+			BonusPercent = 20,
+			RecoveryPercentPerSecond = 1.25,
+			SecondWindRegenPercentPerSecond = 6,
+		},
+	},
+	Milestones = {
+		{ Level = 5, Description = "Strong Heart - improves Max Health gained per level" },
+		{ Level = 10, Description = "Recovery - regenerate after avoiding damage for 6 seconds" },
+		{ Level = 20, Description = "Healthy - gain an additional 12% Max Health" },
+		{ Level = 35, Description = "Second Wind - once per run, low health triggers brief regeneration" },
+		{ Level = 50, Description = "Giant Heart - gain 20% Max Health and stronger regeneration" },
+	},
+}
+
+function heart.GetStats(level: number)
+	local clampedLevel = math.clamp(math.floor(level), 1, heart.MaxLevel)
+	local config = heart.Config
+	local maxHealthPercent = config.BaseMaxHealthPercent + (clampedLevel - 1) * config.MaxHealthPercentPerLevel
+	if clampedLevel >= config.StrongHeart.Level then
+		maxHealthPercent += (clampedLevel - config.StrongHeart.Level + 1) * config.StrongHeart.AdditionalPercentPerLevel
+	end
+	if clampedLevel >= config.Healthy.Level then
+		maxHealthPercent += config.Healthy.BonusPercent
+	end
+	if clampedLevel >= config.GiantHeart.Level then
+		maxHealthPercent += config.GiantHeart.BonusPercent
+	end
+
+	return {
+		MaxHealthPercent = maxHealthPercent,
+		RecoveryUnlocked = clampedLevel >= config.Recovery.Level,
+		RecoveryPercentPerSecond = if clampedLevel >= config.GiantHeart.Level
+			then config.GiantHeart.RecoveryPercentPerSecond
+			else config.Recovery.PercentPerSecond,
+		SecondWindUnlocked = clampedLevel >= config.SecondWind.Level,
+		SecondWindThresholdPercent = config.SecondWind.ThresholdPercent,
+		SecondWindRegenPercentPerSecond = if clampedLevel >= config.GiantHeart.Level
+			then config.GiantHeart.SecondWindRegenPercentPerSecond
+			else config.SecondWind.RegenPercentPerSecond,
+	}
+end
+
+function heart.GetDescription(level: number): string
+	local stats = heart.GetStats(level)
+	return string.format("Increase Max Health by +%.1f%%.", stats.MaxHealthPercent)
+end
+
+function heart.GetStatsText(level: number): string
+	local clampedLevel = math.clamp(math.floor(level), 1, heart.MaxLevel)
+	local current = heart.GetStats(clampedLevel)
+	local lines = {}
+	if clampedLevel >= heart.MaxLevel then
+		table.insert(lines, string.format("Max Health  +%.1f%%", current.MaxHealthPercent))
+	else
+		local nextStats = heart.GetStats(clampedLevel + 1)
+		table.insert(lines, string.format("Max Health  +%.1f%%  >  +%.1f%%", current.MaxHealthPercent, nextStats.MaxHealthPercent))
+	end
+	if current.RecoveryUnlocked then
+		table.insert(lines, string.format("Recovery  %.2f%% Max Health / second", current.RecoveryPercentPerSecond))
+	end
+	if current.SecondWindUnlocked then
+		table.insert(lines, "Second Wind  ready once per run")
+	end
+	return table.concat(lines, "\n")
+end
+
+local boots = {
+	Id = "Boots",
+	Name = "Boots",
+	Category = AbilityDefinitions.Categories.Passive,
+	Description = "Increases movement speed while respecting the game's final speed limit.",
+	UpgradeDescription = "Every level increases Movement Speed. Milestones reward sustained or renewed movement.",
+	Icon = Images.Abilities.Boots,
+	Color = Color3.fromRGB(104, 190, 255),
+	MaxLevel = 50,
+	BaseUpgradeCost = 90,
+	UpgradeCostGrowth = 1.14,
+	Roll = {
+		BaseOdds = 6,
+		Rarity = "Uncommon",
+		RarityRank = 2,
+	},
+	Config = {
+		BaseMovementSpeedPercent = 5,
+		MovementSpeedPercentPerLevel = 1,
+		MovementThreshold = 0.5,
+		LightFeet = {
+			Level = 5,
+			AdditionalPercentPerLevel = 0.1,
+		},
+		Sprint = {
+			Level = 10,
+			ActivationDelay = 3,
+			StopGracePeriod = 1.5,
+			BonusPercent = 6,
+		},
+		FastFeet = {
+			Level = 20,
+			BonusPercent = 5,
+		},
+		QuickStart = {
+			Level = 35,
+			RequiredStationaryDuration = 2,
+			Duration = 1.5,
+			Cooldown = 6,
+			BonusPercent = 10,
+		},
+		Speedy = {
+			Level = 50,
+			BonusPercent = 8,
+			SprintBonusPercent = 8,
+		},
+	},
+	Milestones = {
+		{ Level = 5, Description = "Light Feet - improves Movement Speed gained per level" },
+		{ Level = 10, Description = "Sprint - sustained movement grants another 6% speed" },
+		{ Level = 20, Description = "Fast Feet - gain an additional 5% Movement Speed" },
+		{ Level = 35, Description = "Quick Start - moving after a pause grants a brief speed burst" },
+		{ Level = 50, Description = "Speedy - gain 8% Movement Speed and a stronger Sprint" },
+	},
+}
+
+function boots.GetStats(level: number)
+	local clampedLevel = math.clamp(math.floor(level), 1, boots.MaxLevel)
+	local config = boots.Config
+	local movementSpeedPercent = config.BaseMovementSpeedPercent
+		+ (clampedLevel - 1) * config.MovementSpeedPercentPerLevel
+	if clampedLevel >= config.LightFeet.Level then
+		movementSpeedPercent += (clampedLevel - config.LightFeet.Level + 1) * config.LightFeet.AdditionalPercentPerLevel
+	end
+	if clampedLevel >= config.FastFeet.Level then
+		movementSpeedPercent += config.FastFeet.BonusPercent
+	end
+	if clampedLevel >= config.Speedy.Level then
+		movementSpeedPercent += config.Speedy.BonusPercent
+	end
+
+	return {
+		MovementSpeedPercent = movementSpeedPercent,
+		SprintUnlocked = clampedLevel >= config.Sprint.Level,
+		SprintBonusPercent = if clampedLevel >= config.Speedy.Level
+			then config.Speedy.SprintBonusPercent
+			else config.Sprint.BonusPercent,
+		QuickStartUnlocked = clampedLevel >= config.QuickStart.Level,
+		QuickStartBonusPercent = config.QuickStart.BonusPercent,
+	}
+end
+
+function boots.GetDescription(level: number): string
+	local stats = boots.GetStats(level)
+	return string.format("Increase Movement Speed by +%.1f%%.", stats.MovementSpeedPercent)
+end
+
+function boots.GetStatsText(level: number): string
+	local clampedLevel = math.clamp(math.floor(level), 1, boots.MaxLevel)
+	local current = boots.GetStats(clampedLevel)
+	local lines = {}
+	if clampedLevel >= boots.MaxLevel then
+		table.insert(lines, string.format("Movement Speed  +%.1f%%", current.MovementSpeedPercent))
+	else
+		local nextStats = boots.GetStats(clampedLevel + 1)
+		table.insert(
+			lines,
+			string.format("Movement Speed  +%.1f%%  >  +%.1f%%", current.MovementSpeedPercent, nextStats.MovementSpeedPercent)
+		)
+	end
+	if current.SprintUnlocked then
+		table.insert(lines, string.format("Sprint  +%.1f%% while active", current.SprintBonusPercent))
+	end
+	if current.QuickStartUnlocked then
+		table.insert(lines, string.format("Quick Start  +%.1f%% burst", current.QuickStartBonusPercent))
+	end
+	return table.concat(lines, "\n")
+end
+
+AbilityDefinitions.List = { dagger, orbitingSwords, heart, boots }
 AbilityDefinitions.ById = {
 	[dagger.Id] = dagger,
 	[orbitingSwords.Id] = orbitingSwords,
+	[heart.Id] = heart,
+	[boots.Id] = boots,
 }
 
 function AbilityDefinitions.GetUpgradeCost(ability, currentLevel: number): number?
@@ -279,6 +498,10 @@ function AbilityDefinitions.GetNextMilestone(ability, currentLevel: number)
 		end
 	end
 	return nil
+end
+
+function AbilityDefinitions.GetDescription(ability, level: number): string
+	return if ability.GetDescription then ability.GetDescription(level) else ability.Description
 end
 
 return AbilityDefinitions

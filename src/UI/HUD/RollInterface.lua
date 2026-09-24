@@ -24,8 +24,9 @@ local ENTRY_STRIDE_SCALE = 0.34
 local ENTRY_COUNT = 31
 local RESULT_INDEX = 27
 local FULL_TINT_TRANSPARENCY = 0.34
-local ENTRY_REST_SCALE = 0.82
-local ENTRY_SELECTED_SCALE = 1.13
+local ENTRY_MINIMUM_SCALE = 0.72
+local ENTRY_CENTER_SCALE = 1.2
+local SCALE_FALLOFF_IN_STRIDES = 2.2
 
 local CLOVER_VISUAL = {
 	Name = "Clover",
@@ -87,7 +88,7 @@ local function createEntry(
 
 	local resultScale = Instance.new("UIScale")
 	resultScale.Name = "ResultScale"
-	resultScale.Scale = ENTRY_REST_SCALE
+	resultScale.Scale = ENTRY_MINIMUM_SCALE
 	resultScale.Parent = visual
 
 	local icon = Instance.new("ImageLabel")
@@ -160,7 +161,7 @@ local function createReel(parent: Frame, packet)
 		else Color3.fromRGB(103, 255, 132)
 	multiplier.Visible = hasHeader
 
-	local window = Instance.new("Frame")
+	local window = Instance.new("CanvasGroup")
 	window.Name = "Window"
 	window.BackgroundTransparency = 1
 	window.BorderSizePixel = 0
@@ -209,8 +210,6 @@ local function createReel(parent: Frame, packet)
 			resultScale = entryScale
 		end
 	end
-	entryScales[1].Scale = ENTRY_SELECTED_SCALE
-
 	return {
 		frame = reel,
 		track = track,
@@ -218,7 +217,8 @@ local function createReel(parent: Frame, packet)
 		resultScale = resultScale,
 		entryScales = entryScales,
 		selectedIndex = 1,
-		selectionTweens = {},
+		selectionLine = selectionLine,
+		window = window,
 		isClover = isClover,
 		centerY = centerY,
 	}
@@ -226,6 +226,7 @@ end
 
 return function()
 	local active = source(false)
+	local presentationHidden = RollController.IsPresentationHidden()
 	local sequenceRunning = false
 	local currentRollId = 0
 	local reels = {}
@@ -254,7 +255,7 @@ return function()
 			return
 		end
 		local count = math.max(#reels, 1)
-		local gapScale = 0.018
+		local gapScale = 0.01
 		local chainWidth = math.min(0.94, 0.38 * count + gapScale * (count - 1))
 		chain.Position = UDim2.fromScale(0.5, 0.08)
 		chain.Size = UDim2.fromScale(chainWidth, 0.8)
@@ -271,9 +272,12 @@ return function()
 			return
 		end
 		local isActive = active()
-		setHudVisible(not isActive)
+		setHudVisible(not isActive or presentationHidden)
+		if chain then
+			chain.Visible = isActive and not presentationHidden
+		end
 
-		if isActive then
+		if isActive and not presentationHidden then
 			tint.Visible = true
 			TweenService:Create(
 				tint,
@@ -313,14 +317,20 @@ return function()
 		local punchOut = TweenService:Create(
 			reelState.resultScale,
 			TweenInfo.new(0.11, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
-			{ Scale = if reelState.isClover or reelState.resultItem.RarityRank >= 5 then 1.32 else 1.24 }
+			{ Scale = if reelState.isClover or reelState.resultItem.RarityRank >= 5 then 1.36 else 1.3 }
 		)
 		local settle = TweenService:Create(
 			reelState.resultScale,
 			TweenInfo.new(0.16, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
-			{ Scale = 1.18 }
+			{ Scale = ENTRY_CENTER_SCALE }
+		)
+		local linePulse = TweenService:Create(
+			reelState.selectionLine,
+			TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out, 0, true),
+			{ BackgroundTransparency = 0, Size = UDim2.new(1, 0, 0, 8) }
 		)
 		punchOut:Play()
+		linePulse:Play()
 		punchOut.Completed:Once(function()
 			if reelState.frame.Parent then
 				settle:Play()
@@ -328,38 +338,34 @@ return function()
 		end)
 	end
 
-	local function setSelectedEntry(reelState, selectedIndex: number)
-		if selectedIndex == reelState.selectedIndex then
-			return
-		end
-		for _, index in { reelState.selectedIndex, selectedIndex } do
-			local scale = reelState.entryScales[index]
-			local existingTween = reelState.selectionTweens[index]
-			if existingTween then
-				existingTween:Cancel()
+	local function updateEntryScales(reelState): number
+		local trackY = reelState.track.Position.Y.Scale
+		local nearestIndex = 1
+		local nearestDistance = math.huge
+		for index, entryScale in reelState.entryScales do
+			local entryCenter = trackY + (index - 1) * ENTRY_STRIDE_SCALE + ENTRY_HEIGHT_SCALE * 0.5
+			local distance = math.abs(reelState.centerY - entryCenter)
+			if distance < nearestDistance then
+				nearestDistance = distance
+				nearestIndex = index
 			end
-			local tween = TweenService:Create(
-				scale,
-				TweenInfo.new(0.11, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-				{ Scale = if index == selectedIndex then ENTRY_SELECTED_SCALE else ENTRY_REST_SCALE }
+			local normalizedDistance = math.clamp(
+				distance / (ENTRY_STRIDE_SCALE * SCALE_FALLOFF_IN_STRIDES),
+				0,
+				1
 			)
-			reelState.selectionTweens[index] = tween
-			tween:Play()
+			-- Smoothstep produces a continuous size curve and recalculating every entry prevents stale enlargement.
+			local falloff = normalizedDistance * normalizedDistance * (3 - 2 * normalizedDistance)
+			entryScale.Scale = ENTRY_CENTER_SCALE
+				+ (ENTRY_MINIMUM_SCALE - ENTRY_CENTER_SCALE) * falloff
 		end
-		reelState.selectedIndex = selectedIndex
+		reelState.selectedIndex = nearestIndex
+		return nearestIndex
 	end
 
 	local function animateReel(packet)
 		if not chain then
 			return
-		end
-
-		for _, oldReel in reels do
-			TweenService:Create(
-				oldReel.resultScale,
-				TweenInfo.new(0.22, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-				{ Scale = ENTRY_REST_SCALE }
-			):Play()
 		end
 
 		local reelState = createReel(chain, packet)
@@ -368,22 +374,27 @@ return function()
 		end
 		table.insert(reels, reelState)
 		layoutChain()
+		updateEntryScales(reelState)
+		reelState.window.GroupTransparency = 0.45
+		TweenService:Create(
+			reelState.window,
+			TweenInfo.new(0.24, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+			{ GroupTransparency = 0 }
+		):Play()
 		Sounds.Play("Rolling", localPlayer.PlayerGui)
 
 		local lastCrossed = 1
 		reelState.tickConnection = reelState.track:GetPropertyChangedSignal("Position"):Connect(function()
-			local crossed = math.clamp(
-				math.floor(
-					(reelState.centerY - ENTRY_HEIGHT_SCALE / 2 - reelState.track.Position.Y.Scale)
-						/ ENTRY_STRIDE_SCALE
-				) + 1,
-				1,
-				ENTRY_COUNT
-			)
-			setSelectedEntry(reelState, crossed)
+			local crossed = updateEntryScales(reelState)
 			if crossed > lastCrossed then
 				lastCrossed = crossed
 				Sounds.Play("ItemRevealTick", localPlayer.PlayerGui)
+				reelState.selectionLine.BackgroundTransparency = 0.06
+				TweenService:Create(
+					reelState.selectionLine,
+					TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+					{ BackgroundTransparency = 0.18 }
+				):Play()
 			end
 		end)
 
@@ -428,15 +439,21 @@ return function()
 			return
 		end
 		active(false)
+		RollController.SetPresentationHidden(false)
 		applyMode()
 		clearReels()
 	end))
 	table.insert(connections, RollController.GetAutoRollChangedSignal():Connect(function(enabled)
 		if not enabled and active() and not sequenceRunning then
 			active(false)
+			RollController.SetPresentationHidden(false)
 			applyMode()
 			clearReels()
 		end
+	end))
+	table.insert(connections, RollController.GetPresentationHiddenChangedSignal():Connect(function(hidden)
+		presentationHidden = hidden
+		applyMode()
 	end))
 	cleanup(function()
 		setHudVisible(true)
@@ -474,7 +491,7 @@ return function()
 			BackgroundTransparency = 1,
 			Position = UDim2.fromScale(0.5, 0.08),
 			Size = UDim2.fromScale(0.38, 0.8),
-			Visible = active,
+			Visible = false,
 			ZIndex = 115,
 			action(function(instance)
 				chain = instance :: Frame

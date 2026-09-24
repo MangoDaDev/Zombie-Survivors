@@ -11,11 +11,32 @@ local create = Vide.create
 local source = Vide.source
 
 return function()
+	local active = source(false)
+	local sequenceRunning = false
 	local autoEnabled = source(RollController.IsAutoRollEnabled())
+	local hidden = source(RollController.IsPresentationHidden())
 	local connections = {}
 
+	table.insert(connections, RollController.GetRollStartedSignal():Connect(function()
+		sequenceRunning = true
+		active(true)
+	end))
+	table.insert(connections, RollController.GetRollFinishedSignal():Connect(function(_, willAutoRoll)
+		sequenceRunning = false
+		if not willAutoRoll then
+			active(false)
+			RollController.SetPresentationHidden(false)
+		end
+	end))
 	table.insert(connections, RollController.GetAutoRollChangedSignal():Connect(function(enabled)
 		autoEnabled(enabled)
+		if not enabled and active() and not sequenceRunning then
+			active(false)
+			RollController.SetPresentationHidden(false)
+		end
+	end))
+	table.insert(connections, RollController.GetPresentationHiddenChangedSignal():Connect(function(value)
+		hidden(value)
 	end))
 	cleanup(function()
 		for _, connection in connections do
@@ -48,10 +69,21 @@ return function()
 				VerticalAlignment = Enum.VerticalAlignment.Center,
 			},
 			Button({
-				Text = "ROLL",
+				Text = function()
+					if not active() then
+						return "ROLL"
+					end
+					return if hidden() then "SHOW" else "HIDE"
+				end,
 				BackgroundColor3 = UIStyle.Colors.Blue,
 				LayoutOrder = 1,
-				OnActivated = RollController.RequestRoll,
+				OnActivated = function()
+					if active() then
+						RollController.SetPresentationHidden(not hidden())
+					else
+						RollController.RequestRoll()
+					end
+				end,
 			}),
 			Button({
 				Text = function()

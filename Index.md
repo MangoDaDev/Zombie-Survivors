@@ -16,25 +16,29 @@ Quick reference for the reusable first-party Luau foundation. Generated Wally de
 | --- | --- |
 | `src/controllers/CharacterController.lua` | Requests server-authorized character spawning and manages local camera and respawn behavior. |
 | `src/controllers/AbilityController.lua` | Mirrors authoritative ability state and dispatches validated Dagger and Orbiting Swords presentation events. |
-| `src/controllers/Ability/OrbitingSwordsView.lua` | Renders synchronized spectral sword orbits, Rage blades, trails, and released-blade return flights. |
+| `src/controllers/Ability/OrbitingSwordsView.lua` | Renders synchronized horizontal spectral sword orbits, Rage blades, trails, and released-blade return flights. |
 | `src/controllers/CoinsController.lua` | Exposes the replicated, read-only local coin balance and its change signal. |
+| `src/controllers/CoinDropController.lua` | Renders BillboardGui coin bursts, trails, smooth merges, and accelerating server-directed collection. |
 | `src/controllers/RageController.lua` | Validates authoritative Rage snapshots, handles activation input, and owns local character Rage VFX. |
 | `src/controllers/PlayerStateController.lua` | Receives generic server runtime-state snapshots and updates. |
 | `src/controllers/RollController.lua` | Sends roll intent and validates authoritative item/clover, auto-roll, and completion events for presentation. |
 | `src/controllers/ZombieController.lua` | Receives compact zombie snapshots/damage events and drives the single client render loop. |
 | `src/controllers/Zombie/ProceduralAnimator.lua` | Produces type-specific procedural movement and attack poses without animation tracks. |
-| `src/controllers/Zombie/ZombieView.lua` | Owns one client-rendered zombie model, interpolation, health bar, hit flash/recoil, and visibility checks. |
+| `src/controllers/Zombie/ZombieView.lua` | Owns one client-rendered zombie model, interpolation, health/hit feedback, visibility, and cosmetic death ragdolls. |
 | `src/servercontrollers/CharacterController.lua` | Rate-limits and authorizes character spawn requests while `CharacterAutoLoads` is disabled. |
-| `src/servercontrollers/AbilityController.lua` | Owns ability discovery, loadouts, coin upgrades, Dagger scheduling, ability-specific Rage behavior, and authoritative damage requests. |
+| `src/servercontrollers/AbilityController.lua` | Owns ability discovery, loadouts, coin upgrades, Dagger scheduling, passive refreshes, ability-specific Rage behavior, and authoritative damage requests. |
 | `src/servercontrollers/Ability/OrbitingSwords.lua` | Simulates authoritative sword orbits, hit cooldowns, Wounded, momentum, inner blades, releases, and Rage behavior. |
+| `src/servercontrollers/Ability/PassiveEffects.lua` | Applies Heart and Boots through named stat modifiers and owns their server-authoritative milestone behavior. |
 | `src/servercontrollers/CollisionController.lua` | Assigns avatar parts to a generic non-colliding player-character collision group. |
 | `src/servercontrollers/CoinsController.lua` | Validates and owns persistent server-authoritative coin balance operations. |
+| `src/servercontrollers/CoinDropController.lua` | Owns zombie coin values, capped spatial merging, proximity claims, and authoritative collection awards. |
 | `src/servercontrollers/RageController.lua` | Owns transient Rage charge, activation validation, duration, death resets, and replication. |
 | `src/servercontrollers/PlayerStateController.lua` | Owns generic per-player runtime state and replicates requested state updates. |
+| `src/servercontrollers/PlayerStatController.lua` | Composes named player health/speed modifiers, preserves gained health, and applies the final movement-speed limit. |
 | `src/servercontrollers/RollController.lua` | Owns per-player roll cooldowns, clover luck chains, rewards, and auto-roll scheduling. |
 | `src/servercontrollers/Roll/RollServerConfig.lua` | Defines server-only luck, cooldown, and clover-chain balance values. |
-| `src/servercontrollers/ZombieController.lua` | Runs grouped area spawning, batched authoritative simulation, damage feedback, and compact replication. |
-| `src/servercontrollers/Zombie/Zombie.lua` | Defines the authoritative per-zombie class for targeting, CFrame movement, attacks, health, and knockback. |
+| `src/servercontrollers/ZombieController.lua` | Runs grouped area spawning, batched authoritative simulation, damage feedback, death rewards, and compact replication. |
+| `src/servercontrollers/Zombie/Zombie.lua` | Defines authoritative targeting, area-bounded movement, attacks, health, and knockback per zombie. |
 | `src/servercontrollers/Zombie/ZombieBehaviors.lua` | Provides definition-selected movement and attack strategies without type checks in core logic. |
 | `src/servercontrollers/Zombie/ZombieSeparation.lua` | Applies throttled spatial-hash separation so dense crowds do not occupy identical positions. |
 
@@ -59,12 +63,13 @@ These modules provide shared game configuration, persistent player-data defaults
 | --- | --- |
 | `src/modules/Game/CoinsConfig.lua` | Defines the shared coin data key, default, and exact-integer balance limit. |
 | `src/modules/Game/Abilities/AbilityDefinitions.lua` | Defines expandable ability metadata, equip limits, upgrade costs, per-level stats, milestones, and ability-specific Rage tuning. |
+| `src/modules/Game/Stats/PlayerStatConfig.lua` | Defines fallback player base stats and the global final movement-speed limit. |
 | `src/modules/Game/Rage/RageConfig.lua` | Defines shared Rage capacity, duration, keybind, and request cadence. |
 | `src/modules/Game/DataTemplate.lua` | Supplies DataService's JSON-compatible persisted player-data defaults. |
 | `src/modules/Game/Rolls/RollDefinitions.lua` | Builds the weighted roll catalog from obtainable abilities and defines data keys and presentation timing. |
 | `src/modules/Game/RuntimeState.lua` | Stores generic transient per-player state and change signals. |
 | `src/modules/Game/Zombies/ZombieAreas.lua` | Defines progression-scaled spawn volumes, caps, group sizes, and weighted zombie pools. |
-| `src/modules/Game/Zombies/ZombieDefinitions.lua` | Defines expandable per-type combat, movement, asset, and animation configuration. |
+| `src/modules/Game/Zombies/ZombieDefinitions.lua` | Defines expandable per-type combat, movement, coin reward, asset, and animation configuration. |
 | `src/modules/Game/Zombies/ZombieProtocol.lua` | Shares compact state codes and snapshot timing between server simulation and client rendering. |
 | `src/modules/Game/TeleportPlayer.lua` | Teleports a Player or character Model to a CFrame or BasePart. |
 | `src/modules/Game/TeleportLocalPlayer.lua` | Teleports the local character for client-side presentation use. |
@@ -111,11 +116,11 @@ These modules provide shared game configuration, persistent player-data defaults
 | `src/UI/Effects/HoverExpand.lua` | Provides reusable hover scaling for GuiObjects. |
 | `src/UI/Effects/Notification.lua` | Provides a reusable counted attention badge. |
 | `src/UI/HUD/CoinsDisplay.lua` | Renders the responsive left-side coin balance display from replicated data. |
-| `src/UI/HUD/AbilityInterface.lua` | Renders concealed locked abilities, direct card actions, loadout/upgrade details, and the discovery overlay. |
+| `src/UI/HUD/AbilityInterface.lua` | Renders equipped-first ability lists, concealed locked entries, direct card actions, details, and discovery. |
 | `src/UI/HUD/RageBar.lua` | Renders the responsive STUD-style Rage meter, ready/active states, activation control, and screen pulse. |
 | `src/UI/HUD/Notifications.lua` | Renders transient notifications from NotificationManager. |
-| `src/UI/HUD/RollControls.lua` | Renders the independent, permanently bottom-aligned Roll, Auto Roll, and Abilities controls. |
-| `src/UI/HUD/RollInterface.lua` | Renders the fullscreen item/clover reel chain with animated center selection emphasis. |
+| `src/UI/HUD/RollControls.lua` | Renders independent bottom-aligned Roll/Hide/Show, Auto Roll, and Abilities controls. |
+| `src/UI/HUD/RollInterface.lua` | Renders the hideable item/clover reel chain with distance-based center scaling and selection feedback. |
 | `src/modules/UI/NotificationManager.lua` | Emits reusable transient notification events. |
 | `src/modules/UI/PlayVFX.lua` | Clones, starts, and cleans up reusable effects and sounds. |
 | `src/modules/UI/SafeArea.lua` | Provides dynamic Roblox topbar-safe offsets. |

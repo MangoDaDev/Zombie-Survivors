@@ -16,7 +16,9 @@ data_service:init({
 local modules_to_init = {
 	ServerStorage.Controllers.PlayerStateController,
 	ServerStorage.Controllers.CoinsController,
+	ServerStorage.Controllers.CoinDropController,
 	ServerStorage.Controllers.RageController,
+	ServerStorage.Controllers.PlayerStatController,
 	ServerStorage.Controllers.AbilityController,
 	ServerStorage.Controllers.RollController,
 	ServerStorage.Controllers.CollisionController,

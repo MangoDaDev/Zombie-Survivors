@@ -9,6 +9,7 @@ local CoinsController = require(ServerStorage.Controllers.CoinsController)
 local RageController = require(ServerStorage.Controllers.RageController)
 local ZombieController = require(ServerStorage.Controllers.ZombieController)
 local OrbitingSwords = require(script.Parent.Ability.OrbitingSwords)
+local PassiveEffects = require(script.Parent.Ability.PassiveEffects)
 
 local REQUEST_COOLDOWN = 0.12
 local VOLLEY_NETWORK_LEAD = 0.06
@@ -287,6 +288,9 @@ function AbilityController.EquipAbility(_, player: Player, abilityId: any)
 	dataService:set(player, AbilityDefinitions.DataKey, data)
 	refreshAttacks(player)
 	OrbitingSwords.Refresh(player)
+	if definition.Category == AbilityDefinitions.Categories.Passive then
+		PassiveEffects.Refresh(player)
+	end
 	sendResult(player, true, definition.Name .. " equipped!")
 end
 
@@ -309,6 +313,9 @@ function AbilityController.UnequipAbility(_, player: Player, abilityId: any)
 	dataService:set(player, AbilityDefinitions.DataKey, data)
 	refreshAttacks(player)
 	OrbitingSwords.Refresh(player)
+	if definition.Category == AbilityDefinitions.Categories.Passive then
+		PassiveEffects.Refresh(player)
+	end
 	sendResult(player, true, definition.Name .. " unequipped.")
 end
 
@@ -342,6 +349,9 @@ function AbilityController.UpgradeAbility(_, player: Player, abilityId: any)
 	if abilityId == "OrbitingSwords" then
 		OrbitingSwords.ForceSync(player)
 	end
+	if definition.Category == AbilityDefinitions.Categories.Passive then
+		PassiveEffects.Refresh(player)
+	end
 	-- Active attack loops read the new level before their next volley; upgrades must not reset attack cooldowns.
 	local reachedMilestone = false
 	for _, milestone in definition.Milestones do
@@ -371,6 +381,7 @@ function AbilityController.Init()
 		AbilityController.AcknowledgeDiscovery,
 	})
 	OrbitingSwords.Init(abilityNetwork, getData)
+	PassiveEffects.Init(getData)
 	RageController.GetActivatedSignal():Connect(function(player: Player)
 		local runtime = runtimes[player]
 		if runtime then
@@ -395,12 +406,14 @@ function AbilityController.OnPlayerAdded(player: Player)
 		dataService:set(player, AbilityDefinitions.DataKey, normalized)
 	end
 	OrbitingSwords.OnPlayerAdded(player)
+	PassiveEffects.OnPlayerAdded(player)
 	refreshAttacks(player)
 end
 
-function AbilityController.OnCharacterAdded(player: Player, _character: Model)
+function AbilityController.OnCharacterAdded(player: Player, character: Model)
 	refreshAttacks(player)
 	OrbitingSwords.Restart(player)
+	PassiveEffects.OnCharacterAdded(player, character)
 end
 
 function AbilityController.OnPlayerRemoving(player: Player)
@@ -409,6 +422,7 @@ function AbilityController.OnPlayerRemoving(player: Player)
 		runtime.attackToken += 1
 	end
 	OrbitingSwords.OnPlayerRemoving(player)
+	PassiveEffects.OnPlayerRemoving(player)
 	runtimes[player] = nil
 end
 
