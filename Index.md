@@ -18,7 +18,7 @@ Quick reference for the reusable first-party Luau foundation. Generated Wally de
 | `src/controllers/AbilityController.lua` | Mirrors authoritative ability state and dispatches validated Dagger and Orbiting Swords presentation events. |
 | `src/controllers/Ability/OrbitingSwordsView.lua` | Renders synchronized horizontal spectral sword orbits, Rage blades, trails, and released-blade return flights. |
 | `src/controllers/CoinsController.lua` | Exposes the replicated, read-only local coin balance and its change signal. |
-| `src/controllers/CoinDropController.lua` | Renders BillboardGui coin bursts, trails, smooth merges, and accelerating server-directed collection. |
+| `src/controllers/CoinDropController.lua` | Renders lit, world-sized BillboardGui coin bursts, trails, smooth merges, expiration, and accelerating server-directed collection. |
 | `src/controllers/RageController.lua` | Validates authoritative Rage snapshots, handles activation input, and owns local character Rage VFX. |
 | `src/controllers/PlayerStateController.lua` | Receives generic server runtime-state snapshots and updates. |
 | `src/controllers/RollController.lua` | Sends roll intent and validates authoritative item/clover, auto-roll, and completion events for presentation. |
@@ -31,7 +31,7 @@ Quick reference for the reusable first-party Luau foundation. Generated Wally de
 | `src/servercontrollers/Ability/PassiveEffects.lua` | Applies Heart and Boots through named stat modifiers and owns their server-authoritative milestone behavior. |
 | `src/servercontrollers/CollisionController.lua` | Assigns avatar parts to a generic non-colliding player-character collision group. |
 | `src/servercontrollers/CoinsController.lua` | Validates and owns persistent server-authoritative coin balance operations. |
-| `src/servercontrollers/CoinDropController.lua` | Owns zombie coin values, capped spatial merging, proximity claims, and authoritative collection awards. |
+| `src/servercontrollers/CoinDropController.lua` | Owns zombie coin values, spread, lifetime cleanup, capped spatial merging, proximity claims, and authoritative collection awards. |
 | `src/servercontrollers/RageController.lua` | Owns transient Rage charge, activation validation, duration, death resets, and replication. |
 | `src/servercontrollers/PlayerStateController.lua` | Owns generic per-player runtime state and replicates requested state updates. |
 | `src/servercontrollers/PlayerStatController.lua` | Composes named player health/speed modifiers, preserves gained health, and applies the final movement-speed limit. |

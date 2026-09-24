@@ -9,8 +9,12 @@ local CoinsController = require(ServerStorage.Controllers.CoinsController)
 local UPDATE_INTERVAL = 0.1
 local MERGE_INTERVAL = 0.3
 local MERGE_RADIUS = 4.5
-local MAGNET_RADIUS = 15
+-- Keep drops meaningfully spaced: they scatter wider than the reduced pickup radius and expire after 20 seconds.
+local MAGNET_RADIUS = 9
 local COLLECTION_DURATION = 0.58
+local COIN_LIFETIME = 20
+local MIN_SCATTER_DISTANCE = 5
+local MAX_SCATTER_DISTANCE = 10
 local MAX_ACTIVE_COINS = 120
 local MAX_MERGE_PARTNERS = 7
 
@@ -19,6 +23,7 @@ type CoinState = {
 	value: number,
 	position: Vector3,
 	collectibleAt: number,
+	despawnAt: number,
 	collectingPlayer: Player?,
 	collectAt: number?,
 }
@@ -66,6 +71,7 @@ local function addOverflowValue(position: Vector3, value: number)
 	-- At the object cap, fold the reward into an existing coin (even one already magnetizing) so value is
 	-- never discarded just because a large wave died before the current pickup animations completed.
 	coin.value += value
+	coin.despawnAt = workspace:GetServerTimeNow() + COIN_LIFETIME
 	coinNetwork:fireAll("CoinValueChanged", coin.id, coin.value, coin.position, getVisualScale(coin.value))
 end
 
@@ -91,7 +97,7 @@ function CoinDropController.SpawnBurst(position: Vector3, totalValue: number, la
 		local value = math.max(1, math.floor(remainingValue / remainingDrops))
 		remainingValue -= value
 		local angle = random:NextNumber(0, math.pi * 2)
-		local distance = random:NextNumber(3.8, 7.5)
+		local distance = random:NextNumber(MIN_SCATTER_DISTANCE, MAX_SCATTER_DISTANCE)
 		local direction = Vector3.new(math.cos(angle), 0, math.sin(angle))
 		local horizontalTarget = position + direction * distance
 		local targetPosition = Vector3.new(horizontalTarget.X, landingHeight, horizontalTarget.Z)
@@ -103,6 +109,7 @@ function CoinDropController.SpawnBurst(position: Vector3, totalValue: number, la
 			value = value,
 			position = targetPosition,
 			collectibleAt = now + duration * 0.72,
+			despawnAt = now + COIN_LIFETIME,
 			collectingPlayer = nil,
 			collectAt = nil,
 		}
@@ -152,6 +159,7 @@ local function mergeNearbyCoins(now: number)
 		local mergedIds = {}
 		local totalValue = coin.value
 		local weightedPosition = coin.position * coin.value
+		local despawnAt = coin.despawnAt
 
 		for xOffset = -1, 1 do
 			for zOffset = -1, 1 do
@@ -169,6 +177,7 @@ local function mergeNearbyCoins(now: number)
 							table.insert(mergedIds, otherId)
 							totalValue += other.value
 							weightedPosition += other.position * other.value
+							despawnAt = math.max(despawnAt, other.despawnAt)
 							if #mergedIds >= MAX_MERGE_PARTNERS then
 								break
 							end
@@ -188,6 +197,7 @@ local function mergeNearbyCoins(now: number)
 			coin.value = totalValue
 			coin.position = weightedPosition / totalValue
 			coin.collectibleAt = now + 0.24
+			coin.despawnAt = despawnAt
 			for _, mergedId in mergedIds do
 				coins[mergedId] = nil
 				activeCount -= 1
@@ -201,6 +211,21 @@ local function mergeNearbyCoins(now: number)
 				scale = getVisualScale(totalValue),
 			})
 		end
+	end
+end
+
+local function despawnExpiredCoins(now: number)
+	local expiredIds = {}
+	for id, coin in coins do
+		if not coin.collectingPlayer and now >= coin.despawnAt then
+			coins[id] = nil
+			activeCount -= 1
+			table.insert(expiredIds, id)
+		end
+	end
+	if #expiredIds > 0 then
+		-- Expiration is authoritative and batched so every client removes the same drops with one message.
+		coinNetwork:fireAll("DespawnCoins", expiredIds)
 	end
 end
 
@@ -260,6 +285,7 @@ local function step(deltaTime: number)
 	accumulator = 0
 	local now = workspace:GetServerTimeNow()
 	finishCollections(now)
+	despawnExpiredCoins(now)
 	startCollections(now)
 	if mergeAccumulator >= MERGE_INTERVAL then
 		mergeAccumulator = 0

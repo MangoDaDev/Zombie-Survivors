@@ -7,7 +7,7 @@ local Networker = require(ReplicatedStorage.Packages.networker)
 local Images = require(ReplicatedStorage.Modules.UI.Images)
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
 
-local COIN_PIXEL_SIZE = 70
+local COIN_STUD_SIZE = 1
 local IDLE_BOB_HEIGHT = 0.14
 local IDLE_BOB_SPEED = 2.8
 local MERGE_EASE_POWER = 2.4
@@ -49,8 +49,8 @@ end
 
 local function setGuiScale(view: CoinView, scale: number)
 	view.displayScale = scale
-	local size = math.floor(COIN_PIXEL_SIZE * scale + 0.5)
-	view.gui.Size = UDim2.fromOffset(size, size)
+	local size = COIN_STUD_SIZE * scale
+	view.gui.Size = UDim2.fromScale(size, size)
 end
 
 local function updateValuePresentation(view: CoinView, value: number, scale: number?)
@@ -90,6 +90,14 @@ local function createView(id: number, value: number, position: Vector3, scale: n
 	holder.Position = position
 	holder.Parent = effectsFolder
 
+	local light = Instance.new("PointLight")
+	light.Name = "CoinLight"
+	light.Brightness = 1.35
+	light.Color = Color3.fromRGB(255, 190, 55)
+	light.Range = 6
+	light.Shadows = false
+	light.Parent = holder
+
 	local trailStart = Instance.new("Attachment")
 	trailStart.Position = Vector3.new(0, 0.15, 0)
 	trailStart.Parent = holder
@@ -123,10 +131,11 @@ local function createView(id: number, value: number, position: Vector3, scale: n
 	local gui = Instance.new("BillboardGui")
 	gui.Name = "CoinBillboard"
 	gui.Adornee = holder
-	gui.AlwaysOnTop = true
-	gui.LightInfluence = 0
+	-- Coins use world-sized, occluded billboards so walls and other geometry can hide them naturally.
+	gui.AlwaysOnTop = false
+	gui.LightInfluence = 1
 	gui.MaxDistance = 180
-	gui.Size = UDim2.fromOffset(COIN_PIXEL_SIZE, COIN_PIXEL_SIZE)
+	gui.Size = UDim2.fromScale(COIN_STUD_SIZE, COIN_STUD_SIZE)
 	gui.Parent = holder
 
 	local glow = Instance.new("ImageLabel")
@@ -378,6 +387,17 @@ function CoinDropController.CoinValueChanged(_, id, value, position, scale)
 	view.targetPosition = view.position
 	updateValuePresentation(view, value, type(scale) == "number" and scale or nil)
 	setGuiScale(view, view.scale)
+end
+
+function CoinDropController.DespawnCoins(_, ids)
+	if type(ids) ~= "table" then
+		return
+	end
+	for _, id in ids do
+		if type(id) == "number" then
+			destroyView(id)
+		end
+	end
 end
 
 local function renderCoins()

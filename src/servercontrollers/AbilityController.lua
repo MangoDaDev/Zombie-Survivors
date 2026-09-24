@@ -8,6 +8,7 @@ local RollDefinitions = require(ReplicatedStorage.Modules.Game.Rolls.RollDefinit
 local CoinsController = require(ServerStorage.Controllers.CoinsController)
 local RageController = require(ServerStorage.Controllers.RageController)
 local ZombieController = require(ServerStorage.Controllers.ZombieController)
+local ActiveWeapons = require(script.Parent.Ability.ActiveWeapons)
 local OrbitingSwords = require(script.Parent.Ability.OrbitingSwords)
 local PassiveEffects = require(script.Parent.Ability.PassiveEffects)
 
@@ -287,6 +288,7 @@ function AbilityController.EquipAbility(_, player: Player, abilityId: any)
 	table.insert(equipped, abilityId)
 	dataService:set(player, AbilityDefinitions.DataKey, data)
 	refreshAttacks(player)
+	ActiveWeapons.Refresh(player)
 	OrbitingSwords.Refresh(player)
 	if definition.Category == AbilityDefinitions.Categories.Passive then
 		PassiveEffects.Refresh(player)
@@ -312,6 +314,7 @@ function AbilityController.UnequipAbility(_, player: Player, abilityId: any)
 	table.remove(equipped, index)
 	dataService:set(player, AbilityDefinitions.DataKey, data)
 	refreshAttacks(player)
+	ActiveWeapons.Refresh(player)
 	OrbitingSwords.Refresh(player)
 	if definition.Category == AbilityDefinitions.Categories.Passive then
 		PassiveEffects.Refresh(player)
@@ -380,6 +383,7 @@ function AbilityController.Init()
 		AbilityController.UpgradeAbility,
 		AbilityController.AcknowledgeDiscovery,
 	})
+	ActiveWeapons.Init(abilityNetwork, getData)
 	OrbitingSwords.Init(abilityNetwork, getData)
 	PassiveEffects.Init(getData)
 	RageController.GetActivatedSignal():Connect(function(player: Player)
@@ -388,6 +392,7 @@ function AbilityController.Init()
 			-- Activation immediately starts the ability's Rage cadence instead of waiting out its normal cooldown.
 			runtime.nextDaggerAt = workspace:GetServerTimeNow() + 0.06
 			refreshAttacks(player)
+			ActiveWeapons.ForceImmediate(player)
 			OrbitingSwords.ForceSync(player)
 		end
 	end)
@@ -405,6 +410,7 @@ function AbilityController.OnPlayerAdded(player: Player)
 	if not deepEqual(rawData, normalized) then
 		dataService:set(player, AbilityDefinitions.DataKey, normalized)
 	end
+	ActiveWeapons.OnPlayerAdded(player)
 	OrbitingSwords.OnPlayerAdded(player)
 	PassiveEffects.OnPlayerAdded(player)
 	refreshAttacks(player)
@@ -412,6 +418,7 @@ end
 
 function AbilityController.OnCharacterAdded(player: Player, character: Model)
 	refreshAttacks(player)
+	ActiveWeapons.Restart(player)
 	OrbitingSwords.Restart(player)
 	PassiveEffects.OnCharacterAdded(player, character)
 end
@@ -421,6 +428,7 @@ function AbilityController.OnPlayerRemoving(player: Player)
 	if runtime then
 		runtime.attackToken += 1
 	end
+	ActiveWeapons.OnPlayerRemoving(player)
 	OrbitingSwords.OnPlayerRemoving(player)
 	PassiveEffects.OnPlayerRemoving(player)
 	runtimes[player] = nil

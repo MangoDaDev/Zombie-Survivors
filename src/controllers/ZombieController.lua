@@ -1,6 +1,6 @@
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
-local Workspace = game:GetService("Workspace")
+local ReplicatedStorage = game:GetService "ReplicatedStorage"
+local RunService = game:GetService "RunService"
+local Workspace = game:GetService "Workspace"
 
 local Networker = require(ReplicatedStorage.Packages.networker)
 local ZombieDefinitions = require(ReplicatedStorage.Modules.Game.Zombies.ZombieDefinitions)
@@ -27,7 +27,7 @@ local function addZombie(packet, serverTime)
 
 	local definition = ZombieDefinitions[typeName]
 	local template = definition and ReplicatedStorage.Assets.Models.Zombies:FindFirstChild(definition.AssetName)
-	if not definition or not template or not template:IsA("Model") then
+	if not definition or not template or not template:IsA "Model" then
 		warn(string.format("Cannot render unknown zombie type %s", tostring(typeName)))
 		return
 	end
@@ -143,13 +143,18 @@ local function renderZombies()
 	end
 end
 
+function ZombieController.GetZombieWorldPosition(id: number): Vector3?
+	local view = zombieViews[id]
+	return if view then view:GetRenderCFrame(os.clock()).Position else nil
+end
+
 function ZombieController.Init()
-	renderFolder = Instance.new("Folder")
+	renderFolder = Instance.new "Folder"
 	renderFolder.Name = "ClientZombies"
 	renderFolder.Parent = Workspace
 
 	zombieNetwork = Networker.client.new("ZombieController", ZombieController)
-	local snapshot = zombieNetwork:fetch("GetSnapshot")
+	local snapshot = zombieNetwork:fetch "GetSnapshot"
 	if type(snapshot) == "table" and type(snapshot[2]) == "table" then
 		for _, packet in snapshot[2] do
 			addZombie(packet, snapshot[1])

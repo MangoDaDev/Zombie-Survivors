@@ -39,6 +39,37 @@ local function getOrbitingSwordCount(level: number): number
 	return 1
 end
 
+local function getFireballCount(level: number): number
+	if level >= 50 then
+		return 4
+	elseif level >= 30 then
+		return 3
+	elseif level >= 10 then
+		return 2
+	end
+	return 1
+end
+
+local function getLightningTargetCount(level: number): number
+	if level >= 50 then
+		return 9
+	elseif level >= 30 then
+		return 7
+	elseif level >= 5 then
+		return 5
+	end
+	return 3
+end
+
+local function getBoomerangCount(level: number): number
+	if level >= 30 then
+		return 3
+	elseif level >= 10 then
+		return 2
+	end
+	return 1
+end
+
 local dagger = {
 	Id = "Dagger",
 	Name = "Dagger",
@@ -253,6 +284,441 @@ function orbitingSwords.GetStatsText(level: number): string
 		nextStats.OrbitRadius,
 		current.MainSwordCount,
 		nextStats.MainSwordCount
+	)
+end
+
+local fireball = {
+	Id = "Fireball",
+	Name = "Fireball",
+	Category = AbilityDefinitions.Categories.Weapon,
+	Description = "Launches slow, heavy fireballs that explode through clustered zombies.",
+	UpgradeDescription = "Every level improves damage, explosion size, and cooldown. Milestones add fireballs, Burn, and Burning Ground.",
+	Icon = Images.Abilities.Fireball,
+	AssetName = "Fireball",
+	Color = Color3.fromRGB(255, 102, 42),
+	MaxLevel = 50,
+	BaseUpgradeCost = 135,
+	UpgradeCostGrowth = 1.15,
+	Roll = {
+		BaseOdds = 10,
+		Rarity = "Rare",
+		RarityRank = 3,
+	},
+	Combat = {
+		BaseDamage = 34,
+		DamagePerLevel = 0.06,
+		BaseExplosionRadius = 7.5,
+		ExplosionRadiusPerLevel = 0.0075,
+		MaximumExplosionRadius = 12.5,
+		BaseCooldown = 2.65,
+		CooldownReductionPerLevel = 0.018,
+		MinimumCooldown = 1.75,
+		Range = 80,
+		ProjectileSpeed = 38,
+		BaseProjectileScale = 0.8,
+		ProjectileScalePerLevel = 0.006,
+		SpreadDegrees = 8,
+		Knockback = 13,
+		MaximumTargetsPerExplosion = 45,
+		GroupSearchCandidates = 30,
+		Burn = {
+			Level = 10,
+			Duration = 3,
+			TickInterval = 1,
+			DamageRatio = 0.09,
+		},
+		BurningGround = {
+			Level = 20,
+			Duration = 4,
+			FinalDuration = 6,
+			RadiusMultiplier = 0.62,
+			TickInterval = 0.75,
+			DamageRatio = 0.07,
+			MaximumPerPlayer = 8,
+		},
+		EmpoweredExplosion = {
+			Level = 40,
+			RadiusMultiplier = 1.12,
+			CenterRadiusRatio = 0.45,
+			CenterDamageMultiplier = 1.25,
+			KnockbackMultiplier = 1.25,
+		},
+		Final = {
+			Level = 50,
+			RadiusMultiplier = 1.08,
+			ProjectileScaleMultiplier = 1.18,
+			BurnDamageMultiplier = 1.35,
+		},
+	},
+	Rage = {
+		RagePerHit = 1.5,
+		Cooldown = 0.42,
+		AdditionalProjectiles = 2,
+		MaximumProjectiles = 7,
+		ExplosionRadiusMultiplier = 1.25,
+		ProjectileScaleMultiplier = 1.3,
+		ProjectileSpeed = 46,
+		KnockbackMultiplier = 1.35,
+		MeteorHeight = 22,
+	},
+	Milestones = {
+		{ Level = 10, Description = "Double Fireball - fire 2 spread projectiles and ignite damaged zombies" },
+		{ Level = 20, Description = "Burning Ground - explosions leave a damaging fire area" },
+		{ Level = 30, Description = "Triple Fireball - fire 3 projectiles toward separate groups" },
+		{ Level = 40, Description = "Empowered Explosion - larger blasts deal extra damage near the center" },
+		{ Level = 50, Description = "Firestorm - fire 4 larger projectiles with stronger Burn and longer ground fire" },
+	},
+}
+
+function fireball.GetStats(level: number)
+	local clampedLevel = math.clamp(math.floor(level), 1, fireball.MaxLevel)
+	local levelOffset = clampedLevel - 1
+	local combat = fireball.Combat
+	local explosionRadius = combat.BaseExplosionRadius * (1 + levelOffset * combat.ExplosionRadiusPerLevel)
+	if clampedLevel >= combat.EmpoweredExplosion.Level then
+		explosionRadius *= combat.EmpoweredExplosion.RadiusMultiplier
+	end
+	if clampedLevel >= combat.Final.Level then
+		explosionRadius *= combat.Final.RadiusMultiplier
+	end
+	explosionRadius = math.min(explosionRadius, combat.MaximumExplosionRadius)
+
+	local projectileScale = combat.BaseProjectileScale * (1 + levelOffset * combat.ProjectileScalePerLevel)
+	if clampedLevel >= combat.Final.Level then
+		projectileScale *= combat.Final.ProjectileScaleMultiplier
+	end
+	local damage = math.floor(combat.BaseDamage * (1 + levelOffset * combat.DamagePerLevel) + 0.5)
+	local burnDamage = math.max(1, math.floor(damage * combat.Burn.DamageRatio + 0.5))
+	if clampedLevel >= combat.Final.Level then
+		burnDamage = math.floor(burnDamage * combat.Final.BurnDamageMultiplier + 0.5)
+	end
+
+	return {
+		Damage = damage,
+		ExplosionRadius = explosionRadius,
+		Cooldown = math.max(combat.MinimumCooldown, combat.BaseCooldown - levelOffset * combat.CooldownReductionPerLevel),
+		ProjectileScale = projectileScale,
+		ProjectileCount = getFireballCount(clampedLevel),
+		Burn = clampedLevel >= combat.Burn.Level,
+		BurnDamage = burnDamage,
+		BurnDuration = combat.Burn.Duration,
+		BurningGround = clampedLevel >= combat.BurningGround.Level,
+		GroundDamage = math.max(1, math.floor(damage * combat.BurningGround.DamageRatio + 0.5)),
+		GroundDuration = if clampedLevel >= combat.Final.Level
+			then combat.BurningGround.FinalDuration
+			else combat.BurningGround.Duration,
+		CenterDamageMultiplier = if clampedLevel >= combat.EmpoweredExplosion.Level
+			then combat.EmpoweredExplosion.CenterDamageMultiplier
+			else 1,
+		EmpoweredExplosion = clampedLevel >= combat.EmpoweredExplosion.Level,
+	}
+end
+
+function fireball.GetRageStats(level: number)
+	local stats = fireball.GetStats(level)
+	stats.ProjectileCount = math.min(
+		stats.ProjectileCount + fireball.Rage.AdditionalProjectiles,
+		fireball.Rage.MaximumProjectiles
+	)
+	stats.ExplosionRadius = math.min(
+		stats.ExplosionRadius * fireball.Rage.ExplosionRadiusMultiplier,
+		fireball.Combat.MaximumExplosionRadius * fireball.Rage.ExplosionRadiusMultiplier
+	)
+	stats.ProjectileScale *= fireball.Rage.ProjectileScaleMultiplier
+	stats.Cooldown = fireball.Rage.Cooldown
+	stats.ProjectileSpeed = fireball.Rage.ProjectileSpeed
+	stats.IsRage = true
+	return stats
+end
+
+function fireball.GetStatsText(level: number): string
+	local current = fireball.GetStats(level)
+	if level >= fireball.MaxLevel then
+		return string.format(
+			"Damage  %d\nExplosion Size  %.1f\nCooldown  %.2fs\nFireballs  %d",
+			current.Damage,
+			current.ExplosionRadius,
+			current.Cooldown,
+			current.ProjectileCount
+		)
+	end
+	local nextStats = fireball.GetStats(level + 1)
+	return string.format(
+		"Damage  %d > %d\nExplosion Size  %.1f > %.1f\nCooldown  %.2fs > %.2fs\nFireballs  %d > %d",
+		current.Damage,
+		nextStats.Damage,
+		current.ExplosionRadius,
+		nextStats.ExplosionRadius,
+		current.Cooldown,
+		nextStats.Cooldown,
+		current.ProjectileCount,
+		nextStats.ProjectileCount
+	)
+end
+
+local lightning = {
+	Id = "Lightning",
+	Name = "Lightning",
+	Category = AbilityDefinitions.Categories.Weapon,
+	Description = "Instantly chains lightning through nearby groups of zombies.",
+	UpgradeDescription = "Every level improves damage, jump range, and cooldown. Milestones add targets, finishers, forks, and twin chains.",
+	Icon = Images.Abilities.Lightning,
+	Color = Color3.fromRGB(94, 196, 255),
+	MaxLevel = 50,
+	BaseUpgradeCost = 145,
+	UpgradeCostGrowth = 1.15,
+	Roll = {
+		BaseOdds = 14,
+		Rarity = "Epic",
+		RarityRank = 4,
+	},
+	Combat = {
+		BaseDamage = 24,
+		DamagePerLevel = 0.05,
+		BaseCooldown = 2.5,
+		CooldownReductionPerLevel = 0.016,
+		MinimumCooldown = 1.65,
+		FirstTargetRange = 45,
+		BaseChainRange = 12,
+		ChainRangePerLevel = 0.005,
+		ExtendedRangeLevel = 15,
+		ExtendedRangeMultiplier = 1.35,
+		FinalRangeMultiplier = 1.1,
+		FinisherLevel = 10,
+		FinisherDamageMultiplier = 1.35,
+		ForkLevel = 20,
+		ForkDamageMultiplier = 0.65,
+		ForkEveryAttacks = 2,
+		TwinChainsLevel = 40,
+		TwinChainsEveryAttacks = 3,
+		MaximumCandidatePool = 80,
+		Knockback = 5,
+	},
+	Rage = {
+		RagePerHit = 2,
+		Cooldown = 0.36,
+		AdditionalTargets = 3,
+		MaximumTargets = 12,
+		ChainRangeMultiplier = 1.4,
+		ChainCount = 3,
+		KnockbackMultiplier = 1.25,
+	},
+	Milestones = {
+		{ Level = 5, Description = "Long Chain - increase maximum targets from 3 to 5" },
+		{ Level = 10, Description = "Finisher - the final strike deals additional damage" },
+		{ Level = 15, Description = "Extended Arc - lightning can jump significantly farther" },
+		{ Level = 20, Description = "Fork - some attacks branch to one additional zombie" },
+		{ Level = 30, Description = "Crowd Conductor - increase maximum targets from 5 to 7" },
+		{ Level = 40, Description = "Twin Chains - every third attack launches two separate chains" },
+		{ Level = 50, Description = "Lightning Storm - longer nine-target chains with improved branching" },
+	},
+}
+
+function lightning.GetStats(level: number)
+	local clampedLevel = math.clamp(math.floor(level), 1, lightning.MaxLevel)
+	local levelOffset = clampedLevel - 1
+	local combat = lightning.Combat
+	local chainRange = combat.BaseChainRange * (1 + levelOffset * combat.ChainRangePerLevel)
+	if clampedLevel >= combat.ExtendedRangeLevel then
+		chainRange *= combat.ExtendedRangeMultiplier
+	end
+	if clampedLevel >= lightning.MaxLevel then
+		chainRange *= combat.FinalRangeMultiplier
+	end
+	return {
+		Damage = math.floor(combat.BaseDamage * (1 + levelOffset * combat.DamagePerLevel) + 0.5),
+		Cooldown = math.max(combat.MinimumCooldown, combat.BaseCooldown - levelOffset * combat.CooldownReductionPerLevel),
+		ChainRange = chainRange,
+		MaximumTargets = getLightningTargetCount(clampedLevel),
+		Finisher = clampedLevel >= combat.FinisherLevel,
+		Fork = clampedLevel >= combat.ForkLevel,
+		ForkEveryAttacks = if clampedLevel >= lightning.MaxLevel then 1 else combat.ForkEveryAttacks,
+		TwinChains = clampedLevel >= combat.TwinChainsLevel,
+	}
+end
+
+function lightning.GetRageStats(level: number)
+	local stats = lightning.GetStats(level)
+	stats.Cooldown = lightning.Rage.Cooldown
+	stats.MaximumTargets = math.min(stats.MaximumTargets + lightning.Rage.AdditionalTargets, lightning.Rage.MaximumTargets)
+	stats.ChainRange *= lightning.Rage.ChainRangeMultiplier
+	stats.ChainCount = lightning.Rage.ChainCount
+	stats.IsRage = true
+	return stats
+end
+
+function lightning.GetStatsText(level: number): string
+	local current = lightning.GetStats(level)
+	if level >= lightning.MaxLevel then
+		return string.format(
+			"Damage  %d\nTargets  %d\nChain Range  %.1f\nCooldown  %.2fs",
+			current.Damage,
+			current.MaximumTargets,
+			current.ChainRange,
+			current.Cooldown
+		)
+	end
+	local nextStats = lightning.GetStats(level + 1)
+	return string.format(
+		"Damage  %d > %d\nTargets  %d > %d\nChain Range  %.1f > %.1f\nCooldown  %.2fs > %.2fs",
+		current.Damage,
+		nextStats.Damage,
+		current.MaximumTargets,
+		nextStats.MaximumTargets,
+		current.ChainRange,
+		nextStats.ChainRange,
+		current.Cooldown,
+		nextStats.Cooldown
+	)
+end
+
+local boomerang = {
+	Id = "Boomerang",
+	Name = "Boomerang",
+	Category = AbilityDefinitions.Categories.Weapon,
+	Description = "Throws spinning Boomerangs that damage zombies outbound and again on their return.",
+	UpgradeDescription = "Every level improves damage, size, range, and cooldown. Milestones strengthen the return and add more Boomerangs.",
+	Icon = Images.Abilities.Boomerang,
+	AssetName = "Boomerang",
+	Color = Color3.fromRGB(255, 190, 70),
+	MaxLevel = 50,
+	BaseUpgradeCost = 130,
+	UpgradeCostGrowth = 1.145,
+	Roll = {
+		BaseOdds = 9,
+		Rarity = "Rare",
+		RarityRank = 3,
+	},
+	Combat = {
+		BaseDamage = 26,
+		DamagePerLevel = 0.05,
+		BaseCooldown = 2.7,
+		CooldownReductionPerLevel = 0.016,
+		MinimumCooldown = 1.85,
+		BaseScale = 0.75,
+		ScalePerLevel = 0.005,
+		BaseRange = 22,
+		RangePerLevel = 0.0075,
+		OutboundSpeed = 32,
+		BaseHitRadius = 1.75,
+		SpreadDegrees = 18,
+		TurnDuration = 0.28,
+		ReturnDamageLevel = 5,
+		ReturnDamageMultiplier = 1.25,
+		LargeLevel = 15,
+		LargeScaleMultiplier = 1.28,
+		LargeRangeMultiplier = 1.25,
+		LargeHitRadiusMultiplier = 1.3,
+		FastReturnLevel = 20,
+		BaseReturnSpeedMultiplier = 1.15,
+		FastReturnSpeedMultiplier = 1.7,
+		BonusLoopLevel = 40,
+		BonusLoopHits = 5,
+		BonusLoopRangeMultiplier = 0.55,
+		Final = {
+			Level = 50,
+			ScaleMultiplier = 1.12,
+			RangeMultiplier = 1.1,
+			ReturnDamageMultiplier = 1.45,
+			ReturnSpeedMultiplier = 1.95,
+			BonusLoopHits = 4,
+		},
+		Knockback = 9,
+		MaximumHitsPerStep = 20,
+	},
+	Rage = {
+		RagePerHit = 2.5,
+		Cooldown = 0.48,
+		AdditionalProjectiles = 2,
+		MaximumProjectiles = 5,
+		ScaleMultiplier = 1.3,
+		RangeMultiplier = 1.25,
+		ReturnSpeedMultiplier = 2.4,
+		KnockbackMultiplier = 1.3,
+	},
+	Milestones = {
+		{ Level = 5, Description = "Dangerous Return - returning Boomerangs deal additional damage" },
+		{ Level = 10, Description = "Double Throw - launch 2 spread Boomerangs" },
+		{ Level = 15, Description = "Crowd Cutter - larger Boomerangs travel significantly farther" },
+		{ Level = 20, Description = "Fast Return - Boomerangs return significantly faster" },
+		{ Level = 30, Description = "Triple Throw - launch 3 Boomerangs in a fan" },
+		{ Level = 40, Description = "Bonus Loop - hitting 5 zombies earns one additional short loop" },
+		{ Level = 50, Description = "Perfect Return - larger, longer throws with stronger, faster returns" },
+	},
+}
+
+function boomerang.GetStats(level: number)
+	local clampedLevel = math.clamp(math.floor(level), 1, boomerang.MaxLevel)
+	local levelOffset = clampedLevel - 1
+	local combat = boomerang.Combat
+	local scale = combat.BaseScale * (1 + levelOffset * combat.ScalePerLevel)
+	local range = combat.BaseRange * (1 + levelOffset * combat.RangePerLevel)
+	local hitRadius = combat.BaseHitRadius * (scale / combat.BaseScale)
+	if clampedLevel >= combat.LargeLevel then
+		scale *= combat.LargeScaleMultiplier
+		range *= combat.LargeRangeMultiplier
+		hitRadius *= combat.LargeHitRadiusMultiplier
+	end
+	if clampedLevel >= combat.Final.Level then
+		scale *= combat.Final.ScaleMultiplier
+		range *= combat.Final.RangeMultiplier
+	end
+	return {
+		Damage = math.floor(combat.BaseDamage * (1 + levelOffset * combat.DamagePerLevel) + 0.5),
+		Cooldown = math.max(combat.MinimumCooldown, combat.BaseCooldown - levelOffset * combat.CooldownReductionPerLevel),
+		ProjectileScale = scale,
+		Range = range,
+		HitRadius = hitRadius,
+		ProjectileCount = getBoomerangCount(clampedLevel),
+		ReturnDamageMultiplier = if clampedLevel >= combat.Final.Level
+			then combat.Final.ReturnDamageMultiplier
+			elseif clampedLevel >= combat.ReturnDamageLevel then combat.ReturnDamageMultiplier
+			else 1,
+		ReturnSpeedMultiplier = if clampedLevel >= combat.Final.Level
+			then combat.Final.ReturnSpeedMultiplier
+			elseif clampedLevel >= combat.FastReturnLevel then combat.FastReturnSpeedMultiplier
+			else combat.BaseReturnSpeedMultiplier,
+		BonusLoop = clampedLevel >= combat.BonusLoopLevel,
+		BonusLoopHits = if clampedLevel >= combat.Final.Level then combat.Final.BonusLoopHits else combat.BonusLoopHits,
+	}
+end
+
+function boomerang.GetRageStats(level: number)
+	local stats = boomerang.GetStats(level)
+	stats.Cooldown = boomerang.Rage.Cooldown
+	stats.ProjectileCount = math.min(
+		stats.ProjectileCount + boomerang.Rage.AdditionalProjectiles,
+		boomerang.Rage.MaximumProjectiles
+	)
+	stats.ProjectileScale *= boomerang.Rage.ScaleMultiplier
+	stats.Range *= boomerang.Rage.RangeMultiplier
+	stats.ReturnSpeedMultiplier = boomerang.Rage.ReturnSpeedMultiplier
+	stats.IsRage = true
+	return stats
+end
+
+function boomerang.GetStatsText(level: number): string
+	local current = boomerang.GetStats(level)
+	if level >= boomerang.MaxLevel then
+		return string.format(
+			"Damage  %d\nAmount  %d\nRange  %.1f\nCooldown  %.2fs",
+			current.Damage,
+			current.ProjectileCount,
+			current.Range,
+			current.Cooldown
+		)
+	end
+	local nextStats = boomerang.GetStats(level + 1)
+	return string.format(
+		"Damage  %d > %d\nAmount  %d > %d\nRange  %.1f > %.1f\nCooldown  %.2fs > %.2fs",
+		current.Damage,
+		nextStats.Damage,
+		current.ProjectileCount,
+		nextStats.ProjectileCount,
+		current.Range,
+		nextStats.Range,
+		current.Cooldown,
+		nextStats.Cooldown
 	)
 end
 
@@ -473,10 +939,13 @@ function boots.GetStatsText(level: number): string
 	return table.concat(lines, "\n")
 end
 
-AbilityDefinitions.List = { dagger, orbitingSwords, heart, boots }
+AbilityDefinitions.List = { dagger, orbitingSwords, fireball, lightning, boomerang, heart, boots }
 AbilityDefinitions.ById = {
 	[dagger.Id] = dagger,
 	[orbitingSwords.Id] = orbitingSwords,
+	[fireball.Id] = fireball,
+	[lightning.Id] = lightning,
+	[boomerang.Id] = boomerang,
 	[heart.Id] = heart,
 	[boots.Id] = boots,
 }

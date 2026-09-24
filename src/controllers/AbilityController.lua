@@ -10,6 +10,7 @@ local AbilityDefinitions = require(ReplicatedStorage.Modules.Game.Abilities.Abil
 local NotificationManager = require(ReplicatedStorage.Modules.UI.NotificationManager)
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
 local UIStyle = require(ReplicatedStorage.Modules.UI.UIStyle)
+local ActiveWeaponEffects = require(script.Parent.Ability.ActiveWeaponEffects)
 local OrbitingSwordsView = require(script.Parent.Ability.OrbitingSwordsView)
 
 local AbilityController = {}
@@ -169,7 +170,7 @@ local function spawnDagger(packet)
 	})
 end
 
-local function renderProjectiles()
+local function renderProjectiles(deltaTime: number)
 	local now = Workspace:GetServerTimeNow()
 	for index = #projectiles, 1, -1 do
 		local projectile = projectiles[index]
@@ -193,6 +194,7 @@ local function renderProjectiles()
 			table.remove(projectiles, index)
 		end
 	end
+	ActiveWeaponEffects.Render(now, deltaTime)
 	OrbitingSwordsView.Render(now)
 end
 
@@ -259,6 +261,54 @@ function AbilityController.SwordReleased(_, packet)
 	OrbitingSwordsView.SpawnReleased(packet)
 end
 
+function AbilityController.FireballSpawned(_, packet)
+	ActiveWeaponEffects.FireballSpawned(packet)
+end
+
+function AbilityController.FireballExploded(_, packet)
+	ActiveWeaponEffects.FireballExploded(packet)
+end
+
+function AbilityController.FireballBurnApplied(_, packet)
+	ActiveWeaponEffects.FireballBurnApplied(packet)
+end
+
+function AbilityController.FireballBurnEnded(_, targetId)
+	ActiveWeaponEffects.FireballBurnEnded(targetId)
+end
+
+function AbilityController.FireballGroundCreated(_, packet)
+	ActiveWeaponEffects.FireballGroundCreated(packet)
+end
+
+function AbilityController.FireballGroundRemoved(_, id)
+	ActiveWeaponEffects.FireballGroundRemoved(id)
+end
+
+function AbilityController.LightningCast(_, packet)
+	ActiveWeaponEffects.LightningCast(packet)
+end
+
+function AbilityController.BoomerangSpawned(_, packet)
+	ActiveWeaponEffects.BoomerangSpawned(packet)
+end
+
+function AbilityController.BoomerangPhaseChanged(_, packet)
+	ActiveWeaponEffects.BoomerangPhaseChanged(packet)
+end
+
+function AbilityController.BoomerangHit(_, packet)
+	ActiveWeaponEffects.BoomerangHit(packet)
+end
+
+function AbilityController.BoomerangEnded(_, id)
+	ActiveWeaponEffects.BoomerangEnded(id)
+end
+
+function AbilityController.AbilityEffectsCleared(_, ownerUserId, abilityId)
+	ActiveWeaponEffects.AbilityEffectsCleared(ownerUserId, abilityId)
+end
+
 function AbilityController.SetDataService(service)
 	dataService = service
 end
@@ -268,6 +318,7 @@ function AbilityController.Init()
 	effectsFolder = Instance.new("Folder")
 	effectsFolder.Name = "AbilityEffects"
 	effectsFolder.Parent = Workspace
+	ActiveWeaponEffects.Init(effectsFolder)
 	OrbitingSwordsView.Init(effectsFolder)
 	renderConnection = RunService.RenderStepped:Connect(renderProjectiles)
 	dataService:getChangedSignal(AbilityDefinitions.DataKey):Connect(function()

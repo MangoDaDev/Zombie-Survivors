@@ -56,6 +56,9 @@ local Images = {
 		Sword = "rbxassetid://84367243209042",
 		Heart = "rbxassetid://84367243209042",
 		Boots = "rbxassetid://84367243209042",
+		Fireball = "rbxassetid://84367243209042",
+		Lightning = "rbxassetid://84367243209042",
+		Boomerang = "rbxassetid://84367243209042",
 	},
 }
 

@@ -1,11 +1,11 @@
-local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
-
+local Players = game:GetService "Players"
+local ReplicatedStorage = game:GetService "ReplicatedStorage"
+local RunService = game:GetService "RunService"
+local ServerStorage = game:GetService "ServerStorage"
 local Networker = require(ReplicatedStorage.Packages.networker)
 local CoinDropController = require(ServerStorage.Controllers.CoinDropController)
-local GetRandomFromWeightedTable = require(ReplicatedStorage.Modules.Math.GetRandomFromWeightedTable)
-	.GetRandomFromWeightedTable
+local GetRandomFromWeightedTable =
+	require(ReplicatedStorage.Modules.Math.GetRandomFromWeightedTable).GetRandomFromWeightedTable
 local ZombieAreas = require(ReplicatedStorage.Modules.Game.Zombies.ZombieAreas)
 local ZombieDefinitions = require(ReplicatedStorage.Modules.Game.Zombies.ZombieDefinitions)
 local ZombieProtocol = require(ReplicatedStorage.Modules.Game.Zombies.ZombieProtocol)
@@ -44,9 +44,9 @@ local function getLivePlayerCandidates()
 
 	for _, player in Players:GetPlayers() do
 		local character = player.Character
-		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-		local root = character and character:FindFirstChild("HumanoidRootPart")
-		if humanoid and humanoid.Health > 0 and root and root:IsA("BasePart") then
+		local humanoid = character and character:FindFirstChildOfClass "Humanoid"
+		local root = character and character:FindFirstChild "HumanoidRootPart"
+		if humanoid and humanoid.Health > 0 and root and root:IsA "BasePart" then
 			local candidate = {
 				player = player,
 				humanoid = humanoid,
@@ -64,7 +64,8 @@ local function isAreaActive(area, candidates)
 	local halfSize = area.Size * 0.5
 	for _, candidate in candidates do
 		local localPosition = area.CFrame:PointToObjectSpace(candidate.position)
-		if math.abs(localPosition.X) <= halfSize.X + area.ActivationPadding
+		if
+			math.abs(localPosition.X) <= halfSize.X + area.ActivationPadding
 			and math.abs(localPosition.Z) <= halfSize.Y + area.ActivationPadding
 		then
 			return true
@@ -76,11 +77,7 @@ end
 
 local function isAwayFromPlayers(position, candidates, minimumDistance)
 	for _, candidate in candidates do
-		local offset = Vector3.new(
-			position.X - candidate.position.X,
-			0,
-			position.Z - candidate.position.Z
-		)
+		local offset = Vector3.new(position.X - candidate.position.X, 0, position.Z - candidate.position.Z)
 		if offset.Magnitude < minimumDistance then
 			return false
 		end
@@ -92,11 +89,8 @@ end
 local function chooseGroupCenter(area, candidates)
 	local halfSize = area.Size * 0.5
 	for _ = 1, MAX_SPAWN_ATTEMPTS do
-		local localPosition = Vector3.new(
-			random:NextNumber(-halfSize.X, halfSize.X),
-			0,
-			random:NextNumber(-halfSize.Y, halfSize.Y)
-		)
+		local localPosition =
+			Vector3.new(random:NextNumber(-halfSize.X, halfSize.X), 0, random:NextNumber(-halfSize.Y, halfSize.Y))
 		local worldPosition = area.CFrame:PointToWorldSpace(localPosition)
 		if isAwayFromPlayers(worldPosition, candidates, area.MinPlayerDistance) then
 			return localPosition
@@ -200,7 +194,7 @@ local function buildGroundOffsets()
 	local templates = ReplicatedStorage.Assets.Models.Zombies
 	for typeName, definition in ZombieDefinitions do
 		local template = templates:FindFirstChild(definition.AssetName)
-		if template and template:IsA("Model") then
+		if template and template:IsA "Model" then
 			local pivot = template:GetPivot()
 			local boundingCFrame, boundingSize = template:GetBoundingBox()
 			local localBoundingCFrame = pivot:ToObjectSpace(boundingCFrame)
@@ -312,6 +306,11 @@ function ZombieController.GetZombiesInRadius(position: Vector3, maximumDistance:
 		end
 	end
 	return candidates
+end
+
+function ZombieController.GetZombiePosition(id: number): Vector3?
+	local zombie = zombies[id]
+	return if zombie and not zombie:IsDead() then zombie.cframe.Position else nil
 end
 
 function ZombieController.GetNearestZombies(position: Vector3, maximumDistance: number, maximumCount: number)
