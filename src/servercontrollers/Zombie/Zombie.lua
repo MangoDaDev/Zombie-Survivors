@@ -9,7 +9,7 @@ local TARGET_HYSTERESIS = 1.15
 local Zombie = {}
 Zombie.__index = Zombie
 
-function Zombie.new(id, typeName, definition, spawnCFrame, areaId)
+function Zombie.new(id, typeName, definition, spawnCFrame, areaId, variation)
 	local self = setmetatable({}, Zombie)
 
 	self.id = id
@@ -18,9 +18,18 @@ function Zombie.new(id, typeName, definition, spawnCFrame, areaId)
 	self.areaId = areaId
 	self.cframe = spawnCFrame
 	self.health = definition.MaxHealth
+	self.scale = variation.Scale
+	self.moveSpeedMultiplier = variation.MoveSpeed
+	self.turnSpeedMultiplier = variation.TurnSpeed
+	self.animationSpeedMultiplier = variation.AnimationSpeed
 	self.state = ZombieProtocol.State.Idle
 	self.target = nil
 	self.attackSequence = 0
+	self.attackStartedAt = 0
+	self.attackImpactAt = 0
+	self.attackEndsAt = 0
+	self.attackInProgress = false
+	self.attackDamageApplied = false
 	self.nextAttackAt = 0
 	self.movementBehavior = ZombieBehaviors.Movement[definition.MovementBehavior]
 		or ZombieBehaviors.Movement.DirectChase
@@ -77,7 +86,8 @@ function Zombie:Step(deltaTime, candidates, candidateLookup, now)
 	end
 
 	if not targetCandidate then
-		self.state = ZombieProtocol.State.Idle
+		local isFinishingAttack = self.attackBehavior(self, nil, now, math.huge)
+		self.state = if isFinishingAttack then ZombieProtocol.State.Attacking else ZombieProtocol.State.Idle
 		return
 	end
 
@@ -88,15 +98,21 @@ function Zombie:Step(deltaTime, candidates, candidateLookup, now)
 	local facing = self.cframe.Rotation
 	if distance > 0.001 then
 		local desiredFacing = CFrame.lookAt(currentPosition, currentPosition + direction)
-		local turnAlpha = 1 - math.exp(-self.definition.TurnSpeed * deltaTime)
+		local turnSpeed = self.definition.TurnSpeed * self.turnSpeedMultiplier
+		local turnAlpha = 1 - math.exp(-turnSpeed * deltaTime)
 		facing = self.cframe:Lerp(desiredFacing, turnAlpha).Rotation
+	end
+
+	local isAttacking = self.attackBehavior(self, targetCandidate, now, distance)
+	if isAttacking then
+		self.cframe = CFrame.new(currentPosition) * facing
+		self.state = ZombieProtocol.State.Attacking
+		return
 	end
 
 	if distance <= self.definition.AttackRange then
 		self.cframe = CFrame.new(currentPosition) * facing
-		self.state = ZombieProtocol.State.Attacking
-
-		self.attackBehavior(self, targetCandidate, now)
+		self.state = ZombieProtocol.State.Idle
 		return
 	end
 
@@ -118,6 +134,11 @@ function Zombie:IsDead()
 	return self.health <= 0
 end
 
+function Zombie:ApplySeparation(displacement)
+	-- Separation remains CFrame-only and never creates a physical zombie assembly.
+	self.cframe += displacement
+end
+
 function Zombie:GetSpawnPacket()
 	return {
 		self.id,
@@ -125,6 +146,9 @@ function Zombie:GetSpawnPacket()
 		self.cframe,
 		self.state,
 		self.attackSequence,
+		self.attackStartedAt,
+		self.scale,
+		self.animationSpeedMultiplier,
 	}
 end
 
@@ -134,6 +158,7 @@ function Zombie:GetUpdatePacket()
 		self.cframe,
 		self.state,
 		self.attackSequence,
+		self.attackStartedAt,
 	}
 end
 

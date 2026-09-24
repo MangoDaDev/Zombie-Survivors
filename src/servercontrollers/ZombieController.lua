@@ -9,18 +9,33 @@ local ZombieAreas = require(ReplicatedStorage.Modules.Game.Zombies.ZombieAreas)
 local ZombieDefinitions = require(ReplicatedStorage.Modules.Game.Zombies.ZombieDefinitions)
 local ZombieProtocol = require(ReplicatedStorage.Modules.Game.Zombies.ZombieProtocol)
 local Zombie = require(script.Parent.Zombie.Zombie)
+local ZombieSeparation = require(script.Parent.Zombie.ZombieSeparation)
 
 local MAX_SPAWN_ATTEMPTS = 12
+local SEPARATION_INTERVAL = 0.05
+local VARIATION_MINIMUM = 0.95
+local VARIATION_MAXIMUM = 1.05
 
 local ZombieController = {}
 local zombieNetwork
 local simulationConnection
 local nextZombieId = 0
 local nextSnapshotAt = 0
+local separationAccumulator = 0
 local random = Random.new()
 local zombies = {}
 local areaRuntime = {}
 local groundOffsets = {}
+
+local function createVariation()
+	-- Independent subtle rolls prevent whole groups from sharing the same silhouette and cadence.
+	return {
+		Scale = random:NextNumber(VARIATION_MINIMUM, VARIATION_MAXIMUM),
+		MoveSpeed = random:NextNumber(VARIATION_MINIMUM, VARIATION_MAXIMUM),
+		TurnSpeed = random:NextNumber(VARIATION_MINIMUM, VARIATION_MAXIMUM),
+		AnimationSpeed = random:NextNumber(VARIATION_MINIMUM, VARIATION_MAXIMUM),
+	}
+end
 
 local function getLivePlayerCandidates()
 	local candidates = {}
@@ -117,10 +132,11 @@ local function createZombie(area, typeName, surfacePosition)
 	end
 
 	nextZombieId += 1
-	local spawnPosition = surfacePosition + Vector3.yAxis * groundOffset
+	local variation = createVariation()
+	local spawnPosition = surfacePosition + Vector3.yAxis * groundOffset * variation.Scale
 	local spawnYaw = random:NextNumber(-math.pi, math.pi)
 	local spawnCFrame = CFrame.new(spawnPosition) * CFrame.Angles(0, spawnYaw, 0)
-	local zombie = Zombie.new(nextZombieId, typeName, definition, spawnCFrame, area.Id)
+	local zombie = Zombie.new(nextZombieId, typeName, definition, spawnCFrame, area.Id, variation)
 	zombies[zombie.id] = zombie
 	areaRuntime[area.Id].count += 1
 
@@ -214,6 +230,12 @@ local function stepSimulation(deltaTime)
 		if zombie:IsDead() then
 			table.insert(deadIds, id)
 		end
+	end
+
+	separationAccumulator += deltaTime
+	if separationAccumulator >= SEPARATION_INTERVAL then
+		ZombieSeparation.Apply(zombies, math.min(separationAccumulator, 0.1))
+		separationAccumulator = 0
 	end
 
 	removeZombies(deadIds)

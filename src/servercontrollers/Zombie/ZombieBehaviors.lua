@@ -7,22 +7,47 @@ local ZombieBehaviors = {
 
 function ZombieBehaviors.Movement.DirectChase(zombie, direction, distance, deltaTime, facing)
 	local travelDistance = math.min(
-		zombie.definition.MoveSpeed * deltaTime,
+		zombie.definition.MoveSpeed * zombie.moveSpeedMultiplier * deltaTime,
 		distance - zombie.definition.AttackRange
 	)
 	local nextPosition = zombie.cframe.Position + direction * math.max(travelDistance, 0)
 	zombie.cframe = CFrame.new(nextPosition) * facing
 end
 
-function ZombieBehaviors.Attack.Contact(zombie, targetCandidate, now)
-	if now < zombie.nextAttackAt then
-		return
+function ZombieBehaviors.Attack.Contact(zombie, targetCandidate, now, distance)
+	if zombie.attackInProgress then
+		if not zombie.attackDamageApplied and now >= zombie.attackImpactAt then
+			-- The hit lands at the end of the visible downward strike, not at wind-up start.
+			if targetCandidate
+				and targetCandidate.humanoid.Health > 0
+				and distance <= zombie.definition.AttackRange * 1.15
+			then
+				targetCandidate.humanoid:TakeDamage(zombie.definition.AttackDamage)
+			end
+			zombie.attackDamageApplied = true
+		end
+
+		if now >= zombie.attackEndsAt then
+			zombie.attackInProgress = false
+		end
+
+		return true
 	end
 
-	-- Damage remains a server-only strategy even though the matching pose is procedural on clients.
-	targetCandidate.humanoid:TakeDamage(zombie.definition.AttackDamage)
+	if not targetCandidate or distance > zombie.definition.AttackRange or now < zombie.nextAttackAt then
+		return false
+	end
+
+	local definition = zombie.definition
+	zombie.attackInProgress = true
+	zombie.attackDamageApplied = false
 	zombie.attackSequence += 1
-	zombie.nextAttackAt = now + zombie.definition.AttackCooldown
+	zombie.attackStartedAt = now
+	zombie.attackImpactAt = now + definition.AttackWindupDuration + definition.AttackStrikeDuration
+	zombie.attackEndsAt = zombie.attackImpactAt + definition.AttackRecoveryDuration
+	zombie.nextAttackAt = now + definition.AttackCooldown
+
+	return true
 end
 
 return ZombieBehaviors

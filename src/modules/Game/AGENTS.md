@@ -1,7 +1,7 @@
 # Game module guidance
 
 - This folder contains shared definitions and rules specific to the game built from this template.
-- `DataTemplate.lua` is intentionally empty. Add JSON-compatible default player data there when persistent systems are introduced.
+- `DataTemplate.lua` contains the established JSON-compatible player-data defaults. Add new persisted fields deliberately and preserve existing keys.
 - DataService reconciles new template keys into existing profiles, so choose defaults deliberately and do not casually rename or remove persisted keys.
 - Keep this folder declarative where possible. Sensitive decisions and all persistence mutations remain server-authoritative.
 - Put broadly reusable, game-agnostic infrastructure in `Core` instead.

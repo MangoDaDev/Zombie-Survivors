@@ -8,6 +8,8 @@ data_service:init()
 
 local modules_to_init = {
 	ReplicatedStorage.Controllers.PlayerStateController,
+	ReplicatedStorage.Controllers.CoinsController,
+	ReplicatedStorage.Controllers.RollController,
 	ReplicatedStorage.Controllers.CharacterController,
 	ReplicatedStorage.Controllers.ZombieController,
 	ReplicatedStorage.UI.UIOrigin,

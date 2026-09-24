@@ -15,16 +15,22 @@ Quick reference for the reusable first-party Luau foundation. Generated Wally de
 | Path | Responsibility |
 | --- | --- |
 | `src/controllers/CharacterController.lua` | Requests server-authorized character spawning and manages local camera and respawn behavior. |
+| `src/controllers/CoinsController.lua` | Exposes the replicated, read-only local coin balance and its change signal. |
 | `src/controllers/PlayerStateController.lua` | Receives generic server runtime-state snapshots and updates. |
+| `src/controllers/RollController.lua` | Sends roll intent and validates authoritative roll, bonus, auto-roll, and completion events for presentation. |
 | `src/controllers/ZombieController.lua` | Receives compact zombie snapshots and drives the single client render loop. |
 | `src/controllers/Zombie/ProceduralAnimator.lua` | Produces type-specific procedural movement and attack poses without animation tracks. |
 | `src/controllers/Zombie/ZombieView.lua` | Owns one client-rendered zombie model, interpolation state, and 8-corner visibility checks. |
 | `src/servercontrollers/CharacterController.lua` | Rate-limits and authorizes character spawn requests while `CharacterAutoLoads` is disabled. |
 | `src/servercontrollers/CollisionController.lua` | Assigns avatar parts to a generic non-colliding player-character collision group. |
+| `src/servercontrollers/CoinsController.lua` | Validates and owns persistent server-authoritative coin balance operations. |
 | `src/servercontrollers/PlayerStateController.lua` | Owns generic per-player runtime state and replicates requested state updates. |
+| `src/servercontrollers/RollController.lua` | Owns per-player roll cooldowns, luck RNG, rewards, bonus chains, and auto-roll scheduling. |
+| `src/servercontrollers/Roll/RollServerConfig.lua` | Defines server-only luck, cooldown, and bonus-chain balance values. |
 | `src/servercontrollers/ZombieController.lua` | Runs grouped area spawning, batched authoritative simulation, damage, and compact replication. |
 | `src/servercontrollers/Zombie/Zombie.lua` | Defines the authoritative per-zombie class for targeting, CFrame movement, attacks, and health. |
 | `src/servercontrollers/Zombie/ZombieBehaviors.lua` | Provides definition-selected movement and attack strategies without type checks in core logic. |
+| `src/servercontrollers/Zombie/ZombieSeparation.lua` | Applies throttled spatial-hash separation so dense crowds do not occupy identical positions. |
 
 ## Core modules
 
@@ -41,11 +47,13 @@ Quick reference for the reusable first-party Luau foundation. Generated Wally de
 
 ## Game foundation modules
 
-These modules provide shared game configuration, empty persistence, and player-control helpers.
+These modules provide shared game configuration, persistent player-data defaults, and player-control helpers.
 
 | Path | Responsibility |
 | --- | --- |
-| `src/modules/Game/DataTemplate.lua` | Supplies an empty DataService template for a new game's JSON-compatible defaults. |
+| `src/modules/Game/CoinsConfig.lua` | Defines the shared coin data key, default, and exact-integer balance limit. |
+| `src/modules/Game/DataTemplate.lua` | Supplies DataService's JSON-compatible persisted player-data defaults. |
+| `src/modules/Game/Rolls/RollDefinitions.lua` | Defines replaceable placeholder roll rewards, base odds, rarity visuals, data keys, and presentation timing. |
 | `src/modules/Game/RuntimeState.lua` | Stores generic transient per-player state and change signals. |
 | `src/modules/Game/Zombies/ZombieAreas.lua` | Defines progression-scaled spawn volumes, caps, group sizes, and weighted zombie pools. |
 | `src/modules/Game/Zombies/ZombieDefinitions.lua` | Defines expandable per-type combat, movement, asset, and animation configuration. |
@@ -94,7 +102,9 @@ These modules provide shared game configuration, empty persistence, and player-c
 | `src/UI/Classes/Confirmation.lua` | Provides a reusable modal confirmation component. |
 | `src/UI/Effects/HoverExpand.lua` | Provides reusable hover scaling for GuiObjects. |
 | `src/UI/Effects/Notification.lua` | Provides a reusable counted attention badge. |
+| `src/UI/HUD/CoinsDisplay.lua` | Renders the responsive left-side coin balance display from replicated data. |
 | `src/UI/HUD/Notifications.lua` | Renders transient notifications from NotificationManager. |
+| `src/UI/HUD/RollInterface.lua` | Renders compact controls and the responsive fullscreen/minimized vertical reel and bonus-chain presentation. |
 | `src/modules/UI/NotificationManager.lua` | Emits reusable transient notification events. |
 | `src/modules/UI/PlayVFX.lua` | Clones, starts, and cleans up reusable effects and sounds. |
 | `src/modules/UI/SafeArea.lua` | Provides dynamic Roblox topbar-safe offsets. |

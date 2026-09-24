@@ -1,0 +1,254 @@
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Networker = require(ReplicatedStorage.Packages.networker)
+local GetRandomFromWeightedTable = require(ReplicatedStorage.Modules.Math.GetRandomFromWeightedTable)
+	.GetRandomFromWeightedTable
+local RollDefinitions = require(ReplicatedStorage.Modules.Game.Rolls.RollDefinitions)
+local RollServerConfig = require(script.Parent.Roll.RollServerConfig)
+
+local MAX_PERSISTED_COUNT = 9_007_199_254_740_991
+
+type PlayerRollState = {
+	active: boolean,
+	autoRollEnabled: boolean,
+	autoScheduleId: number,
+	lastAutoToggleAt: number,
+	luck: number,
+	nextRollAt: number,
+	rollId: number,
+	token: number,
+}
+
+local RollController = {}
+
+local dataService
+local rollNetwork
+local random = Random.new()
+local states: { [Player]: PlayerRollState } = {}
+local startSequence: (Player, PlayerRollState) -> boolean
+
+local function isCurrentState(player: Player, state: PlayerRollState, token: number): boolean
+	return player.Parent == Players and states[player] == state and state.token == token
+end
+
+local function selectItem(luck: number)
+	-- Reuse the project's diminishing-returns luck curve; bonus checks use a separate random draw below.
+	return GetRandomFromWeightedTable(RollDefinitions.Items, "Weight", random, luck)
+end
+
+local function awardItem(player: Player, itemId: string, amount: number): boolean
+	local inventory = dataService:get(player, RollDefinitions.InventoryDataKey)
+	local currentAmount = type(inventory) == "table" and inventory[itemId] or 0
+	if type(currentAmount) ~= "number" or currentAmount < 0 or currentAmount % 1 ~= 0 then
+		currentAmount = 0
+	end
+	if amount > MAX_PERSISTED_COUNT - currentAmount then
+		return false
+	end
+
+	dataService:update(player, RollDefinitions.InventoryDataKey, function(currentInventory)
+		local updatedInventory = if type(currentInventory) == "table" then table.clone(currentInventory) else {}
+		updatedInventory[itemId] = currentAmount + amount
+		return updatedInventory
+	end)
+
+	dataService:update(player, RollDefinitions.TotalRollsDataKey, function(currentTotal)
+		local validTotal = if type(currentTotal) == "number" and currentTotal >= 0 and currentTotal % 1 == 0
+			then currentTotal
+			else 0
+		return math.min(validTotal + 1, MAX_PERSISTED_COUNT)
+	end)
+	return true
+end
+
+local function scheduleAutoRoll(player: Player, state: PlayerRollState)
+	state.autoScheduleId += 1
+	local scheduleId = state.autoScheduleId
+	if not state.autoRollEnabled or state.active then
+		return
+	end
+
+	local delayDuration = math.max(
+		RollDefinitions.Timing.AutoRollDelay,
+		state.nextRollAt - workspace:GetServerTimeNow()
+	)
+	task.delay(delayDuration, function()
+		if states[player] == state
+			and state.autoScheduleId == scheduleId
+			and state.autoRollEnabled
+			and not state.active
+			and player.Parent == Players
+		then
+			startSequence(player, state)
+		end
+	end)
+end
+
+startSequence = function(player: Player, state: PlayerRollState): boolean
+	local now = workspace:GetServerTimeNow()
+	if states[player] ~= state or player.Parent ~= Players or state.active or now < state.nextRollAt then
+		return false
+	end
+
+	state.active = true
+	state.autoScheduleId += 1
+	state.nextRollAt = now + RollServerConfig.RollCooldown
+	state.rollId += 1
+	state.token += 1
+	local rollId = state.rollId
+	local token = state.token
+
+	task.spawn(function()
+		local multiplier = 1
+		local reelIndex = 1
+		local sequenceId = 1
+
+		while isCurrentState(player, state, token) do
+			local item = selectItem(state.luck)
+			if not item or not awardItem(player, item.Id, multiplier) then
+				break
+			end
+
+			-- Reward first, then notify the owning client; animation events can never duplicate the grant.
+			rollNetwork:fire(player, "RollStarted", {
+				rollId = rollId,
+				sequenceId = sequenceId,
+				reelIndex = reelIndex,
+				itemId = item.Id,
+				multiplier = multiplier,
+				luck = state.luck,
+			})
+
+			task.wait(RollDefinitions.Timing.ReelDuration + RollDefinitions.Timing.ResultHoldDuration)
+			if not isCurrentState(player, state, token) then
+				return
+			end
+
+			local nextMultiplier = multiplier * RollServerConfig.MultiplierGrowth
+			local canContinue = multiplier < RollServerConfig.MaximumMultiplier
+				and nextMultiplier <= RollServerConfig.MaximumMultiplier
+				and random:NextNumber() < RollServerConfig.BaseBonusChance
+			if not canContinue then
+				break
+			end
+
+			multiplier = nextMultiplier
+			reelIndex += 1
+			sequenceId += 1
+			rollNetwork:fire(player, "BonusActivated", {
+				rollId = rollId,
+				sequenceId = sequenceId,
+				reelIndex = reelIndex,
+				multiplier = multiplier,
+			})
+			task.wait(RollDefinitions.Timing.BonusActivationDuration)
+		end
+
+		if not isCurrentState(player, state, token) then
+			return
+		end
+
+		state.active = false
+		rollNetwork:fire(player, "RollFinished", rollId, state.autoRollEnabled)
+		scheduleAutoRoll(player, state)
+	end)
+
+	return true
+end
+
+function RollController.RequestRoll(_, player: Player)
+	local state = states[player]
+	if state then
+		-- The request carries no result, luck, reward, bonus, or multiplier data by design.
+		startSequence(player, state)
+	end
+end
+
+function RollController.SetAutoRoll(_, player: Player, enabled: any)
+	local state = states[player]
+	if not state or type(enabled) ~= "boolean" then
+		return
+	end
+
+	local now = workspace:GetServerTimeNow()
+	if now - state.lastAutoToggleAt < RollServerConfig.AutoToggleCooldown then
+		return
+	end
+	state.lastAutoToggleAt = now
+	state.autoRollEnabled = enabled
+	state.autoScheduleId += 1
+	rollNetwork:fire(player, "AutoRollChanged", enabled)
+
+	if enabled then
+		scheduleAutoRoll(player, state)
+	end
+end
+
+function RollController.GetState(_, player: Player)
+	local state = states[player]
+	return {
+		autoRollEnabled = state ~= nil and state.autoRollEnabled or false,
+	}
+end
+
+function RollController.GetLuck(player: Player): number?
+	local state = states[player]
+	return state and state.luck or nil
+end
+
+function RollController.SetLuck(player: Player, luck: number): boolean
+	local state = states[player]
+	if not state or type(luck) ~= "number" or luck ~= luck then
+		return false
+	end
+
+	-- This API is server-only; clients have no Networker access to submit luck values.
+	state.luck = math.clamp(luck, RollServerConfig.MinimumLuck, RollServerConfig.MaximumLuck)
+	return true
+end
+
+function RollController.SetDataService(service)
+	dataService = service
+end
+
+function RollController.Init()
+	rollNetwork = Networker.server.new("RollController", RollController, {
+		RollController.RequestRoll,
+		RollController.SetAutoRoll,
+		RollController.GetState,
+	})
+end
+
+function RollController.OnPlayerAdded(player: Player)
+	states[player] = {
+		active = false,
+		autoRollEnabled = false,
+		autoScheduleId = 0,
+		lastAutoToggleAt = -math.huge,
+		luck = RollServerConfig.DefaultLuck,
+		nextRollAt = 0,
+		rollId = 0,
+		token = 0,
+	}
+
+	local inventory = dataService:get(player, RollDefinitions.InventoryDataKey)
+	if type(inventory) ~= "table" then
+		dataService:set(player, RollDefinitions.InventoryDataKey, {})
+	end
+	local totalRolls = dataService:get(player, RollDefinitions.TotalRollsDataKey)
+	if type(totalRolls) ~= "number" or totalRolls < 0 or totalRolls % 1 ~= 0 then
+		dataService:set(player, RollDefinitions.TotalRollsDataKey, 0)
+	end
+end
+
+function RollController.OnPlayerRemoving(player: Player)
+	local state = states[player]
+	if state then
+		state.token += 1
+		state.autoScheduleId += 1
+	end
+	states[player] = nil
+end
+
+return RollController

@@ -19,7 +19,8 @@ local function addZombie(packet, serverTime)
 		return
 	end
 
-	local id, typeName, initialCFrame, state, attackSequence = table.unpack(packet)
+	local id, typeName, initialCFrame, state, attackSequence, attackStartedAt, scale, animationSpeedMultiplier =
+		table.unpack(packet)
 	if type(id) ~= "number" or type(typeName) ~= "string" or typeof(initialCFrame) ~= "CFrame" then
 		return
 	end
@@ -33,7 +34,7 @@ local function addZombie(packet, serverTime)
 
 	local existing = zombieViews[id]
 	if existing then
-		existing:Update(initialCFrame, state, attackSequence, serverTime, os.clock())
+		existing:Update(initialCFrame, state, attackSequence, attackStartedAt, serverTime, os.clock())
 		return
 	end
 
@@ -45,6 +46,9 @@ local function addZombie(packet, serverTime)
 		initialCFrame,
 		state,
 		attackSequence,
+		attackStartedAt,
+		scale,
+		animationSpeedMultiplier,
 		serverTime,
 		renderFolder
 	)
@@ -55,10 +59,10 @@ local function updateZombie(packet, serverTime, receivedAt)
 		return
 	end
 
-	local id, targetCFrame, state, attackSequence = table.unpack(packet)
+	local id, targetCFrame, state, attackSequence, attackStartedAt = table.unpack(packet)
 	local view = type(id) == "number" and zombieViews[id]
 	if view and typeof(targetCFrame) == "CFrame" and type(state) == "number" then
-		view:Update(targetCFrame, state, attackSequence, serverTime, receivedAt)
+		view:Update(targetCFrame, state, attackSequence, attackStartedAt, serverTime, receivedAt)
 	end
 end
 
@@ -106,8 +110,9 @@ local function renderZombies()
 	table.clear(renderParts)
 	table.clear(renderCFrames)
 	local now = os.clock()
+	local serverNow = Workspace:GetServerTimeNow()
 	for _, view in zombieViews do
-		view:AppendRender(renderParts, renderCFrames, camera, now)
+		view:AppendRender(renderParts, renderCFrames, camera, now, serverNow)
 	end
 
 	-- One bulk transform call avoids a render-step connection and property update per part.

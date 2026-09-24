@@ -17,8 +17,25 @@ local CORNER_SIGNS = {
 local ZombieView = {}
 ZombieView.__index = ZombieView
 
-function ZombieView.new(id, typeName, definition, template, initialCFrame, state, attackSequence, serverTime, parent)
+function ZombieView.new(
+	id,
+	typeName,
+	definition,
+	template,
+	initialCFrame,
+	state,
+	attackSequence,
+	attackStartedAt,
+	scale,
+	animationSpeedMultiplier,
+	serverTime,
+	parent
+)
 	local model = template:Clone()
+	scale = if type(scale) == "number" then scale else 1
+	animationSpeedMultiplier = if type(animationSpeedMultiplier) == "number" then animationSpeedMultiplier else 1
+	-- Model:ScaleTo preserves the entire rig's proportions; individual parts are never distorted.
+	model:ScaleTo(math.clamp(scale, 0.5, 2))
 	local templatePivot = model:GetPivot()
 	local boundingCFrame, boundingSize = model:GetBoundingBox()
 	local partRecords = {}
@@ -59,7 +76,8 @@ function ZombieView.new(id, typeName, definition, template, initialCFrame, state
 	self.lastServerTime = serverTime
 	self.state = state
 	self.attackSequence = attackSequence
-	self.attackStartedAt = -math.huge
+	self.attackStartedAt = if type(attackStartedAt) == "number" then attackStartedAt else -math.huge
+	self.animationSpeedMultiplier = math.clamp(animationSpeedMultiplier, 0.5, 2)
 
 	return self
 end
@@ -69,7 +87,7 @@ function ZombieView:GetRenderCFrame(now)
 	return self.fromCFrame:Lerp(self.targetCFrame, alpha)
 end
 
-function ZombieView:Update(targetCFrame, state, attackSequence, serverTime, receivedAt)
+function ZombieView:Update(targetCFrame, state, attackSequence, attackStartedAt, serverTime, receivedAt)
 	self.fromCFrame = self:GetRenderCFrame(receivedAt)
 	self.targetCFrame = targetCFrame
 	self.interpolationStartedAt = receivedAt
@@ -85,7 +103,9 @@ function ZombieView:Update(targetCFrame, state, attackSequence, serverTime, rece
 
 	if type(attackSequence) == "number" and attackSequence ~= self.attackSequence then
 		self.attackSequence = attackSequence
-		self.attackStartedAt = receivedAt
+	end
+	if type(attackStartedAt) == "number" then
+		self.attackStartedAt = attackStartedAt
 	end
 end
 
@@ -106,17 +126,17 @@ function ZombieView:IsVisible(camera, renderCFrame)
 	return false
 end
 
-function ZombieView:AppendRender(parts, cframes, camera, now)
-	local renderCFrame = self:GetRenderCFrame(now)
+function ZombieView:AppendRender(parts, cframes, camera, localNow, serverNow)
+	local renderCFrame = self:GetRenderCFrame(localNow)
 	if not self:IsVisible(camera, renderCFrame) then
 		return
 	end
 
-	local elapsed = now + self.id * 0.173
-	local attackElapsed = now - self.attackStartedAt
+	local elapsed = (localNow + self.id * 0.173) * self.animationSpeedMultiplier
+	local attackElapsed = serverNow - self.attackStartedAt
 	for _, record in self.partRecords do
 		local animationOffset = ProceduralAnimator.GetPartOffset(
-			self.definition.AnimationStyle,
+			self.definition,
 			record.name,
 			record.animationPivot,
 			self.state,
