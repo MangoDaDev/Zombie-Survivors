@@ -17,10 +17,12 @@ local state = {
 	rage = 0,
 	active = false,
 	endsAt = 0,
+	chargeStartedAt = Workspace:GetServerTimeNow(),
 	revision = 0,
 }
 local activeHighlight: Highlight?
 local activeAttachment: Attachment?
+local presentationEndToken = 0
 
 local stateChanged = Signal.new()
 local activated = Signal.new()
@@ -39,9 +41,9 @@ local function clearCharacterEffect(playEndingEffect: boolean)
 		ending.Adornee = character
 		ending.DepthMode = Enum.HighlightDepthMode.Occluded
 		ending.FillColor = Color3.fromRGB(255, 136, 54)
-		ending.FillTransparency = 0.72
+		ending.FillTransparency = 0.82
 		ending.OutlineColor = Color3.fromRGB(255, 220, 140)
-		ending.OutlineTransparency = 0.3
+		ending.OutlineTransparency = 0.48
 		ending.Parent = character
 		local tween = TweenService:Create(ending, TweenInfo.new(0.45), {
 			FillTransparency = 1,
@@ -77,15 +79,15 @@ local function addCharacterEffect()
 	highlight.Adornee = character
 	highlight.DepthMode = Enum.HighlightDepthMode.Occluded
 	highlight.FillColor = Color3.fromRGB(255, 91, 39)
-	highlight.FillTransparency = 0.3
+	highlight.FillTransparency = 0.55
 	highlight.OutlineColor = Color3.fromRGB(255, 213, 92)
-	highlight.OutlineTransparency = 0.02
+	highlight.OutlineTransparency = 0.18
 	highlight.Parent = character
 	activeHighlight = highlight
 	TweenService:Create(
 		highlight,
 		TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-		{ FillTransparency = 0.79, OutlineTransparency = 0.34 }
+		{ FillTransparency = 0.86, OutlineTransparency = 0.5 }
 	):Play()
 
 	local attachment = Instance.new("Attachment")
@@ -100,16 +102,34 @@ local function addCharacterEffect()
 			local emitter = child:Clone()
 			emitter.Name = "Rage" .. child.Name
 			emitter.Color = ColorSequence.new(Color3.fromRGB(255, 220, 85), Color3.fromRGB(255, 64, 28))
-			emitter.LightEmission = 0.9
-			emitter.Rate = 5
-			emitter.Speed = NumberRange.new(1.5, 4)
+			emitter.LightEmission = 0.55
+			emitter.Rate = 3
+			emitter.Speed = NumberRange.new(1.25, 3.2)
 			emitter.Lifetime = NumberRange.new(0.35, 0.75)
 			emitter.Enabled = true
 			emitter.Parent = attachment
-			emitter:Emit(if child.Name == "Flash" then 3 else 14)
+			emitter:Emit(if child.Name == "Flash" then 2 else 8)
 		end
 	end
 	Sounds.Play("FlameBurst", root, 140)
+end
+
+local function schedulePresentationEnd(endsAt: number)
+	presentationEndToken += 1
+	local token = presentationEndToken
+	task.delay(math.max(endsAt - Workspace:GetServerTimeNow(), 0), function()
+		if token ~= presentationEndToken or not state.active or state.endsAt ~= endsAt then
+			return
+		end
+		-- The server supplied the end timestamp, so presentation can finish on time without waiting for another packet.
+		state.active = false
+		state.rage = 0
+		state.endsAt = 0
+		state.chargeStartedAt = endsAt
+		stateChanged:Fire(RageController.GetState())
+		clearCharacterEffect(true)
+		ended:Fire(RageController.GetState())
+	end)
 end
 
 function RageController.RageStateChanged(_, packet)
@@ -117,6 +137,7 @@ function RageController.RageStateChanged(_, packet)
 		or not isFiniteNumber(packet.rage)
 		or type(packet.active) ~= "boolean"
 		or not isFiniteNumber(packet.endsAt)
+		or not isFiniteNumber(packet.chargeStartedAt)
 		or type(packet.revision) ~= "number"
 		or packet.revision % 1 ~= 0
 		or packet.revision <= state.revision
@@ -129,14 +150,19 @@ function RageController.RageStateChanged(_, packet)
 		rage = math.clamp(packet.rage, 0, RageConfig.Maximum),
 		active = packet.active,
 		endsAt = packet.endsAt,
+		chargeStartedAt = packet.chargeStartedAt,
 		revision = packet.revision,
 	}
 	stateChanged:Fire(RageController.GetState())
 
-	if state.active and not wasActive then
-		addCharacterEffect()
-		activated:Fire(RageController.GetState())
-	elseif wasActive and not state.active then
+	if state.active then
+		schedulePresentationEnd(state.endsAt)
+		if not wasActive then
+			addCharacterEffect()
+			activated:Fire(RageController.GetState())
+		end
+	elseif wasActive then
+		presentationEndToken += 1
 		clearCharacterEffect(true)
 		ended:Fire(RageController.GetState())
 	end
@@ -159,13 +185,41 @@ function RageController.OnCharacterAdded(_character: Model)
 end
 
 function RageController.Activate()
-	if rageNetwork and state.rage >= RageConfig.Maximum and not state.active then
-		rageNetwork:fire("ActivateRage")
+	if not rageNetwork or state.active or RageController.GetCurrentRage() < RageConfig.Maximum then
+		return
 	end
+	local character = localPlayer.Character
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	if not humanoid or humanoid.Health <= 0 then
+		return
+	end
+
+	-- Predict only local UI/VFX so pressing Rage feels immediate; server packets reconcile or reject it.
+	state.rage = RageConfig.Maximum
+	state.active = true
+	state.endsAt = Workspace:GetServerTimeNow() + RageConfig.Duration
+	stateChanged:Fire(RageController.GetState())
+	addCharacterEffect()
+	activated:Fire(RageController.GetState())
+	schedulePresentationEnd(state.endsAt)
+	rageNetwork:fire("ActivateRage")
 end
 
 function RageController.GetState()
-	return table.clone(state)
+	local current = table.clone(state)
+	current.rage = RageController.GetCurrentRage()
+	return current
+end
+
+function RageController.GetCurrentRage(): number
+	if state.active then
+		return RageConfig.Maximum
+	end
+	return math.clamp(
+		(Workspace:GetServerTimeNow() - state.chargeStartedAt) / RageConfig.ChargeDuration,
+		0,
+		1
+	) * RageConfig.Maximum
 end
 
 function RageController.GetRemainingDuration(): number

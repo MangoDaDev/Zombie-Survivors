@@ -33,6 +33,7 @@ local FULL_CHAIN_TOP_SCALE = 0.08
 local COMPACT_CHAIN_TOP_PADDING = 10
 local REEL_GAP_SCREEN_WIDTH = 0.006
 local VISUAL_CLOVER_CHANCE = 0.12
+local MAXIMUM_CLOVER_LUCK = 64
 local ENTRY_MINIMUM_SCALE = 0.72
 local ENTRY_CENTER_SCALE = 1.2
 local SCALE_FALLOFF_IN_STRIDES = 2.2
@@ -40,8 +41,6 @@ local SCALE_FALLOFF_IN_STRIDES = 2.2
 local CLOVER_VISUAL = {
 	Name = "Clover",
 	Image = Images.Luck,
-	-- Passing clovers use the base chain-start chance for their displayed visual odds.
-	BaseOdds = 10,
 	RarityRank = 6,
 	Color = Color3.fromRGB(103, 255, 132),
 }
@@ -124,20 +123,23 @@ local function createEntry(
 	iconAspect.AspectRatio = 1
 	iconAspect.Parent = icon
 
+	local isCloverVisual = item == CLOVER_VISUAL
 	local nameLabel = createText(visual, "ItemName", item.Name, 127)
 	nameLabel.AnchorPoint = Vector2.new(0.5, 0)
 	nameLabel.Position = UDim2.fromScale(0.5, 0.015)
 	nameLabel.Size = UDim2.fromScale(0.9, 0.24)
 	nameLabel.TextColor3 = item.Color
 	nameLabel.TextXAlignment = Enum.TextXAlignment.Center
-	nameLabel.Visible = cloverLuck == nil
+	nameLabel.Visible = not isCloverVisual
 
-	local oddsLabel = createText(visual, "Odds", formatOdds(item.BaseOdds), 127)
-	oddsLabel.AnchorPoint = Vector2.new(0.5, 1)
-	oddsLabel.Position = UDim2.fromScale(0.5, 0.985)
-	oddsLabel.Size = UDim2.fromScale(0.72, 0.2)
-	oddsLabel.TextXAlignment = Enum.TextXAlignment.Center
-	oddsLabel.Visible = cloverLuck == nil
+	-- Clover visuals always use their centered multiplier and never display an odds caption.
+	if not isCloverVisual then
+		local oddsLabel = createText(visual, "Odds", formatOdds(item.BaseOdds), 127)
+		oddsLabel.AnchorPoint = Vector2.new(0.5, 1)
+		oddsLabel.Position = UDim2.fromScale(0.5, 0.985)
+		oddsLabel.Size = UDim2.fromScale(0.72, 0.2)
+		oddsLabel.TextXAlignment = Enum.TextXAlignment.Center
+	end
 
 	if cloverLuck then
 		local luckLabel = createText(visual, "CloverLuck", string.format("x%d\nLUCK", cloverLuck), 129)
@@ -211,6 +213,9 @@ local function createReel(parent: Frame, packet)
 
 	local resultScale
 	local entryScales = {}
+	local passingCloverLuck = if isClover
+		then packet.luckMultiplier
+		else math.min(math.max(packet.luckMultiplier * 2, 2), MAXIMUM_CLOVER_LUCK)
 	for index = 1, ENTRY_COUNT do
 		-- Trailing decoys remain after the authoritative result so the stopped reel still shows what follows it.
 		local item = if index == RESULT_INDEX
@@ -221,7 +226,8 @@ local function createReel(parent: Frame, packet)
 			item,
 			index,
 			index == RESULT_INDEX,
-			if isClover and index == RESULT_INDEX then packet.luckMultiplier else nil
+			-- Every clover, including passing decoys, shows the multiplier it represents in the center.
+			if item == CLOVER_VISUAL then passingCloverLuck else nil
 		)
 		entryScales[index] = entryScale
 		if index == RESULT_INDEX then

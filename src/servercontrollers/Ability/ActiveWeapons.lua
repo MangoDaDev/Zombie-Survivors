@@ -60,13 +60,10 @@ local function getPointToSegmentDistance(point: Vector3, segmentStart: Vector3, 
 	return (point - segmentStart:Lerp(segmentEnd, alpha)).Magnitude
 end
 
-local function damageZombie(player: Player, definition, stats, targetId: number, amount: number, origin: Vector3, knockback: number): boolean
+local function damageZombie(_player: Player, definition, stats, targetId: number, amount: number, origin: Vector3, knockback: number): boolean
 	local rageMultiplier = if stats.IsRage then definition.Rage.KnockbackMultiplier or 1 else 1
 	local damaged = ZombieController.DamageZombie(targetId, math.max(1, math.floor(amount + 0.5)), origin, knockback * rageMultiplier)
-	if damaged then
-		-- All new weapon damage and Rage gain stays behind this server-confirmed zombie lookup.
-		RageController.AddCombatRage(player, definition.Rage.RagePerHit)
-	end
+	-- Damage remains authoritative even though projectile presentation is latency-compensated on clients.
 	return damaged
 end
 
@@ -429,6 +426,7 @@ local function attackBoomerang(player: Player, _runtime, stats, root: BasePart):
 		local angle = math.rad((alpha - 0.5) * fanWidth)
 		local direction = CFrame.fromAxisAngle(Vector3.yAxis, angle):VectorToWorldSpace(baseDirection).Unit
 		local id = nextId()
+		local spawnedAt = workspace:GetServerTimeNow()
 		local startPosition = origin
 			+ root.CFrame.RightVector * (projectileIndex - (stats.ProjectileCount + 1) * 0.5) * 0.45
 		table.insert(projectiles, {
@@ -458,8 +456,11 @@ local function attackBoomerang(player: Player, _runtime, stats, root: BasePart):
 			outwardSpeed = definition.Combat.OutboundSpeed,
 			returnSpeed = definition.Combat.OutboundSpeed * stats.ReturnSpeedMultiplier,
 			turnDuration = definition.Combat.TurnDuration,
+			turnRadius = math.max(1.2, stats.HitRadius),
+			turnSide = if projectileIndex % 2 == 0 then -1 else 1,
 			scale = stats.ProjectileScale,
 			rage = stats.IsRage == true,
+			serverTime = spawnedAt,
 		})
 	end
 	return true
@@ -556,6 +557,8 @@ local function sendBoomerangPhase(projectile, phase: string)
 		position = projectile.position,
 		direction = projectile.direction,
 		range = projectile.outwardRange,
+		turnRadius = math.max(1.2, projectile.stats.HitRadius),
+		serverTime = workspace:GetServerTimeNow(),
 	})
 end
 

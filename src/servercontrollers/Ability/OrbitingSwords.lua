@@ -131,7 +131,6 @@ local function applySwordDamage(
 	if not damaged then
 		return
 	end
-	RageController.AddCombatRage(player, definition.Rage.RagePerHit)
 	if stats.Wounded then
 		-- Each successful hit consumes the prior wound bonus and refreshes it for the next Sword hit.
 		runtime.woundedUntil[targetId] = now + definition.Combat.WoundDuration

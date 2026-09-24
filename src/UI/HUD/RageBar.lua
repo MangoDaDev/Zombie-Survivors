@@ -26,24 +26,25 @@ end
 return function()
 	local initialState = RageController.GetState()
 	local state = source(initialState)
-	local progressTarget = source(initialState.rage / RageConfig.Maximum)
+	local displayRage = source(initialState.rage)
+	local progressTarget = source(displayRage() / RageConfig.Maximum)
 	local remaining = source(RageController.GetRemainingDuration())
 	local smoothProgress = spring(progressTarget, 0.2, 0.88)
 	local flash: Frame?
 	local glow: ImageLabel?
 	local barScale: UIScale?
-	local activeRenderConnection: RBXScriptConnection?
+	local progressRenderConnection: RBXScriptConnection?
 	local readyTween: Tween?
 	local connections = {}
 
 	local ready = derive(function()
-		return not state().active and state().rage >= RageConfig.Maximum
+		return not state().active and displayRage() >= RageConfig.Maximum
 	end)
 
 	local function stopActiveRender()
-		if activeRenderConnection then
-			activeRenderConnection:Disconnect()
-			activeRenderConnection = nil
+		if progressRenderConnection then
+			progressRenderConnection:Disconnect()
+			progressRenderConnection = nil
 		end
 	end
 
@@ -53,7 +54,7 @@ return function()
 			readyTween = nil
 		end
 		if glow then
-			local chargeAlpha = math.clamp(state().rage / RageConfig.Maximum, 0, 1)
+			local chargeAlpha = math.clamp(displayRage() / RageConfig.Maximum, 0, 1)
 			-- The aura steadily strengthens with charge, then becomes an unmistakable pulse at full Rage.
 			glow.ImageTransparency = if ready()
 				then 0.42
@@ -72,17 +73,26 @@ return function()
 
 	local function applyState(newState)
 		state(newState)
+		displayRage(newState.rage)
 		stopActiveRender()
-		if newState.active then
-			activeRenderConnection = RunService.RenderStepped:Connect(function()
+		progressRenderConnection = RunService.RenderStepped:Connect(function()
+			if newState.active then
 				local durationRemaining = RageController.GetRemainingDuration()
 				remaining(durationRemaining)
 				progressTarget(math.clamp(durationRemaining / RageConfig.Duration, 0, 1))
-			end)
-		else
-			remaining(0)
-			progressTarget(newState.rage / RageConfig.Maximum)
-		end
+			else
+				local wasReady = displayRage() >= RageConfig.Maximum
+				local currentRage = RageController.GetCurrentRage()
+				displayRage(currentRage)
+				remaining(0)
+				progressTarget(currentRage / RageConfig.Maximum)
+				if not wasReady and currentRage >= RageConfig.Maximum then
+					updateReadyPulse()
+				elseif not ready() and glow then
+					glow.ImageTransparency = 0.88 - math.clamp(currentRage / RageConfig.Maximum, 0, 1) * 0.36
+				end
+			end
+		end)
 		updateReadyPulse()
 	end
 
@@ -111,6 +121,7 @@ return function()
 			TweenService:Create(barScale, TweenInfo.new(0.3, Enum.EasingStyle.Quad), { Scale = 1 }):Play()
 		end
 	end))
+	applyState(initialState)
 	cleanup(function()
 		stopActiveRender()
 		if readyTween then
@@ -227,7 +238,7 @@ return function()
 						elseif ready() then
 							return "RAGE READY  -  PRESS R"
 						end
-						return string.format("RAGE  %d%%", math.floor(state().rage + 0.5))
+						return string.format("RAGE  %d%%", math.floor(displayRage() + 0.5))
 					end,
 					TextColor3 = UIStyle.Colors.Paper,
 					TextScaled = true,

@@ -133,14 +133,10 @@ local function sendResult(player: Player, success: boolean, message: string, mil
 	abilityNetwork:fire(player, "ActionResult", success, message, milestone == true)
 end
 
-local function damageZombie(player: Player, definition, targetId: number, damage: number, hitOrigin: Vector3, isRage: boolean)
+local function damageZombie(_player: Player, definition, targetId: number, damage: number, hitOrigin: Vector3, isRage: boolean)
 	local knockback = definition.Combat.Knockback
 		* (if isRage then definition.Rage.KnockbackMultiplier or 1 else 1)
-	local damaged = ZombieController.DamageZombie(targetId, damage, hitOrigin, knockback)
-	if damaged and definition.Rage then
-		-- Rage is earned only from server-confirmed combat, never from projectile presentation or client input.
-		RageController.AddCombatRage(player, definition.Rage.RagePerHit)
-	end
+	ZombieController.DamageZombie(targetId, damage, hitOrigin, knockback)
 end
 
 local function fireDaggerVolley(player: Player, definition, level: number): boolean

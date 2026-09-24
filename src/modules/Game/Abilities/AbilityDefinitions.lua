@@ -100,15 +100,15 @@ local dagger = {
 		Knockback = 15,
 	},
 	Rage = {
-		RagePerHit = 7,
-		Cooldown = 0.24,
-		Range = 135,
-		ProjectileSpeed = 105,
-		AdditionalDaggers = 3,
-		MaximumDaggers = 8,
-		ProjectileScaleMultiplier = 1.28,
-		KnockbackMultiplier = 1.35,
-		VolleyStagger = 0.04,
+		-- Rage is a short, readable boost rather than a many-fold replacement for normal ability balance.
+		CooldownMultiplier = 0.7,
+		Range = 110,
+		ProjectileSpeed = 82,
+		AdditionalDaggers = 1,
+		MaximumDaggers = 6,
+		ProjectileScaleMultiplier = 1.1,
+		KnockbackMultiplier = 1.1,
+		VolleyStagger = 0.06,
 	},
 	Milestones = {
 		{ Level = 5, Description = "Throws 2 Daggers" },
@@ -135,7 +135,7 @@ function dagger.GetRageStats(level: number)
 		Damage = normalStats.Damage,
 		ProjectileScale = normalStats.ProjectileScale * dagger.Rage.ProjectileScaleMultiplier,
 		DaggerCount = math.min(normalStats.DaggerCount + dagger.Rage.AdditionalDaggers, dagger.Rage.MaximumDaggers),
-		Cooldown = dagger.Rage.Cooldown,
+		Cooldown = dagger.Combat.Cooldown * dagger.Rage.CooldownMultiplier,
 		Range = dagger.Rage.Range,
 		ProjectileSpeed = dagger.Rage.ProjectileSpeed,
 		VolleyStagger = dagger.Rage.VolleyStagger,
@@ -207,12 +207,11 @@ local orbitingSwords = {
 		Knockback = 8,
 	},
 	Rage = {
-		RagePerHit = 3,
-		RadiusMultiplier = 1.15,
-		ScaleMultiplier = 1.2,
-		RotationSpeedMultiplier = 2.4,
-		AdditionalSwords = 2,
-		KnockbackMultiplier = 1.4,
+		RadiusMultiplier = 1.05,
+		ScaleMultiplier = 1.08,
+		RotationSpeedMultiplier = 1.35,
+		AdditionalSwords = 1,
+		KnockbackMultiplier = 1.1,
 	},
 	Milestones = {
 		{ Level = 5, Description = "Twin Blades - adds a second sword opposite the first" },
@@ -357,14 +356,13 @@ local fireball = {
 		},
 	},
 	Rage = {
-		RagePerHit = 1.5,
-		Cooldown = 0.42,
-		AdditionalProjectiles = 2,
-		MaximumProjectiles = 7,
-		ExplosionRadiusMultiplier = 1.25,
-		ProjectileScaleMultiplier = 1.3,
-		ProjectileSpeed = 46,
-		KnockbackMultiplier = 1.35,
+		CooldownMultiplier = 0.72,
+		AdditionalProjectiles = 1,
+		MaximumProjectiles = 5,
+		ExplosionRadiusMultiplier = 1.1,
+		ProjectileScaleMultiplier = 1.1,
+		ProjectileSpeed = 42,
+		KnockbackMultiplier = 1.1,
 		MeteorHeight = 22,
 	},
 	Milestones = {
@@ -431,7 +429,7 @@ function fireball.GetRageStats(level: number)
 		fireball.Combat.MaximumExplosionRadius * fireball.Rage.ExplosionRadiusMultiplier
 	)
 	stats.ProjectileScale *= fireball.Rage.ProjectileScaleMultiplier
-	stats.Cooldown = fireball.Rage.Cooldown
+	stats.Cooldown *= fireball.Rage.CooldownMultiplier
 	stats.ProjectileSpeed = fireball.Rage.ProjectileSpeed
 	stats.IsRage = true
 	return stats
@@ -501,13 +499,12 @@ local lightning = {
 		Knockback = 5,
 	},
 	Rage = {
-		RagePerHit = 2,
-		Cooldown = 0.36,
-		AdditionalTargets = 3,
-		MaximumTargets = 12,
-		ChainRangeMultiplier = 1.4,
-		ChainCount = 3,
-		KnockbackMultiplier = 1.25,
+		CooldownMultiplier = 0.72,
+		AdditionalTargets = 1,
+		MaximumTargets = 10,
+		ChainRangeMultiplier = 1.15,
+		ChainCount = 1,
+		KnockbackMultiplier = 1.1,
 	},
 	Milestones = {
 		{ Level = 5, Description = "Long Chain - increase maximum targets from 3 to 5" },
@@ -545,7 +542,7 @@ end
 
 function lightning.GetRageStats(level: number)
 	local stats = lightning.GetStats(level)
-	stats.Cooldown = lightning.Rage.Cooldown
+	stats.Cooldown *= lightning.Rage.CooldownMultiplier
 	stats.MaximumTargets = math.min(stats.MaximumTargets + lightning.Rage.AdditionalTargets, lightning.Rage.MaximumTargets)
 	stats.ChainRange *= lightning.Rage.ChainRangeMultiplier
 	stats.ChainCount = lightning.Rage.ChainCount
@@ -633,14 +630,13 @@ local boomerang = {
 		MaximumHitsPerStep = 20,
 	},
 	Rage = {
-		RagePerHit = 2.5,
-		Cooldown = 0.48,
-		AdditionalProjectiles = 2,
-		MaximumProjectiles = 5,
-		ScaleMultiplier = 1.3,
-		RangeMultiplier = 1.25,
-		ReturnSpeedMultiplier = 2.4,
-		KnockbackMultiplier = 1.3,
+		CooldownMultiplier = 0.72,
+		AdditionalProjectiles = 1,
+		MaximumProjectiles = 4,
+		ScaleMultiplier = 1.1,
+		RangeMultiplier = 1.1,
+		ReturnSpeedMultiplier = 1.15,
+		KnockbackMultiplier = 1.1,
 	},
 	Milestones = {
 		{ Level = 5, Description = "Dangerous Return - returning Boomerangs deal additional damage" },
@@ -691,14 +687,14 @@ end
 
 function boomerang.GetRageStats(level: number)
 	local stats = boomerang.GetStats(level)
-	stats.Cooldown = boomerang.Rage.Cooldown
+	stats.Cooldown *= boomerang.Rage.CooldownMultiplier
 	stats.ProjectileCount = math.min(
 		stats.ProjectileCount + boomerang.Rage.AdditionalProjectiles,
 		boomerang.Rage.MaximumProjectiles
 	)
 	stats.ProjectileScale *= boomerang.Rage.ScaleMultiplier
 	stats.Range *= boomerang.Rage.RangeMultiplier
-	stats.ReturnSpeedMultiplier = boomerang.Rage.ReturnSpeedMultiplier
+	stats.ReturnSpeedMultiplier *= boomerang.Rage.ReturnSpeedMultiplier
 	stats.IsRage = true
 	return stats
 end

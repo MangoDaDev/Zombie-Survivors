@@ -10,6 +10,7 @@ local ZombieController = require(script.Parent.Parent.ZombieController)
 
 local BOOMERANG_HOMING_SPEED = 7
 local BOOMERANG_RETURN_DISTANCE = 2.6
+local BOOMERANG_CORRECTION_SPEED = 18
 
 local ActiveWeaponEffects = {}
 
@@ -65,11 +66,11 @@ local function addTrail(part: BasePart, rage: boolean, fire: boolean): Trail
 		elseif rage
 		then ColorSequence.new(Color3.fromRGB(255, 242, 116), Color3.fromRGB(255, 105, 38))
 		else ColorSequence.new(Color3.fromRGB(255, 230, 130), Color3.fromRGB(255, 157, 55))
-	trail.LightEmission = 1
+	trail.LightEmission = 0.75
 	trail.Lifetime = if rage then 0.3 else 0.2
 	trail.MinLength = 0.05
 	trail.Transparency = NumberSequence.new(0.12, 1)
-	trail.WidthScale = NumberSequence.new(if rage then 1.45 else 1, 0)
+	trail.WidthScale = NumberSequence.new(if rage then 1.2 else 1, 0)
 	trail.Parent = part
 	return trail
 end
@@ -97,9 +98,9 @@ local function createFireballModel(scale: number, rage: boolean): Model?
 	highlight.Adornee = model
 	highlight.DepthMode = Enum.HighlightDepthMode.Occluded
 	highlight.FillColor = if rage then Color3.fromRGB(255, 68, 18) else Color3.fromRGB(255, 126, 31)
-	highlight.FillTransparency = if rage then 0.36 else 0.55
+	highlight.FillTransparency = if rage then 0.55 else 0.58
 	highlight.OutlineColor = Color3.fromRGB(255, 239, 126)
-	highlight.OutlineTransparency = 0.12
+	highlight.OutlineTransparency = if rage then 0.3 else 0.2
 	highlight.Parent = model
 	model.Parent = effectsFolder
 	return model
@@ -157,8 +158,8 @@ local function createBoomerangModel(scale: number, rage: boolean): Model?
 	if rage then
 		local light = Instance.new("PointLight")
 		light.Color = Color3.fromRGB(255, 126, 35)
-		light.Brightness = 2
-		light.Range = 7
+		light.Brightness = 0.9
+		light.Range = 5
 		light.Parent = primaryPart
 	end
 	model.Parent = effectsFolder
@@ -191,7 +192,7 @@ local function pulseScreen()
 	blur.Name = "FireballImpactBlur"
 	blur.Size = 0
 	blur.Parent = Lighting
-	local grow = TweenService:Create(blur, TweenInfo.new(0.06), { Size = 2.5 })
+	local grow = TweenService:Create(blur, TweenInfo.new(0.06), { Size = 1.35 })
 	local fade = TweenService:Create(blur, TweenInfo.new(0.14), { Size = 0 })
 	grow.Completed:Connect(function()
 		if blur.Parent then
@@ -208,8 +209,8 @@ local function playExplosion(position: Vector3, radius: number, rage: boolean, e
 	if flash then
 		local light = Instance.new("PointLight")
 		light.Color = color
-		light.Brightness = if rage or empowered then 5 else 3
-		light.Range = radius * 2
+		light.Brightness = if rage or empowered then 2.6 else 2
+		light.Range = radius * 1.35
 		light.Parent = flash
 		TweenService:Create(
 			flash,
@@ -365,8 +366,8 @@ local function playLightningImpact(position: Vector3, rage: boolean, final: bool
 	if flash then
 		local light = Instance.new("PointLight")
 		light.Color = flash.Color
-		light.Brightness = if final then 4.5 else if rage then 3.5 else 2.5
-		light.Range = if final then 10 else 7
+		light.Brightness = if final then 3 else if rage then 2.2 else 2
+		light.Range = if final then 8 else 6
 		light.Parent = flash
 		TweenService:Create(flash, TweenInfo.new(0.16), {
 			Size = Vector3.one * (if final then 4.2 else 2.5),
@@ -392,6 +393,58 @@ local function playLightningImpact(position: Vector3, rage: boolean, final: bool
 			random:NextNumber(0.1, 0.17),
 			"LightningImpactSpark"
 		)
+	end
+end
+
+local function advanceBoomerangStep(projectile, deltaTime: number)
+	if projectile.phase == "Outward" then
+		local stepDistance = math.min(projectile.outwardSpeed * deltaTime, projectile.range - projectile.phaseDistance)
+		projectile.position += projectile.direction * math.max(stepDistance, 0)
+		projectile.phaseDistance += math.max(stepDistance, 0)
+		if projectile.phaseDistance >= projectile.range then
+			projectile.phase = "Turning"
+			projectile.turnElapsed = 0
+			projectile.turnStartPosition = projectile.position
+			projectile.turnStartDirection = projectile.direction
+		end
+	elseif projectile.phase == "Turning" then
+		projectile.turnElapsed = math.min(projectile.turnElapsed + deltaTime, projectile.turnDuration)
+		local alpha = projectile.turnElapsed / projectile.turnDuration
+		local angle = alpha * math.pi
+		local side = Vector3.new(-projectile.turnStartDirection.Z, 0, projectile.turnStartDirection.X)
+			* projectile.turnSide
+		projectile.position = projectile.turnStartPosition
+			+ projectile.turnStartDirection * math.sin(angle) * projectile.turnRadius
+			+ side * (1 - math.cos(angle)) * projectile.turnRadius
+		if alpha >= 1 then
+			projectile.phase = "Return"
+			projectile.direction = -projectile.turnStartDirection
+		end
+	else
+		local owner = Players:GetPlayerByUserId(projectile.ownerUserId)
+		local root = owner and owner.Character and owner.Character:FindFirstChild("HumanoidRootPart")
+		if root and root:IsA("BasePart") then
+			local offset = root.Position + Vector3.new(0, 1.3, 0) - projectile.position
+			if offset.Magnitude > BOOMERANG_RETURN_DISTANCE then
+				local desiredDirection = offset.Unit
+				local blended = projectile.direction:Lerp(
+					desiredDirection,
+					math.clamp(deltaTime * BOOMERANG_HOMING_SPEED, 0, 1)
+				)
+				projectile.direction = if blended.Magnitude > 0.001 then blended.Unit else desiredDirection
+				projectile.position += projectile.direction * projectile.returnSpeed * deltaTime
+			end
+		end
+	end
+end
+
+local function advanceBoomerang(projectile, deltaTime: number)
+	-- Timestamp catch-up is subdivided so homing and turns remain stable after delayed packets.
+	local remaining = math.clamp(deltaTime, 0, 2)
+	while remaining > 0.0001 do
+		local step = math.min(remaining, 1 / 30)
+		advanceBoomerangStep(projectile, step)
+		remaining -= step
 	end
 end
 
@@ -526,8 +579,8 @@ function ActiveWeaponEffects.FireballGroundCreated(packet)
 	area.Parent = effectsFolder
 	local light = Instance.new("PointLight")
 	light.Color = area.Color
-	light.Brightness = if packet.rage then 1.6 else 1
-	light.Range = packet.radius * 1.4
+	light.Brightness = if packet.rage then 0.9 else 0.65
+	light.Range = packet.radius
 	light.Parent = area
 	grounds[packet.id] = {
 		part = area,
@@ -613,8 +666,12 @@ function ActiveWeaponEffects.BoomerangSpawned(packet)
 		or packet.returnSpeed <= 0
 		or not isFiniteNumber(packet.turnDuration)
 		or packet.turnDuration <= 0
+		or not isFiniteNumber(packet.turnRadius)
+		or packet.turnRadius <= 0
+		or (packet.turnSide ~= -1 and packet.turnSide ~= 1)
 		or not isFiniteNumber(packet.scale)
 		or packet.scale <= 0
+		or not isFiniteNumber(packet.serverTime)
 		or type(packet.rage) ~= "boolean"
 	then
 		return
@@ -623,23 +680,29 @@ function ActiveWeaponEffects.BoomerangSpawned(packet)
 	if not model then
 		return
 	end
-	model:PivotTo(CFrame.new(packet.startPosition))
-	boomerangs[packet.id] = {
+	local projectile = {
 		model = model,
 		ownerUserId = packet.ownerUserId,
 		position = packet.startPosition,
+		visualPosition = packet.startPosition,
 		direction = packet.direction.Unit,
+		visualDirection = packet.direction.Unit,
 		phase = "Outward",
 		phaseDistance = 0,
 		range = packet.range,
 		outwardSpeed = packet.outwardSpeed,
 		returnSpeed = packet.returnSpeed,
 		turnDuration = packet.turnDuration,
+		turnRadius = packet.turnRadius,
 		turnElapsed = 0,
-		turnSide = if packet.id % 2 == 0 then -1 else 1,
+		turnSide = packet.turnSide,
 		spin = 0,
 		rage = packet.rage,
 	}
+	-- Gameplay has already advanced on the server; catch up the cosmetic state without granting client authority.
+	advanceBoomerang(projectile, Workspace:GetServerTimeNow() - packet.serverTime)
+	model:PivotTo(CFrame.lookAt(projectile.visualPosition, projectile.visualPosition + projectile.visualDirection))
+	boomerangs[packet.id] = projectile
 	Sounds.Play("Swoosh", model.PrimaryPart, 120)
 end
 
@@ -650,6 +713,9 @@ function ActiveWeaponEffects.BoomerangPhaseChanged(packet)
 		or typeof(packet.position) ~= "Vector3"
 		or typeof(packet.direction) ~= "Vector3"
 		or not isFiniteNumber(packet.range)
+		or not isFiniteNumber(packet.turnRadius)
+		or packet.turnRadius <= 0
+		or not isFiniteNumber(packet.serverTime)
 	then
 		return
 	end
@@ -657,8 +723,12 @@ function ActiveWeaponEffects.BoomerangPhaseChanged(packet)
 	if not projectile then
 		return
 	end
+	if packet.phase ~= "Turning" and packet.phase ~= "Return" and packet.phase ~= "BonusLoop" then
+		return
+	end
 	projectile.position = packet.position
 	projectile.direction = packet.direction.Magnitude > 0.001 and packet.direction.Unit or projectile.direction
+	projectile.turnRadius = packet.turnRadius
 	if packet.phase == "Turning" then
 		projectile.phase = "Turning"
 		projectile.turnElapsed = 0
@@ -677,6 +747,8 @@ function ActiveWeaponEffects.BoomerangPhaseChanged(packet)
 		projectile.phaseDistance = 0
 		projectile.range = packet.range
 	end
+	-- Correct logical state to the authoritative phase, then visually blend instead of snapping under latency.
+	advanceBoomerang(projectile, Workspace:GetServerTimeNow() - packet.serverTime)
 end
 
 function ActiveWeaponEffects.BoomerangHit(packet)
@@ -752,48 +824,16 @@ function ActiveWeaponEffects.Render(now: number, deltaTime: number)
 			boomerangs[id] = nil
 			continue
 		end
-		if projectile.phase == "Outward" then
-			local stepDistance = math.min(projectile.outwardSpeed * deltaTime, projectile.range - projectile.phaseDistance)
-			projectile.position += projectile.direction * math.max(stepDistance, 0)
-			projectile.phaseDistance += math.max(stepDistance, 0)
-			if projectile.phaseDistance >= projectile.range then
-				projectile.phase = "Turning"
-				projectile.turnElapsed = 0
-				projectile.turnStartPosition = projectile.position
-				projectile.turnStartDirection = projectile.direction
-			end
-		elseif projectile.phase == "Turning" then
-			projectile.turnElapsed = math.min(projectile.turnElapsed + deltaTime, projectile.turnDuration)
-			local alpha = projectile.turnElapsed / projectile.turnDuration
-			local angle = alpha * math.pi
-			local radius = 1.5
-			local side = Vector3.new(-projectile.turnStartDirection.Z, 0, projectile.turnStartDirection.X)
-				* projectile.turnSide
-			projectile.position = projectile.turnStartPosition
-				+ projectile.turnStartDirection * math.sin(angle) * radius
-				+ side * (1 - math.cos(angle)) * radius
-			if alpha >= 1 then
-				projectile.phase = "Return"
-				projectile.direction = -projectile.turnStartDirection
-			end
-		else
-			local owner = Players:GetPlayerByUserId(projectile.ownerUserId)
-			local root = owner and owner.Character and owner.Character:FindFirstChild("HumanoidRootPart")
-			if root and root:IsA("BasePart") then
-				local offset = root.Position + Vector3.new(0, 1.3, 0) - projectile.position
-				if offset.Magnitude > BOOMERANG_RETURN_DISTANCE then
-					local desiredDirection = offset.Unit
-					local blended = projectile.direction:Lerp(
-						desiredDirection,
-						math.clamp(deltaTime * BOOMERANG_HOMING_SPEED, 0, 1)
-					)
-					projectile.direction = if blended.Magnitude > 0.001 then blended.Unit else desiredDirection
-					projectile.position += projectile.direction * projectile.returnSpeed * deltaTime
-				end
-			end
-		end
+		advanceBoomerang(projectile, math.min(deltaTime, 0.1))
+		local correctionAlpha = 1 - math.exp(-BOOMERANG_CORRECTION_SPEED * math.min(deltaTime, 0.1))
+		projectile.visualPosition = projectile.visualPosition:Lerp(projectile.position, correctionAlpha)
+		local visualDirection = projectile.visualDirection:Lerp(projectile.direction, correctionAlpha)
+		projectile.visualDirection = if visualDirection.Magnitude > 0.001 then visualDirection.Unit else projectile.direction
 		projectile.spin += deltaTime * (if projectile.rage then 16 else 12)
-		local facing = CFrame.lookAt(projectile.position, projectile.position + projectile.direction)
+		local facing = CFrame.lookAt(
+			projectile.visualPosition,
+			projectile.visualPosition + projectile.visualDirection
+		)
 		projectile.model:PivotTo(facing * CFrame.Angles(0, 0, projectile.spin))
 	end
 

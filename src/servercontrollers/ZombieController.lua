@@ -188,9 +188,13 @@ local function buildGroundOffsets()
 			local pivot = template:GetPivot()
 			local boundingCFrame, boundingSize = template:GetBoundingBox()
 			local localBoundingCFrame = pivot:ToObjectSpace(boundingCFrame)
-			groundOffsets[typeName] = -(localBoundingCFrame.Position.Y - boundingSize.Y * 0.5)
-			-- A horizontal bounding circle stays valid for every randomized spawn yaw.
-			local boundaryRadius = Vector2.new(boundingSize.X, boundingSize.Z).Magnitude * 0.5
+			local authoredScale = template:GetScale()
+			-- ZombieView uses ScaleTo with the variation as an absolute scale. Normalize Studio-authored
+			-- template scale first so every type rests on the floor at its actual rendered size.
+			groundOffsets[typeName] = -(localBoundingCFrame.Position.Y - boundingSize.Y * 0.5) / authoredScale
+			-- A normalized horizontal bounding circle stays valid for every randomized spawn yaw and
+			-- keeps the complete rendered model inside its assigned combat floor.
+			local boundaryRadius = Vector2.new(boundingSize.X, boundingSize.Z).Magnitude * 0.5 / authoredScale
 			boundaryRadii[typeName] = boundaryRadius
 			maximumBoundaryRadius = math.max(maximumBoundaryRadius, boundaryRadius)
 		else

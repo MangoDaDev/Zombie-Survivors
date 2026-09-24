@@ -4,6 +4,7 @@ local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
 local Networker = require(ReplicatedStorage.Packages.networker)
+local CoinDropConfig = require(ReplicatedStorage.Modules.Game.CoinDropConfig)
 local Images = require(ReplicatedStorage.Modules.UI.Images)
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
 
@@ -13,7 +14,6 @@ local IDLE_BOB_SPEED = 2.8
 local MERGE_EASE_POWER = 2.4
 local MAGNET_EASE_POWER = 3.4
 local MAGNET_INITIAL_PULL = 0.22
-local MAGNET_DURATION_FALLBACK = 0.4
 local COLLECTED_POP_DURATION = 0.16
 
 type CoinView = {
@@ -42,6 +42,7 @@ local CoinDropController = {}
 local coinNetwork
 local renderConnection
 local effectsFolder
+local nextPredictionAt = 0
 local coinViews: { [number]: CoinView } = {}
 
 local function easeOutCubic(alpha: number): number
@@ -220,6 +221,15 @@ local function getPlayerRoot(userId: number?): BasePart?
 	return if humanoid and humanoid.Health > 0 and root and root:IsA("BasePart") then root else nil
 end
 
+local function startMagnet(view: CoinView, userId: number, startAt: number, duration: number)
+	view.phase = "Magnet"
+	view.startPosition = view.holder.Position
+	view.startAt = startAt
+	view.duration = math.max(duration, 0.05)
+	view.playerUserId = userId
+	view.trail.Enabled = true
+end
+
 local function renderView(view: CoinView, now: number)
 	if view.phase == "Scatter" then
 		local alpha = math.clamp((now - view.startAt) / view.duration, 0, 1)
@@ -344,12 +354,16 @@ function CoinDropController.CollectCoin(_, id, userId, startAt, duration)
 	if not view or type(userId) ~= "number" then
 		return
 	end
-	view.phase = "Magnet"
-	view.startPosition = view.holder.Position
-	view.startAt = type(startAt) == "number" and startAt or Workspace:GetServerTimeNow()
-	view.duration = math.max(type(duration) == "number" and duration or MAGNET_DURATION_FALLBACK, 0.05)
-	view.playerUserId = userId
-	view.trail.Enabled = true
+	if view.phase == "Magnet" and view.playerUserId == userId then
+		-- Preserve predicted progress and ignore duplicate confirmations for the same authoritative collector.
+		return
+	end
+	startMagnet(
+		view,
+		userId,
+		type(startAt) == "number" and startAt or Workspace:GetServerTimeNow(),
+		type(duration) == "number" and duration or CoinDropConfig.CollectionDuration
+	)
 end
 
 function CoinDropController.ReleaseCoin(_, id, position)
@@ -402,11 +416,43 @@ function CoinDropController.DespawnCoins(_, ids)
 	end
 end
 
+local function predictLocalCollections(now: number)
+	if now < nextPredictionAt or not coinNetwork then
+		return
+	end
+	nextPredictionAt = now + CoinDropConfig.PredictionInterval
+
+	local root = getPlayerRoot(Players.LocalPlayer.UserId)
+	if not root then
+		return
+	end
+
+	local predictedIds = {}
+	for id, view in coinViews do
+		local isCollectible = view.phase == "Idle"
+			or (view.phase == "Scatter" and now >= view.startAt + view.duration * 0.72)
+		local collectionPosition = if view.phase == "Scatter" then view.targetPosition else view.position
+		if isCollectible and (root.Position - collectionPosition).Magnitude <= CoinDropConfig.CollectionRadius then
+			-- Prediction only owns presentation; the server validates this claim before it awards any coins.
+			startMagnet(view, Players.LocalPlayer.UserId, now, CoinDropConfig.CollectionDuration)
+			table.insert(predictedIds, id)
+			if #predictedIds >= CoinDropConfig.MaxPredictionBatch then
+				break
+			end
+		end
+	end
+
+	if #predictedIds > 0 then
+		coinNetwork:fire("RequestCollect", predictedIds)
+	end
+end
+
 local function renderCoins()
 	local now = Workspace:GetServerTimeNow()
 	for _, view in coinViews do
 		renderView(view, now)
 	end
+	predictLocalCollections(now)
 end
 
 function CoinDropController.Init()
@@ -415,6 +461,7 @@ function CoinDropController.Init()
 		renderConnection = nil
 	end
 	table.clear(coinViews)
+	nextPredictionAt = 0
 	local oldFolder = Workspace:FindFirstChild("ClientCoinDrops")
 	if oldFolder then
 		oldFolder:Destroy()

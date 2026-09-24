@@ -6,8 +6,9 @@ local Workspace = game:GetService("Workspace")
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
 
 local TAU = math.pi * 2
--- Preserve the orbit-facing CFrame while applying the authored sword's horizontal pitch and extra local-Y quarter turn.
-local MODEL_ORIENTATION = CFrame.Angles(math.rad(90), 0, 0) * CFrame.Angles(0, math.rad(90), 0)
+local ORBIT_CORRECTION_SPEED = 18
+-- Preserve the orbit-facing CFrame while applying the authored sword's horizontal pitch and clockwise local-Y quarter turn.
+local MODEL_ORIENTATION = CFrame.Angles(math.rad(90), 0, 0) * CFrame.Angles(0, math.rad(-90), 0)
 
 local OrbitingSwordsView = {}
 
@@ -53,7 +54,7 @@ local function addSpectralTrail(model: Model, rage: boolean, inner: boolean)
 		elseif inner
 		then ColorSequence.new(Color3.fromRGB(164, 245, 255), Color3.fromRGB(88, 126, 255))
 		else ColorSequence.new(Color3.fromRGB(220, 205, 255), Color3.fromRGB(116, 91, 255))
-	trail.LightEmission = 0.9
+	trail.LightEmission = if rage then 0.65 else 0.8
 	trail.Lifetime = if rage then 0.24 else 0.16
 	trail.MinLength = 0.08
 	trail.Transparency = NumberSequence.new(0.2, 1)
@@ -95,9 +96,9 @@ local function cloneSword(scale: number, rage: boolean, inner: boolean, temporar
 	highlight.Adornee = model
 	highlight.DepthMode = Enum.HighlightDepthMode.Occluded
 	highlight.FillColor = if rage then Color3.fromRGB(255, 75, 32) else Color3.fromRGB(125, 105, 255)
-	highlight.FillTransparency = if temporary then 0.64 else 0.76
+	highlight.FillTransparency = if temporary then 0.74 else 0.8
 	highlight.OutlineColor = if rage then Color3.fromRGB(255, 231, 124) else Color3.fromRGB(207, 235, 255)
-	highlight.OutlineTransparency = 0.18
+	highlight.OutlineTransparency = if rage then 0.34 else 0.24
 	highlight.Parent = model
 	model.Parent = effectsFolder
 	return model
@@ -221,6 +222,9 @@ function OrbitingSwordsView.ApplyState(packet): boolean
 	local view = existing or { models = {} }
 	view.sequence = packet.sequence
 	view.packet = packet
+	if not view.renderAngle then
+		view.renderAngle = (packet.angle + (Workspace:GetServerTimeNow() - packet.serverTime) * packet.rotationSpeed) % TAU
+	end
 	views[packet.ownerUserId] = view
 	local signature = string.format(
 		"%d:%d:%.4f:%d:%d",
@@ -269,7 +273,7 @@ function OrbitingSwordsView.SpawnReleased(packet): boolean
 	return true
 end
 
-function OrbitingSwordsView.Render(now: number)
+function OrbitingSwordsView.Render(now: number, deltaTime: number)
 	for userId, view in views do
 		local player = Players:GetPlayerByUserId(userId)
 		local character = player and player.Character
@@ -278,7 +282,12 @@ function OrbitingSwordsView.Render(now: number)
 			destroyView(userId)
 		elseif root and root:IsA("BasePart") then
 			local packet = view.packet
-			local angle = packet.angle + (now - packet.serverTime) * packet.rotationSpeed
+			local targetAngle = (packet.angle + (now - packet.serverTime) * packet.rotationSpeed) % TAU
+			view.renderAngle = (view.renderAngle + packet.rotationSpeed * math.min(deltaTime, 0.1)) % TAU
+			local correction = (targetAngle - view.renderAngle + math.pi) % TAU - math.pi
+			local correctionAlpha = 1 - math.exp(-ORBIT_CORRECTION_SPEED * math.min(deltaTime, 0.1))
+			view.renderAngle = (view.renderAngle + correction * correctionAlpha) % TAU
+			local angle = view.renderAngle
 			local center = root.Position + Vector3.new(0, 1.2, 0)
 			for _, sword in view.models do
 				local swordAngle

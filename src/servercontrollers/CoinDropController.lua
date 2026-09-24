@@ -4,19 +4,20 @@ local RunService = game:GetService("RunService")
 local ServerStorage = game:GetService("ServerStorage")
 
 local Networker = require(ReplicatedStorage.Packages.networker)
+local CoinDropConfig = require(ReplicatedStorage.Modules.Game.CoinDropConfig)
 local CoinsController = require(ServerStorage.Controllers.CoinsController)
 
 local UPDATE_INTERVAL = 0.1
 local MERGE_INTERVAL = 0.3
-local MERGE_RADIUS = 4.5
+local MERGE_RADIUS = 2.25
 -- Keep drops meaningfully spaced: they scatter wider than the reduced pickup radius and expire after 20 seconds.
-local MAGNET_RADIUS = 9
-local COLLECTION_DURATION = 0.4
 local COIN_LIFETIME = 20
 local MIN_SCATTER_DISTANCE = 5
 local MAX_SCATTER_DISTANCE = 10
 local MAX_ACTIVE_COINS = 120
 local MAX_MERGE_PARTNERS = 7
+local CLIENT_CLAIM_DISTANCE_TOLERANCE = 2.5
+local CLIENT_CLAIM_REQUEST_INTERVAL = 0.04
 
 type CoinState = {
 	id: number,
@@ -38,6 +39,7 @@ local activeCount = 0
 local accumulator = 0
 local mergeAccumulator = 0
 local coins: { [number]: CoinState } = {}
+local lastClientClaimAt: { [Player]: number } = {}
 
 local function getLiveRoot(player: Player): BasePart?
 	local character = player.Character
@@ -247,6 +249,70 @@ local function finishCollections(now: number)
 	end
 end
 
+local function beginCollection(coin: CoinState, player: Player, now: number)
+	coin.collectingPlayer = player
+	coin.collectAt = now + CoinDropConfig.CollectionDuration
+	coinNetwork:fireAll("CollectCoin", coin.id, player.UserId, now, CoinDropConfig.CollectionDuration)
+end
+
+local function sendAuthoritativeCoinState(player: Player, id: number, coin: CoinState?, now: number)
+	if not coin then
+		coinNetwork:fire(player, "DespawnCoins", { id })
+	elseif coin.collectingPlayer then
+		coinNetwork:fire(
+			player,
+			"CollectCoin",
+			id,
+			coin.collectingPlayer.UserId,
+			(coin.collectAt or now) - CoinDropConfig.CollectionDuration,
+			CoinDropConfig.CollectionDuration
+		)
+	else
+		coinNetwork:fire(player, "ReleaseCoin", id, coin.position + Vector3.new(0, 0.35, 0))
+	end
+end
+
+function CoinDropController.RequestCollect(_, player: Player, ids)
+	if type(ids) ~= "table" or player.Parent ~= Players then
+		return
+	end
+
+	local now = workspace:GetServerTimeNow()
+	if now - (lastClientClaimAt[player] or 0) < CLIENT_CLAIM_REQUEST_INTERVAL then
+		return
+	end
+	lastClientClaimAt[player] = now
+
+	local root = getLiveRoot(player)
+	local seen = {}
+	local inspected = 0
+	for _, id in ids do
+		inspected += 1
+		if inspected > CoinDropConfig.MaxPredictionBatch then
+			break
+		end
+		if type(id) ~= "number" or id % 1 ~= 0 or seen[id] then
+			continue
+		end
+		seen[id] = true
+
+		local coin = coins[id]
+		if not coin
+			or coin.collectingPlayer
+			or not root
+			or now < coin.collectibleAt
+			or (root.Position - coin.position).Magnitude
+				> CoinDropConfig.CollectionRadius + CLIENT_CLAIM_DISTANCE_TOLERANCE
+		then
+			-- Reconcile rejected and contested predictions instead of leaving their local animation stuck.
+			sendAuthoritativeCoinState(player, id, coin, now)
+		else
+			-- The server uses its own character position and a small latency allowance; the client never awards value.
+			beginCollection(coin, player, now)
+		end
+	end
+end
+
 local function startCollections(now: number)
 	local candidates = {}
 	for _, player in Players:GetPlayers() do
@@ -260,7 +326,7 @@ local function startCollections(now: number)
 			continue
 		end
 		local nearestPlayer
-		local nearestDistance = MAGNET_RADIUS
+		local nearestDistance = CoinDropConfig.CollectionRadius
 		for _, candidate in candidates do
 			local distance = (candidate.position - coin.position).Magnitude
 			if distance <= nearestDistance then
@@ -269,9 +335,7 @@ local function startCollections(now: number)
 			end
 		end
 		if nearestPlayer then
-			coin.collectingPlayer = nearestPlayer
-			coin.collectAt = now + COLLECTION_DURATION
-			coinNetwork:fireAll("CollectCoin", id, nearestPlayer.UserId, now, COLLECTION_DURATION)
+			beginCollection(coin, nearestPlayer, now)
 		end
 	end
 end
@@ -311,8 +375,13 @@ end
 function CoinDropController.Init()
 	coinNetwork = Networker.server.new("CoinDropController", CoinDropController, {
 		CoinDropController.GetSnapshot,
+		CoinDropController.RequestCollect,
 	})
 	heartbeatConnection = RunService.Heartbeat:Connect(step)
+end
+
+function CoinDropController.OnPlayerRemoving(player: Player)
+	lastClientClaimAt[player] = nil
 end
 
 return CoinDropController

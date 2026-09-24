@@ -16,11 +16,11 @@ Quick reference for the reusable first-party Luau foundation. Generated Wally de
 | --- | --- |
 | `src/controllers/CharacterController.lua` | Requests server-authorized character spawning and manages local camera and respawn behavior. |
 | `src/controllers/AbilityController.lua` | Mirrors authoritative ability state and dispatches validated weapon presentation events. |
-| `src/controllers/Ability/ActiveWeaponEffects.lua` | Renders Fireball projectiles/explosions/burns, Lightning chains, and outbound/returning Boomerang effects from server packets. |
-| `src/controllers/Ability/OrbitingSwordsView.lua` | Renders synchronized horizontal spectral sword orbits, Rage blades, trails, and released-blade return flights. |
+| `src/controllers/Ability/ActiveWeaponEffects.lua` | Renders Fireball, Lightning, and latency-corrected Boomerang presentation from authoritative server packets. |
+| `src/controllers/Ability/OrbitingSwordsView.lua` | Renders smoothly reconciled spectral sword orbits, Rage blades, trails, and released-blade return flights. |
 | `src/controllers/CoinsController.lua` | Exposes the replicated, read-only local coin balance and its change signal. |
 | `src/controllers/CoinDropController.lua` | Renders lit, world-sized BillboardGui coin bursts, trails, smooth merges, expiration, and accelerating server-directed collection. |
-| `src/controllers/RageController.lua` | Validates authoritative Rage snapshots, handles activation input, and owns local character Rage VFX. |
+| `src/controllers/RageController.lua` | Validates authoritative Rage snapshots, predicts activation presentation, and owns local character Rage VFX. |
 | `src/controllers/PlayerStateController.lua` | Receives generic server runtime-state snapshots and updates. |
 | `src/controllers/RollController.lua` | Sends roll intent and validates authoritative item/clover, auto-roll, and completion events for presentation. |
 | `src/controllers/ZombieController.lua` | Receives compact zombie snapshots/damage events and drives the single client render loop. |
@@ -34,7 +34,7 @@ Quick reference for the reusable first-party Luau foundation. Generated Wally de
 | `src/servercontrollers/CollisionController.lua` | Assigns avatar parts to a generic non-colliding player-character collision group. |
 | `src/servercontrollers/CoinsController.lua` | Validates and owns persistent server-authoritative coin balance operations. |
 | `src/servercontrollers/CoinDropController.lua` | Owns zombie coin values, spread, lifetime cleanup, capped spatial merging, proximity claims, and authoritative collection awards. |
-| `src/servercontrollers/RageController.lua` | Owns transient Rage charge, activation validation, duration, death resets, and replication. |
+| `src/servercontrollers/RageController.lua` | Owns the server-timed Rage charge cycle, activation validation, duration, death resets, and replication. |
 | `src/servercontrollers/PlayerStateController.lua` | Owns generic per-player runtime state and replicates requested state updates. |
 | `src/servercontrollers/PlayerStatController.lua` | Composes named player health/speed modifiers, preserves gained health, and applies the final movement-speed limit. |
 | `src/servercontrollers/RollController.lua` | Owns per-player duplicate-inclusive ability rolls, cooldowns, clover luck chains, rewards, and auto-roll scheduling. |
@@ -64,9 +64,10 @@ These modules provide shared game configuration, persistent player-data defaults
 | Path | Responsibility |
 | --- | --- |
 | `src/modules/Game/CoinsConfig.lua` | Defines the shared coin data key, default, and exact-integer balance limit. |
+| `src/modules/Game/CoinDropConfig.lua` | Defines shared coin pickup distance, timing, and client-prediction batching limits. |
 | `src/modules/Game/Abilities/AbilityDefinitions.lua` | Defines expandable ability metadata, equip limits, upgrade costs, per-level stats, visible milestones, and ability-specific Rage tuning, including Fireball, Lightning, and Boomerang. |
 | `src/modules/Game/Stats/PlayerStatConfig.lua` | Defines fallback player base stats and the global final movement-speed limit. |
-| `src/modules/Game/Rage/RageConfig.lua` | Defines shared Rage capacity, duration, keybind, and request cadence. |
+| `src/modules/Game/Rage/RageConfig.lua` | Defines shared Rage capacity, 30-second charge, 10-second duration, keybind, and request cadence. |
 | `src/modules/Game/DataTemplate.lua` | Supplies DataService's JSON-compatible persisted player-data defaults. |
 | `src/modules/Game/Rolls/RollDefinitions.lua` | Builds the weighted roll catalog from obtainable abilities and defines data keys and presentation timing. |
 | `src/modules/Game/RuntimeState.lua` | Stores generic transient per-player state and change signals. |

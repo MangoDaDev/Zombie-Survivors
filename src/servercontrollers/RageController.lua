@@ -6,9 +6,9 @@ local Signal = require(ReplicatedStorage.Packages.signal)
 local RageConfig = require(ReplicatedStorage.Modules.Game.Rage.RageConfig)
 
 type PlayerRuntime = {
-	rage: number,
 	active: boolean,
 	endsAt: number,
+	chargeStartedAt: number,
 	revision: number,
 	activationToken: number,
 	lastActivationRequestAt: number,
@@ -21,37 +21,31 @@ local rageNetwork
 local runtimes: { [Player]: PlayerRuntime } = {}
 local activated = Signal.new()
 
+local function getCurrentRage(runtime: PlayerRuntime, now: number): number
+	if runtime.active then
+		return RageConfig.Maximum
+	end
+	return math.clamp((now - runtime.chargeStartedAt) / RageConfig.ChargeDuration, 0, 1) * RageConfig.Maximum
+end
+
 local function sendState(player: Player, runtime: PlayerRuntime)
+	local now = workspace:GetServerTimeNow()
 	runtime.revision += 1
 	rageNetwork:fire(player, "RageStateChanged", {
-		rage = runtime.rage,
+		rage = getCurrentRage(runtime, now),
 		active = runtime.active,
 		endsAt = runtime.endsAt,
+		chargeStartedAt = runtime.chargeStartedAt,
 		revision = runtime.revision,
 	})
 end
 
-local function clearRage(player: Player, runtime: PlayerRuntime)
+local function clearRage(player: Player, runtime: PlayerRuntime, chargeStartedAt: number?)
 	runtime.activationToken += 1
-	runtime.rage = 0
 	runtime.active = false
 	runtime.endsAt = 0
+	runtime.chargeStartedAt = chargeStartedAt or workspace:GetServerTimeNow()
 	sendState(player, runtime)
-end
-
-function RageController.AddCombatRage(player: Player, amount: number): boolean
-	local runtime = runtimes[player]
-	if not runtime or runtime.active or type(amount) ~= "number" or amount <= 0 or amount ~= amount then
-		return false
-	end
-
-	local updated = math.clamp(runtime.rage + amount, 0, RageConfig.Maximum)
-	if updated == runtime.rage then
-		return false
-	end
-	runtime.rage = updated
-	sendState(player, runtime)
-	return true
 end
 
 function RageController.IsActive(player: Player): boolean
@@ -73,15 +67,16 @@ function RageController.ActivateRage(_, player: Player)
 
 	local character = player.Character
 	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-	-- The request contains no meter or duration values; only server-owned combat can fill and activate Rage.
-	if runtime.active or runtime.rage < RageConfig.Maximum or not humanoid or humanoid.Health <= 0 then
+	-- The request contains no meter or duration values; only the server-owned timer can fill and activate Rage.
+	-- The client predicts only presentation; this server-time check remains authoritative for activation and duration.
+	if runtime.active or getCurrentRage(runtime, now) < RageConfig.Maximum or not humanoid or humanoid.Health <= 0 then
+		sendState(player, runtime)
 		return
 	end
 
 	runtime.activationToken += 1
 	local token = runtime.activationToken
 	runtime.active = true
-	runtime.rage = RageConfig.Maximum
 	runtime.endsAt = now + RageConfig.Duration
 	sendState(player, runtime)
 	activated:Fire(player)
@@ -90,7 +85,8 @@ function RageController.ActivateRage(_, player: Player)
 		if runtimes[player] ~= runtime or runtime.activationToken ~= token or not runtime.active then
 			return
 		end
-		clearRage(player, runtime)
+		-- Charge resumes from the authoritative end timestamp even if this delayed task runs a frame late.
+		clearRage(player, runtime, runtime.endsAt)
 	end)
 end
 
@@ -105,10 +101,11 @@ function RageController.Init()
 end
 
 function RageController.OnPlayerAdded(player: Player)
+	local now = workspace:GetServerTimeNow()
 	runtimes[player] = {
-		rage = 0,
 		active = false,
 		endsAt = 0,
+		chargeStartedAt = now,
 		revision = 0,
 		activationToken = 0,
 		lastActivationRequestAt = -math.huge,
