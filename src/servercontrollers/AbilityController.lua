@@ -7,6 +7,7 @@ local AbilityDefinitions = require(ReplicatedStorage.Modules.Game.Abilities.Abil
 local RollDefinitions = require(ReplicatedStorage.Modules.Game.Rolls.RollDefinitions)
 local CoinsController = require(ServerStorage.Controllers.CoinsController)
 local RageController = require(ServerStorage.Controllers.RageController)
+local RunRewardsController = require(ServerStorage.Controllers.RunRewardsController)
 local ZombieController = require(ServerStorage.Controllers.ZombieController)
 local ActiveWeapons = require(script.Parent.Ability.ActiveWeapons)
 local OrbitingSwords = require(script.Parent.Ability.OrbitingSwords)
@@ -148,6 +149,10 @@ local function fireDaggerVolley(player: Player, definition, level: number): bool
 	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 	local root = character and character:FindFirstChild("HumanoidRootPart")
 	if not humanoid or humanoid.Health <= 0 or not root or not root:IsA("BasePart") then
+		return false
+	end
+	-- Safe-area players retain their loadout, but weapons must not acquire targets until they leave.
+	if RunRewardsController.IsInSafeArea(player) then
 		return false
 	end
 

@@ -5,6 +5,7 @@ local ServerStorage = game:GetService("ServerStorage")
 
 local AbilityDefinitions = require(ReplicatedStorage.Modules.Game.Abilities.AbilityDefinitions)
 local PlayerStatController = require(ServerStorage.Controllers.PlayerStatController)
+local RunRewardsController = require(ServerStorage.Controllers.RunRewardsController)
 local ZombieController = require(ServerStorage.Controllers.ZombieController)
 
 local HEART_MODIFIER_ID = "Ability:Heart"
@@ -303,7 +304,7 @@ end
 local function applyBurn(player: Player, targetId: number, now: number)
 	local runtime = runtimes[player]
 	local level = runtime and runtime.burnLevel
-	if not level or not ZombieController.GetZombiePosition(targetId) then
+	if not level or RunRewardsController.IsInSafeArea(player) or not ZombieController.GetZombiePosition(targetId) then
 		return
 	end
 
@@ -343,7 +344,7 @@ local function applyBlastExplosion(
 	secondary: boolean
 )
 	local runtime = runtimes[player]
-	if not runtime or not runtime.blastLevel then
+	if not runtime or not runtime.blastLevel or RunRewardsController.IsInSafeArea(player) then
 		return
 	end
 
@@ -409,7 +410,7 @@ end
 local function spreadBurn(position: Vector3, burnState, now: number)
 	local runtime = runtimes[burnState.player]
 	local level = runtime and runtime.burnLevel
-	if not level then
+	if not level or RunRewardsController.IsInSafeArea(burnState.player) then
 		return
 	end
 
@@ -430,7 +431,7 @@ local function onZombieDamaged(targetId, position, _actualDamage, killed, damage
 	end
 	local player = damageContext.player
 	local runtime = typeof(player) == "Instance" and player:IsA("Player") and runtimes[player]
-	if not runtime then
+	if not runtime or RunRewardsController.IsInSafeArea(player) then
 		return
 	end
 
@@ -476,7 +477,7 @@ end
 local function onPlayerDamagedByZombie(player: Player, attackerId: number, attackerPosition: Vector3, actualDamage: number)
 	local runtime = runtimes[player]
 	local level = runtime and runtime.thornsLevel
-	if not level or actualDamage <= 0 then
+	if not level or actualDamage <= 0 or RunRewardsController.IsInSafeArea(player) then
 		return
 	end
 
@@ -529,7 +530,12 @@ local function stepBurns()
 	nextBurnUpdateAt = now + BURN_UPDATE_INTERVAL
 	for targetId, burnState in burns do
 		local runtime = runtimes[burnState.player]
-		if burnState.player.Parent ~= Players or not runtime or not runtime.burnLevel or now >= burnState.expiresAt then
+		if burnState.player.Parent ~= Players
+			or not runtime
+			or not runtime.burnLevel
+			or RunRewardsController.IsInSafeArea(burnState.player)
+			or now >= burnState.expiresAt
+		then
 			removeBurn(targetId)
 		elseif now >= burnState.nextTickAt then
 			local position = ZombieController.GetZombiePosition(targetId)

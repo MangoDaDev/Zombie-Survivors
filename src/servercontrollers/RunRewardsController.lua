@@ -166,6 +166,13 @@ function RunRewardsController.AddCoins(player: Player, amount: number): boolean
 	return true
 end
 
+function RunRewardsController.IsInSafeArea(player: Player): boolean
+	local root = getLiveRoot(player)
+	-- Combat checks use the live authoritative position so crossing the boundary takes effect immediately,
+	-- independently of the lower-frequency replication/update interval used by the HUD and reward claims.
+	return root ~= nil and isInSafeArea(root)
+end
+
 function RunRewardsController.GetState(_, player: Player)
 	local rewards = rewardsByPlayer[player]
 	return {

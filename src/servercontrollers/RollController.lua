@@ -24,6 +24,7 @@ type PlayerRollState = {
 	presentationHidden: boolean,
 	rollId: number,
 	settingsRequested: boolean,
+	totalRolls: number,
 	token: number,
 }
 
@@ -56,13 +57,19 @@ local function selectItem(state: PlayerRollState, luckMultiplier: number)
 	return GetRandomFromWeightedTable(RollDefinitions.Items, "Weight", random, state.luck * luckMultiplier)
 end
 
-local function incrementTotalRolls(player: Player)
-	dataService:update(player, RollDefinitions.TotalRollsDataKey, function(currentTotal)
+local function normalizeTotalRolls(value): number
+	return if type(value) == "number" and value >= 0 and value % 1 == 0 then value else 0
+end
+
+local function incrementTotalRolls(player: Player, state: PlayerRollState)
+	local totalRolls = dataService:update(player, RollDefinitions.TotalRollsDataKey, function(currentTotal)
 		local validTotal = if type(currentTotal) == "number" and currentTotal >= 0 and currentTotal % 1 == 0
 			then currentTotal
 			else 0
 		return math.min(validTotal + 1, MAX_PERSISTED_COUNT)
 	end)
+	state.totalRolls = totalRolls
+	rollNetwork:fire(player, "TotalRollsChanged", totalRolls)
 end
 
 local function awardItem(player: Player, state: PlayerRollState, item, amount: number): (boolean, string?)
@@ -70,12 +77,12 @@ local function awardItem(player: Player, state: PlayerRollState, item, amount: n
 		if AbilityController.IsOwned(player, item.AbilityId) then
 			-- Owned abilities remain valid duplicate results at every progression point without
 			-- duplicating persistent ownership or replaying discovery rewards.
-			incrementTotalRolls(player)
+			incrementTotalRolls(player, state)
 			return true, nil
 		end
 		local discovered = AbilityController.TryDiscover(player, item.AbilityId, state.autoRollEnabled)
 		if discovered then
-			incrementTotalRolls(player)
+			incrementTotalRolls(player, state)
 		end
 		return discovered, if discovered then item.AbilityId else nil
 	end
@@ -94,14 +101,18 @@ local function awardItem(player: Player, state: PlayerRollState, item, amount: n
 		updatedInventory[item.Id] = currentAmount + amount
 		return updatedInventory
 	end)
-	incrementTotalRolls(player)
+	incrementTotalRolls(player, state)
 	return true, nil
 end
 
 local function scheduleAutoRoll(player: Player, state: PlayerRollState)
 	state.autoScheduleId += 1
 	local scheduleId = state.autoScheduleId
-	if not state.autoRollEnabled or state.active or next(state.pendingDiscoveries) ~= nil then
+	if not state.autoRollEnabled
+		or state.totalRolls < RollDefinitions.AutoRollUnlockRolls
+		or state.active
+		or next(state.pendingDiscoveries) ~= nil
+	then
 		return
 	end
 
@@ -113,6 +124,7 @@ local function scheduleAutoRoll(player: Player, state: PlayerRollState)
 		if states[player] == state
 			and state.autoScheduleId == scheduleId
 			and state.autoRollEnabled
+			and state.totalRolls >= RollDefinitions.AutoRollUnlockRolls
 			and not state.active
 			and player.Parent == Players
 		then
@@ -264,6 +276,7 @@ function RollController.GetSettings(_, player: Player)
 		return {
 			autoRollEnabled = false,
 			presentationHidden = false,
+			totalRolls = 0,
 		}
 	end
 
@@ -278,12 +291,17 @@ function RollController.GetSettings(_, player: Player)
 	return {
 		autoRollEnabled = state.autoRollEnabled,
 		presentationHidden = state.presentationHidden,
+		totalRolls = state.totalRolls,
 	}
 end
 
 function RollController.SetAutoRoll(_, player: Player, enabled: any)
 	local state = states[player]
 	if not state or type(enabled) ~= "boolean" then
+		return
+	end
+	-- Auto Roll cannot be enabled early through a forged client request or an obsolete saved preference.
+	if enabled and state.totalRolls < RollDefinitions.AutoRollUnlockRolls then
 		return
 	end
 
@@ -358,7 +376,16 @@ function RollController.Init()
 end
 
 function RollController.OnPlayerAdded(player: Player)
+	local rawTotalRolls = dataService:get(player, RollDefinitions.TotalRollsDataKey)
+	local totalRolls = normalizeTotalRolls(rawTotalRolls)
+	if rawTotalRolls ~= totalRolls then
+		dataService:set(player, RollDefinitions.TotalRollsDataKey, totalRolls)
+	end
 	local autoRollEnabled = getBooleanPreference(player, RollDefinitions.AutoRollEnabledDataKey)
+	if autoRollEnabled and totalRolls < RollDefinitions.AutoRollUnlockRolls then
+		autoRollEnabled = false
+		dataService:set(player, RollDefinitions.AutoRollEnabledDataKey, false)
+	end
 	local presentationHidden = getBooleanPreference(player, RollDefinitions.PresentationHiddenDataKey)
 	local settingsRequested = settingsRequestedPlayers[player] == true
 	settingsRequestedPlayers[player] = nil
@@ -376,12 +403,14 @@ function RollController.OnPlayerAdded(player: Player)
 		presentationHidden = presentationHidden,
 		rollId = 0,
 		settingsRequested = settingsRequested,
+		totalRolls = totalRolls,
 		token = 0,
 	}
 	states[player] = state
 	if settingsRequested then
 		rollNetwork:fire(player, "AutoRollChanged", autoRollEnabled)
 		rollNetwork:fire(player, "PresentationHiddenChanged", presentationHidden)
+		rollNetwork:fire(player, "TotalRollsChanged", totalRolls)
 		if autoRollEnabled then
 			scheduleAutoRoll(player, state)
 		end
@@ -390,10 +419,6 @@ function RollController.OnPlayerAdded(player: Player)
 	local inventory = dataService:get(player, RollDefinitions.InventoryDataKey)
 	if type(inventory) ~= "table" then
 		dataService:set(player, RollDefinitions.InventoryDataKey, {})
-	end
-	local totalRolls = dataService:get(player, RollDefinitions.TotalRollsDataKey)
-	if type(totalRolls) ~= "number" or totalRolls < 0 or totalRolls % 1 ~= 0 then
-		dataService:set(player, RollDefinitions.TotalRollsDataKey, 0)
 	end
 end
 

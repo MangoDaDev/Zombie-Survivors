@@ -12,11 +12,13 @@ local latestRollId = 0
 local latestStartedSequenceId = 0
 local autoRollEnabled = false
 local presentationHidden = false
+local totalRolls = 0
 
 local rollStarted = Signal.new()
 local rollFinished = Signal.new()
 local autoRollChanged = Signal.new()
 local presentationHiddenChanged = Signal.new()
+local totalRollsChanged = Signal.new()
 
 local function setAutoRollEnabled(enabled: any)
 	if type(enabled) ~= "boolean" or autoRollEnabled == enabled then
@@ -36,6 +38,14 @@ end
 
 local function isValidInteger(value: any, minimum: number): boolean
 	return type(value) == "number" and value == value and value % 1 == 0 and value >= minimum
+end
+
+local function setTotalRolls(value: any)
+	if not isValidInteger(value, 0) or totalRolls == value then
+		return
+	end
+	totalRolls = value
+	totalRollsChanged:Fire(value)
 end
 
 function RollController.RollStarted(_, packet)
@@ -80,10 +90,15 @@ function RollController.PresentationHiddenChanged(_, hidden)
 	setPresentationHidden(hidden)
 end
 
+function RollController.TotalRollsChanged(_, value)
+	setTotalRolls(value)
+end
+
 function RollController.Init()
 	rollNetwork = Networker.client.new("RollController", RollController)
 	local settings = (rollNetwork :: Networker.Client):fetch("GetSettings")
 	if type(settings) == "table" then
+		setTotalRolls(settings.totalRolls)
 		setAutoRollEnabled(settings.autoRollEnabled)
 		setPresentationHidden(settings.presentationHidden)
 	end
@@ -97,13 +112,24 @@ function RollController.RequestRoll()
 end
 
 function RollController.SetAutoRoll(enabled: boolean)
-	if ready and type(enabled) == "boolean" then
+	if ready
+		and type(enabled) == "boolean"
+		and (not enabled or totalRolls >= RollDefinitions.AutoRollUnlockRolls)
+	then
 		(rollNetwork :: Networker.Client):fire("SetAutoRoll", enabled)
 	end
 end
 
 function RollController.IsAutoRollEnabled(): boolean
 	return autoRollEnabled
+end
+
+function RollController.GetTotalRolls(): number
+	return totalRolls
+end
+
+function RollController.IsAutoRollUnlocked(): boolean
+	return totalRolls >= RollDefinitions.AutoRollUnlockRolls
 end
 
 function RollController.SetPresentationHidden(hidden: boolean)
@@ -130,6 +156,10 @@ end
 
 function RollController.GetPresentationHiddenChangedSignal()
 	return presentationHiddenChanged
+end
+
+function RollController.GetTotalRollsChangedSignal()
+	return totalRollsChanged
 end
 
 return RollController

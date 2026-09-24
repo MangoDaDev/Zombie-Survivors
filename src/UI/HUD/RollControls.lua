@@ -3,6 +3,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Button = require(script.Parent.Parent.Classes.Button)
 local AbilityController = require(ReplicatedStorage.Controllers.AbilityController)
 local RollController = require(ReplicatedStorage.Controllers.RollController)
+local RollDefinitions = require(ReplicatedStorage.Modules.Game.Rolls.RollDefinitions)
 local RunRewardsController = require(ReplicatedStorage.Controllers.RunRewardsController)
 local UIStyle = require(ReplicatedStorage.Modules.UI.UIStyle)
 local Vide = require(ReplicatedStorage.Packages.vide)
@@ -17,6 +18,7 @@ return function()
 	local autoEnabled = source(RollController.IsAutoRollEnabled())
 	local hidden = source(RollController.IsPresentationHidden())
 	local inSafeArea = source(RunRewardsController.IsInSafeArea())
+	local totalRolls = source(RollController.GetTotalRolls())
 	local connections = {}
 
 	table.insert(connections, RollController.GetRollStartedSignal():Connect(function()
@@ -40,6 +42,9 @@ return function()
 	table.insert(connections, RollController.GetPresentationHiddenChangedSignal():Connect(function(value)
 		hidden(value)
 	end))
+	table.insert(connections, RollController.GetTotalRollsChangedSignal():Connect(function(value)
+		totalRolls(value)
+	end))
 	table.insert(connections, RunRewardsController.GetSafeAreaChangedSignal():Connect(function(value)
 		inSafeArea(value)
 		if not value then
@@ -53,7 +58,9 @@ return function()
 	end)
 
 	local function toggleAuto()
-		RollController.SetAutoRoll(not autoEnabled())
+		if totalRolls() >= RollDefinitions.AutoRollUnlockRolls then
+			RollController.SetAutoRoll(not autoEnabled())
+		end
 	end
 
 	return create "Frame" {
@@ -76,6 +83,29 @@ return function()
 				SortOrder = Enum.SortOrder.LayoutOrder,
 				VerticalAlignment = Enum.VerticalAlignment.Center,
 			},
+			create "Frame" {
+				Name = "AbilitiesSlot",
+				BackgroundTransparency = 1,
+				LayoutOrder = 1,
+				Size = UDim2.fromScale(0.3, 1),
+				-- Keep this layout slot present outside the safe area so Roll remains exactly centered.
+				create "Frame" {
+					Name = "SafeAreaVisibility",
+					BackgroundTransparency = 1,
+					Size = UDim2.fromScale(1, 1),
+					Visible = inSafeArea,
+					Button({
+						Text = "ABILITIES",
+						BackgroundColor3 = UIStyle.Colors.Gold,
+						Size = UDim2.fromScale(1, 1),
+						OnActivated = function()
+							if inSafeArea() then
+								AbilityController.SetInventoryOpen(true)
+							end
+						end,
+					}),
+				},
+			},
 			Button({
 				Text = function()
 					if not active() then
@@ -84,7 +114,7 @@ return function()
 					return if hidden() then "SHOW" else "HIDE"
 				end,
 				BackgroundColor3 = UIStyle.Colors.Blue,
-				LayoutOrder = 1,
+				LayoutOrder = 2,
 				OnActivated = function()
 					if active() then
 						RollController.SetPresentationHidden(not hidden())
@@ -95,32 +125,23 @@ return function()
 			}),
 			Button({
 				Text = function()
+					if totalRolls() < RollDefinitions.AutoRollUnlockRolls then
+						return string.format("AUTO: %d/%d", totalRolls(), RollDefinitions.AutoRollUnlockRolls)
+					end
 					return if autoEnabled() then "AUTO: ON" else "AUTO: OFF"
 				end,
 				BackgroundColor3 = function()
+					if totalRolls() < RollDefinitions.AutoRollUnlockRolls then
+						return UIStyle.Colors.Muted
+					end
 					return if autoEnabled() then UIStyle.Colors.Green else UIStyle.Colors.Red
 				end,
-				LayoutOrder = 2,
+				Enabled = function()
+					return totalRolls() >= RollDefinitions.AutoRollUnlockRolls
+				end,
+				LayoutOrder = 3,
 				OnActivated = toggleAuto,
 			}),
-			create "Frame" {
-				Name = "AbilitiesSlot",
-				BackgroundTransparency = 1,
-				LayoutOrder = 3,
-				Size = UDim2.fromScale(0.3, 1),
-				-- Roll and Auto Roll remain available during a run; only base management leaves this row.
-				Visible = inSafeArea,
-				Button({
-					Text = "ABILITIES",
-					BackgroundColor3 = UIStyle.Colors.Gold,
-					Size = UDim2.fromScale(1, 1),
-					OnActivated = function()
-						if inSafeArea() then
-							AbilityController.SetInventoryOpen(true)
-						end
-					end,
-				}),
-			},
 		},
 	}
 end

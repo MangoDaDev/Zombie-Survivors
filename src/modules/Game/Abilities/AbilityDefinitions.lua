@@ -70,6 +70,8 @@ local function getBoomerangCount(level: number): number
 	return 1
 end
 
+-- Roll BaseOdds are reciprocal weights whose full catalog intentionally totals almost exactly 1.
+-- Preserve the broad 1/4-to-1/400 spread so displayed odds stay honest and chase abilities remain rare.
 local dagger = {
 	Id = "Dagger",
 	Name = "Dagger",
@@ -85,8 +87,8 @@ local dagger = {
 	UpgradeCostGrowth = 1.145,
 	Roll = {
 		BaseOdds = 8,
-		Rarity = "Rare",
-		RarityRank = 3,
+		Rarity = "Uncommon",
+		RarityRank = 2,
 	},
 	Combat = {
 		Cooldown = 1.25,
@@ -178,9 +180,9 @@ local orbitingSwords = {
 	BaseUpgradeCost = 150,
 	UpgradeCostGrowth = 1.15,
 	Roll = {
-		BaseOdds = 18,
-		Rarity = "Epic",
-		RarityRank = 4,
+		BaseOdds = 400,
+		Rarity = "Divine",
+		RarityRank = 7,
 	},
 	Combat = {
 		SimulationInterval = 1 / 15,
@@ -305,9 +307,9 @@ local fireball = {
 	BaseUpgradeCost = 135,
 	UpgradeCostGrowth = 1.15,
 	Roll = {
-		BaseOdds = 10,
-		Rarity = "Rare",
-		RarityRank = 3,
+		BaseOdds = 40,
+		Rarity = "Legendary",
+		RarityRank = 5,
 	},
 	Combat = {
 		BaseDamage = 34,
@@ -472,9 +474,9 @@ local lightning = {
 	BaseUpgradeCost = 145,
 	UpgradeCostGrowth = 1.15,
 	Roll = {
-		BaseOdds = 14,
-		Rarity = "Epic",
-		RarityRank = 4,
+		BaseOdds = 100,
+		Rarity = "Mythic",
+		RarityRank = 6,
 	},
 	Combat = {
 		BaseDamage = 24,
@@ -588,7 +590,7 @@ local boomerang = {
 	BaseUpgradeCost = 130,
 	UpgradeCostGrowth = 1.145,
 	Roll = {
-		BaseOdds = 9,
+		BaseOdds = 14,
 		Rarity = "Rare",
 		RarityRank = 3,
 	},
@@ -736,9 +738,9 @@ local heart = {
 	BaseUpgradeCost = 95,
 	UpgradeCostGrowth = 1.14,
 	Roll = {
-		BaseOdds = 5,
-		Rarity = "Uncommon",
-		RarityRank = 2,
+		BaseOdds = 4,
+		Rarity = "Common",
+		RarityRank = 1,
 	},
 	Config = {
 		BaseMaxHealthPercent = 10,
@@ -844,9 +846,9 @@ local boots = {
 	BaseUpgradeCost = 90,
 	UpgradeCostGrowth = 1.14,
 	Roll = {
-		BaseOdds = 6,
-		Rarity = "Uncommon",
-		RarityRank = 2,
+		BaseOdds = 5,
+		Rarity = "Common",
+		RarityRank = 1,
 	},
 	Config = {
 		BaseMovementSpeedPercent = 5,
@@ -953,9 +955,9 @@ local blast = {
 	BaseUpgradeCost = 105,
 	UpgradeCostGrowth = 1.145,
 	Roll = {
-		BaseOdds = 9,
-		Rarity = "Rare",
-		RarityRank = 3,
+		BaseOdds = 20,
+		Rarity = "Epic",
+		RarityRank = 4,
 	},
 	Config = {
 		BaseChancePercent = 8,
@@ -1071,7 +1073,7 @@ local burn = {
 	BaseUpgradeCost = 100,
 	UpgradeCostGrowth = 1.145,
 	Roll = {
-		BaseOdds = 8,
+		BaseOdds = 10,
 		Rarity = "Rare",
 		RarityRank = 3,
 	},
@@ -1190,7 +1192,7 @@ local thorns = {
 	BaseUpgradeCost = 100,
 	UpgradeCostGrowth = 1.145,
 	Roll = {
-		BaseOdds = 7,
+		BaseOdds = 6,
 		Rarity = "Uncommon",
 		RarityRank = 2,
 	},

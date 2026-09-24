@@ -4,6 +4,7 @@ local ServerStorage = game:GetService("ServerStorage")
 
 local AbilityDefinitions = require(ReplicatedStorage.Modules.Game.Abilities.AbilityDefinitions)
 local RageController = require(ServerStorage.Controllers.RageController)
+local RunRewardsController = require(ServerStorage.Controllers.RunRewardsController)
 local ZombieController = require(ServerStorage.Controllers.ZombieController)
 
 local TAU = math.pi * 2
@@ -114,6 +115,10 @@ local function applySwordDamage(
 	now: number,
 	hitOrigin: Vector3
 )
+	if RunRewardsController.IsInSafeArea(player) then
+		return
+	end
+
 	local definition = AbilityDefinitions.ById[ABILITY_ID]
 	local damage = baseDamage
 	if stats.Wounded and (runtime.woundedUntil[targetId] or 0) > now then
@@ -271,6 +276,17 @@ local function runOrbit(player: Player, runtime: Runtime, token: number)
 		local angleStep = angularSpeed * deltaTime
 		runtime.angle = (runtime.angle + angleStep) % TAU
 		runtime.rotationTravel += angleStep
+		if RunRewardsController.IsInSafeArea(player) then
+			-- Orbit visuals may keep spinning at base, but safe-area swords never search for a zombie.
+			-- Reset release travel so leaving cannot discharge blades accumulated while combat was blocked.
+			runtime.nextReleaseTravel = if stats.BladeRelease
+				then runtime.rotationTravel + stats.ReleaseEveryRotations * TAU
+				else math.huge
+			sendVisualState(player, runtime, stats, level, now)
+			task.wait(definition.Combat.SimulationInterval)
+			continue
+		end
+
 		local center = root.Position + Vector3.new(0, 1.2, 0)
 		local hitRadius = definition.Combat.HitRadius * (stats.SwordScale / definition.Combat.BaseScale)
 		-- Inflate by half this frame's arc so high Rage speed cannot tunnel between discrete server checks.

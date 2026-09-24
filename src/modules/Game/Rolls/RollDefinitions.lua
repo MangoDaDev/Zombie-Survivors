@@ -6,6 +6,8 @@ RollDefinitions.InventoryDataKey = "RollInventory"
 RollDefinitions.TotalRollsDataKey = "TotalRolls"
 RollDefinitions.AutoRollEnabledDataKey = "AutoRollEnabled"
 RollDefinitions.PresentationHiddenDataKey = "RollPresentationHidden"
+-- Auto Roll is earned through normal rolling; the server validates this threshold before enabling it.
+RollDefinitions.AutoRollUnlockRolls = 5
 
 -- These timings are shared only so the authoritative server cadence stays aligned with the client presentation.
 RollDefinitions.Timing = {

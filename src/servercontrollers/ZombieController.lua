@@ -5,6 +5,7 @@ local ServerStorage = game:GetService "ServerStorage"
 local Networker = require(ReplicatedStorage.Packages.networker)
 local Signal = require(ReplicatedStorage.Packages.signal)
 local CoinDropController = require(ServerStorage.Controllers.CoinDropController)
+local RunRewardsController = require(ServerStorage.Controllers.RunRewardsController)
 local GetRandomFromWeightedTable =
 	require(ReplicatedStorage.Modules.Math.GetRandomFromWeightedTable).GetRandomFromWeightedTable
 local ZombieAreas = require(ReplicatedStorage.Modules.Game.Zombies.ZombieAreas)
@@ -292,6 +293,13 @@ function ZombieController.DamageZombie(
 	knockbackImpulse: number?,
 	damageContext: DamageContext?
 )
+	local attackingPlayer = damageContext and damageContext.player
+	-- This is the final authoritative guard for every player-owned weapon and passive damage source.
+	-- Individual ability schedulers also avoid acquiring targets while the owner is inside the safe area.
+	if attackingPlayer and RunRewardsController.IsInSafeArea(attackingPlayer) then
+		return false, false
+	end
+
 	local zombie = zombies[id]
 	local healthBefore = if zombie then zombie.health else 0
 	local damaged = zombie ~= nil and zombie:TakeDamage(amount, hitOrigin, knockbackImpulse)
