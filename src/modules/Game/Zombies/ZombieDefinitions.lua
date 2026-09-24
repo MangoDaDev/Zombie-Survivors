@@ -1,0 +1,45 @@
+-- Zombie-specific balance and presentation data lives here so the simulation,
+-- spawning, networking, and rendering code never need type-specific branches.
+local ZombieDefinitions = {
+	Walker = {
+		AssetName = "Walker",
+		MaxHealth = 100,
+		MoveSpeed = 8,
+		TurnSpeed = 8,
+		AggroDistance = 70,
+		AttackRange = 4.5,
+		AttackDamage = 10,
+		AttackCooldown = 1.25,
+		MovementBehavior = "DirectChase",
+		AttackBehavior = "Contact",
+		AnimationStyle = "Walker",
+	},
+	Runner = {
+		AssetName = "Runner",
+		MaxHealth = 70,
+		MoveSpeed = 14,
+		TurnSpeed = 12,
+		AggroDistance = 90,
+		AttackRange = 4,
+		AttackDamage = 7,
+		AttackCooldown = 0.8,
+		MovementBehavior = "DirectChase",
+		AttackBehavior = "Contact",
+		AnimationStyle = "Runner",
+	},
+	Brute = {
+		AssetName = "Brute",
+		MaxHealth = 300,
+		MoveSpeed = 5.5,
+		TurnSpeed = 5,
+		AggroDistance = 65,
+		AttackRange = 6,
+		AttackDamage = 25,
+		AttackCooldown = 2.2,
+		MovementBehavior = "DirectChase",
+		AttackBehavior = "Contact",
+		AnimationStyle = "Brute",
+	},
+}
+
+return ZombieDefinitions

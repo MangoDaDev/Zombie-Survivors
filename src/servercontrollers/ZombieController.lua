@@ -1,0 +1,264 @@
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+
+local Networker = require(ReplicatedStorage.Packages.networker)
+local GetRandomFromWeightedTable = require(ReplicatedStorage.Modules.Math.GetRandomFromWeightedTable)
+	.GetRandomFromWeightedTable
+local ZombieAreas = require(ReplicatedStorage.Modules.Game.Zombies.ZombieAreas)
+local ZombieDefinitions = require(ReplicatedStorage.Modules.Game.Zombies.ZombieDefinitions)
+local ZombieProtocol = require(ReplicatedStorage.Modules.Game.Zombies.ZombieProtocol)
+local Zombie = require(script.Parent.Zombie.Zombie)
+
+local MAX_SPAWN_ATTEMPTS = 12
+
+local ZombieController = {}
+local zombieNetwork
+local simulationConnection
+local nextZombieId = 0
+local nextSnapshotAt = 0
+local random = Random.new()
+local zombies = {}
+local areaRuntime = {}
+local groundOffsets = {}
+
+local function getLivePlayerCandidates()
+	local candidates = {}
+	local candidateLookup = {}
+
+	for _, player in Players:GetPlayers() do
+		local character = player.Character
+		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+		local root = character and character:FindFirstChild("HumanoidRootPart")
+		if humanoid and humanoid.Health > 0 and root and root:IsA("BasePart") then
+			local candidate = {
+				player = player,
+				humanoid = humanoid,
+				position = root.Position,
+			}
+			table.insert(candidates, candidate)
+			candidateLookup[player] = candidate
+		end
+	end
+
+	return candidates, candidateLookup
+end
+
+local function isAreaActive(area, candidates)
+	local halfSize = area.Size * 0.5
+	for _, candidate in candidates do
+		local localPosition = area.CFrame:PointToObjectSpace(candidate.position)
+		if math.abs(localPosition.X) <= halfSize.X + area.ActivationPadding
+			and math.abs(localPosition.Z) <= halfSize.Y + area.ActivationPadding
+		then
+			return true
+		end
+	end
+
+	return false
+end
+
+local function isAwayFromPlayers(position, candidates, minimumDistance)
+	for _, candidate in candidates do
+		local offset = Vector3.new(
+			position.X - candidate.position.X,
+			0,
+			position.Z - candidate.position.Z
+		)
+		if offset.Magnitude < minimumDistance then
+			return false
+		end
+	end
+
+	return true
+end
+
+local function chooseGroupCenter(area, candidates)
+	local halfSize = area.Size * 0.5
+	for _ = 1, MAX_SPAWN_ATTEMPTS do
+		local localPosition = Vector3.new(
+			random:NextNumber(-halfSize.X, halfSize.X),
+			0,
+			random:NextNumber(-halfSize.Y, halfSize.Y)
+		)
+		local worldPosition = area.CFrame:PointToWorldSpace(localPosition)
+		if isAwayFromPlayers(worldPosition, candidates, area.MinPlayerDistance) then
+			return localPosition
+		end
+	end
+
+	return nil
+end
+
+local function getGroupedSpawnPosition(area, groupCenter, candidates)
+	local halfSize = area.Size * 0.5
+	for _ = 1, MAX_SPAWN_ATTEMPTS do
+		local angle = random:NextNumber(0, math.pi * 2)
+		local radius = math.sqrt(random:NextNumber()) * area.GroupRadius
+		local localPosition = Vector3.new(
+			math.clamp(groupCenter.X + math.cos(angle) * radius, -halfSize.X, halfSize.X),
+			0,
+			math.clamp(groupCenter.Z + math.sin(angle) * radius, -halfSize.Y, halfSize.Y)
+		)
+		local worldPosition = area.CFrame:PointToWorldSpace(localPosition)
+		if isAwayFromPlayers(worldPosition, candidates, area.MinPlayerDistance) then
+			return worldPosition
+		end
+	end
+
+	return nil
+end
+
+local function createZombie(area, typeName, surfacePosition)
+	local definition = ZombieDefinitions[typeName]
+	local groundOffset = groundOffsets[typeName]
+	if not definition or not groundOffset then
+		return nil
+	end
+
+	nextZombieId += 1
+	local spawnPosition = surfacePosition + Vector3.yAxis * groundOffset
+	local spawnYaw = random:NextNumber(-math.pi, math.pi)
+	local spawnCFrame = CFrame.new(spawnPosition) * CFrame.Angles(0, spawnYaw, 0)
+	local zombie = Zombie.new(nextZombieId, typeName, definition, spawnCFrame, area.Id)
+	zombies[zombie.id] = zombie
+	areaRuntime[area.Id].count += 1
+
+	return zombie:GetSpawnPacket()
+end
+
+local function spawnGroup(area, candidates, serverTime)
+	local runtime = areaRuntime[area.Id]
+	local availableSlots = area.MaxZombies - runtime.count
+	if availableSlots <= 0 then
+		return
+	end
+
+	local groupCenter = chooseGroupCenter(area, candidates)
+	if not groupCenter then
+		return
+	end
+
+	local requestedSize = random:NextInteger(area.GroupSize.Min, area.GroupSize.Max)
+	local groupSize = math.min(requestedSize, availableSlots)
+	local spawnPackets = {}
+
+	for _ = 1, groupSize do
+		local surfacePosition = getGroupedSpawnPosition(area, groupCenter, candidates)
+		if surfacePosition then
+			local weightedType = GetRandomFromWeightedTable(area.ZombieWeights, "Weight", random)
+			local packet = weightedType and createZombie(area, weightedType.Name, surfacePosition)
+			if packet then
+				table.insert(spawnPackets, packet)
+			end
+		end
+	end
+
+	if #spawnPackets > 0 then
+		-- One timestamp per batch avoids repeating derivable interpolation metadata per zombie.
+		zombieNetwork:fireAll("SpawnZombies", spawnPackets, serverTime)
+	end
+end
+
+local function removeZombies(ids)
+	local removedIds = {}
+	for _, id in ids do
+		local zombie = zombies[id]
+		if zombie then
+			zombies[id] = nil
+			local runtime = areaRuntime[zombie.areaId]
+			if runtime then
+				runtime.count = math.max(runtime.count - 1, 0)
+			end
+			table.insert(removedIds, id)
+		end
+	end
+
+	if #removedIds > 0 then
+		zombieNetwork:fireAll("RemoveZombies", removedIds)
+	end
+end
+
+local function buildGroundOffsets()
+	local templates = ReplicatedStorage.Assets.Models.Zombies
+	for typeName, definition in ZombieDefinitions do
+		local template = templates:FindFirstChild(definition.AssetName)
+		if template and template:IsA("Model") then
+			local pivot = template:GetPivot()
+			local boundingCFrame, boundingSize = template:GetBoundingBox()
+			local localBoundingCFrame = pivot:ToObjectSpace(boundingCFrame)
+			groundOffsets[typeName] = -(localBoundingCFrame.Position.Y - boundingSize.Y * 0.5)
+		else
+			warn(string.format("Missing zombie model ReplicatedStorage.Assets.Models.Zombies.%s", definition.AssetName))
+		end
+	end
+end
+
+local function stepSimulation(deltaTime)
+	local now = workspace:GetServerTimeNow()
+	local candidates, candidateLookup = getLivePlayerCandidates()
+
+	for _, area in ZombieAreas do
+		local runtime = areaRuntime[area.Id]
+		if now >= runtime.nextSpawnAt then
+			runtime.nextSpawnAt = now + area.SpawnInterval
+			if #candidates > 0 and runtime.count < area.MaxZombies and isAreaActive(area, candidates) then
+				spawnGroup(area, candidates, now)
+			end
+		end
+	end
+
+	local deadIds = {}
+	for id, zombie in zombies do
+		zombie:Step(deltaTime, candidates, candidateLookup, now)
+		if zombie:IsDead() then
+			table.insert(deadIds, id)
+		end
+	end
+
+	removeZombies(deadIds)
+
+	if now >= nextSnapshotAt then
+		nextSnapshotAt = now + ZombieProtocol.SnapshotInterval
+		local updates = {}
+		for _, zombie in zombies do
+			table.insert(updates, zombie:GetUpdatePacket())
+		end
+		if #updates > 0 then
+			zombieNetwork:fireAll("UpdateZombies", updates, now)
+		end
+	end
+end
+
+function ZombieController.GetSnapshot(_, _player)
+	local now = workspace:GetServerTimeNow()
+	local packets = {}
+	for _, zombie in zombies do
+		table.insert(packets, zombie:GetSpawnPacket())
+	end
+
+	return { now, packets }
+end
+
+function ZombieController.DamageZombie(id, amount)
+	local zombie = zombies[id]
+	return zombie ~= nil and zombie:TakeDamage(amount)
+end
+
+function ZombieController.Init()
+	buildGroundOffsets()
+	for _, area in ZombieAreas do
+		areaRuntime[area.Id] = {
+			count = 0,
+			nextSpawnAt = workspace:GetServerTimeNow() + random:NextNumber(0.5, area.SpawnInterval),
+		}
+	end
+
+	zombieNetwork = Networker.server.new("ZombieController", ZombieController, {
+		ZombieController.GetSnapshot,
+	})
+	nextSnapshotAt = workspace:GetServerTimeNow() + ZombieProtocol.SnapshotInterval
+	simulationConnection = RunService.Heartbeat:Connect(stepSimulation)
+end
+
+return ZombieController

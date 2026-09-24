@@ -17,6 +17,7 @@ local modules_to_init = {
 	ServerStorage.Controllers.PlayerStateController,
 	ServerStorage.Controllers.CollisionController,
 	ServerStorage.Controllers.CharacterController,
+	ServerStorage.Controllers.ZombieController,
 }
 
 local initialized_modules = {}

@@ -16,9 +16,15 @@ Quick reference for the reusable first-party Luau foundation. Generated Wally de
 | --- | --- |
 | `src/controllers/CharacterController.lua` | Requests server-authorized character spawning and manages local camera and respawn behavior. |
 | `src/controllers/PlayerStateController.lua` | Receives generic server runtime-state snapshots and updates. |
+| `src/controllers/ZombieController.lua` | Receives compact zombie snapshots and drives the single client render loop. |
+| `src/controllers/Zombie/ProceduralAnimator.lua` | Produces type-specific procedural movement and attack poses without animation tracks. |
+| `src/controllers/Zombie/ZombieView.lua` | Owns one client-rendered zombie model, interpolation state, and 8-corner visibility checks. |
 | `src/servercontrollers/CharacterController.lua` | Rate-limits and authorizes character spawn requests while `CharacterAutoLoads` is disabled. |
 | `src/servercontrollers/CollisionController.lua` | Assigns avatar parts to a generic non-colliding player-character collision group. |
 | `src/servercontrollers/PlayerStateController.lua` | Owns generic per-player runtime state and replicates requested state updates. |
+| `src/servercontrollers/ZombieController.lua` | Runs grouped area spawning, batched authoritative simulation, damage, and compact replication. |
+| `src/servercontrollers/Zombie/Zombie.lua` | Defines the authoritative per-zombie class for targeting, CFrame movement, attacks, and health. |
+| `src/servercontrollers/Zombie/ZombieBehaviors.lua` | Provides definition-selected movement and attack strategies without type checks in core logic. |
 
 ## Core modules
 
@@ -35,12 +41,15 @@ Quick reference for the reusable first-party Luau foundation. Generated Wally de
 
 ## Game foundation modules
 
-These modules provide empty persistence and generic player-control helpers without defining a gameplay loop.
+These modules provide shared game configuration, empty persistence, and player-control helpers.
 
 | Path | Responsibility |
 | --- | --- |
 | `src/modules/Game/DataTemplate.lua` | Supplies an empty DataService template for a new game's JSON-compatible defaults. |
 | `src/modules/Game/RuntimeState.lua` | Stores generic transient per-player state and change signals. |
+| `src/modules/Game/Zombies/ZombieAreas.lua` | Defines progression-scaled spawn volumes, caps, group sizes, and weighted zombie pools. |
+| `src/modules/Game/Zombies/ZombieDefinitions.lua` | Defines expandable per-type combat, movement, asset, and animation configuration. |
+| `src/modules/Game/Zombies/ZombieProtocol.lua` | Shares compact state codes and snapshot timing between server simulation and client rendering. |
 | `src/modules/Game/TeleportPlayer.lua` | Teleports a Player or character Model to a CFrame or BasePart. |
 | `src/modules/Game/TeleportLocalPlayer.lua` | Teleports the local character for client-side presentation use. |
 | `src/modules/Game/FreezePlayer.lua` | Freezes the local character, optionally at a target CFrame. |
