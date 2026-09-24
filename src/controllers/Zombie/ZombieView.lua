@@ -167,10 +167,8 @@ function ZombieView.new(
 	self.healthTween = nil
 	self.hitHighlight = hitHighlight
 	self.hitFlashTween = nil
-	self.recoilOffset = Vector3.zero
 	self.lastHitDirection = Vector3.zero
 	self.lastKnockbackImpulse = 0
-	self.lastRenderAt = os.clock()
 
 	return self
 end
@@ -252,8 +250,8 @@ function ZombieView:ApplyDamage(health, maximumHealth, knockbackDirection, knock
 	self.hitFlashTween:Play()
 
 	if typeof(knockbackDirection) == "Vector3" and type(knockbackImpulse) == "number" then
-		-- Immediate client recoil bridges the short interval before the authoritative knockback snapshot arrives.
-		self.recoilOffset += knockbackDirection * math.clamp(knockbackImpulse * 0.055, 0, 1.15)
+		-- Keep knockback translation exclusively in the server simulation so local hit feedback cannot
+		-- visually push a zombie outside its authoritative combat zone between snapshots.
 		self.lastHitDirection = knockbackDirection
 		self.lastKnockbackImpulse = knockbackImpulse
 	end
@@ -278,10 +276,6 @@ end
 
 function ZombieView:AppendRender(parts, cframes, camera, localNow, serverNow)
 	local renderCFrame = self:GetRenderCFrame(localNow)
-	local renderDelta = math.clamp(localNow - self.lastRenderAt, 0, 0.1)
-	self.lastRenderAt = localNow
-	self.recoilOffset *= math.exp(-15 * renderDelta)
-	renderCFrame += self.recoilOffset
 	if not self:IsVisible(camera, renderCFrame) then
 		return
 	end
