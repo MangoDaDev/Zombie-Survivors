@@ -1,4 +1,6 @@
 local Players = game:GetService("Players")
+-- Currently unused after removal of simulator gameplay. Preserved for future lobby or post-run reward rolls.
+
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 

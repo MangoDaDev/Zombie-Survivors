@@ -10,15 +10,15 @@ local modules_to_init = {
 	ReplicatedStorage.Controllers.ChatCommandController,
 	ReplicatedStorage.Controllers.PlayerStateController,
 	ReplicatedStorage.Controllers.CoinsController,
-	ReplicatedStorage.Controllers.RunRewardsController,
-	ReplicatedStorage.Controllers.CoinDropController,
 	ReplicatedStorage.Controllers.RageController,
 	ReplicatedStorage.Controllers.AbilityController,
-	ReplicatedStorage.Controllers.RollController,
 	ReplicatedStorage.Controllers.CharacterController,
 	ReplicatedStorage.Controllers.ZombieController,
 	ReplicatedStorage.UI.UIOrigin,
 }
+
+-- Simulator-era roll, coin-drop, and extraction controllers are intentionally not registered here.
+-- Their modules remain available for a future lobby or post-run reward flow, but must stay dormant in normal play.
 
 local initialized_modules = {}
 

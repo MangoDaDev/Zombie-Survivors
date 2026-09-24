@@ -1,5 +1,6 @@
 -- Zombie-specific balance and presentation data lives here so the simulation,
 -- spawning, networking, and rendering code never need type-specific branches.
+-- CoinValue is dormant legacy reward metadata; active zombie deaths intentionally do not award simulator coins.
 local ZombieDefinitions = {
 	Walker = {
 		AssetName = "Walker",

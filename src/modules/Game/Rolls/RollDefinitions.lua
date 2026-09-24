@@ -1,3 +1,5 @@
+-- Rolling is currently dormant, but these definitions remain loaded for saved-data compatibility and ability metadata.
+
 local AbilityDefinitions = require(script.Parent.Parent.Abilities.AbilityDefinitions)
 
 local RollDefinitions = {}

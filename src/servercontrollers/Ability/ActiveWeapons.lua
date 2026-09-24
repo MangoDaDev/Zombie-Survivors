@@ -5,7 +5,6 @@ local ServerStorage = game:GetService("ServerStorage")
 
 local AbilityDefinitions = require(ReplicatedStorage.Modules.Game.Abilities.AbilityDefinitions)
 local RageController = require(ServerStorage.Controllers.RageController)
-local RunRewardsController = require(ServerStorage.Controllers.RunRewardsController)
 local ZombieController = require(ServerStorage.Controllers.ZombieController)
 
 local ACTIVE_ABILITY_IDS = { "Fireball", "Lightning", "Boomerang" }
@@ -729,33 +728,9 @@ local function cleanupAbility(player: Player, abilityId: string)
 	abilityNetwork:fireAll("AbilityEffectsCleared", player.UserId, abilityId)
 end
 
-local function updateSafeAreaBlocks(now: number)
-	for player, runtime in runtimes do
-		local blocked = RunRewardsController.IsInSafeArea(player)
-		if blocked == runtime.safeAreaBlocked then
-			continue
-		end
-
-		runtime.safeAreaBlocked = blocked
-		if blocked then
-			-- Entering the safe area cancels every owned projectile and lingering damage field before
-			-- simulation can acquire another target. Loadout and normal cooldown state remain intact.
-			for _, abilityId in ACTIVE_ABILITY_IDS do
-				cleanupAbility(player, abilityId)
-			end
-		else
-			for _, abilityId in ACTIVE_ABILITY_IDS do
-				if runtime.equipped[abilityId] then
-					runtime.nextAttackAt[abilityId] = math.min(runtime.nextAttackAt[abilityId], now + 0.05)
-				end
-			end
-		end
-	end
-end
-
 local function scheduleAttacks(now: number)
 	for player, runtime in runtimes do
-		if player.Parent ~= Players or runtime.safeAreaBlocked then
+		if player.Parent ~= Players then
 			continue
 		end
 		local data = getAbilityData(player)
@@ -776,7 +751,6 @@ end
 
 local function stepSimulation(deltaTime: number)
 	local now = workspace:GetServerTimeNow()
-	updateSafeAreaBlocks(now)
 	updateProjectiles(math.min(deltaTime, 0.1), now)
 	updateBurns(now)
 	updateBurningGrounds(now)
@@ -805,7 +779,6 @@ function ActiveWeapons.OnPlayerAdded(player: Player)
 			Lightning = 0,
 		},
 		equipped = {},
-		safeAreaBlocked = RunRewardsController.IsInSafeArea(player),
 	}
 	ActiveWeapons.Refresh(player)
 end

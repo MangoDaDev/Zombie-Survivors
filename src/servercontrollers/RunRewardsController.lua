@@ -1,3 +1,5 @@
+-- Currently unused after removal of extraction gameplay. Preserved for its reusable transient reward and zone logic.
+
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")

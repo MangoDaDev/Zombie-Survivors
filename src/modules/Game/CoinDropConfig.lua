@@ -1,3 +1,5 @@
+-- Currently unused while simulator coin drops are archived. Preserved for a future generic world-drop system.
+
 local CoinDropConfig = {
 	-- Prediction uses the same nominal range/timing as the authoritative fallback so confirmation is visually seamless.
 	CollectionRadius = 9,

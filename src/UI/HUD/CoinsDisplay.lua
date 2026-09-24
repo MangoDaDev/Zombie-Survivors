@@ -1,3 +1,5 @@
+-- Currently unused while the permanent-currency HUD awaits a lobby or post-run owner.
+
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local CoinsController = require(ReplicatedStorage.Controllers.CoinsController)

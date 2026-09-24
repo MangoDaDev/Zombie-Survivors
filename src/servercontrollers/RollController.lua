@@ -1,3 +1,5 @@
+-- Currently unused after removal of simulator gameplay. Preserved for future lobby or post-run reward rolls.
+
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerStorage = game:GetService("ServerStorage")

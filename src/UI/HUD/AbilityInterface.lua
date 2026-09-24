@@ -1,3 +1,5 @@
+-- Currently unused after removal of simulator progression UI. Preserved for future ability management.
+
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")

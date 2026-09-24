@@ -5,10 +5,10 @@ local RollDefinitions = require(script.Parent.Rolls.RollDefinitions)
 return {
 	-- Coins are persisted as non-negative whole numbers and are only mutated by trusted server systems.
 	[CoinsConfig.DataKey] = CoinsConfig.DefaultBalance,
-	-- Rolled rewards are server-awarded item quantities keyed by stable definition IDs.
+	-- Legacy roll fields remain in the schema so existing profiles load without migration or data loss.
 	[RollDefinitions.InventoryDataKey] = {},
 	[RollDefinitions.TotalRollsDataKey] = 0,
-	-- Roll controls are player preferences and must restore exactly after the player rejoins.
+	-- These dormant preferences are preserved for a future lobby or post-run roll flow.
 	[RollDefinitions.AutoRollEnabledDataKey] = false,
 	[RollDefinitions.PresentationHiddenDataKey] = false,
 	-- All abilities must keep ownership, levels, and equipped slots in this persisted JSON-compatible snapshot.

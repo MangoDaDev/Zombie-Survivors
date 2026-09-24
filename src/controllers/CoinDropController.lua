@@ -1,3 +1,5 @@
+-- Currently unused after removal of simulator gameplay. Preserved as a reusable world-drop presentation system.
+
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")

@@ -6,8 +6,8 @@ Quick reference for the reusable first-party Luau foundation. Generated Wally de
 
 | Path | Responsibility |
 | --- | --- |
-| `src/client/init.client.lua` | Initializes client DataService, generic controllers, the UI root, and character lifecycle dispatch. |
-| `src/server/init.server.lua` | Initializes server DataService, generic server controllers, and player/character lifecycle dispatch. |
+| `src/client/init.client.lua` | Initializes client DataService, active foundation controllers, the reduced UI root, and character lifecycle dispatch; simulator controllers are deliberately unregistered. |
+| `src/server/init.server.lua` | Initializes server DataService, active foundation controllers, and player/character lifecycle dispatch; simulator controllers are deliberately unregistered. |
 | `src/loading/init.client.lua` | Shows startup progress, waits for the app and character controller, requests the initial character, and fades away. |
 
 ## Controllers
@@ -21,32 +21,32 @@ Quick reference for the reusable first-party Luau foundation. Generated Wally de
 | `src/controllers/Ability/OrbitingSwordsView.lua` | Renders smoothly reconciled spectral sword orbits, Rage blades, trails, and released-blade return flights. |
 | `src/controllers/Ability/PassiveEffectsView.lua` | Renders lightweight Blast, Burn, and Thorns feedback from authoritative server packets. |
 | `src/controllers/CoinsController.lua` | Exposes the replicated, read-only local coin balance and its change signal. |
-| `src/controllers/RunRewardsController.lua` | Mirrors server-held run earnings and safe-area membership, and requests an authoritative return-to-base claim. |
-| `src/controllers/CoinDropController.lua` | Renders lit, world-sized BillboardGui coin bursts, trails, smooth merges, expiration, and curved collection into the live backpack opening. |
+| `src/controllers/RunRewardsController.lua` | **Archived/dormant:** mirrors server-held run earnings and safe-area membership, and requests an authoritative return-to-base claim. |
+| `src/controllers/CoinDropController.lua` | **Archived/dormant:** renders world coin drops and curved collection presentation for possible generic item-drop reuse. |
 | `src/controllers/RageController.lua` | Validates authoritative Rage snapshots, predicts activation presentation, and owns local character Rage VFX. |
 | `src/controllers/PlayerStateController.lua` | Receives generic server runtime-state snapshots and updates. |
-| `src/controllers/RollController.lua` | Restores saved roll preferences and total-roll progress, sends roll intent, and validates authoritative item/clover, auto-roll, and completion events for presentation. |
+| `src/controllers/RollController.lua` | **Archived/dormant:** restores saved roll preferences and validates authoritative item/clover, Auto Roll, and completion events. |
 | `src/controllers/ZombieController.lua` | Receives compact zombie snapshots/damage events and drives the single client render loop. |
 | `src/controllers/Zombie/ProceduralAnimator.lua` | Produces type-specific procedural movement and attack poses without animation tracks. |
 | `src/controllers/Zombie/ZombieView.lua` | Owns one client-rendered zombie model, interpolation, health/hit feedback, visibility, and cosmetic death ragdolls. |
 | `src/servercontrollers/ChatCommandController.lua` | Registers extensible developer-only chat commands, resolves player selectors, and executes built-in utility and confirmed data-reset actions. |
 | `src/servercontrollers/ChatCommand/ChatCommandConfig.lua` | Configures command cooldowns and server-only developer access. |
 | `src/servercontrollers/CharacterController.lua` | Serializes and authorizes character loads and rate-limits client spawn requests while `CharacterAutoLoads` is disabled. |
-| `src/servercontrollers/AbilityController.lua` | Owns ability discovery, loadouts, coin upgrades, safe-area-aware Dagger scheduling, active/passive refreshes, ability-specific Rage behavior, and authoritative damage requests. |
-| `src/servercontrollers/Ability/ActiveWeapons.lua` | Runs the shared authoritative Fireball, Lightning, and Boomerang scheduler, projectile hits, status ticks, safe-area suppression, area caps, Rage variants, and cleanup. |
-| `src/servercontrollers/Ability/OrbitingSwords.lua` | Simulates authoritative sword orbits, safe-area target suppression, hit cooldowns, Wounded, momentum, inner blades, releases, and Rage behavior. |
-| `src/servercontrollers/Ability/PassiveEffects.lua` | Owns Heart, Boots, Blast, Burn, and Thorns effects, safe-area combat suppression, milestone behavior, status cleanup, and authoritative passive combat reactions. |
+| `src/servercontrollers/AbilityController.lua` | Owns ability state, active/passive refreshes, ability-specific Rage behavior, and authoritative damage; preserved inventory/upgrade methods are no longer client-exposed. |
+| `src/servercontrollers/Ability/ActiveWeapons.lua` | Runs the shared authoritative Fireball, Lightning, and Boomerang scheduler, projectile hits, status ticks, area caps, Rage variants, and cleanup. |
+| `src/servercontrollers/Ability/OrbitingSwords.lua` | Simulates authoritative sword orbits, hit cooldowns, Wounded, momentum, inner blades, releases, and Rage behavior. |
+| `src/servercontrollers/Ability/PassiveEffects.lua` | Owns Heart, Boots, Blast, Burn, and Thorns effects, milestone behavior, status cleanup, and authoritative passive combat reactions. |
 | `src/servercontrollers/CollisionController.lua` | Assigns avatar parts to a generic non-colliding player-character collision group. |
 | `src/servercontrollers/CoinsController.lua` | Validates and owns persistent server-authoritative coin balance operations. |
-| `src/servercontrollers/BackpackController.lua` | Equips the authored non-physical backpack stages and updates them from authoritative carried run coins. |
-| `src/servercontrollers/RunRewardsController.lua` | Holds unbanked run earnings, tracks and exposes authoritative safe-area membership, and returns and claims rewards. |
-| `src/servercontrollers/CoinDropController.lua` | Owns zombie coin values, spread, lifetime cleanup, capped spatial merging, proximity claims, and authoritative collection awards. |
+| `src/servercontrollers/BackpackController.lua` | **Archived/dormant:** equips authored non-physical backpack stages from authoritative carried-item totals. |
+| `src/servercontrollers/RunRewardsController.lua` | **Archived/dormant:** holds unbanked run earnings, safe-area membership, return-to-base, and claim behavior. |
+| `src/servercontrollers/CoinDropController.lua` | **Archived/dormant:** owns world-drop spread, cleanup, merging, proximity claims, and authoritative collection. |
 | `src/servercontrollers/RageController.lua` | Owns the server-timed Rage charge cycle, activation validation, duration, death resets, and replication. |
 | `src/servercontrollers/PlayerStateController.lua` | Owns generic per-player runtime state and replicates requested state updates. |
 | `src/servercontrollers/PlayerStatController.lua` | Composes named player health/speed modifiers, preserves gained health, and applies the final movement-speed limit. |
-| `src/servercontrollers/RollController.lua` | Owns per-player duplicate-inclusive ability rolls, cooldowns, clover luck chains, rewards, the five-roll Auto Roll unlock, scheduling, and saved roll preferences. |
-| `src/servercontrollers/Roll/RollServerConfig.lua` | Defines server-only luck, cooldown, and clover-chain balance values. |
-| `src/servercontrollers/ZombieController.lua` | Runs grouped area spawning, batched authoritative simulation, safe-area damage rejection, contextual damage signals, death rewards, and compact replication. |
+| `src/servercontrollers/RollController.lua` | **Archived/dormant:** owns ability rolls, luck chains, rewards, Auto Roll scheduling, and saved preferences. |
+| `src/servercontrollers/Roll/RollServerConfig.lua` | **Archived/dormant:** defines server-only luck, cooldown, and clover-chain balance values. |
+| `src/servercontrollers/ZombieController.lua` | Runs grouped area spawning, batched authoritative simulation, contextual damage signals, and compact replication without simulator death rewards. |
 | `src/servercontrollers/Zombie/Zombie.lua` | Defines authoritative targeting, area-bounded movement, attacks, health, and knockback per zombie. |
 | `src/servercontrollers/Zombie/ZombieBehaviors.lua` | Provides definition-selected movement and attack strategies without type checks in core logic. |
 | `src/servercontrollers/Zombie/ZombieSeparation.lua` | Applies throttled spatial-hash separation so dense crowds do not occupy identical positions. |
@@ -71,16 +71,16 @@ These modules provide shared game configuration, persistent player-data defaults
 | Path | Responsibility |
 | --- | --- |
 | `src/modules/Game/CoinsConfig.lua` | Defines the shared coin data key, default, and exact-integer balance limit. |
-| `src/modules/Game/BackpackConfig.lua` | Maps carried-coin thresholds to the five authored backpack stages and inspected mount offsets. |
-| `src/modules/Game/CoinDropConfig.lua` | Defines shared coin pickup distance, timing, and client-prediction batching limits. |
+| `src/modules/Game/BackpackConfig.lua` | **Archived/dormant:** maps carried totals to authored backpack stages and mount offsets. |
+| `src/modules/Game/CoinDropConfig.lua` | **Archived/dormant:** defines world-drop pickup distance, timing, and client-prediction batching limits. |
 | `src/modules/Game/Abilities/AbilityDefinitions.lua` | Defines expandable ability metadata, rarity odds, equip limits, upgrade costs, per-level stats, visible milestones, Rage tuning, and configurable Blast, Burn, and Thorns progression. |
 | `src/modules/Game/Stats/PlayerStatConfig.lua` | Defines fallback player base stats and the global final movement-speed limit. |
 | `src/modules/Game/Rage/RageConfig.lua` | Defines shared Rage capacity, 30-second charge, 10-second duration, keybind, and request cadence. |
 | `src/modules/Game/DataTemplate.lua` | Supplies DataService's JSON-compatible persisted player-data defaults. |
-| `src/modules/Game/Rolls/RollDefinitions.lua` | Builds the weighted roll catalog from obtainable abilities and defines the Auto Roll threshold, inventory, total-roll, preference, and presentation timing keys. |
+| `src/modules/Game/Rolls/RollDefinitions.lua` | Preserves the dormant weighted roll catalog and legacy data keys; still supplies saved-data compatibility and reveal timing. |
 | `src/modules/Game/RuntimeState.lua` | Stores generic transient per-player state and change signals. |
 | `src/modules/Game/Zombies/ZombieAreas.lua` | Defines progression-scaled spawn volumes, caps, group sizes, and weighted zombie pools. |
-| `src/modules/Game/Zombies/ZombieDefinitions.lua` | Defines expandable per-type combat, movement, coin reward, asset, and animation configuration. |
+| `src/modules/Game/Zombies/ZombieDefinitions.lua` | Defines expandable per-type combat, movement, legacy dormant coin metadata, asset, and animation configuration. |
 | `src/modules/Game/Zombies/ZombieProtocol.lua` | Shares compact state codes and snapshot timing between server simulation and client rendering. |
 | `src/modules/Game/TeleportPlayer.lua` | Teleports a Player or character Model to a CFrame or BasePart. |
 | `src/modules/Game/TeleportLocalPlayer.lua` | Teleports the local character for client-side presentation use. |
@@ -126,13 +126,13 @@ These modules provide shared game configuration, persistent player-data defaults
 | `src/UI/Classes/Confirmation.lua` | Provides a reusable modal confirmation component. |
 | `src/UI/Effects/HoverExpand.lua` | Provides reusable hover scaling for GuiObjects. |
 | `src/UI/Effects/Notification.lua` | Provides a reusable counted attention badge. |
-| `src/UI/HUD/CoinsDisplay.lua` | Renders the responsive base-only coin balance display from replicated data. |
-| `src/UI/HUD/RunRewardsDisplay.lua` | Shows a compact pending-coin claim prompt and animates confirmed coins from the backpack into the balance HUD. |
-| `src/UI/HUD/AbilityInterface.lua` | Renders base-only ability management plus roll-discovery presentation, equipped-first lists, concealed locked entries, and direct actions. |
+| `src/UI/HUD/CoinsDisplay.lua` | **Archived/dormant:** reusable responsive permanent-currency display. |
+| `src/UI/HUD/RunRewardsDisplay.lua` | **Archived/dormant:** pending-reward claim and backpack-to-balance presentation. |
+| `src/UI/HUD/AbilityInterface.lua` | **Archived/dormant:** ability management and roll-discovery presentation. |
 | `src/UI/HUD/RageBar.lua` | Renders the responsive STUD-style Rage meter, ready/active states, activation control, and screen pulse. |
 | `src/UI/HUD/Notifications.lua` | Renders transient notifications from NotificationManager. |
-| `src/UI/HUD/RollControls.lua` | Keeps Roll/Hide/Show centered, displays and enforces Auto Roll unlock progress, and shows the Abilities control only at base. |
-| `src/UI/HUD/RollInterface.lua` | Renders the full-screen or compact top-center item/clover reel chain with distance-based center scaling and selection feedback. |
+| `src/UI/HUD/RollControls.lua` | **Archived/dormant:** Roll/Hide/Show, Auto Roll progress, and ability-menu controls. |
+| `src/UI/HUD/RollInterface.lua` | **Archived/dormant:** full-screen or compact item/clover reel presentation. |
 | `src/modules/UI/NotificationManager.lua` | Emits reusable transient notification events. |
 | `src/modules/UI/PlayVFX.lua` | Clones, starts, and cleans up reusable effects and sounds. |
 | `src/modules/UI/SafeArea.lua` | Provides dynamic Roblox topbar-safe offsets. |

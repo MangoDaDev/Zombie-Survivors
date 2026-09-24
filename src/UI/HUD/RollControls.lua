@@ -1,3 +1,5 @@
+-- Currently unused after removal of simulator gameplay. Preserved for future explicitly opened roll controls.
+
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Button = require(script.Parent.Parent.Classes.Button)

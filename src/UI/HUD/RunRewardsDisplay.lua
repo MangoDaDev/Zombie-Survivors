@@ -1,3 +1,5 @@
+-- Currently unused after removal of extraction gameplay. Preserved for possible post-run reward presentation.
+
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")

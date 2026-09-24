@@ -1,3 +1,5 @@
+-- Currently unused after removal of carried simulator loot. Preserved as reusable wearable-backpack logic.
+
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 

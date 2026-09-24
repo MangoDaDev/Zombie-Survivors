@@ -17,17 +17,16 @@ local modules_to_init = {
 	ServerStorage.Controllers.ChatCommandController,
 	ServerStorage.Controllers.PlayerStateController,
 	ServerStorage.Controllers.CoinsController,
-	ServerStorage.Controllers.BackpackController,
-	ServerStorage.Controllers.RunRewardsController,
-	ServerStorage.Controllers.CoinDropController,
 	ServerStorage.Controllers.RageController,
 	ServerStorage.Controllers.PlayerStatController,
 	ServerStorage.Controllers.AbilityController,
-	ServerStorage.Controllers.RollController,
 	ServerStorage.Controllers.CollisionController,
 	ServerStorage.Controllers.CharacterController,
 	ServerStorage.Controllers.ZombieController,
 }
+
+-- Simulator-era roll, coin-drop, carried-backpack, and extraction controllers are intentionally
+-- excluded from startup. Preserving the modules keeps reusable reward logic without live listeners or loops.
 
 local initialized_modules = {}
 local removing_players = {}

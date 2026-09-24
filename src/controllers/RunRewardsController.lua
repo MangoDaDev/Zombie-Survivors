@@ -1,3 +1,5 @@
+-- Currently unused after removal of extraction gameplay. Preserved for possible future run-reward adaptation.
+
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Networker = require(ReplicatedStorage.Packages.networker)

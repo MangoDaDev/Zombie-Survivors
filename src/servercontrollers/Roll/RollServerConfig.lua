@@ -1,3 +1,5 @@
+-- Currently unused while rolling is archived. Preserved for future lobby or post-run reward balance.
+
 return {
 	RollCooldown = 0.75,
 	RollRequestCooldown = 0.15,
