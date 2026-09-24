@@ -248,6 +248,7 @@ local function abilityCard(ability, state, category, selectedId)
 			Selectable = owned,
 			Size = UDim2.new(1, 0, 0, 106),
 			Text = "",
+			TextScaled = true,
 			ZIndex = 340,
 			MouseEnter = function()
 				if owned() then

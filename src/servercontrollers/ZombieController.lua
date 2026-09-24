@@ -27,6 +27,8 @@ local random = Random.new()
 local zombies = {}
 local areaRuntime = {}
 local groundOffsets = {}
+local boundaryRadii = {}
+local maximumBoundaryRadius = 0
 
 local function createVariation()
 	-- Independent subtle rolls prevent whole groups from sharing the same silhouette and cadence.
@@ -60,21 +62,6 @@ local function getLivePlayerCandidates()
 	return candidates, candidateLookup
 end
 
-local function isAreaActive(area, candidates)
-	local halfSize = area.Size * 0.5
-	for _, candidate in candidates do
-		local localPosition = area.CFrame:PointToObjectSpace(candidate.position)
-		if
-			math.abs(localPosition.X) <= halfSize.X + area.ActivationPadding
-			and math.abs(localPosition.Z) <= halfSize.Y + area.ActivationPadding
-		then
-			return true
-		end
-	end
-
-	return false
-end
-
 local function isAwayFromPlayers(position, candidates, minimumDistance)
 	for _, candidate in candidates do
 		local offset = Vector3.new(position.X - candidate.position.X, 0, position.Z - candidate.position.Z)
@@ -87,7 +74,9 @@ local function isAwayFromPlayers(position, candidates, minimumDistance)
 end
 
 local function chooseGroupCenter(area, candidates)
-	local halfSize = area.Size * 0.5
+	-- The largest scaled model footprint keeps every randomly yawed zombie wholly inside the area,
+	-- including its very first replicated frame before the simulation has stepped.
+	local halfSize = area.Size * 0.5 - Vector2.one * maximumBoundaryRadius * VARIATION_MAXIMUM
 	for _ = 1, MAX_SPAWN_ATTEMPTS do
 		local localPosition =
 			Vector3.new(random:NextNumber(-halfSize.X, halfSize.X), 0, random:NextNumber(-halfSize.Y, halfSize.Y))
@@ -101,7 +90,7 @@ local function chooseGroupCenter(area, candidates)
 end
 
 local function getGroupedSpawnPosition(area, groupCenter, candidates)
-	local halfSize = area.Size * 0.5
+	local halfSize = area.Size * 0.5 - Vector2.one * maximumBoundaryRadius * VARIATION_MAXIMUM
 	for _ = 1, MAX_SPAWN_ATTEMPTS do
 		local angle = random:NextNumber(0, math.pi * 2)
 		local radius = math.sqrt(random:NextNumber()) * area.GroupRadius
@@ -122,7 +111,8 @@ end
 local function createZombie(area, typeName, surfacePosition)
 	local definition = ZombieDefinitions[typeName]
 	local groundOffset = groundOffsets[typeName]
-	if not definition or not groundOffset then
+	local boundaryRadius = boundaryRadii[typeName]
+	if not definition or not groundOffset or not boundaryRadius then
 		return nil
 	end
 
@@ -131,7 +121,7 @@ local function createZombie(area, typeName, surfacePosition)
 	local spawnPosition = surfacePosition + Vector3.yAxis * groundOffset * variation.Scale
 	local spawnYaw = random:NextNumber(-math.pi, math.pi)
 	local spawnCFrame = CFrame.new(spawnPosition) * CFrame.Angles(0, spawnYaw, 0)
-	local zombie = Zombie.new(nextZombieId, typeName, definition, spawnCFrame, area, variation)
+	local zombie = Zombie.new(nextZombieId, typeName, definition, spawnCFrame, area, variation, boundaryRadius)
 	zombies[zombie.id] = zombie
 	areaRuntime[area.Id].count += 1
 
@@ -199,6 +189,10 @@ local function buildGroundOffsets()
 			local boundingCFrame, boundingSize = template:GetBoundingBox()
 			local localBoundingCFrame = pivot:ToObjectSpace(boundingCFrame)
 			groundOffsets[typeName] = -(localBoundingCFrame.Position.Y - boundingSize.Y * 0.5)
+			-- A horizontal bounding circle stays valid for every randomized spawn yaw.
+			local boundaryRadius = Vector2.new(boundingSize.X, boundingSize.Z).Magnitude * 0.5
+			boundaryRadii[typeName] = boundaryRadius
+			maximumBoundaryRadius = math.max(maximumBoundaryRadius, boundaryRadius)
 		else
 			warn(string.format("Missing zombie model ReplicatedStorage.Assets.Models.Zombies.%s", definition.AssetName))
 		end
@@ -213,7 +207,9 @@ local function stepSimulation(deltaTime)
 		local runtime = areaRuntime[area.Id]
 		if now >= runtime.nextSpawnAt then
 			runtime.nextSpawnAt = now + area.SpawnInterval
-			if #candidates > 0 and runtime.count < area.MaxZombies and isAreaActive(area, candidates) then
+			-- Every configured floor stays populated while the run has a living player; player proximity
+			-- must not silently disable distant spawn areas.
+			if #candidates > 0 and runtime.count < area.MaxZombies then
 				spawnGroup(area, candidates, now)
 			end
 		end

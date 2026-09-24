@@ -11,7 +11,7 @@ local MERGE_INTERVAL = 0.3
 local MERGE_RADIUS = 4.5
 -- Keep drops meaningfully spaced: they scatter wider than the reduced pickup radius and expire after 20 seconds.
 local MAGNET_RADIUS = 9
-local COLLECTION_DURATION = 0.58
+local COLLECTION_DURATION = 0.4
 local COIN_LIFETIME = 20
 local MIN_SCATTER_DISTANCE = 5
 local MAX_SCATTER_DISTANCE = 10

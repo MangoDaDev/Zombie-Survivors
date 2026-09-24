@@ -169,7 +169,11 @@ local function fireDaggerVolley(player: Player, definition, level: number): bool
 		local spacing = (daggerIndex - (stats.DaggerCount + 1) / 2) * 0.72
 		local startPosition = origin + root.CFrame.RightVector * spacing
 		local distance = (target.position - startPosition).Magnitude
-		local duration = math.clamp(distance / projectileSpeed, 0.1, 0.72)
+		local duration = math.clamp(
+			distance / projectileSpeed,
+			definition.Combat.MinimumTravelDuration,
+			definition.Combat.MaximumTravelDuration
+		)
 		-- A tiny shared lead lets every client begin the cosmetic projectile at the same smooth timestamp.
 		local launchDelay = VOLLEY_NETWORK_LEAD + (daggerIndex - 1) * volleyStagger
 		local launchAt = workspace:GetServerTimeNow() + launchDelay

@@ -91,14 +91,19 @@ local dagger = {
 	Combat = {
 		Cooldown = 1.25,
 		Range = 100,
-		ProjectileSpeed = 115,
+		-- Keep the dagger large and airborne long enough for players to read the projectile during combat.
+		BaseProjectileScale = 0.32,
+		ProjectileScalePerLevel = 0.004,
+		ProjectileSpeed = 72,
+		MinimumTravelDuration = 0.18,
+		MaximumTravelDuration = 1,
 		Knockback = 15,
 	},
 	Rage = {
 		RagePerHit = 7,
 		Cooldown = 0.24,
 		Range = 135,
-		ProjectileSpeed = 165,
+		ProjectileSpeed = 105,
 		AdditionalDaggers = 3,
 		MaximumDaggers = 8,
 		ProjectileScaleMultiplier = 1.28,
@@ -117,7 +122,8 @@ function dagger.GetStats(level: number)
 	local clampedLevel = math.clamp(math.floor(level), 1, dagger.MaxLevel)
 	return {
 		Damage = math.floor(22 + (clampedLevel - 1) * 3.1 + 0.5),
-		ProjectileScale = 0.22 + (clampedLevel - 1) * 0.0035,
+		ProjectileScale = dagger.Combat.BaseProjectileScale
+			+ (clampedLevel - 1) * dagger.Combat.ProjectileScalePerLevel,
 		DaggerCount = getDaggerCount(clampedLevel),
 	}
 end
@@ -143,7 +149,7 @@ function dagger.GetStatsText(level: number): string
 		return string.format(
 			"Damage  %d\nProjectile Size  %d%%\nDaggers per Volley  %d",
 			current.Damage,
-			math.floor(current.ProjectileScale / 0.22 * 100 + 0.5),
+			math.floor(current.ProjectileScale / dagger.Combat.BaseProjectileScale * 100 + 0.5),
 			current.DaggerCount
 		)
 	end
@@ -152,8 +158,8 @@ function dagger.GetStatsText(level: number): string
 		"Damage  %d  >  %d\nProjectile Size  %d%%  >  %d%%\nDaggers per Volley  %d  >  %d",
 		current.Damage,
 		nextStats.Damage,
-		math.floor(current.ProjectileScale / 0.22 * 100 + 0.5),
-		math.floor(nextStats.ProjectileScale / 0.22 * 100 + 0.5),
+		math.floor(current.ProjectileScale / dagger.Combat.BaseProjectileScale * 100 + 0.5),
+		math.floor(nextStats.ProjectileScale / dagger.Combat.BaseProjectileScale * 100 + 0.5),
 		current.DaggerCount,
 		nextStats.DaggerCount
 	)

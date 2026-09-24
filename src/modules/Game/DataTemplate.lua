@@ -8,7 +8,7 @@ return {
 	-- Rolled rewards are server-awarded item quantities keyed by stable definition IDs.
 	[RollDefinitions.InventoryDataKey] = {},
 	[RollDefinitions.TotalRollsDataKey] = 0,
-	-- Ability ownership, levels, and equipped slots are one JSON-compatible authoritative snapshot.
+	-- All abilities must keep ownership, levels, and equipped slots in this persisted JSON-compatible snapshot.
 	[AbilityDefinitions.DataKey] = {
 		Owned = {},
 		Levels = {},

@@ -32,7 +32,7 @@ local canvas = New("CanvasGroup", {
 	Size = UDim2.fromScale(1, 1),
 }, screen) :: CanvasGroup
 
-New("TextLabel", {
+local title = New("TextLabel", {
 	Name = "Title",
 	AnchorPoint = Vector2.new(0.5, 1),
 	BackgroundTransparency = 1,
@@ -41,8 +41,10 @@ New("TextLabel", {
 	Size = UDim2.fromOffset(360, 48),
 	Text = "Loading",
 	TextColor3 = Color3.new(1, 1, 1),
-	TextSize = 32,
-}, canvas)
+	TextScaled = true,
+}, canvas) :: TextLabel
+-- Keep the scaled loading hierarchy close to its authored desktop sizes while still shrinking cleanly.
+New("UITextSizeConstraint", { MaxTextSize = 32, MinTextSize = 18 }, title)
 
 local status = New("TextLabel", {
 	Name = "Status",
@@ -53,8 +55,9 @@ local status = New("TextLabel", {
 	Size = UDim2.fromOffset(360, 28),
 	Text = "Starting...",
 	TextColor3 = Color3.fromRGB(180, 185, 198),
-	TextSize = 16,
+	TextScaled = true,
 }, canvas) :: TextLabel
+New("UITextSizeConstraint", { MaxTextSize = 16, MinTextSize = 11 }, status)
 
 local loading_bar = New("Frame", {
 	Name = "LoadingBar",

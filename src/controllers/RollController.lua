@@ -30,7 +30,8 @@ function RollController.RollStarted(_, packet)
 		or (packet.kind ~= "Item" and packet.kind ~= "Clover")
 		or not isValidInteger(packet.luckMultiplier, 1)
 		or (packet.kind == "Item" and (type(packet.itemId) ~= "string" or RollDefinitions.ById[packet.itemId] == nil))
-		or (packet.kind == "Clover" and packet.itemId ~= nil)
+		or (packet.kind == "Item" and type(packet.isNewAbility) ~= "boolean")
+		or (packet.kind == "Clover" and (packet.itemId ~= nil or packet.isNewAbility ~= nil))
 	then
 		return
 	end

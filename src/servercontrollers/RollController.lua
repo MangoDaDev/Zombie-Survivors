@@ -36,32 +36,10 @@ local function isCurrentState(player: Player, state: PlayerRollState, token: num
 	return player.Parent == Players and states[player] == state and state.token == token
 end
 
-local function selectItem(player: Player, state: PlayerRollState, excludeAbilities: boolean, luckMultiplier: number)
-	local eligibleItems = {}
-	local discoveryPending = excludeAbilities or next(state.pendingDiscoveries) ~= nil
-	local hasUndiscoveredAbility = false
-	-- Preserve unique discovery progression while anything remains locked, then keep the generic
-	-- roller usable by allowing already-owned abilities to appear as cosmetic results.
-	if not discoveryPending then
-		for _, item in RollDefinitions.Items do
-			if item.AbilityId and not AbilityController.IsOwned(player, item.AbilityId) then
-				hasUndiscoveredAbility = true
-				break
-			end
-		end
-	end
-	for _, item in RollDefinitions.Items do
-		if not item.AbilityId
-			or (
-				not discoveryPending
-				and (not AbilityController.IsOwned(player, item.AbilityId) or not hasUndiscoveredAbility)
-			)
-		then
-			table.insert(eligibleItems, item)
-		end
-	end
-	-- Clover luck affects only this server-side weighted selection and can never be submitted by the client.
-	return GetRandomFromWeightedTable(eligibleItems, "Weight", random, state.luck * luckMultiplier)
+local function selectItem(state: PlayerRollState, luckMultiplier: number)
+	-- Owned abilities deliberately remain in the authoritative pool at their normal weight; ownership
+	-- only decides whether the result discovers something new, never whether it can be rolled.
+	return GetRandomFromWeightedTable(RollDefinitions.Items, "Weight", random, state.luck * luckMultiplier)
 end
 
 local function incrementTotalRolls(player: Player)
@@ -76,7 +54,7 @@ end
 local function awardItem(player: Player, state: PlayerRollState, item, amount: number): (boolean, string?)
 	if item.AbilityId then
 		if AbilityController.IsOwned(player, item.AbilityId) then
-			-- Once the catalog is complete, owned abilities remain valid cosmetic roll results without
+			-- Owned abilities remain valid duplicate results at every progression point without
 			-- duplicating persistent ownership or replaying discovery rewards.
 			incrementTotalRolls(player)
 			return true, nil
@@ -204,7 +182,7 @@ startSequence = function(player: Player, state: PlayerRollState): boolean
 				continue
 			end
 
-			local item = selectItem(player, state, false, luckMultiplier)
+			local item = selectItem(state, luckMultiplier)
 			local awarded = false
 			local discoveredAbilityId
 			if item then
@@ -224,6 +202,7 @@ startSequence = function(player: Player, state: PlayerRollState): boolean
 				reelIndex = reelIndex,
 				kind = "Item",
 				itemId = item.Id,
+				isNewAbility = discoveredAbilityId ~= nil,
 				luckMultiplier = luckMultiplier,
 			})
 

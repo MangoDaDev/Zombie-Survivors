@@ -233,7 +233,15 @@ local function playExplosion(position: Vector3, radius: number, rage: boolean, e
 	end
 end
 
-local function drawLightningSegment(fromPosition: Vector3, toPosition: Vector3, rage: boolean, branch: boolean)
+local function createLightningPiece(
+	fromPosition: Vector3,
+	toPosition: Vector3,
+	color: Color3,
+	thickness: number,
+	transparency: number,
+	lifetime: number,
+	name: string
+)
 	if not effectsFolder then
 		return
 	end
@@ -242,20 +250,108 @@ local function drawLightningSegment(fromPosition: Vector3, toPosition: Vector3, 
 		return
 	end
 	local part = Instance.new("Part")
-	part.Name = if branch then "LightningBranch" else "LightningBolt"
+	part.Name = name
 	part.Material = Enum.Material.Neon
-	part.Color = if rage then Color3.fromRGB(255, 243, 123) else Color3.fromRGB(113, 211, 255)
-	local thickness = if branch then 0.1 else if rage then 0.24 else 0.17
+	part.Color = color
 	part.Size = Vector3.new(thickness, thickness, offset.Magnitude)
 	part.CFrame = CFrame.lookAt(fromPosition:Lerp(toPosition, 0.5), toPosition)
+	part.Transparency = transparency
 	part.Anchored = true
 	part.CanCollide = false
 	part.CanQuery = false
 	part.CanTouch = false
 	part.CastShadow = false
 	part.Parent = effectsFolder
-	TweenService:Create(part, TweenInfo.new(if rage then 0.2 else 0.14), { Transparency = 1 }):Play()
-	Debris:AddItem(part, 0.24)
+	TweenService:Create(part, TweenInfo.new(lifetime, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+		Transparency = 1,
+	}):Play()
+	Debris:AddItem(part, lifetime + 0.05)
+end
+
+local function createJaggedLightningPoints(fromPosition: Vector3, toPosition: Vector3, rage: boolean, branch: boolean)
+	local offset = toPosition - fromPosition
+	local length = offset.Magnitude
+	local direction = offset.Unit
+	local reference = if math.abs(direction:Dot(Vector3.yAxis)) < 0.92 then Vector3.yAxis else Vector3.xAxis
+	local side = direction:Cross(reference).Unit
+	local vertical = direction:Cross(side).Unit
+	local pieceCount = math.clamp(math.floor(length / 5) + 2, 3, if branch then 5 else 7)
+	local maximumJitter = math.min(math.max(length * 0.11, 0.5), if rage then 2.8 else 2.2)
+	if branch then
+		maximumJitter *= 0.65
+	end
+
+	local points = { fromPosition }
+	for pieceIndex = 1, pieceCount - 1 do
+		local alpha = pieceIndex / pieceCount
+		-- Tapering the random offset at both ends keeps every bolt connected while giving its middle a unique silhouette.
+		local envelope = math.sin(alpha * math.pi)
+		local sidewaysOffset = random:NextNumber(-maximumJitter, maximumJitter) * envelope
+		local verticalOffset = random:NextNumber(-maximumJitter * 0.65, maximumJitter * 0.65) * envelope
+		table.insert(
+			points,
+			fromPosition:Lerp(toPosition, alpha) + side * sidewaysOffset + vertical * verticalOffset
+		)
+	end
+	table.insert(points, toPosition)
+	return points
+end
+
+local function drawLightningPolyline(points, rage: boolean, branch: boolean, addVisualFork: boolean)
+	local baseColor = if rage then Color3.fromRGB(255, 205, 65) else Color3.fromRGB(68, 184, 255)
+	local hotColor = if rage then Color3.fromRGB(255, 250, 173) else Color3.fromRGB(224, 249, 255)
+	local thickness = if branch then 0.085 else if rage then 0.19 else 0.13
+	local lifetime = random:NextNumber(if rage then 0.18 else 0.14, if rage then 0.25 else 0.2)
+	local name = if branch then "LightningBranch" else "LightningBolt"
+
+	for pointIndex = 2, #points do
+		local fromPosition = points[pointIndex - 1]
+		local toPosition = points[pointIndex]
+		local colorMix = random:NextNumber(0.18, 0.62)
+		local coreColor = baseColor:Lerp(hotColor, colorMix)
+		-- A short-lived soft shell makes the thin randomized core read clearly without flashing the whole screen.
+		createLightningPiece(
+			fromPosition,
+			toPosition,
+			baseColor,
+			thickness * 3.2,
+			0.72,
+			lifetime + 0.05,
+			name .. "Glow"
+		)
+		createLightningPiece(
+			fromPosition,
+			toPosition,
+			coreColor,
+			thickness * random:NextNumber(0.82, 1.18),
+			random:NextNumber(0, 0.12),
+			lifetime,
+			name
+		)
+	end
+
+	if addVisualFork and #points >= 4 then
+		local forkIndex = random:NextInteger(2, #points - 1)
+		local forkOrigin = points[forkIndex]
+		local incoming = (forkOrigin - points[forkIndex - 1]).Unit
+		local side = incoming:Cross(if math.abs(incoming.Y) < 0.9 then Vector3.yAxis else Vector3.xAxis).Unit
+		local forkDirection = (side * random:NextNumber(-1, 1) + Vector3.yAxis * random:NextNumber(-0.35, 0.75)).Unit
+		local forkEnd = forkOrigin + forkDirection * random:NextNumber(1.6, if rage then 4.2 else 3.1)
+		local forkPoints = createJaggedLightningPoints(forkOrigin, forkEnd, rage, true)
+		drawLightningPolyline(forkPoints, rage, true, false)
+	end
+end
+
+local function drawLightningSegment(fromPosition: Vector3, toPosition: Vector3, rage: boolean, branch: boolean)
+	if not effectsFolder then
+		return
+	end
+	local offset = toPosition - fromPosition
+	if offset.Magnitude <= 0.001 then
+		return
+	end
+	local points = createJaggedLightningPoints(fromPosition, toPosition, rage, branch)
+	drawLightningPolyline(points, rage, branch, not branch and random:NextNumber() <= (if rage then 0.8 else 0.45))
 end
 
 local function playLightningImpact(position: Vector3, rage: boolean, final: boolean)
@@ -267,11 +363,35 @@ local function playLightningImpact(position: Vector3, rage: boolean, final: bool
 		0.12
 	)
 	if flash then
+		local light = Instance.new("PointLight")
+		light.Color = flash.Color
+		light.Brightness = if final then 4.5 else if rage then 3.5 else 2.5
+		light.Range = if final then 10 else 7
+		light.Parent = flash
 		TweenService:Create(flash, TweenInfo.new(0.16), {
 			Size = Vector3.one * (if final then 4.2 else 2.5),
 			Transparency = 1,
 		}):Play()
 		Debris:AddItem(flash, 0.22)
+	end
+
+	local sparkCount = if final then 6 else if rage then 4 else 3
+	for _ = 1, sparkCount do
+		local direction = Vector3.new(
+			random:NextNumber(-1, 1),
+			random:NextNumber(0.1, 1),
+			random:NextNumber(-1, 1)
+		).Unit
+		local sparkEnd = position + Vector3.new(0, 1.2, 0) + direction * random:NextNumber(0.8, if final then 3.5 else 2.2)
+		createLightningPiece(
+			position + Vector3.new(0, 1.2, 0),
+			sparkEnd,
+			if rage then Color3.fromRGB(255, 233, 116) else Color3.fromRGB(185, 238, 255),
+			if final then 0.1 else 0.07,
+			0.08,
+			random:NextNumber(0.1, 0.17),
+			"LightningImpactSpark"
+		)
 	end
 end
 

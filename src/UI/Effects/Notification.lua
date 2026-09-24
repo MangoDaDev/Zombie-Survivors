@@ -19,6 +19,7 @@ local function CreateGui(Text: string): TextLabel
 	Gui.Position = UDim2.fromScale(0.88, 0.12)
 	Gui.Size = UDim2.fromOffset(30, 30)
 	Gui.Text = ""
+	Gui.TextScaled = true
 	Gui.Visible = false
 	Gui.ZIndex = 40
 

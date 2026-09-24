@@ -11,7 +11,9 @@ local COIN_STUD_SIZE = 1
 local IDLE_BOB_HEIGHT = 0.14
 local IDLE_BOB_SPEED = 2.8
 local MERGE_EASE_POWER = 2.4
-local MAGNET_EASE_POWER = 2.65
+local MAGNET_EASE_POWER = 3.4
+local MAGNET_INITIAL_PULL = 0.22
+local MAGNET_DURATION_FALLBACK = 0.4
 local COLLECTED_POP_DURATION = 0.16
 
 type CoinView = {
@@ -260,8 +262,8 @@ local function renderView(view: CoinView, now: number)
 		local root = getPlayerRoot(view.playerUserId)
 		if root then
 			local alpha = math.clamp((now - view.startAt) / view.duration, 0, 1)
-			-- A high power curve gives the pickup its deliberately slow start and fast magnetic finish.
-			local eased = alpha ^ MAGNET_EASE_POWER
+			-- Start moving immediately, then hand off to the stronger power curve for a responsive accelerating snap.
+			local eased = alpha * MAGNET_INITIAL_PULL + alpha ^ MAGNET_EASE_POWER * (1 - MAGNET_INITIAL_PULL)
 			local destination = root.Position + Vector3.new(0, 1.25, 0)
 			view.position = view.startPosition:Lerp(destination, eased)
 			view.holder.Position = view.position
@@ -345,7 +347,7 @@ function CoinDropController.CollectCoin(_, id, userId, startAt, duration)
 	view.phase = "Magnet"
 	view.startPosition = view.holder.Position
 	view.startAt = type(startAt) == "number" and startAt or Workspace:GetServerTimeNow()
-	view.duration = math.max(type(duration) == "number" and duration or 0.58, 0.05)
+	view.duration = math.max(type(duration) == "number" and duration or MAGNET_DURATION_FALLBACK, 0.05)
 	view.playerUserId = userId
 	view.trail.Enabled = true
 end

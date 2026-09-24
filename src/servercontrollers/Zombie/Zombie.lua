@@ -11,7 +11,7 @@ local MAXIMUM_KNOCKBACK_SPEED = 28
 local Zombie = {}
 Zombie.__index = Zombie
 
-function Zombie.new(id, typeName, definition, spawnCFrame, area, variation)
+function Zombie.new(id, typeName, definition, spawnCFrame, area, variation, boundaryRadius)
 	local self = setmetatable({}, Zombie)
 
 	self.id = id
@@ -25,6 +25,7 @@ function Zombie.new(id, typeName, definition, spawnCFrame, area, variation)
 	self.moveSpeedMultiplier = variation.MoveSpeed
 	self.turnSpeedMultiplier = variation.TurnSpeed
 	self.animationSpeedMultiplier = variation.AnimationSpeed
+	self.boundaryRadius = boundaryRadius * variation.Scale
 	self.knockbackVelocity = Vector3.zero
 	self.state = ZombieProtocol.State.Idle
 	self.target = nil
@@ -52,7 +53,8 @@ end
 function Zombie:_constrainToArea()
 	local area = self.area
 	local localPosition = area.CFrame:PointToObjectSpace(self.cframe.Position)
-	local margin = self.definition.SeparationRadius * self.scale
+	-- Keep the full rendered model, not only its simulation pivot, within its assigned spawn area.
+	local margin = self.boundaryRadius
 	local halfSize = area.Size * 0.5
 	local clampedLocalPosition = Vector3.new(
 		math.clamp(localPosition.X, -halfSize.X + margin, halfSize.X - margin),

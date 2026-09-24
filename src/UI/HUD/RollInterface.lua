@@ -7,6 +7,7 @@ local RollDefinitions = require(ReplicatedStorage.Modules.Game.Rolls.RollDefinit
 local GetRandomFromWeightedTable = require(ReplicatedStorage.Modules.Math.GetRandomFromWeightedTable)
 	.GetRandomFromWeightedTable
 local Images = require(ReplicatedStorage.Modules.UI.Images)
+local SafeArea = require(ReplicatedStorage.Modules.UI.SafeArea)
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
 local UIStyle = require(ReplicatedStorage.Modules.UI.UIStyle)
 local Vide = require(ReplicatedStorage.Packages.vide)
@@ -24,6 +25,14 @@ local ENTRY_STRIDE_SCALE = 0.34
 local ENTRY_COUNT = 31
 local RESULT_INDEX = 27
 local FULL_TINT_TRANSPARENCY = 0.34
+local FULL_REEL_SCREEN_WIDTH = 0.24
+local COMPACT_REEL_SCREEN_WIDTH = 0.14
+local FULL_CHAIN_HEIGHT = 0.8
+local COMPACT_CHAIN_HEIGHT = 0.3
+local FULL_CHAIN_TOP_SCALE = 0.08
+local COMPACT_CHAIN_TOP_PADDING = 10
+local REEL_GAP_SCREEN_WIDTH = 0.006
+local VISUAL_CLOVER_CHANCE = 0.12
 local ENTRY_MINIMUM_SCALE = 0.72
 local ENTRY_CENTER_SCALE = 1.2
 local SCALE_FALLOFF_IN_STRIDES = 2.2
@@ -31,10 +40,19 @@ local SCALE_FALLOFF_IN_STRIDES = 2.2
 local CLOVER_VISUAL = {
 	Name = "Clover",
 	Image = Images.Luck,
-	BaseOdds = 1,
+	-- Passing clovers use the base chain-start chance for their displayed visual odds.
+	BaseOdds = 10,
 	RarityRank = 6,
 	Color = Color3.fromRGB(103, 255, 132),
 }
+
+local function getRandomPassingItem()
+	-- Clover is a possible-looking passing result on every reel, while the server packet still owns the outcome.
+	if visualRandom:NextNumber() < VISUAL_CLOVER_CHANCE then
+		return CLOVER_VISUAL
+	end
+	return GetRandomFromWeightedTable(RollDefinitions.Items, "Weight", visualRandom, 1)
+end
 
 local function createText(parent: Instance, name: string, text: string, zIndex: number): TextLabel
 	local label = Instance.new("TextLabel")
@@ -147,16 +165,16 @@ local function createReel(parent: Frame, packet)
 	reel.ZIndex = 118
 	reel.Parent = parent
 
-	local isAbilityResult = not isClover and resultItem.AbilityId ~= nil
-	local hasHeader = not isClover and (isAbilityResult or packet.luckMultiplier > 1)
-	local multiplierText = if isAbilityResult
+	local isNewAbility = not isClover and packet.isNewAbility
+	local hasHeader = not isClover and (isNewAbility or packet.luckMultiplier > 1)
+	local multiplierText = if isNewAbility
 		then "NEW ABILITY"
 		else string.format("x%d LUCK", packet.luckMultiplier)
 	local multiplier = createText(reel, "Multiplier", multiplierText, 123)
 	multiplier.AnchorPoint = Vector2.new(0.5, 0)
 	multiplier.Position = UDim2.fromScale(0.5, 0)
 	multiplier.Size = UDim2.fromScale(0.82, 0.075)
-	multiplier.TextColor3 = if isAbilityResult
+	multiplier.TextColor3 = if isNewAbility
 		then resultItem.Color
 		else Color3.fromRGB(103, 255, 132)
 	multiplier.Visible = hasHeader
@@ -178,7 +196,7 @@ local function createReel(parent: Frame, packet)
 	selectionLine.BackgroundTransparency = 0.18
 	selectionLine.BorderSizePixel = 0
 	selectionLine.Position = UDim2.fromScale(0.5, 0.5)
-	selectionLine.Size = UDim2.new(0.96, 0, 0, 4)
+	selectionLine.Size = UDim2.new(0.62, 0, 0, 4)
 	selectionLine.ZIndex = 124
 	selectionLine.Parent = window
 
@@ -197,7 +215,7 @@ local function createReel(parent: Frame, packet)
 		-- Trailing decoys remain after the authoritative result so the stopped reel still shows what follows it.
 		local item = if index == RESULT_INDEX
 			then resultItem
-			else GetRandomFromWeightedTable(RollDefinitions.Items, "Weight", visualRandom, 1)
+			else getRandomPassingItem()
 		local _, entryScale = createEntry(
 			track,
 			item,
@@ -232,6 +250,7 @@ return function()
 	local reels = {}
 	local connections = {}
 	local reelTweens = {}
+	local topOffset = SafeArea.GetTopOffset(COMPACT_CHAIN_TOP_PADDING)
 	local root: Frame?
 	local tint: Frame?
 	local chain: Frame?
@@ -255,10 +274,20 @@ return function()
 			return
 		end
 		local count = math.max(#reels, 1)
-		local gapScale = 0.01
-		local chainWidth = math.min(0.94, 0.38 * count + gapScale * (count - 1))
-		chain.Position = UDim2.fromScale(0.5, 0.08)
-		chain.Size = UDim2.fromScale(chainWidth, 0.8)
+		local reelScreenWidth = if presentationHidden then COMPACT_REEL_SCREEN_WIDTH else FULL_REEL_SCREEN_WIDTH
+		local maximumChainWidth = if presentationHidden then 0.68 else 0.9
+		local chainWidth = math.min(
+			maximumChainWidth,
+			reelScreenWidth * count + REEL_GAP_SCREEN_WIDTH * (count - 1)
+		)
+		local gapScale = REEL_GAP_SCREEN_WIDTH / chainWidth
+		chain.Position = if presentationHidden
+			then UDim2.new(0.5, 0, 0, topOffset)
+			else UDim2.fromScale(0.5, FULL_CHAIN_TOP_SCALE)
+		chain.Size = UDim2.fromScale(
+			chainWidth,
+			if presentationHidden then COMPACT_CHAIN_HEIGHT else FULL_CHAIN_HEIGHT
+		)
 		chainLayout.Padding = UDim.new(gapScale, 0)
 		local reelWidth = math.max((1 - gapScale * (count - 1)) / count, 0.08)
 		for _, reelState in reels do
@@ -274,7 +303,8 @@ return function()
 		local isActive = active()
 		setHudVisible(not isActive or presentationHidden)
 		if chain then
-			chain.Visible = isActive and not presentationHidden
+			-- Hide is intentionally a compact mode: the live reels remain readable above the normal HUD.
+			chain.Visible = isActive
 		end
 
 		if isActive and not presentationHidden then
@@ -327,7 +357,7 @@ return function()
 		local linePulse = TweenService:Create(
 			reelState.selectionLine,
 			TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out, 0, true),
-			{ BackgroundTransparency = 0, Size = UDim2.new(1, 0, 0, 8) }
+			{ BackgroundTransparency = 0, Size = UDim2.new(0.72, 0, 0, 8) }
 		)
 		punchOut:Play()
 		linePulse:Play()
@@ -454,6 +484,10 @@ return function()
 	table.insert(connections, RollController.GetPresentationHiddenChangedSignal():Connect(function(hidden)
 		presentationHidden = hidden
 		applyMode()
+	end))
+	table.insert(connections, SafeArea.GetChangedSignal():Connect(function()
+		topOffset = SafeArea.GetTopOffset(COMPACT_CHAIN_TOP_PADDING)
+		layoutChain()
 	end))
 	cleanup(function()
 		setHudVisible(true)

@@ -37,7 +37,7 @@ Quick reference for the reusable first-party Luau foundation. Generated Wally de
 | `src/servercontrollers/RageController.lua` | Owns transient Rage charge, activation validation, duration, death resets, and replication. |
 | `src/servercontrollers/PlayerStateController.lua` | Owns generic per-player runtime state and replicates requested state updates. |
 | `src/servercontrollers/PlayerStatController.lua` | Composes named player health/speed modifiers, preserves gained health, and applies the final movement-speed limit. |
-| `src/servercontrollers/RollController.lua` | Owns per-player roll cooldowns, clover luck chains, rewards, and auto-roll scheduling. |
+| `src/servercontrollers/RollController.lua` | Owns per-player duplicate-inclusive ability rolls, cooldowns, clover luck chains, rewards, and auto-roll scheduling. |
 | `src/servercontrollers/Roll/RollServerConfig.lua` | Defines server-only luck, cooldown, and clover-chain balance values. |
 | `src/servercontrollers/ZombieController.lua` | Runs grouped area spawning, batched authoritative simulation, damage feedback, death rewards, and compact replication. |
 | `src/servercontrollers/Zombie/Zombie.lua` | Defines authoritative targeting, area-bounded movement, attacks, health, and knockback per zombie. |
@@ -122,7 +122,7 @@ These modules provide shared game configuration, persistent player-data defaults
 | `src/UI/HUD/RageBar.lua` | Renders the responsive STUD-style Rage meter, ready/active states, activation control, and screen pulse. |
 | `src/UI/HUD/Notifications.lua` | Renders transient notifications from NotificationManager. |
 | `src/UI/HUD/RollControls.lua` | Renders independent bottom-aligned Roll/Hide/Show, Auto Roll, and Abilities controls. |
-| `src/UI/HUD/RollInterface.lua` | Renders the hideable item/clover reel chain with distance-based center scaling and selection feedback. |
+| `src/UI/HUD/RollInterface.lua` | Renders the full-screen or compact top-center item/clover reel chain with distance-based center scaling and selection feedback. |
 | `src/modules/UI/NotificationManager.lua` | Emits reusable transient notification events. |
 | `src/modules/UI/PlayVFX.lua` | Clones, starts, and cleans up reusable effects and sounds. |
 | `src/modules/UI/SafeArea.lua` | Provides dynamic Roblox topbar-safe offsets. |

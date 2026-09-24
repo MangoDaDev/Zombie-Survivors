@@ -171,6 +171,7 @@ return function(props: Props)
 			Selectable = enabled,
 			Size = UDim2.fromScale(1, 1),
 			Text = "",
+			TextScaled = true,
 			FontFace = UIStyle.Font,
 			ZIndex = 5,
 			MouseEnter = function()

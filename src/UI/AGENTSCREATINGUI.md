@@ -832,6 +832,7 @@ Additional rules:
 * Reuse existing hover/click/animation modules if the codebase already contains them instead of duplicating functionality.
 * Preserve existing functionality when restyling UI. Do not break logic just to change appearance.
 * Prefer responsive sizing and layouts so the UI works across different screen sizes.
+* Use `TextScaled` for rendered UI text. Preserve hierarchy through appropriately sized containers, adding text-size constraints only when a label needs explicit readable bounds.
 * Use clear internal names such as `Content`, `StudTexture`, `Glow`, `Icon`, `Label`, `Cost`, `Sensor`, etc.
 
 ### Reusable Elements

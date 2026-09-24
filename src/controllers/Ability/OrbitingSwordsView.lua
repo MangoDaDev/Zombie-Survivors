@@ -6,7 +6,8 @@ local Workspace = game:GetService("Workspace")
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
 
 local TAU = math.pi * 2
-local HORIZONTAL_ORIENTATION = CFrame.Angles(math.rad(90), 0, 0)
+-- Preserve the orbit-facing CFrame while applying the authored sword's horizontal pitch and extra local-Y quarter turn.
+local MODEL_ORIENTATION = CFrame.Angles(math.rad(90), 0, 0) * CFrame.Angles(0, math.rad(90), 0)
 
 local OrbitingSwordsView = {}
 
@@ -296,8 +297,8 @@ function OrbitingSwordsView.Render(now: number)
 				local radial = Vector3.new(math.cos(swordAngle), 0, math.sin(swordAngle))
 				local tangent = Vector3.new(-radial.Z, 0, radial.X)
 				local position = center + radial * radius
-				-- The authored sword's blade runs along local Y; pitch it onto the ground plane while orbiting.
-				sword.model:PivotTo(CFrame.lookAt(position, position + tangent) * HORIZONTAL_ORIENTATION)
+				-- The authored sword's blade runs along local Y; its model offset is composed after the dynamic orbit CFrame.
+				sword.model:PivotTo(CFrame.lookAt(position, position + tangent) * MODEL_ORIENTATION)
 			end
 		end
 	end
