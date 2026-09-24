@@ -1,186 +1,99 @@
 # Codebase Index
 
-Quick reference for the project's first-party Luau scripts. Generated Wally dependencies in `Packages` and `ServerPackages` are intentionally excluded.
+Quick reference for the reusable first-party Luau foundation. Generated Wally dependencies in `Packages` and `ServerPackages` are intentionally excluded.
 
-## `src/classes` - Client shared classes
+## Runtime bootstraps
 
-| Path | Name | Responsibility |
-| --- | --- | --- |
-| `src/classes/ConveyorItem.lua` | ConveyorItem | Renders replicated conveyor items, moves them along their path, and forwards free pickup prompts through SharedClass. |
-| `src/classes/MuseumVisitor.lua` | MuseumVisitor | Tracks timed guest routes through one client scheduler, caches museum areas, materializes only viewed or potentially visible guests, builds and pools minimal R6 render rigs while preserving authored body attachments, reapplies clothing, skin colour, and attachment-aligned accessories on reuse, and handles visibility, walking, ball-socket ragdolls, fading, dialogue, and cash feedback. |
+| Path | Responsibility |
+| --- | --- |
+| `src/client/init.client.lua` | Initializes client DataService, generic controllers, the UI root, and character lifecycle dispatch. |
+| `src/server/init.server.lua` | Initializes server DataService, generic server controllers, and player/character lifecycle dispatch. |
+| `src/loading/init.client.lua` | Shows startup progress, waits for the app and character controller, requests the initial character, and fades away. |
 
-## `src/client` - Client bootstrap
+## Controllers
 
-| Path | Name | Responsibility |
-| --- | --- | --- |
-| `src/client/init.client.lua` | Client | Initializes client DataService, controllers, UI, and character lifecycle hooks. |
+| Path | Responsibility |
+| --- | --- |
+| `src/controllers/CharacterController.lua` | Requests server-authorized character spawning and manages local camera and respawn behavior. |
+| `src/controllers/PlayerStateController.lua` | Receives generic server runtime-state snapshots and updates. |
+| `src/servercontrollers/CharacterController.lua` | Rate-limits and authorizes character spawn requests while `CharacterAutoLoads` is disabled. |
+| `src/servercontrollers/CollisionController.lua` | Assigns avatar parts to a generic non-colliding player-character collision group. |
+| `src/servercontrollers/PlayerStateController.lua` | Owns generic per-player runtime state and replicates requested state updates. |
 
-## `src/compatibility` - Package compatibility
+## Core modules
 
-| Path | Name | Responsibility |
-| --- | --- | --- |
-| `src/compatibility/TopbarPlus.lua` | TopbarPlus | Exposes the installed TopbarPlus package at the path expected by Satchel. |
+| Path | Responsibility |
+| --- | --- |
+| `src/modules/Core/ActivateCallbacks.lua` | Runs callback descriptors in their configured client or server context. |
+| `src/modules/Core/AnchorModel.lua` | Anchors or unanchors every BasePart under an instance. |
+| `src/modules/Core/ChangeModelProperties.lua` | Applies a property set across an instance hierarchy with an optional class filter. |
+| `src/modules/Core/GenerateUniqueId.lua` | Generates a GUID without braces. |
+| `src/modules/Core/GetObjectExists.lua` | Checks whether a value is a currently parented Roblox Instance. |
+| `src/modules/Core/GetRandomChild.lua` | Selects a random direct child from an instance. |
+| `src/modules/Core/InheritInstance.lua` | Adds fallback table inheritance while preserving an existing metatable lookup. |
+| `src/modules/Core/SharedClass.lua` | Provides the retained cross-boundary class replication protocol for systems that genuinely need paired objects. |
 
-## `src/controllers` - Client controllers
+## Game foundation modules
 
-| Path | Name | Responsibility |
-| --- | --- | --- |
-| `src/controllers/CharacterController.lua` | CharacterController | Requests character spawning and manages local camera and respawn behavior. |
-| `src/controllers/BatController.lua` | BatController | Detects responsive crate and player bat targets, applies saved cooldown multipliers, cancels active swings and blocks Bat use while ragdolled, predicts fall-speed-scaled crate damage and lethal hits, renders size-normalized crate deformation, crate-tier-scaled camera impact, audible hit feedback, and trailed local debris alongside Studio-authored critical-hit particles, shows replicated player swing animations, and sends prediction IDs for server reconciliation. |
-| `src/controllers/BaseMarkerController.lua` | BaseMarkerController | Creates per-viewer museum base markers with each owner's profile picture, a prominent local “Your Base” label, and smaller display-name labels for other players. |
-| `src/controllers/ConveyorItemController.lua` | ConveyorItemController | Retains the inactive legacy ConveyorItem SharedClass renderer. |
-| `src/controllers/CrateController.lua` | CrateController | Renders reconciled crate health and nearby per-crate reset countdowns locally, starts predicted crate roulette immediately, gives each player a persisted 2.5-second first roll of 1.5x rare-or-better silhouettes, animates exaggerated spinning silhouette pops with rate-limited rising reveal ticks, FOV focus, and temporary lighting treatment, preserves the music mix, waits for its minimum duration and authoritative result, then hands off through a dirty local reward model while presenting rarity-scaled completion audio and Mythic/Secret fireworks, a reveal kick, strengthened fullscreen rarity flashes, vignettes, sparkles, and a responsive center-to-edge star burst. |
-| `src/controllers/AmbientAudioController.lua` | AmbientAudioController | Shuffles and plays every track in the Music asset folder without repeats, preserves each Sound's authored volume, and smoothly ducks music for high-rarity reveals and restoration completion states. |
-| `src/controllers/FeedbackController.lua` | FeedbackController | Creates the mailbox feedback prompt locally and opens Roblox's feedback-submission dialog when the player activates it. |
-| `src/controllers/FixingController.lua` | FixingController | Owns smoothly blended fixing cameras that fit each item's full rotating bounds with size-dependent margins, safe character-relative exit blending, mobile touch aiming offset above the finger, device-consistent viewport-relative cleaning/fixing columns with a small-item radius boost and moderate large-item bounds taper projected through the active item's full depth, fixed-margin surface-contact hitboxes that resolve back onto real item geometry, immediate misaligned-part Hammer highlights, delayed fading hints on remaining restoration targets, grease-responsive rate-limited sponge audio, scaled directional hairdryer airflow with long-lived debris flights, accelerating Magnet attraction trails and absorption feedback, client-authoritative radius-assisted Hammer targeting with deterministic per-hit alignment and monotonic presentation progress, 85%-threshold assisted cleanup, responsive cleaning damage, contact-timed click/hold Hammer strikes, presentation feedback, exact held-copy Fix prompt requests, avatar hiding, and responsive surface tool/fake-arm viewmodels driven by world-near weighted and temporally stabilized surface normals. |
-| `src/controllers/GuidanceController.lua` | GuidanceController | Resolves authoritative tutorial or contextual objectives, highlights a suggested crate and the reward from the player's first broken crate during initial pickup guidance, manages the local highlight, directional beam, and objective text, and immediately clears completed interface guidance. |
-| `src/controllers/InventoryController.lua` | InventoryController | Controls Satchel visibility, displays native Tool texture icons, requests carried-item drops, keeps the bat in the first slot, preserves Satchel's slot bindings when items leave inventory, and sends validated inventory ordering to the server. |
-| `src/controllers/MuseumVisitorController.lua` | MuseumVisitorController | Receives interest-scoped guest snapshots and commands through Networker, owns logical client guests, retries viewed-museum changes until server confirmation, and clears unsubscribed museum populations. |
-| `src/controllers/MuseumController.lua` | MuseumController | Opens the shared confirmation component for server-requested display sales and returns confirmed sale requests. |
-| `src/controllers/UpgradePedastolController.lua` | UpgradePedastolController | Opens the upgrade tree from museum pedestal prompts, animates cloned pedestal arrows locally with one active render connection, and flashes a local red highlight on the player's pedestal when an upgrade is affordable. |
-| `src/controllers/TopbarController.lua` | TopbarController | Creates the invite and group TopbarPlus buttons. |
+These modules provide empty persistence and generic player-control helpers without defining a gameplay loop.
 
-## `src/loading` - Loading screen
+| Path | Responsibility |
+| --- | --- |
+| `src/modules/Game/DataTemplate.lua` | Supplies an empty DataService template for a new game's JSON-compatible defaults. |
+| `src/modules/Game/RuntimeState.lua` | Stores generic transient per-player state and change signals. |
+| `src/modules/Game/TeleportPlayer.lua` | Teleports a Player or character Model to a CFrame or BasePart. |
+| `src/modules/Game/TeleportLocalPlayer.lua` | Teleports the local character for client-side presentation use. |
+| `src/modules/Game/FreezePlayer.lua` | Freezes the local character, optionally at a target CFrame. |
+| `src/modules/Game/UnfreezePlayer.lua` | Restores the local character's prior anchored state. |
+| `src/modules/Game/_PlayerFreezeState.lua` | Owns the shared local freeze state used by the freeze helpers. |
 
-| Path | Name | Responsibility |
-| --- | --- | --- |
-| `src/loading/init.client.lua` | LoadingScreen | Shows startup progress, waits for the interface, requests the initial character, and fades away. |
+## Math modules
 
-## `src/modules/Core` - Core utilities
+| Path | Responsibility |
+| --- | --- |
+| `src/modules/Math/AdvancedRound.lua` | Rounds a number to a configurable interval and offset. |
+| `src/modules/Math/AverageColors.lua` | Calculates a weighted or unweighted average Color3. |
+| `src/modules/Math/Color3ToColorSequence.lua` | Converts a Color3 into a constant ColorSequence. |
+| `src/modules/Math/DetailedRandom.lua` | Returns a random decimal within a numeric range. |
+| `src/modules/Math/FormatNumber.lua` | Formats numbers with compact suffixes. |
+| `src/modules/Math/FormatTime.lua` | Formats seconds as colon-separated time. |
+| `src/modules/Math/GaussianRandom.lua` | Generates normally distributed random numbers. |
+| `src/modules/Math/Generate3DBezier.lua` | Samples a 3D Bezier curve from control points. |
+| `src/modules/Math/GetRandomFromWeightedTable.lua` | Selects weighted entries and calculates adjusted chances. |
+| `src/modules/Math/GetRandomPosInPart.lua` | Returns a random world position inside a BasePart. |
+| `src/modules/Math/MoveCFrameTowards.lua` | Moves one CFrame position toward another by a limited distance. |
+| `src/modules/Math/MultiplyNumberSequence.lua` | Scales NumberSequence values. |
+| `src/modules/Math/MultiplyUDim2.lua` | Multiplies every scale and offset component of a UDim2. |
+| `src/modules/Math/ToPercentage.lua` | Converts a decimal value into a rounded percentage string. |
 
-| Path | Name | Responsibility |
-| --- | --- | --- |
-| `src/modules/Core/ActivateCallbacks.lua` | ActivateCallbacks | Runs callback descriptors in their configured client or server context. |
-| `src/modules/Core/AnchorModel.lua` | AnchorModel | Anchors or unanchors every BasePart under an instance. |
-| `src/modules/Core/ChangeModelProperties.lua` | ChangeModelProperties | Applies a property set across an instance hierarchy with an optional class filter. |
-| `src/modules/Core/GenerateUniqueId.lua` | GenerateUniqueId | Generates a GUID without braces. |
-| `src/modules/Core/GetObjectExists.lua` | GetObjectExists | Checks whether a value is a currently parented Roblox Instance. |
-| `src/modules/Core/GetRandomChild.lua` | GetRandomChild | Selects a random direct child from an instance. |
-| `src/modules/Core/InheritInstance.lua` | InheritInstance | Adds fallback table inheritance while preserving an existing metatable lookup. |
-| `src/modules/Core/SharedClass.lua` | SharedClass | Replicates class instances, properties, and allowed method calls between server and clients. |
+## Platform modules
 
-## `src/modules/Game` - Shared game modules
+| Path | Responsibility |
+| --- | --- |
+| `src/modules/Platform/GetDisplayName.lua` | Returns a player's display name with a safe fallback. |
+| `src/modules/Platform/GetProfilePicture.lua` | Fetches a player's Roblox headshot thumbnail. |
+| `src/modules/Platform/GetSyncedTime.lua` | Returns Roblox's synchronized server time. |
 
-| Path | Name | Responsibility |
-| --- | --- | --- |
-| `src/modules/Game/_PlayerFreezeState.lua` | PlayerFreezeState | Stores and manages the local character's anchored freeze state. |
-| `src/modules/Game/CleaningConfig.lua` | CleaningConfig | Registers restoration tools and actions, rarity-gated independent price-weighted restoration rolls that add more eligible layers to rarer items, balanced strength/radius, fixed surface-contact hitbox padding, small-item boost and large-item taper values, mobile touch aim offset, viewport-relative targeting, size-aware camera framing, geometry-aware viewmodel positioning, VFX, 85%-threshold assisted completion, full required-step completion checks, and static tool validation. |
-| `src/modules/Game/AmbientAudioConfig.lua` | AmbientAudioConfig | Centralizes playlist folder selection and presentation ducking values while track volume remains authored on each Sound. |
-| `src/modules/Game/CollisionGroups.lua` | CollisionGroups | Defines shared player, NPC, ground, and crate-debris collision-group names. |
-| `src/modules/Game/EconomyConfig.lua` | EconomyConfig | Centralizes economy tuning controls, including crate-tier rarity luck, item-relative tool unlock prices, late-game rarity weighting, separately tuned item-value and upgrade-price curves, blended onboarding income, sale values, restoration bonuses, active and passive rewards reaching endgame-scale guest payouts, starting and recovery cash rules, readable rounding, and item/range validation. |
-| `src/modules/Game/BatInfo.lua` | BatInfo | Configures the eleven-tier Wooden-through-Meteorite crate-only bat progression with progressively improved damage, timing, range, vertical hitbox reach, latency-tolerant validation, and sounds. |
-| `src/modules/Game/CrateInfo.lua` | CrateInfo | Configures regular and pity-only crate tiers, shared size-normalized impact/debris/roll presentation, an unbounded high-tailed scale distribution averaging normal size, tier-adjusted size-based rarity luck, configurable missing-tool rarity penalties, economy-configured crate rarity odds, Spray-only opening restoration requirements that preserve normal item rolls, nonzero all-rarity reward distributions, weighted item rolls, reward-time-balanced health, population limits, and the reset cycle with nearby timer presentation tuning. |
-| `src/modules/Game/DataTemplate.lua` | DataTemplate | Defines saved defaults for cash, guaranteed opening drops, persisted first-crate-roll and onboarding milestone state, inventory, museum displays, restoration state, tutorial progress, and upgrade ownership. |
-| `src/modules/Game/DirtRenderer.lua` | DirtRenderer | Calculates capped surface-area-scaled dirt counts and attaches randomized dirt cubes only to raycast-validated exposed surfaces. |
-| `src/modules/Game/FreezePlayer.lua` | FreezePlayer | Freezes the local player, optionally at a target CFrame. |
-| `src/modules/Game/GreaseRenderer.lua` | GreaseRenderer | Places spaced, size-scaled grease patches on raycast-validated exterior surfaces and manages their HP, fade, removal, and cleanup. |
-| `src/modules/Game/ItemInteractionConfig.lua` | ItemInteractionConfig | Centralizes world-item lifetime, billboard display settings, carrying slowdown, free pickup range, fall-speed hit scaling, PvP knockback/stun/protection and the generous client-hit distance sanity cap, fixing rotation, and restoration placement limits. |
-| `src/modules/Game/InventoryItemKey.lua` | InventoryItemKey | Stores and resolves the stable per-copy identity tag used to keep duplicate inventory items and their restoration progress independent. |
-| `src/modules/Game/MuseumConfig.lua` | MuseumConfig | Centralizes global museum slot ranges and derives each slot's level, local index, required level count, and per-level display count. |
-| `src/modules/Game/ItemsInfo.lua` | ItemsInfo | Configures all 100 Studio item assets with stable IDs, validated within-rarity difficulty and drop weights, durability, movement values, and economy-derived catalog values, restored sale values, income, and restoration tiers. |
-| `src/modules/Game/PaintRenderer.lua` | PaintRenderer | Applies faded paint damage, stable unpainted polish brightening, and dull painted finishes while geometry-matching each part to its configured final appearance without cross-part color swaps or cumulative drift. |
-| `src/modules/Game/RarityInfo.lua` | RarityInfo | Centralizes Common through Secret colors, name gradients, reveal timing, intensity, pinwheel, vignette, flash, sparkle, particle, and reveal-audio tuning. |
-| `src/modules/Game/RestorationVisuals.lua` | RestorationVisuals | Applies every unfinished restoration layer and order-aware paint/polish color state consistently across rewards, carrying, inventory, and legacy item sources. |
-| `src/modules/Game/RestorationTargetRenderer.lua` | RestorationTargetRenderer | Creates and tracks visibly dense, capped, surface-distributed light-dust, loose-debris, and configuration-scaled embedded-metal targets plus stage-owned dull-finish targets, and deterministically misaligns at least half of each item's real visible geometry while preserving exact BoundingBox-relative Hammer start and completion transforms. |
-| `src/modules/Game/SurfacePlacement.lua` | SurfacePlacement | Selects area-weighted item surfaces and uses bounded outward raycasts to return validated exterior positions and normals. |
-| `src/modules/Game/TutorialConfig.lua` | TutorialConfig | Defines the ordered objectives, required opening crate, final tutorial message, and step-only Paint, grease, and Dust restoration requirements used by the persistent, state-based onboarding flow. |
-| `src/modules/Game/UpgradeConfig.lua` | UpgradeConfig | Defines the deterministic upgrade graph, authoritative Paint-first restoration-tool order, economy-scaled item-relative unlock costs, display and guest-population capacity, tool stats, eleven bat tiers, cooldowns, movement upgrades, cumulative tool costs, and graph/gating assertions. |
-| `src/modules/Game/UpgradeLogic.lua` | UpgradeLogic | Resolves ownership, prerequisites, available and affordable upgrades, visibility, display capacity, exact guests-per-item progression, movement stats, automatic base Spray access, tool unlock sources and stats, bat tiers, and bat cooldown. |
-| `src/modules/Game/TeleportLocalPlayer.lua` | TeleportLocalPlayer | Moves the local character to a CFrame or BasePart. |
-| `src/modules/Game/TeleportPlayer.lua` | TeleportPlayer | Moves a Player's character or a supplied character model to a target. |
-| `src/modules/Game/UnfreezePlayer.lua` | UnfreezePlayer | Restores the local character's state after freezing. |
+## UI foundation
 
-## `src/modules/Math` - Math and formatting utilities
+| Path | Responsibility |
+| --- | --- |
+| `src/UI/App.lua` | Composes the neutral `App` ScreenGui and retained generic overlays. |
+| `src/UI/UIOrigin.lua` | Mounts the Vide application once into LocalPlayer.PlayerGui. |
+| `src/UI/App.story.lua` | Exposes the app component for UI story previews. |
+| `src/UI/Classes/Button.lua` | Provides a reusable reactive STUD-style button. |
+| `src/UI/Classes/Confirmation.lua` | Provides a reusable modal confirmation component. |
+| `src/UI/Effects/HoverExpand.lua` | Provides reusable hover scaling for GuiObjects. |
+| `src/UI/Effects/Notification.lua` | Provides a reusable counted attention badge. |
+| `src/UI/HUD/Notifications.lua` | Renders transient notifications from NotificationManager. |
+| `src/modules/UI/NotificationManager.lua` | Emits reusable transient notification events. |
+| `src/modules/UI/PlayVFX.lua` | Clones, starts, and cleans up reusable effects and sounds. |
+| `src/modules/UI/SafeArea.lua` | Provides dynamic Roblox topbar-safe offsets. |
+| `src/modules/UI/Sounds.lua` | Resolves optional Studio-owned sound templates and plays cloned copies. |
+| `src/modules/UI/UIStyle.lua` | Centralizes the reusable STUD design tokens. |
 
-| Path | Name | Responsibility |
-| --- | --- | --- |
-| `src/modules/Math/AdvancedRound.lua` | AdvancedRound | Rounds a number to a configurable interval and offset. |
-| `src/modules/Math/AverageColors.lua` | AverageColors | Calculates an average from weighted or unweighted Color3 values. |
-| `src/modules/Math/Color3ToColorSequence.lua` | Color3ToColorSequence | Converts one Color3 into a constant ColorSequence. |
-| `src/modules/Math/DetailedRandom.lua` | DetailedRandom | Returns a random decimal within a numeric range. |
-| `src/modules/Math/FormatNumber.lua` | FormatNumber | Formats numbers with compact suffixes such as K, M, and B. |
-| `src/modules/Math/FormatTime.lua` | FormatTime | Formats seconds as a colon-separated time value. |
-| `src/modules/Math/GaussianRandom.lua` | GaussianRandom | Generates normally distributed random numbers. |
-| `src/modules/Math/Generate3DBezier.lua` | Generate3DBezier | Samples a 3D Bezier curve from control points. |
-| `src/modules/Math/GetRandomFromWeightedTable.lua` | GetRandomFromWeightedTable | Selects weighted entries and calculates luck-adjusted chances. |
-| `src/modules/Math/GetRandomPosInPart.lua` | GetRandomPosInPart | Returns a random world position inside a BasePart. |
-| `src/modules/Math/MoveCFrameTowards.lua` | MoveCFrameTowards | Moves a CFrame position toward another by a limited distance. |
-| `src/modules/Math/MultiplyNumberSequence.lua` | MultiplyNumberSequence | Scales NumberSequence values with optional limits and opacity behavior. |
-| `src/modules/Math/MultiplyUDim2.lua` | MultiplyUDim2 | Multiplies every scale and offset component of a UDim2. |
-| `src/modules/Math/ToPercentage.lua` | ToPercentage | Converts a decimal value into a rounded percentage string. |
+## Package compatibility
 
-## `src/modules/Platform` - Roblox platform utilities
-
-| Path | Name | Responsibility |
-| --- | --- | --- |
-| `src/modules/Platform/GetDisplayName.lua` | GetDisplayName | Builds a player display name with configured rank, Premium, and verification markers. |
-| `src/modules/Platform/GetProfilePicture.lua` | GetProfilePicture | Fetches a player's Roblox headshot thumbnail. |
-| `src/modules/Platform/GetSyncedTime.lua` | GetSyncedTime | Returns Roblox's synchronized server time. |
-| `src/modules/Platform/Ranks.lua` | Ranks | Configures special user ranks and their display prefixes. |
-
-## `src/modules/UI` - Shared presentation utilities
-
-| Path | Name | Responsibility |
-| --- | --- | --- |
-| `src/modules/UI/Images.lua` | Images | Catalogs named image asset IDs, including dedicated icon entries for every bat tier, for project interfaces and upgrade nodes. |
-| `src/modules/UI/FixingInterface.lua` | FixingInterface | Bridges Fixing HUD actions to the client Fixing controller. |
-| `src/modules/UI/ItemInfoBillboard.lua` | ItemInfoBillboard | Creates the single size-aware world-item billboard containing identity, rarity, always-visible guest pay, restoration steps, optional despawn information, and sale value only after restoration is complete. |
-| `src/modules/UI/ItemDespawnCountdown.lua` | ItemDespawnCountdown | Creates and updates the real-time despawn label inside each unclaimed world item's unified information billboard. |
-| `src/modules/UI/NotificationManager.lua` | NotificationManager | Provides reusable transient text alerts with optional duration and color plus keyed inactive-to-active transition suppression. |
-| `src/modules/UI/PlayVFX.lua` | PlayVFX | Clones, starts, and cleans up reusable visual and sound effects. |
-| `src/modules/UI/SafeArea.lua` | SafeArea | Provides dynamic Roblox topbar-safe offsets for inset-ignoring HUD elements. |
-| `src/modules/UI/Sounds.lua` | Sounds | Resolves any approved Studio-owned sound by name and handles cloned positional playback and cleanup. |
-| `src/modules/UI/UIStyle.lua` | UIStyle | Centralizes the STUD design system font, palette, textures, corner radii, and outline tokens for first-party interfaces. |
-
-## `src/server` - Server bootstrap
-
-| Path | Name | Responsibility |
-| --- | --- | --- |
-| `src/server/init.server.lua` | Server | Initializes DataService and dispatches player and character lifecycle events to server controllers. |
-
-## `src/serverclasses` - Server shared classes
-
-| Path | Name | Responsibility |
-| --- | --- | --- |
-| `src/serverclasses/ConveyorItem.lua` | ConveyorItem | Owns authoritative conveyor item state, pickup requests, lifetime, and replication. |
-| `src/serverclasses/MuseumVisitor.lua` | MuseumVisitor | Tracks authoritative timed visitor routes and emits snapshot-friendly movement, dialogue, payment, fading, and destruction commands through the visitor controller's interest replicator. |
-
-## `src/servercontrollers` - Server controllers
-
-| Path | Name | Responsibility |
-| --- | --- | --- |
-| `src/servercontrollers/CarryController.lua` | CarryController | Owns stable per-copy carried and inventory item identity plus ownership metadata, assigns price-weighted restoration mixes to new and legacy items, migrates saved items away from hard rarity-based restoration, builds restoration layers before welding so all damage follows carried items, and manages drops, movement, shared bases-area delivery, inventory, and tools. |
-| `src/servercontrollers/BatController.lua` | BatController | Supplies upgraded bats, validates and relays swing presentation, rejects and cancels Bat attacks during ragdoll, validates predicted crate hits against the client's historical box volume, accepts client-detected PvP hits behind a generous server distance sanity check, applies bounded client-owned falling-hit strength to crate damage and knockback, relays accepted critical-hit effects to observers, and applies server-owned forced drops, re-hit protection, and temporary stuns. |
-| `src/servercontrollers/CharacterController.lua` | CharacterController | Authorizes character spawning, applies configured R6 avatar animations, and enforces server-owned WalkSpeed and Jump Height upgrades across spawns and fixing sessions. |
-| `src/servercontrollers/CollisionController.lua` | CollisionController | Registers character and transient crate-debris collision groups, marks the ground, and keeps players, NPCs, and debris from unwanted collisions. |
-| `src/servercontrollers/ConveyorController.lua` | ConveyorController | Retains the inactive legacy conveyor spawning and free pickup implementation. |
-| `src/servercontrollers/CrateController.lua` | CrateController | Uses the authored spawn region to replenish size-and-luck-varied crate fields in place on wall-clock-aligned resets, guarantees an opening-tutorial Common crate when a player joins an empty field, authoritatively applies damage from any bat and owns health, biases normal rarity rolls against tiers whose restoration tools are not owned, overlays state-selected onboarding restoration steps without replacing normal item rolls, persists first-roll reveal timing, and manages free claiming and 30-second revealed reward lifetimes. |
-| `src/servercontrollers/DataController.lua` | DataController | Registers argument-aware chat commands, enforces Owner-rank administration permissions, performs DataService-backed cash and reset operations, and monitors cash and owned-item data to restore the cheapest-item purchase amount when a player has no items. |
-| `src/servercontrollers/LeaderstatsController.lua` | LeaderstatsController | Mirrors DataService cash into the display-only Cash leaderstat; gameplay must continue to use DataService. |
-| `src/controllers/DataController.lua` | DataController | Receives server chat-command feedback and displays it through the shared notification system. |
-| `src/servercontrollers/FixingController.lua` | FixingController | Owns per-copy fixing sessions and saved progress, race-safe exact held-copy prompt admission, BoundingBox-centered tabletop placement and fixing rotation, stage-timed damage preparation, persistent completed Hammer alignment, complete missing-tool guidance and alerts, massless inventory handoff plus pose-preserving velocity-cleared character release, equipped-tool validation, and sequenced rarity-scaled completion reveals. |
-| `src/servercontrollers/GuidanceController.lua` | GuidanceController | Runs the visible tutorial through the Paint purchase and sends its final message, then discreetly reconciles background onboarding milestones, guarantees required restoration steps without selecting the rewarded item, verifies upgrade ownership, applies one-time progression funding, tracks a suggested tutorial crate and the reward from the player's first broken crate, and sends contextual guidance. |
-| `src/servercontrollers/MuseumController.lua` | MuseumController | Builds museums and upgrade pedestals, maintains cached occupied-display and museum-area indexes, preserves each displayed copy's identity and completed restoration state, and handles placement, removal, server-validated confirmed selling, tutorial milestones, and level-aware visitor-facing exhibits. |
-| `src/servercontrollers/VisitorController.lua` | VisitorController | Runs cached level-specific guest populations using exact per-item decimals with one final ceiling, awards guest income, reserves exhibit capacity, validates owner-only guest bat hits, and replicates movement-aware snapshots, dialogue, ragdolls, fading, and destruction only to each owner and server-validated players currently viewing that museum; confirms validated view changes. |
-| `src/servercontrollers/WorldItemController.lua` | WorldItemController | Owns dropped world items, free pickup and ownership transfer, movement correction, interaction-paused despawn countdowns, and cleanup. |
-| `src/servercontrollers/UpgradeController.lua` | UpgradeController | Enforces the Paint-only visible tutorial purchase, validates normal prerequisites and affordability afterward, deducts cash, normalizes ownership, and persists purchases. |
-
-## `src/UI` - Vide interface
-
-| Path | Name | Responsibility |
-| --- | --- | --- |
-| `src/UI/App.lua` | App | Composes the root ScreenGui, hides its grouped gameplay HUD while the upgrade tree is open, and keeps tutorial guidance above it. |
-| `src/UI/App.story.lua` | App Story | Exposes the App component for UI story previews. |
-| `src/UI/Classes/Button.lua` | Button | Provides a reusable reactive STUD-style Vide button with layered depth, texture, disabled state, and hover/press feedback. |
-| `src/UI/Classes/Confirmation.lua` | Confirmation | Provides the reusable modal confirmation component with Yes and No actions. |
-| `src/UI/HUD/BottomRight.lua` | BottomRight | Displays saved cash and animates the HUD when cash increases. |
-| `src/UI/HUD/CarryOverlay.lua` | CarryOverlay | Shows the shared red destructive-action Drop button only while the local player is carrying a world item. |
-| `src/UI/HUD/CleaningHUD.lua` | CleaningHUD | Displays the cursor-centered cleaning brush and smoothly animated current-step progress. |
-| `src/UI/HUD/CrateResetTimer.lua` | CrateResetTimer | Displays the globally synchronized time remaining until the next crate-area reset. |
-| `src/UI/HUD/FixingOverlay.lua` | FixingOverlay | Shows the shared red destructive-action exit control while the player is in Fixing mode. |
-| `src/UI/HUD/GuidanceHUD.lua` | GuidanceHUD | Shows a gently floating compact instruction and animated directional marker positioned from its current world or interface target without covering target billboards. |
-| `src/UI/HUD/Notifications.lua` | Notifications | Stacks transient text-only alerts with compact enter/exit animation, optional colors, sound, scale-sized text strokes, and lifecycle cleanup. |
-| `src/UI/Effects/HoverExpand.lua` | HoverExpand | Provides the reusable hover scaling used by attention notification badges. |
-| `src/UI/Effects/Notification.lua` | Notification | Provides counted attention badges with periodic pulse, shake, color, hover, and lifecycle cleanup. |
-| `src/UI/Menus/UpgradeTree.lua` | UpgradeTree | Provides a full-screen upgrade tree over a plain, 30%-transparent black background with a persistent left-edge toggle and topbar-safe close control, hides custom topbar and backpack UI and blocks mobile movement, jump, and camera turn while open, supports museum pedestal opening, Paint-only visible tutorial guidance followed by normal upgrade access, dynamic blue/grey purchase-state hexagons, a live purchasable-upgrade count, newly affordable alerts, periodic ready reminders, a delayed small arrow that pulses beside the opener, affordability-driven pedestal highlighting, BatInfo-driven bat icons, drag panning, device-independent zoom limits, reveals, and purchasing. |
-| `src/UI/UIOrigin.lua` | UIOrigin | Mounts the Vide application once into the local PlayerGui. |
+| Path | Responsibility |
+| --- | --- |
+| `src/compatibility/TopbarPlus.lua` | Exposes the installed TopbarPlus package at the path expected by Satchel. |

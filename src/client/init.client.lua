@@ -8,22 +8,8 @@ data_service:init()
 
 local modules_to_init = {
 	ReplicatedStorage.Controllers.PlayerStateController,
-	ReplicatedStorage.Controllers.DataController,
 	ReplicatedStorage.Controllers.CharacterController,
-	ReplicatedStorage.Controllers.CrateController,
-	ReplicatedStorage.Controllers.BatController,
-	ReplicatedStorage.Controllers.MuseumVisitorController,
-	ReplicatedStorage.Controllers.MuseumController,
-	ReplicatedStorage.Controllers.UpgradePedastolController,
-	ReplicatedStorage.Controllers.BaseMarkerController,
-	ReplicatedStorage.Controllers.TopbarController,
-	ReplicatedStorage.Controllers.AnalyticsController,
-	ReplicatedStorage.Controllers.FeedbackController,
 	ReplicatedStorage.UI.UIOrigin,
-	ReplicatedStorage.Controllers.GuidanceController,
-	ReplicatedStorage.Controllers.InventoryController,
-	ReplicatedStorage.Controllers.FixingController,
-	ReplicatedStorage.Controllers.AmbientAudioController,
 }
 
 local initialized_modules = {}

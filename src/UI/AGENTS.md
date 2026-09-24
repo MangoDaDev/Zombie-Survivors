@@ -12,6 +12,6 @@
 - Keep components small and composable. Prefer typed props and reactive state over OOP-style `new`, `Enable`, `Disable`, and `Destroy` APIs.
 - Keep pressed interaction higher priority than hover state, and ensure interaction state cannot remain stuck after input ends, the pointer leaves, or a control becomes disabled.
 - Reuse `Classes/Button.lua` before introducing another general-purpose button.
-- Reuse suitable Studio-owned assets from `ReplicatedStorage.Assets` instead of duplicating them. All sounds in `Assets.Sounds` are available for UI feedback unless their own name, attributes, folder guidance, or an `AGENTS` value says otherwise.
+- Reuse suitable Studio-owned assets when they exist instead of duplicating them, but do not make the reusable UI root depend on optional asset folders.
 - Clone sounds before playback and parent runtime copies appropriately so concurrent UI interactions do not fight over one shared Sound instance. Clean up each clone after playback.
 IF YOU ARE GOING TO BE CREATING/MODIFYING UI, READ AGENTSCREATINGUI.md

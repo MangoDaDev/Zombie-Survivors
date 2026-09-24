@@ -19,10 +19,6 @@
         "$className": "Folder",
         "$path": "src/controllers"
       },
-      "Classes": {
-        "$className": "Folder",
-        "$path": "src/classes"
-      },
       "Modules": {
         "$className": "Folder",
         "$path": "src/modules"
@@ -56,10 +52,6 @@
       "Controllers": {
         "$className": "Folder",
         "$path": "src/servercontrollers"
-      },
-      "Classes": {
-        "$className": "Folder",
-        "$path": "src/serverclasses"
       }
     },
 

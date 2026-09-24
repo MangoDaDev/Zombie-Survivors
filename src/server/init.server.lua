@@ -15,20 +15,8 @@ data_service:init({
 
 local modules_to_init = {
 	ServerStorage.Controllers.PlayerStateController,
-	ServerStorage.Controllers.DataController,
-	ServerStorage.Controllers.LeaderstatsController,
-	ServerStorage.Controllers.GuidanceController,
-	ServerStorage.Controllers.AnalyticsController,
 	ServerStorage.Controllers.CollisionController,
 	ServerStorage.Controllers.CharacterController,
-	ServerStorage.Controllers.MuseumController,
-	ServerStorage.Controllers.CarryController,
-	ServerStorage.Controllers.WorldItemController,
-	ServerStorage.Controllers.FixingController,
-	ServerStorage.Controllers.CrateController,
-	ServerStorage.Controllers.BatController,
-	ServerStorage.Controllers.VisitorController,
-	ServerStorage.Controllers.UpgradeController,
 }
 
 local initialized_modules = {}

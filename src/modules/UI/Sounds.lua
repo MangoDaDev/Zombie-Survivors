@@ -2,19 +2,19 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local PlayVFX = require(ReplicatedStorage.Modules.UI.PlayVFX)
 
-local SoundAssets = ReplicatedStorage.Assets.Sounds
-
 local Sounds = {}
 
 function Sounds.Get(SoundName: string): Sound?
-	local Template = SoundAssets:FindFirstChild(SoundName)
+	local Assets = ReplicatedStorage:FindFirstChild("Assets")
+	local SoundAssets = Assets and Assets:FindFirstChild("Sounds")
+	local Template = SoundAssets and SoundAssets:FindFirstChild(SoundName)
 	return if Template and Template:IsA("Sound") then Template else nil
 end
 
 function Sounds.Play(SoundName: string, Parent: Instance, RollOffMaxDistance: number?): Sound?
 	local Template = Sounds.Get(SoundName)
 	if Template == nil then
-		warn(`Sounds could not find the {SoundName} sound`)
+		-- Studio-owned sound assets are optional in the blank template.
 		return nil
 	end
 

@@ -58,7 +58,7 @@ function Confirmation.Component()
 			AnchorPoint = Vector2.new(0.5, 0.5),
 			BackgroundColor3 = UIStyle.Colors.InkSoft,
 			BorderSizePixel = 0,
-			-- Keep confirmations above the display item and museum sightline.
+			-- Keep confirmations above ordinary application UI.
 			Position = UDim2.fromScale(0.5, 0.34),
 			Size = UDim2.fromScale(0.34, 0.22),
 			ZIndex = 101,
