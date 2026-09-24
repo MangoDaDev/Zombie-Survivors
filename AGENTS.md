@@ -54,3 +54,4 @@ If studio is in play mode, don't stop it unless it is needed to do the request.
 ONLY IF IT APPLIES TO ALL SYSTEMS IN THE GAME write something in THIS Agents.md. 
 Dont put stuff that is too niche in Agents.md. You can put it in/create an Agents.md or a script in the niche if needed but not in this one.
 Put UI-specific development rules in `src/UI/AGENTSCREATINGUI.md`, not in this root `AGENTS.md`.
+If in need of a sound that does not exist, create a blank instance in the sounds folder and inform the user.
