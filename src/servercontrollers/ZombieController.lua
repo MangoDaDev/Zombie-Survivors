@@ -314,33 +314,66 @@ local function getPressure(areaPlayerCount: number, now: number)
 	local config = RunProgressionConfig.Spawning
 	-- Match the visible survival timer: pressure begins rising only after the first zombie actually spawns.
 	local pressureStartedAt = firstZombieSpawnedAt or runStartedAt
-	local elapsedAlpha = math.clamp((now - pressureStartedAt) / config.ElapsedRampSeconds, 0, 1)
-	local elapsedMultiplier = 1 + elapsedAlpha * (config.MaximumElapsedRamp - 1)
+	local difficultySteps = math.max((now - pressureStartedAt) / config.DifficultyStepSeconds, 0)
+	local elapsedMultiplier = 1 + difficultySteps * config.SpawnRateIncreasePerStep
 	local playerMultiplier = math.max(areaPlayerCount, 1) ^ config.PlayerCountExponent
-	-- With no population cap, pressure scales continuously through cadence while retaining players ^ 0.8 party scaling.
+	-- The interval eventually reaches its safe floor, but unbounded group growth and threat weighting
+	-- continue increasing total difficulty forever while retaining players ^ 0.8 party scaling.
 	local rateMultiplier = elapsedMultiplier * playerMultiplier
-	return rateMultiplier, elapsedAlpha
+	return rateMultiplier, difficultySteps
 end
 
-local function spawnGroup(area, candidates, areaCandidates, serverTime, elapsedAlpha)
+local function chooseZombieType(area, difficultySteps: number)
+	local highestThreatLevel = 1
+	for _, weightedType in area.ZombieWeights do
+		local definition = ZombieDefinitions[weightedType.Name]
+		if definition then
+			highestThreatLevel = math.max(highestThreatLevel, definition.ThreatLevel or 1)
+		end
+	end
+
+	local biasBase = 1 + difficultySteps * RunProgressionConfig.Spawning.StrongZombieBiasPerStep
+	local adjustedWeights = {}
+	for _, weightedType in area.ZombieWeights do
+		local definition = ZombieDefinitions[weightedType.Name]
+		if definition then
+			local threatLevel = definition.ThreatLevel or 1
+			-- Divide weaker entries instead of exponentiating stronger entries upward. This keeps weights
+			-- numerically stable during extremely long runs while continually favoring higher threats.
+			local threatGap = highestThreatLevel - threatLevel
+			table.insert(adjustedWeights, {
+				Name = weightedType.Name,
+				Weight = weightedType.Weight / biasBase ^ threatGap,
+			})
+		end
+	end
+
+	return GetRandomFromWeightedTable(adjustedWeights, "Weight", random)
+end
+
+local function spawnGroup(area, candidates, areaCandidates, serverTime, difficultySteps)
 	local groupCenter = chooseGroupCenter(area, candidates, areaCandidates)
 	if not groupCenter then
 		return
 	end
 
-	-- Additive growth makes even the one-zombie opening group become dangerous over time without
-	-- multiplying already-large late-area groups into extreme single-frame spawn bursts.
-	local groupSizeBonus = math.floor(elapsedAlpha * RunProgressionConfig.Spawning.MaximumGroupSizeBonus + 0.001)
+	-- Additive growth is intentionally unbounded: every completed difficulty step permanently raises
+	-- the possible horde size, including in the opening area that starts with single-zombie hordes.
+	local groupSizeBonus = math.floor(difficultySteps * RunProgressionConfig.Spawning.GroupSizeBonusPerStep + 0.001)
 	local maximumGroupSize = math.max(area.GroupSize.Min, area.GroupSize.Max + groupSizeBonus)
 	local requestedSize = random:NextInteger(area.GroupSize.Min, maximumGroupSize)
 	local groupSize = requestedSize
 	local spawnPackets = {}
+	-- Roll once per natural horde so its silhouette and behavior stay coherent; special summons remain separate.
+	local weightedType = chooseZombieType(area, difficultySteps)
+	if not weightedType then
+		return
+	end
 
 	for _ = 1, groupSize do
 		local surfacePosition = getGroupedSpawnPosition(area, groupCenter, candidates)
 		if surfacePosition then
-			local weightedType = GetRandomFromWeightedTable(area.ZombieWeights, "Weight", random)
-			local packet = weightedType and createZombie(area, weightedType.Name, surfacePosition)
+			local packet = createZombie(area, weightedType.Name, surfacePosition)
 			if packet then
 				table.insert(spawnPackets, packet)
 			end
@@ -407,14 +440,14 @@ local function stepSimulation(deltaTime)
 				table.insert(areaCandidates, candidate)
 			end
 		end
-		local rateMultiplier, elapsedAlpha = getPressure(#areaCandidates, now)
+		local rateMultiplier, difficultySteps = getPressure(#areaCandidates, now)
 		if now >= runtime.nextSpawnAt then
 			runtime.nextSpawnAt = now
 				+ math.max(area.SpawnInterval / math.max(rateMultiplier, 1), RunProgressionConfig.Spawning.MinimumSpawnInterval)
 			-- Only occupied combat floors spawn enemies; each group is placed around one of that floor's
 			-- living players instead of silently filling remote areas they cannot currently interact with.
 			if #areaCandidates > 0 then
-				spawnGroup(area, candidates, areaCandidates, now, elapsedAlpha)
+				spawnGroup(area, candidates, areaCandidates, now, difficultySteps)
 			end
 		end
 	end

@@ -50,13 +50,15 @@ local RunProgressionConfig = {
 		ForwardSpawnChance = 0.4,
 		ForwardSpawnConeDegrees = 32,
 		MovementHeadingSpeedThreshold = 3,
-		-- Horde pressure reaches its full cadence and group-size bonus after five minutes of survival.
-		ElapsedRampSeconds = 300,
-		MaximumElapsedRamp = 3,
+		-- Difficulty never caps: each five-minute step adds cadence pressure, larger hordes, and a
+		-- stronger bias toward the highest-threat zombie types available in the current area.
+		DifficultyStepSeconds = 300,
+		SpawnRateIncreasePerStep = 2,
+		GroupSizeBonusPerStep = 3,
+		StrongZombieBiasPerStep = 0.65,
 		-- Total horde pressure follows the requested sublinear multiplayer curve: players ^ 0.8.
 		PlayerCountExponent = 0.8,
 		MinimumSpawnInterval = 0.35,
-		MaximumGroupSizeBonus = 3,
 	},
 }
 
