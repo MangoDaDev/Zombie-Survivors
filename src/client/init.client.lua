@@ -12,14 +12,17 @@ local modules_to_init = {
 	ReplicatedStorage.Controllers.CoinsController,
 	ReplicatedStorage.Controllers.RageController,
 	ReplicatedStorage.Controllers.AbilityController,
+	ReplicatedStorage.Controllers.RunProgressionController,
 	ReplicatedStorage.Controllers.CharacterController,
 	ReplicatedStorage.Controllers.ZombieController,
+	ReplicatedStorage.Controllers.CoinDropController,
+	ReplicatedStorage.Controllers.XPDropController,
 	ReplicatedStorage.Controllers.PartyTeleporterController,
 	ReplicatedStorage.UI.UIOrigin,
 }
 
--- Simulator-era roll, coin-drop, and extraction controllers are intentionally not registered here.
--- Their modules remain available for a future lobby or post-run reward flow, but must stay dormant in normal play.
+-- Simulator-era rolls and extraction remain dormant. World pickup presentation is active only when its
+-- authoritative game-server controllers publish drops.
 
 local initialized_modules = {}
 

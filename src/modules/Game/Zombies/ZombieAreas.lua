@@ -1,14 +1,44 @@
--- These volumes match the four combat floors currently present in Studio; the smaller
--- green floor containing the SpawnLocation is intentionally not a zombie area.
+-- These volumes match the combat floors currently present in Studio.
 -- Add or rebalance entries here without changing the grouped spawning algorithm.
 -- Keep each CFrame on its floor surface and its X/Z extent inside that floor so zombies
 -- spawn above the ground and cannot cross into an adjacent difficulty zone.
+local GAME_FLOOR_CFRAME = CFrame.new(180.2383, 0, 0)
+local GAME_FLOOR_SIZE = Vector2.new(300, 300)
+
 local ZombieAreas = {
+	{
+		Id = "StartingArea",
+		Progression = 0,
+		-- The run must begin around GameSpawnPos; leaving this floor unconfigured prevents the
+		-- occupied-area spawner from ever creating a first wave until the player walks away.
+		CFrame = CFrame.new(244.668, 0, 0),
+		Size = Vector2.new(171.14, 110.448),
+		-- Spawn regions tune encounter progression, but early zombies may chase across the entire
+		-- authored baseplate instead of stopping at an invisible region boundary.
+		MovementCFrame = GAME_FLOOR_CFRAME,
+		MovementSize = GAME_FLOOR_SIZE,
+		HealthMultiplier = 0.5,
+		MaxZombies = 24,
+		SpawnInterval = 3,
+		GroupSize = NumberRange.new(2, 4),
+		GroupRadius = 10,
+		MinPlayerDistance = 28,
+		ZombieWeights = {
+			{ Name = "Walker", Weight = 64 },
+			{ Name = "Runner", Weight = 20 },
+			{ Name = "Spitter", Weight = 7 },
+			{ Name = "Leaper", Weight = 4 },
+			{ Name = "Dodger", Weight = 3 },
+			{ Name = "Frenzy", Weight = 2 },
+		},
+	},
 	{
 		Id = "Area1",
 		Progression = 1,
 		CFrame = CFrame.new(105.1682, 0, 0),
 		Size = Vector2.new(107.8594, 110.448),
+		MovementCFrame = GAME_FLOOR_CFRAME,
+		MovementSize = GAME_FLOOR_SIZE,
 		MaxZombies = 30,
 		SpawnInterval = 3,
 		GroupSize = NumberRange.new(2, 4),

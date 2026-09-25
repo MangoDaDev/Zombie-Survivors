@@ -24,15 +24,20 @@ local modules_to_init = {
 	ServerStorage.Controllers.CoinsController,
 	ServerStorage.Controllers.RageController,
 	ServerStorage.Controllers.PlayerStatController,
+	ServerStorage.Controllers.BreakableController,
 	ServerStorage.Controllers.AbilityController,
+	ServerStorage.Controllers.RunProgressionController,
+	ServerStorage.Controllers.CoinDropController,
+	ServerStorage.Controllers.XPDropController,
 	ServerStorage.Controllers.CollisionController,
 	ServerStorage.Controllers.CharacterController,
 	ServerStorage.Controllers.PartyTeleporterController,
+	ServerStorage.Controllers.ZombieRewardsController,
 	ServerStorage.Controllers.ZombieController,
 }
 
--- Simulator-era roll, coin-drop, carried-backpack, and extraction controllers are intentionally
--- excluded from startup. Preserving the modules keeps reusable reward logic without live listeners or loops.
+-- Simulator-era rolls, carried backpacks, and extraction remain dormant. In-match pickups now use the
+-- revived authoritative drop controller and persist collected coins directly through CoinsController.
 
 local initialized_modules = {}
 local removing_players = {}

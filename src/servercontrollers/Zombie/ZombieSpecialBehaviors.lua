@@ -429,7 +429,7 @@ end
 function ZombieSpecialBehaviors.Frenzy.OnDamaged(zombie, _amount, now)
 	local config = zombie.definition.Special
 	local runtime = zombie.specialRuntime
-	if not runtime.frenzyTriggered and zombie.health <= zombie.definition.MaxHealth * config.HealthThreshold then
+	if not runtime.frenzyTriggered and zombie.health <= zombie.maximumHealth * config.HealthThreshold then
 		runtime.frenzyTriggered = true
 		runtime.baseMoveSpeedMultiplier = zombie.moveSpeedMultiplier
 		runtime.frenzyEndsAt = now + config.Duration

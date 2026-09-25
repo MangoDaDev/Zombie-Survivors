@@ -5,7 +5,7 @@ local ServerStorage = game:GetService("ServerStorage")
 local AbilityDefinitions = require(ReplicatedStorage.Modules.Game.Abilities.AbilityDefinitions)
 local RageController = require(ServerStorage.Controllers.RageController)
 local ServerContext = require(ServerStorage.Controllers.ServerContext)
-local ZombieController = require(ServerStorage.Controllers.ZombieController)
+local CombatTargets = require(script.Parent.CombatTargets)
 
 local TAU = math.pi * 2
 local ABILITY_ID = "OrbitingSwords"
@@ -110,21 +110,21 @@ local function applySwordDamage(
 	player: Player,
 	runtime: Runtime,
 	stats,
-	targetId: number,
+	target,
 	baseDamage: number,
 	now: number,
 	hitOrigin: Vector3
 )
 	local definition = AbilityDefinitions.ById[ABILITY_ID]
 	local damage = baseDamage
-	if stats.Wounded and (runtime.woundedUntil[targetId] or 0) > now then
+	if stats.Wounded and (runtime.woundedUntil[target.key] or 0) > now then
 		damage *= definition.Combat.WoundDamageMultiplier
 	end
 
 	local knockback = definition.Combat.Knockback
 		* (if stats.IsRage then definition.Rage.KnockbackMultiplier or 1 else 1)
-	local damaged, killed = ZombieController.DamageZombie(
-		targetId,
+	local damaged, killed = CombatTargets.DamageTarget(
+		target,
 		math.floor(damage + 0.5),
 		hitOrigin,
 		knockback,
@@ -139,7 +139,7 @@ local function applySwordDamage(
 	end
 	if stats.Wounded then
 		-- Each successful hit consumes the prior wound bonus and refreshes it for the next Sword hit.
-		runtime.woundedUntil[targetId] = now + definition.Combat.WoundDuration
+		runtime.woundedUntil[target.key] = now + definition.Combat.WoundDuration
 	end
 	if killed and stats.Momentum then
 		runtime.momentum = math.min(
@@ -171,11 +171,11 @@ local function hitWithSword(
 	local hitsThisStep = 0
 	local maximumHits = AbilityDefinitions.ById[ABILITY_ID].Combat.MaximumHitsPerSwordStep
 	for _, target in candidates do
-		if getHorizontalDistance(target.position, swordPosition) <= hitRadius
-			and now - (swordHits[target.id] or -math.huge) >= stats.HitCooldown
+		if getHorizontalDistance(target.position, swordPosition) <= hitRadius + (target.radius or 0)
+			and now - (swordHits[target.key] or -math.huge) >= stats.HitCooldown
 		then
-			swordHits[target.id] = now
-			applySwordDamage(player, runtime, stats, target.id, stats.Damage * damageMultiplier, now, swordPosition)
+			swordHits[target.key] = now
+			applySwordDamage(player, runtime, stats, target, stats.Damage * damageMultiplier, now, swordPosition)
 			hitsThisStep += 1
 			if hitsThisStep >= maximumHits then
 				break
@@ -191,7 +191,7 @@ local function fireReleasedBlade(player: Player, runtime: Runtime, stats, root: 
 		1.2,
 		math.sin(runtime.angle) * stats.OrbitRadius
 	)
-	local targets = ZombieController.GetNearestZombies(origin, definition.Combat.ReleaseRange, 1)
+	local targets = CombatTargets.GetNearestHostiles(origin, definition.Combat.ReleaseRange, 1)
 	local target = targets[1]
 	local radial = Vector3.new(math.cos(runtime.angle), 0, math.sin(runtime.angle))
 	local targetPosition = if target then target.position else origin + radial * 18
@@ -213,7 +213,7 @@ local function fireReleasedBlade(player: Player, runtime: Runtime, stats, root: 
 					player,
 					runtime,
 					stats,
-					target.id,
+					target,
 					stats.Damage * definition.Combat.ReleaseDamageMultiplier,
 					workspace:GetServerTimeNow(),
 					origin
@@ -283,7 +283,7 @@ local function runOrbit(player: Player, runtime: Runtime, token: number)
 		local hitRadius = definition.Combat.HitRadius * (stats.SwordScale / definition.Combat.BaseScale)
 		-- Inflate by half this frame's arc so high Rage speed cannot tunnel between discrete server checks.
 		hitRadius += math.min(stats.OrbitRadius * angleStep * 0.5, 1.5)
-		local candidates = ZombieController.GetZombiesInRadius(
+		local candidates = CombatTargets.GetDamageablesInRadius(
 			root.Position,
 			stats.OrbitRadius + hitRadius + 1,
 			definition.Combat.MaximumCandidates

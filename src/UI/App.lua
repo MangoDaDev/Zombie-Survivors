@@ -1,11 +1,10 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Workspace = game:GetService("Workspace")
-
 local vide = require(ReplicatedStorage.Packages.vide)
 local Confirmation = require(script.Parent.Classes.Confirmation)
 local Notifications = require(script.Parent.HUD.Notifications)
 local PartyTeleporterMenu = require(script.Parent.HUD.PartyTeleporterMenu)
 local RageBar = require(script.Parent.HUD.RageBar)
+local RunHUD = require(script.Parent.HUD.RunHUD)
 local create = vide.create
 
 return function()
@@ -19,11 +18,12 @@ return function()
 		-- Simulator-era roll, inventory, currency, and extraction HUD components remain preserved in
 		-- UI/HUD, but are intentionally not composed until a future lobby or post-run flow owns them.
 		Notifications(),
+		-- RunHUD is always mounted so Studio's promoted destination can activate reactively without remounting App.
+		RunHUD(),
 		-- The Creation Menu is presentation-only; party membership, settings, and departure stay authoritative.
 		PartyTeleporterMenu(),
 		Confirmation.Component(),
-		-- Keep the optional child last so Lobby composition has no nil gap between mounted UI elements.
-		-- Lobby sessions intentionally keep abilities visible without showing run-only Rage controls.
-		if Workspace:FindFirstChild("Game") then RageBar() else nil,
+		-- RageBar owns reactive Game-map visibility so Studio destination promotion needs no App remount.
+		RageBar(),
 	}
 end

@@ -7,6 +7,7 @@ local AbilityDefinitions = require(ReplicatedStorage.Modules.Game.Abilities.Abil
 local RageController = require(ServerStorage.Controllers.RageController)
 local ServerContext = require(ServerStorage.Controllers.ServerContext)
 local ZombieController = require(ServerStorage.Controllers.ZombieController)
+local CombatTargets = require(script.Parent.CombatTargets)
 
 local ACTIVE_ABILITY_IDS = { "Fireball", "Lightning", "Boomerang" }
 local SCHEDULER_INTERVAL = 0.08
@@ -61,10 +62,13 @@ local function getPointToSegmentDistance(point: Vector3, segmentStart: Vector3, 
 	return (point - segmentStart:Lerp(segmentEnd, alpha)).Magnitude
 end
 
-local function damageZombie(player: Player, definition, stats, targetId: number, amount: number, origin: Vector3, knockback: number): boolean
+local function damageTarget(player: Player, definition, stats, targetOrId, amount: number, origin: Vector3, knockback: number): boolean
 	local rageMultiplier = if stats.IsRage then definition.Rage.KnockbackMultiplier or 1 else 1
-	local damaged = ZombieController.DamageZombie(
-		targetId,
+	local target = if type(targetOrId) == "number"
+		then { id = targetOrId, kind = "Zombie", key = targetOrId }
+		else targetOrId
+	local damaged = CombatTargets.DamageTarget(
+		target,
 		math.max(1, math.floor(amount + 0.5)),
 		origin,
 		knockback * rageMultiplier,
@@ -177,7 +181,7 @@ local function explodeFireball(projectile, now: number)
 		empowered = stats.EmpoweredExplosion == true,
 	})
 
-	local targets = ZombieController.GetZombiesInRadius(
+	local targets = CombatTargets.GetDamageablesInRadius(
 		position,
 		stats.ExplosionRadius,
 		definition.Combat.MaximumTargetsPerExplosion
@@ -194,7 +198,9 @@ local function explodeFireball(projectile, now: number)
 		if stats.EmpoweredExplosion then
 			knockback *= definition.Combat.EmpoweredExplosion.KnockbackMultiplier
 		end
-		if damageZombie(projectile.player, definition, stats, target.id, damage, position, knockback) then
+		if damageTarget(projectile.player, definition, stats, target, damage, position, knockback)
+			and target.kind == "Zombie"
+		then
 			applyBurn(projectile.player, definition, stats, target.id, target.position, now)
 		end
 	end
@@ -202,7 +208,7 @@ local function explodeFireball(projectile, now: number)
 end
 
 local function chooseFireballTargets(origin: Vector3, definition, stats)
-	local candidates = ZombieController.GetNearestZombies(
+	local candidates = CombatTargets.GetNearestHostiles(
 		origin,
 		definition.Combat.Range,
 		definition.Combat.GroupSearchCandidates
@@ -308,7 +314,7 @@ local function findNearestUnused(candidates, position: Vector3, maximumDistance:
 	local nearest
 	local nearestDistance = maximumDistance
 	for _, candidate in candidates do
-		if not used[candidate.id] and not excluded[candidate.id] then
+		if not used[candidate.key] and not excluded[candidate.key] then
 			local distance = getHorizontalDistance(position, candidate.position)
 			if distance <= nearestDistance then
 				nearest = candidate
@@ -325,7 +331,7 @@ local function buildLightningChain(candidates, origin: Vector3, definition, stat
 	local current = findNearestUnused(candidates, origin, definition.Combat.FirstTargetRange, used, excluded)
 	while current and #targets < stats.MaximumTargets do
 		table.insert(targets, current)
-		used[current.id] = true
+		used[current.key] = true
 		current = findNearestUnused(candidates, current.position, stats.ChainRange, used, excluded)
 	end
 	return targets, used
@@ -335,7 +341,7 @@ local function attackLightning(player: Player, runtime, stats, root: BasePart): 
 	local definition = AbilityDefinitions.ById.Lightning
 	local origin = root.Position + Vector3.new(0, 2.2, 0)
 	local poolRadius = definition.Combat.FirstTargetRange + stats.ChainRange * math.min(stats.MaximumTargets - 1, 4)
-	local candidates = ZombieController.GetZombiesInRadius(origin, poolRadius, definition.Combat.MaximumCandidatePool)
+	local candidates = CombatTargets.GetHostilesInRadius(origin, poolRadius, definition.Combat.MaximumCandidatePool)
 	if #candidates == 0 then
 		return false
 	end
@@ -359,15 +365,15 @@ local function attackLightning(player: Player, runtime, stats, root: BasePart): 
 		local points = { origin }
 		for targetIndex, target in targets do
 			table.insert(points, target.position)
-			excluded[target.id] = true
+			excluded[target.key] = true
 			local multiplier = if stats.Finisher and targetIndex == #targets
 				then definition.Combat.FinisherDamageMultiplier
 				else 1
-			damageZombie(
+			damageTarget(
 				player,
 				definition,
 				stats,
-				target.id,
+				target,
 				stats.Damage * multiplier,
 				target.position + Vector3.new(0, 8, 0),
 				definition.Combat.Knockback
@@ -388,12 +394,12 @@ local function attackLightning(player: Player, runtime, stats, root: BasePart): 
 				excluded
 			)
 			if branchTarget then
-				excluded[branchTarget.id] = true
-				damageZombie(
+				excluded[branchTarget.key] = true
+				damageTarget(
 					player,
 					definition,
 					stats,
-					branchTarget.id,
+					branchTarget,
 					stats.Damage * definition.Combat.ForkDamageMultiplier,
 					branchOrigin.position,
 					definition.Combat.Knockback
@@ -419,7 +425,7 @@ end
 local function attackBoomerang(player: Player, _runtime, stats, root: BasePart): boolean
 	local definition = AbilityDefinitions.ById.Boomerang
 	local origin = root.Position + Vector3.new(0, 1.5, 0)
-	local target = ZombieController.GetNearestZombies(origin, stats.Range, 1)[1]
+	local target = CombatTargets.GetNearestHostiles(origin, stats.Range, 1)[1]
 	if not target then
 		return false
 	end
@@ -498,13 +504,15 @@ local function updateFireball(projectile, deltaTime: number, now: number): boole
 	projectile.travelled += stepDistance
 
 	local midpoint = previousPosition:Lerp(nextPosition, 0.5)
-	local candidates = ZombieController.GetZombiesInRadius(
+	local candidates = CombatTargets.GetDamageablesInRadius(
 		midpoint,
 		stepDistance * 0.5 + projectile.hitRadius,
 		6
 	)
 	for _, target in candidates do
-		if getPointToSegmentDistance(target.position, previousPosition, nextPosition) <= projectile.hitRadius then
+		if getPointToSegmentDistance(target.position, previousPosition, nextPosition)
+			<= projectile.hitRadius + (target.radius or 0)
+		then
 			explodeFireball(projectile, now)
 			return false
 		end
@@ -521,24 +529,25 @@ local function hitBoomerangSegment(projectile, segmentStart: Vector3, segmentEnd
 	local definition = projectile.definition
 	local midpoint = segmentStart:Lerp(segmentEnd, 0.5)
 	local segmentLength = (segmentEnd - segmentStart).Magnitude
-	local candidates = ZombieController.GetZombiesInRadius(
+	local candidates = CombatTargets.GetDamageablesInRadius(
 		midpoint,
 		segmentLength * 0.5 + stats.HitRadius,
 		definition.Combat.MaximumHitsPerStep
 	)
 	local hitSet = if projectile.phase == "Return" then projectile.returnHits else projectile.outwardHits
 	for _, target in candidates do
-		if not hitSet[target.id]
-			and getPointToSegmentDistance(target.position, segmentStart, segmentEnd) <= stats.HitRadius
+		if not hitSet[target.key]
+			and getPointToSegmentDistance(target.position, segmentStart, segmentEnd)
+				<= stats.HitRadius + (target.radius or 0)
 		then
-			hitSet[target.id] = true
-			projectile.uniqueHits[target.id] = true
+			hitSet[target.key] = true
+			projectile.uniqueHits[target.key] = true
 			local damageMultiplier = if projectile.phase == "Return" then stats.ReturnDamageMultiplier else 1
-			local damaged = damageZombie(
+			local damaged = damageTarget(
 				projectile.player,
 				definition,
 				stats,
-				target.id,
+				target,
 				stats.Damage * damageMultiplier,
 				segmentStart,
 				definition.Combat.Knockback
@@ -669,7 +678,7 @@ local function updateBurns(now: number)
 				removeBurn(targetId)
 			else
 				burn.lastPosition = position
-				if not damageZombie(burn.player, burn.definition, burn.stats, targetId, burn.damage, position, 0) then
+				if not damageTarget(burn.player, burn.definition, burn.stats, targetId, burn.damage, position, 0) then
 					removeBurn(targetId)
 				end
 			end
@@ -684,17 +693,17 @@ local function updateBurningGrounds(now: number)
 			removeGroundAt(index)
 		elseif now >= ground.nextTickAt then
 			ground.nextTickAt = now + ground.definition.Combat.BurningGround.TickInterval
-			local targets = ZombieController.GetZombiesInRadius(
+			local targets = CombatTargets.GetDamageablesInRadius(
 				ground.position,
 				ground.radius,
 				ground.definition.Combat.MaximumTargetsPerExplosion
 			)
 			for _, target in targets do
-				damageZombie(
+				damageTarget(
 					ground.player,
 					ground.definition,
 					ground.stats,
-					target.id,
+					target,
 					ground.damage,
 					ground.position,
 					0

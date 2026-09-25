@@ -1,5 +1,3 @@
--- Currently unused after removal of simulator gameplay. Preserved as a reusable world-drop presentation system.
-
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -43,6 +41,7 @@ type CoinView = {
 	curveSide: Vector3,
 	startScale: number,
 	playerUserId: number?,
+	ownerUserId: number?,
 	bobOffset: number,
 }
 
@@ -81,12 +80,13 @@ local function destroyView(id: number)
 	view.holder:Destroy()
 end
 
-local function createView(id: number, value: number, position: Vector3, scale: number): CoinView
+local function createView(id: number, value: number, position: Vector3, scale: number, ownerUserId: number?): CoinView
 	local existing = coinViews[id]
 	if existing then
 		updateValuePresentation(existing, value, scale)
 		existing.position = position
 		existing.targetPosition = position
+		existing.ownerUserId = ownerUserId
 		return existing
 	end
 
@@ -213,6 +213,7 @@ local function createView(id: number, value: number, position: Vector3, scale: n
 		curveSide = Vector3.zero,
 		startScale = scale,
 		playerUserId = nil,
+		ownerUserId = ownerUserId,
 		bobOffset = (id % 11) * 0.47,
 	}
 	coinViews[id] = view
@@ -241,7 +242,8 @@ local function getBackpackOpening(userId: number?): Vector3?
 	local backpack = character and character:FindFirstChild(BackpackConfig.ModelName)
 	local targetPart = backpack and backpack:FindFirstChild(BackpackConfig.TargetPartName)
 	if not targetPart or not targetPart:IsA("BasePart") then
-		return nil
+		local root = getPlayerRoot(userId)
+		return root and root.Position + Vector3.new(0, 1.5, 0) or nil
 	end
 
 	-- GatheredNeck is the inspected mouth of every authored stage, so this tracks the actual opening after swaps.
@@ -362,7 +364,7 @@ function CoinDropController.SpawnCoins(_, packets)
 			and typeof(packet.origin) == "Vector3"
 			and typeof(packet.targetPosition) == "Vector3"
 		then
-			local view = createView(packet.id, packet.value, packet.origin, packet.scale or 1)
+			local view = createView(packet.id, packet.value, packet.origin, packet.scale or 1, packet.ownerUserId)
 			view.phase = "Scatter"
 			view.startPosition = packet.origin
 			view.targetPosition = packet.targetPosition
@@ -498,7 +500,8 @@ local function predictLocalCollections(now: number)
 		local isCollectible = view.phase == "Idle"
 			or (view.phase == "Scatter" and now >= view.startAt + view.duration * 0.72)
 		local collectionPosition = if view.phase == "Scatter" then view.targetPosition else view.position
-		if isCollectible and (root.Position - collectionPosition).Magnitude <= CoinDropConfig.CollectionRadius then
+		local canCollect = view.ownerUserId == nil or view.ownerUserId == Players.LocalPlayer.UserId
+		if canCollect and isCollectible and (root.Position - collectionPosition).Magnitude <= CoinDropConfig.MagnetRadius then
 			-- Prediction only owns presentation; the server validates this claim before it awards any coins.
 			startMagnet(view, Players.LocalPlayer.UserId, now, CoinDropConfig.CollectionDuration)
 			table.insert(predictedIds, id)
@@ -545,7 +548,7 @@ function CoinDropController.Init()
 				and type(packet.value) == "number"
 				and typeof(packet.position) == "Vector3"
 			then
-				createView(packet.id, packet.value, packet.position, packet.scale or 1)
+				createView(packet.id, packet.value, packet.position, packet.scale or 1, packet.ownerUserId)
 			end
 		end
 	end

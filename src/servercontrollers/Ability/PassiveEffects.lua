@@ -6,6 +6,7 @@ local ServerStorage = game:GetService("ServerStorage")
 local AbilityDefinitions = require(ReplicatedStorage.Modules.Game.Abilities.AbilityDefinitions)
 local PlayerStatController = require(ServerStorage.Controllers.PlayerStatController)
 local ZombieController = require(ServerStorage.Controllers.ZombieController)
+local CombatTargets = require(script.Parent.CombatTargets)
 
 local HEART_MODIFIER_ID = "Ability:Heart"
 local BOOTS_MODIFIER_ID = "Ability:Boots"
@@ -353,8 +354,8 @@ local function applyBlastExplosion(
 		radius = radius,
 		secondary = secondary,
 	})
-	for _, target in ZombieController.GetZombiesInRadius(position, radius, definition.Config.MaximumTargets) do
-		ZombieController.DamageZombie(target.id, damage, position, 0, {
+	for _, target in CombatTargets.GetDamageablesInRadius(position, radius, definition.Config.MaximumTargets) do
+		CombatTargets.DamageTarget(target, damage, position, 0, {
 			player = player,
 			source = "Blast",
 			canApplyHitPassives = false,
@@ -497,12 +498,12 @@ local function onPlayerDamagedByZombie(player: Player, attackerId: number, attac
 	local playerPosition = if runtime.root then runtime.root.Position else attackerPosition
 	if stats.BurstUnlocked then
 		local burstDamage = math.max(1, math.floor(actualDamage * stats.BurstDamagePercent / 100 + 0.5))
-		for _, target in ZombieController.GetZombiesInRadius(
+		for _, target in CombatTargets.GetDamageablesInRadius(
 			playerPosition,
 			stats.BurstRadius,
 			definition.Config.MaximumBurstTargets
 		) do
-			ZombieController.DamageZombie(target.id, burstDamage, playerPosition, 0, {
+			CombatTargets.DamageTarget(target, burstDamage, playerPosition, 0, {
 				player = player,
 				source = "Thorns",
 				canApplyHitPassives = false,

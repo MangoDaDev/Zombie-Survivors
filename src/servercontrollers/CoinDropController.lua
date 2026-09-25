@@ -1,5 +1,3 @@
--- Currently unused after removal of simulator gameplay. Preserved as reusable authoritative item-drop logic.
-
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -7,13 +5,14 @@ local ServerStorage = game:GetService("ServerStorage")
 
 local Networker = require(ReplicatedStorage.Packages.networker)
 local CoinDropConfig = require(ReplicatedStorage.Modules.Game.CoinDropConfig)
-local RunRewardsController = require(ServerStorage.Controllers.RunRewardsController)
+local RunProgressionConfig = require(ReplicatedStorage.Modules.Game.RunProgressionConfig)
+local CoinsController = require(ServerStorage.Controllers.CoinsController)
+local ServerContext = require(ServerStorage.Controllers.ServerContext)
 
 local UPDATE_INTERVAL = 0.1
 local MERGE_INTERVAL = 0.3
 local MERGE_RADIUS = 2.25
--- Keep drops meaningfully spaced: they scatter wider than the reduced pickup radius and expire after 20 seconds.
-local COIN_LIFETIME = 20
+-- Keep drops meaningfully spaced so burst rewards remain readable before magnet collection begins.
 local MIN_SCATTER_DISTANCE = 5
 local MAX_SCATTER_DISTANCE = 10
 local MAX_ACTIVE_COINS = 120
@@ -29,6 +28,7 @@ type CoinState = {
 	despawnAt: number,
 	collectingPlayer: Player?,
 	collectAt: number?,
+	ownerUserId: number?,
 }
 
 local CoinDropController = {}
@@ -54,6 +54,10 @@ local function getVisualScale(value: number): number
 	return 1 + math.min((math.log(value) / math.log(2)) * 0.1, 0.65)
 end
 
+local function canCollect(coin: CoinState, player: Player): boolean
+	return coin.ownerUserId == nil or coin.ownerUserId == player.UserId
+end
+
 local function findNearestCoin(position: Vector3): CoinState?
 	local nearest
 	local nearestDistance = math.huge
@@ -67,31 +71,49 @@ local function findNearestCoin(position: Vector3): CoinState?
 	return nearest
 end
 
-local function addOverflowValue(position: Vector3, value: number)
+local function addOverflowValue(position: Vector3, value: number, ownerUserId: number?): boolean
 	local coin = findNearestCoin(position)
+	if coin and coin.ownerUserId ~= ownerUserId then
+		coin = nil
+		local nearestDistance = math.huge
+		for _, candidate in coins do
+			local distance = (candidate.position - position).Magnitude
+			if candidate.ownerUserId == ownerUserId and distance < nearestDistance then
+				coin = candidate
+				nearestDistance = distance
+			end
+		end
+	end
 	if not coin then
-		return
+		return false
 	end
 	-- At the object cap, fold the reward into an existing coin (even one already magnetizing) so value is
 	-- never discarded just because a large wave died before the current pickup animations completed.
 	coin.value += value
-	coin.despawnAt = workspace:GetServerTimeNow() + COIN_LIFETIME
+	coin.despawnAt = workspace:GetServerTimeNow() + CoinDropConfig.Lifetime
 	coinNetwork:fireAll("CoinValueChanged", coin.id, coin.value, coin.position, getVisualScale(coin.value))
+	return true
 end
 
-function CoinDropController.SpawnBurst(position: Vector3, totalValue: number, landingHeight: number?)
-	if typeof(position) ~= "Vector3" or type(totalValue) ~= "number" or totalValue <= 0 then
+function CoinDropController.SpawnBurst(position: Vector3, totalValue: number, landingHeight: number?, owner: Player?)
+	if not ServerContext.IsGameServer()
+		or typeof(position) ~= "Vector3"
+		or type(totalValue) ~= "number"
+		or totalValue <= 0
+	then
 		return
 	end
 	totalValue = math.max(1, math.floor(totalValue))
 	landingHeight = if type(landingHeight) == "number" then landingHeight else position.Y
-	if activeCount >= MAX_ACTIVE_COINS then
-		addOverflowValue(position, totalValue)
+	local ownerUserId = if RunProgressionConfig.Pickups.Ownership == "Killer" and owner then owner.UserId else nil
+	if activeCount >= MAX_ACTIVE_COINS and addOverflowValue(position, totalValue, ownerUserId) then
 		return
 	end
 
 	local desiredCount = math.clamp(math.ceil(totalValue / 2), 3, 7)
-	local dropCount = math.min(desiredCount, MAX_ACTIVE_COINS - activeCount)
+	-- A new killer-owned reward may temporarily exceed the visual cap when there is no same-owner
+	-- coin to merge into; preserving currency is more important than a single extra visual.
+	local dropCount = math.min(desiredCount, math.max(MAX_ACTIVE_COINS - activeCount, 1))
 	local remainingValue = totalValue
 	local packets = {}
 	local now = workspace:GetServerTimeNow()
@@ -113,9 +135,10 @@ function CoinDropController.SpawnBurst(position: Vector3, totalValue: number, la
 			value = value,
 			position = targetPosition,
 			collectibleAt = now + duration * 0.72,
-			despawnAt = now + COIN_LIFETIME,
+			despawnAt = now + CoinDropConfig.Lifetime,
 			collectingPlayer = nil,
 			collectAt = nil,
+			ownerUserId = ownerUserId,
 		}
 		coins[coin.id] = coin
 		activeCount += 1
@@ -128,6 +151,7 @@ function CoinDropController.SpawnBurst(position: Vector3, totalValue: number, la
 			duration = duration,
 			arcHeight = random:NextNumber(3.2, 5.8),
 			scale = getVisualScale(value),
+			ownerUserId = coin.ownerUserId,
 		})
 	end
 
@@ -175,6 +199,7 @@ local function mergeNearbyCoins(now: number)
 							and not consumed[otherId]
 							and other
 							and not other.collectingPlayer
+							and other.ownerUserId == coin.ownerUserId
 							and (other.position - coin.position).Magnitude <= MERGE_RADIUS
 						then
 							consumed[otherId] = true
@@ -238,10 +263,17 @@ local function finishCollections(now: number)
 		local player = coin.collectingPlayer
 		if player and coin.collectAt and now >= coin.collectAt then
 			if player.Parent == Players and getLiveRoot(player) then
-				RunRewardsController.AddCoins(player, coin.value)
-				coins[id] = nil
-				activeCount -= 1
-				coinNetwork:fireAll("CoinCollected", id, player.UserId, coin.value)
+				local awarded = CoinsController.Add(player, coin.value)
+				if awarded then
+					coins[id] = nil
+					activeCount -= 1
+					coinNetwork:fireAll("CoinCollected", id, player.UserId, coin.value)
+				else
+					-- A transient data-access failure must not silently consume a permanent reward.
+					coin.collectingPlayer = nil
+					coin.collectAt = nil
+					coinNetwork:fireAll("ReleaseCoin", id, coin.position + Vector3.new(0, 0.35, 0))
+				end
 			else
 				coin.collectingPlayer = nil
 				coin.collectAt = nil
@@ -303,8 +335,9 @@ function CoinDropController.RequestCollect(_, player: Player, ids)
 			or coin.collectingPlayer
 			or not root
 			or now < coin.collectibleAt
+			or not canCollect(coin, player)
 			or (root.Position - coin.position).Magnitude
-				> CoinDropConfig.CollectionRadius + CLIENT_CLAIM_DISTANCE_TOLERANCE
+				> CoinDropConfig.MagnetRadius + CLIENT_CLAIM_DISTANCE_TOLERANCE
 		then
 			-- Reconcile rejected and contested predictions instead of leaving their local animation stuck.
 			sendAuthoritativeCoinState(player, id, coin, now)
@@ -328,10 +361,10 @@ local function startCollections(now: number)
 			continue
 		end
 		local nearestPlayer
-		local nearestDistance = CoinDropConfig.CollectionRadius
+		local nearestDistance = CoinDropConfig.MagnetRadius
 		for _, candidate in candidates do
 			local distance = (candidate.position - coin.position).Magnitude
-			if distance <= nearestDistance then
+			if canCollect(coin, candidate.player) and distance <= nearestDistance then
 				nearestDistance = distance
 				nearestPlayer = candidate.player
 			end
@@ -367,7 +400,8 @@ function CoinDropController.GetSnapshot(_, _player)
 				id = coin.id,
 				value = coin.value,
 				position = coin.position + Vector3.new(0, 0.35, 0),
-				scale = getVisualScale(coin.value),
+			scale = getVisualScale(coin.value),
+			ownerUserId = coin.ownerUserId,
 			})
 		end
 	end
@@ -379,7 +413,15 @@ function CoinDropController.Init()
 		CoinDropController.GetSnapshot,
 		CoinDropController.RequestCollect,
 	})
-	heartbeatConnection = RunService.Heartbeat:Connect(step)
+	if ServerContext.IsGameServer() then
+		heartbeatConnection = RunService.Heartbeat:Connect(step)
+	elseif RunService:IsStudio() then
+		ServerContext.GetChangedSignal():Connect(function(serverType)
+			if serverType == "Game" and not heartbeatConnection then
+				heartbeatConnection = RunService.Heartbeat:Connect(step)
+			end
+		end)
+	end
 end
 
 function CoinDropController.OnPlayerRemoving(player: Player)

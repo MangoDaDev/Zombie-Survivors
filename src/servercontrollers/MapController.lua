@@ -13,6 +13,7 @@ local GAME_SPAWN_NAME = "GameSpawnPos"
 local MapController = {}
 
 local activeSpawn: SpawnLocation?
+local currentMap: Instance?
 
 local function getOrCreateInactiveMapsFolder(): Folder
 	local existing = ServerStorage:FindFirstChild(INACTIVE_MAPS_FOLDER_NAME)
@@ -53,6 +54,7 @@ local function activateMap(activeMapName: string, inactiveMapName: string, spawn
 		-- Only one complete map may remain replicated and physically active in a server at a time.
 		inactiveMap.Parent = inactiveMaps
 	end
+	currentMap = activeMap
 	activeSpawn = spawn
 	return true, nil
 end
@@ -76,6 +78,10 @@ end
 
 function MapController.GetSpawnCFrame(): CFrame?
 	return activeSpawn and activeSpawn.CFrame or nil
+end
+
+function MapController.GetActiveMap(): Instance?
+	return currentMap
 end
 
 return MapController

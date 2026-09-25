@@ -1,15 +1,17 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 local ServerStorage = game:GetService("ServerStorage")
 
 local Networker = require(ReplicatedStorage.Packages.networker)
 local AbilityDefinitions = require(ReplicatedStorage.Modules.Game.Abilities.AbilityDefinitions)
+local RunProgressionConfig = require(ReplicatedStorage.Modules.Game.RunProgressionConfig)
 local RollDefinitions = require(ReplicatedStorage.Modules.Game.Rolls.RollDefinitions)
 local CoinsController = require(ServerStorage.Controllers.CoinsController)
 local RageController = require(ServerStorage.Controllers.RageController)
 local ServerContext = require(ServerStorage.Controllers.ServerContext)
-local ZombieController = require(ServerStorage.Controllers.ZombieController)
 local ActiveWeapons = require(script.Parent.Ability.ActiveWeapons)
+local CombatTargets = require(script.Parent.Ability.CombatTargets)
 local OrbitingSwords = require(script.Parent.Ability.OrbitingSwords)
 local PassiveEffects = require(script.Parent.Ability.PassiveEffects)
 
@@ -21,6 +23,7 @@ type PlayerRuntime = {
 	attackToken: number,
 	lastRequestAt: number,
 	nextDaggerAt: number,
+	runData: any?,
 }
 
 local AbilityController = {}
@@ -108,6 +111,32 @@ local function getData(player: Player)
 	return normalizeData(dataService:get(player, AbilityDefinitions.DataKey))
 end
 
+local function getCombatData(player: Player)
+	local runtime = runtimes[player]
+	-- A run owns its own levels and equipped set. Persistent discovery data only controls which new
+	-- abilities may be offered; it must never be mutated by an in-match upgrade.
+	return if ServerContext.IsGameServer() and runtime and runtime.runData then runtime.runData else getData(player)
+end
+
+local function initializeRunData(player: Player)
+	local runtime = runtimes[player]
+	if not runtime or runtime.runData then
+		return
+	end
+
+	local runData = makeEmptyData()
+	for _, abilityId in RunProgressionConfig.Abilities.StartingAbilities do
+		local definition = AbilityDefinitions.ById[abilityId]
+		local equipped = definition and runData.Equipped[definition.Category]
+		if definition and equipped and #equipped < AbilityDefinitions.EquipLimits[definition.Category] then
+			runData.Owned[abilityId] = true
+			runData.Levels[abilityId] = 1
+			table.insert(equipped, abilityId)
+		end
+	end
+	runtime.runData = runData
+end
+
 local function isEquipped(data, abilityId: string): boolean
 	local definition = AbilityDefinitions.ById[abilityId]
 	if not definition then
@@ -134,10 +163,10 @@ local function sendResult(player: Player, success: boolean, message: string, mil
 	abilityNetwork:fire(player, "ActionResult", success, message, milestone == true)
 end
 
-local function damageZombie(player: Player, definition, targetId: number, damage: number, hitOrigin: Vector3, isRage: boolean)
+local function damageTarget(player: Player, definition, target, damage: number, hitOrigin: Vector3, isRage: boolean)
 	local knockback = definition.Combat.Knockback
 		* (if isRage then definition.Rage.KnockbackMultiplier or 1 else 1)
-	ZombieController.DamageZombie(targetId, damage, hitOrigin, knockback, {
+	CombatTargets.DamageTarget(target, damage, hitOrigin, knockback, {
 		player = player,
 		source = definition.Id,
 		canApplyHitPassives = true,
@@ -160,7 +189,7 @@ local function fireDaggerVolley(player: Player, definition, level: number): bool
 	local projectileSpeed = stats.ProjectileSpeed or definition.Combat.ProjectileSpeed
 	local volleyStagger = stats.VolleyStagger or VOLLEY_STAGGER
 	local origin = root.Position + Vector3.new(0, 1.7, 0)
-	local targets = ZombieController.GetNearestZombies(origin, range, stats.DaggerCount)
+	local targets = CombatTargets.GetNearestHostiles(origin, range, stats.DaggerCount)
 	if #targets == 0 then
 		return false
 	end
@@ -193,7 +222,7 @@ local function fireDaggerVolley(player: Player, definition, level: number): bool
 
 		task.delay(launchDelay + duration, function()
 			if player.Parent == Players then
-				damageZombie(player, definition, target.id, stats.Damage, startPosition, stats.IsRage == true)
+				damageTarget(player, definition, target, stats.Damage, startPosition, stats.IsRage == true)
 			end
 		end)
 	end
@@ -208,7 +237,7 @@ local function refreshAttacks(player: Player)
 	end
 	runtime.attackToken += 1
 	local token = runtime.attackToken
-	local data = getData(player)
+	local data = getCombatData(player)
 	-- Lobby loadouts remain replicated for presentation, but no attack scheduler runs outside a game session.
 	if ServerContext.IsLobbyServer() or not isEquipped(data, "Dagger") then
 		return
@@ -224,7 +253,7 @@ local function refreshAttacks(player: Player)
 				return
 			end
 
-			local currentData = getData(player)
+			local currentData = getCombatData(player)
 			if not isEquipped(currentData, "Dagger") then
 				return
 			end
@@ -265,6 +294,76 @@ end
 
 function AbilityController.IsOwned(player: Player, abilityId: string): boolean
 	return runtimes[player] ~= nil and getData(player).Owned[abilityId] == true
+end
+
+function AbilityController.GetPermanentData(player: Player)
+	return if runtimes[player] then getData(player) else makeEmptyData()
+end
+
+function AbilityController.GetRunData(player: Player)
+	local runtime = runtimes[player]
+	return runtime and runtime.runData or nil
+end
+
+function AbilityController.IsAvailableInRun(player: Player, abilityId: string): boolean
+	if not AbilityDefinitions.ById[abilityId] or not runtimes[player] then
+		return false
+	end
+	return getData(player).Owned[abilityId] == true
+		or table.find(RunProgressionConfig.Abilities.AlwaysAvailable, abilityId) ~= nil
+end
+
+function AbilityController.AddRunAbility(player: Player, abilityId: string): boolean
+	local runtime = runtimes[player]
+	local definition = AbilityDefinitions.ById[abilityId]
+	local runData = runtime and runtime.runData
+	if not definition
+		or not runData
+		or runData.Owned[abilityId]
+		or not AbilityController.IsAvailableInRun(player, abilityId)
+	then
+		return false
+	end
+
+	local equipped = runData.Equipped[definition.Category]
+	if #equipped >= AbilityDefinitions.EquipLimits[definition.Category] then
+		return false
+	end
+	runData.Owned[abilityId] = true
+	runData.Levels[abilityId] = 1
+	table.insert(equipped, abilityId)
+
+	-- Newly selected abilities begin participating immediately without resetting unrelated cooldowns.
+	refreshAttacks(player)
+	ActiveWeapons.Refresh(player)
+	OrbitingSwords.Refresh(player)
+	if definition.Category == AbilityDefinitions.Categories.Passive then
+		PassiveEffects.Refresh(player)
+	end
+	return true
+end
+
+function AbilityController.UpgradeRunAbility(player: Player, abilityId: string): boolean
+	local runtime = runtimes[player]
+	local definition = AbilityDefinitions.ById[abilityId]
+	local runData = runtime and runtime.runData
+	local currentLevel = runData and runData.Levels[abilityId]
+	if not definition or not runData or not runData.Owned[abilityId] or type(currentLevel) ~= "number" then
+		return false
+	end
+	if currentLevel >= definition.MaxLevel then
+		return false
+	end
+
+	runData.Levels[abilityId] = currentLevel + 1
+	if abilityId == "OrbitingSwords" then
+		OrbitingSwords.ForceSync(player)
+	end
+	if definition.Category == AbilityDefinitions.Categories.Passive then
+		PassiveEffects.Refresh(player)
+	end
+	-- Active schedulers read the new level on their next cast, preserving the cooldown already in flight.
+	return true
 end
 
 function AbilityController.SetDiscoveryAcknowledgedCallback(callback)
@@ -386,9 +485,9 @@ function AbilityController.Init()
 	-- The archived simulator inventory/upgrade UI no longer exposes persistent loadout mutations.
 	-- Keep the implementation for a future progression flow, but do not accept these requests until that flow owns them.
 	abilityNetwork = Networker.server.new("AbilityController", AbilityController, {})
-	ActiveWeapons.Init(abilityNetwork, getData)
-	OrbitingSwords.Init(abilityNetwork, getData)
-	PassiveEffects.Init(abilityNetwork, getData)
+	ActiveWeapons.Init(abilityNetwork, getCombatData)
+	OrbitingSwords.Init(abilityNetwork, getCombatData)
+	PassiveEffects.Init(abilityNetwork, getCombatData)
 	RageController.GetActivatedSignal():Connect(function(player: Player)
 		local runtime = runtimes[player]
 		if runtime then
@@ -399,6 +498,19 @@ function AbilityController.Init()
 			OrbitingSwords.ForceSync(player)
 		end
 	end)
+	if RunService:IsStudio() then
+		ServerContext.GetChangedSignal():Connect(function(serverType)
+			if serverType == "Game" then
+				for player in runtimes do
+					initializeRunData(player)
+					refreshAttacks(player)
+					ActiveWeapons.Refresh(player)
+					OrbitingSwords.Refresh(player)
+					PassiveEffects.Refresh(player)
+				end
+			end
+		end)
+	end
 end
 
 function AbilityController.OnPlayerAdded(player: Player)
@@ -406,12 +518,16 @@ function AbilityController.OnPlayerAdded(player: Player)
 		attackToken = 0,
 		lastRequestAt = -math.huge,
 		nextDaggerAt = workspace:GetServerTimeNow() + 0.2,
+		runData = nil,
 	}
 
 	local rawData = dataService:get(player, AbilityDefinitions.DataKey)
 	local normalized = normalizeData(rawData)
 	if not deepEqual(rawData, normalized) then
 		dataService:set(player, AbilityDefinitions.DataKey, normalized)
+	end
+	if ServerContext.IsGameServer() then
+		initializeRunData(player)
 	end
 	ActiveWeapons.OnPlayerAdded(player)
 	OrbitingSwords.OnPlayerAdded(player)

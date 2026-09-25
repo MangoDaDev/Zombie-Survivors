@@ -1,9 +1,11 @@
--- Currently unused while simulator coin drops are archived. Preserved for a future generic world-drop system.
+local RunProgressionConfig = require(script.Parent.RunProgressionConfig)
 
 local CoinDropConfig = {
-	-- Prediction uses the same nominal range/timing as the authoritative fallback so confirmation is visually seamless.
-	CollectionRadius = 9,
-	CollectionDuration = 0.4,
+	-- Prediction uses the same magnet range/timing as the authoritative fallback; only the server awards currency.
+	PickupRadius = RunProgressionConfig.Pickups.Coin.PickupRadius,
+	MagnetRadius = RunProgressionConfig.Pickups.Coin.MagnetRadius,
+	CollectionDuration = RunProgressionConfig.Pickups.Coin.MagnetDuration,
+	Lifetime = RunProgressionConfig.Pickups.Coin.Lifetime,
 	PredictionInterval = 0.05,
 	MaxPredictionBatch = 12,
 }

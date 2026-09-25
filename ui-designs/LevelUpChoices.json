@@ -1,0 +1,39 @@
+{
+  "pinevex_object": {
+    "type": "Frame", "name": "Preview", "size": [1, 0, 1, 0], "bg": [17, 23, 29],
+    "children": [
+      { "type": "Frame", "name": "TopFade", "size": [1, 0, 0, 500], "bg": [7, 11, 16], "bgTransparency": 0.18, "children": [
+        { "type": "TextLabel", "name": "Title", "size": [0, 520, 0, 42], "position": [0.5, 0, 0, 28], "anchor": [0.5, 0], "bgTransparency": 1, "text": "LEVEL UP  •  CHOOSE ONE", "textColor": [237, 247, 252], "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy", "strokes": [{ "thickness": 3, "color": [3, 6, 9] }] },
+        { "type": "TextLabel", "name": "Hint", "size": [0, 420, 0, 22], "position": [0.5, 0, 0, 72], "anchor": [0.5, 0], "bgTransparency": 1, "text": "THE HORDE KEEPS MOVING — CHOOSE QUICKLY", "textColor": [140, 163, 177], "textScaled": true, "font": "Ubuntu", "fontWeight": "Medium" },
+        { "type": "Frame", "name": "Cards", "size": [0, 780, 0, 380], "position": [0.5, 0, 0, 104], "anchor": [0.5, 0], "bgTransparency": 1, "children": [
+          { "type": "TextButton", "name": "CardLeft", "size": [0, 238, 0, 360], "position": [0, 0, 0, 6], "bg": [22, 34, 43], "text": "", "strokes": [{ "thickness": 3, "color": [82, 201, 255], "applyMode": "Border" }], "children": [
+            { "type": "Frame", "name": "Header", "size": [1, 0, 0, 38], "bg": [34, 117, 161], "children": [{ "type": "TextLabel", "name": "Kind", "size": [1, -20, 1, 0], "position": [0, 10, 0, 0], "bgTransparency": 1, "text": "UPGRADE", "textColor": [222, 248, 255], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Bold" }] },
+            { "type": "ImageLabel", "name": "Artwork", "size": [0, 132, 0, 132], "position": [0.5, 0, 0, 52], "anchor": [0.5, 0], "bg": [14, 24, 31], "icon": "rbxassetid://74070337315898", "strokes": [{ "thickness": 2, "color": [49, 91, 116], "applyMode": "Border" }] },
+            { "type": "TextLabel", "name": "Name", "size": [1, -20, 0, 32], "position": [0.5, 0, 0, 192], "anchor": [0.5, 0], "bgTransparency": 1, "text": "DAGGER", "textColor": [255, 255, 255], "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy" },
+            { "type": "TextLabel", "name": "Level", "size": [1, -24, 0, 24], "position": [0.5, 0, 0, 225], "anchor": [0.5, 0], "bgTransparency": 1, "text": "LV. 2  →  LV. 3", "textColor": [112, 213, 255], "textScaled": true, "font": "Ubuntu", "fontWeight": "Bold" },
+            { "type": "TextLabel", "name": "Description", "size": [1, -28, 0, 40], "position": [0.5, 0, 0, 255], "anchor": [0.5, 0], "bgTransparency": 1, "text": "Hurls a dagger at the nearest zombie.", "textColor": [201, 215, 223], "textScaled": true, "font": "Ubuntu", "fontWeight": "Medium" },
+            { "type": "Frame", "name": "Stats", "size": [1, -24, 0, 44], "position": [0.5, 0, 1, -56], "anchor": [0.5, 0], "bg": [12, 21, 27], "children": [{ "type": "TextLabel", "name": "Value", "size": [1, -14, 1, -8], "position": [0.5, 0, 0.5, 0], "anchor": [0.5, 0.5], "bgTransparency": 1, "text": "+3 DAMAGE  •  +6% SIZE", "textColor": [145, 220, 250], "textScaled": true, "font": "Ubuntu", "fontWeight": "Bold" }] }
+          ]},
+          { "type": "TextButton", "name": "CardMiddle", "size": [0, 238, 0, 360], "position": [0.5, 0, 0, 0], "anchor": [0.5, 0], "bg": [23, 39, 34], "text": "", "strokes": [{ "thickness": 4, "color": [92, 232, 155], "applyMode": "Border" }], "children": [
+            { "type": "Frame", "name": "Header", "size": [1, 0, 0, 38], "bg": [37, 145, 92], "children": [{ "type": "TextLabel", "name": "Kind", "size": [1, -20, 1, 0], "position": [0, 10, 0, 0], "bgTransparency": 1, "text": "NEW ABILITY", "textColor": [222, 255, 236], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Bold" }] },
+            { "type": "ImageLabel", "name": "Artwork", "size": [0, 132, 0, 132], "position": [0.5, 0, 0, 52], "anchor": [0.5, 0], "bg": [14, 27, 23], "icon": "rbxassetid://84367243209042", "strokes": [{ "thickness": 2, "color": [59, 120, 87], "applyMode": "Border" }] },
+            { "type": "TextLabel", "name": "Name", "size": [1, -20, 0, 32], "position": [0.5, 0, 0, 192], "anchor": [0.5, 0], "bgTransparency": 1, "text": "ORBITING SWORDS", "textColor": [255, 255, 255], "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy" },
+            { "type": "TextLabel", "name": "Level", "size": [1, -24, 0, 24], "position": [0.5, 0, 0, 225], "anchor": [0.5, 0], "bgTransparency": 1, "text": "STARTS AT LEVEL 1", "textColor": [112, 244, 171], "textScaled": true, "font": "Ubuntu", "fontWeight": "Bold" },
+            { "type": "TextLabel", "name": "Description", "size": [1, -28, 0, 40], "position": [0.5, 0, 0, 255], "anchor": [0.5, 0], "bgTransparency": 1, "text": "Spectral swords orbit and cut through enemies.", "textColor": [201, 221, 211], "textScaled": true, "font": "Ubuntu", "fontWeight": "Medium" },
+            { "type": "Frame", "name": "Stats", "size": [1, -24, 0, 44], "position": [0.5, 0, 1, -56], "anchor": [0.5, 0], "bg": [12, 25, 20], "children": [{ "type": "TextLabel", "name": "Value", "size": [1, -14, 1, -8], "position": [0.5, 0, 0.5, 0], "anchor": [0.5, 0.5], "bgTransparency": 1, "text": "18 DAMAGE  •  2 SWORDS", "textColor": [145, 237, 183], "textScaled": true, "font": "Ubuntu", "fontWeight": "Bold" }] }
+          ]},
+          { "type": "TextButton", "name": "CardRight", "size": [0, 238, 0, 360], "position": [1, 0, 0, 6], "anchor": [1, 0], "bg": [42, 29, 26], "text": "", "strokes": [{ "thickness": 3, "color": [255, 132, 72], "applyMode": "Border" }], "children": [
+            { "type": "Frame", "name": "Header", "size": [1, 0, 0, 38], "bg": [177, 73, 42], "children": [{ "type": "TextLabel", "name": "Kind", "size": [1, -20, 1, 0], "position": [0, 10, 0, 0], "bgTransparency": 1, "text": "NEW ABILITY", "textColor": [255, 233, 218], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Bold" }] },
+            { "type": "ImageLabel", "name": "Artwork", "size": [0, 132, 0, 132], "position": [0.5, 0, 0, 52], "anchor": [0.5, 0], "bg": [29, 18, 15], "icon": "rbxassetid://86050971312005", "strokes": [{ "thickness": 2, "color": [128, 67, 43], "applyMode": "Border" }] },
+            { "type": "TextLabel", "name": "Name", "size": [1, -20, 0, 32], "position": [0.5, 0, 0, 192], "anchor": [0.5, 0], "bgTransparency": 1, "text": "FIREBALL", "textColor": [255, 255, 255], "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy" },
+            { "type": "TextLabel", "name": "Level", "size": [1, -24, 0, 24], "position": [0.5, 0, 0, 225], "anchor": [0.5, 0], "bgTransparency": 1, "text": "STARTS AT LEVEL 1", "textColor": [255, 158, 105], "textScaled": true, "font": "Ubuntu", "fontWeight": "Bold" },
+            { "type": "TextLabel", "name": "Description", "size": [1, -28, 0, 40], "position": [0.5, 0, 0, 255], "anchor": [0.5, 0], "bgTransparency": 1, "text": "Explodes on impact and burns the ground.", "textColor": [225, 207, 198], "textScaled": true, "font": "Ubuntu", "fontWeight": "Medium" },
+            { "type": "Frame", "name": "Stats", "size": [1, -24, 0, 44], "position": [0.5, 0, 1, -56], "anchor": [0.5, 0], "bg": [28, 17, 14], "children": [{ "type": "TextLabel", "name": "Value", "size": [1, -14, 1, -8], "position": [0.5, 0, 0.5, 0], "anchor": [0.5, 0.5], "bgTransparency": 1, "text": "32 DAMAGE  •  7 STUD BLAST", "textColor": [255, 175, 128], "textScaled": true, "font": "Ubuntu", "fontWeight": "Bold" }] }
+          ]}
+        ]}
+      ]}
+    ]
+  },
+  "viewport_size": [1280, 720],
+  "transparent_background": false
+}

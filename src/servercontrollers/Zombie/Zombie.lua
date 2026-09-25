@@ -21,7 +21,11 @@ function Zombie.new(id, typeName, definition, spawnCFrame, area, variation, boun
 	self.areaId = area.Id
 	self.area = area
 	self.cframe = spawnCFrame
-	self.health = definition.MaxHealth
+	local healthMultiplier = if type(area.HealthMultiplier) == "number" and area.HealthMultiplier > 0
+		then area.HealthMultiplier
+		else 1
+	self.maximumHealth = math.max(1, math.floor(definition.MaxHealth * healthMultiplier + 0.5))
+	self.health = self.maximumHealth
 	self.scale = variation.Scale
 	self.moveSpeedMultiplier = variation.MoveSpeed
 	self.turnSpeedMultiplier = variation.TurnSpeed
@@ -52,6 +56,8 @@ function Zombie.new(id, typeName, definition, spawnCFrame, area, variation, boun
 	self.specialStartedAt = 0
 	self.specialTarget = spawnCFrame.Position
 	self.specialValue = 0
+	self.lastDamager = nil
+	self.lastDamageSource = nil
 	if self.specialBehavior and self.specialBehavior.Initialize then
 		self.specialBehavior.Initialize(self)
 	end
@@ -80,16 +86,19 @@ end
 
 function Zombie:_constrainToArea()
 	local area = self.area
-	local localPosition = area.CFrame:PointToObjectSpace(self.cframe.Position)
-	-- Keep the full rendered model, not only its simulation pivot, within its assigned spawn area.
+	local movementCFrame = area.MovementCFrame or area.CFrame
+	local movementSize = area.MovementSize or area.Size
+	local localPosition = movementCFrame:PointToObjectSpace(self.cframe.Position)
+	-- Spawn regions may be smaller than their walkable floor. Clamp the complete rendered model to
+	-- the explicit movement bounds so progression seams never behave like invisible physical walls.
 	local margin = self.boundaryRadius
-	local halfSize = area.Size * 0.5
+	local halfSize = movementSize * 0.5
 	local clampedLocalPosition = Vector3.new(
 		math.clamp(localPosition.X, -halfSize.X + margin, halfSize.X - margin),
 		localPosition.Y,
 		math.clamp(localPosition.Z, -halfSize.Y + margin, halfSize.Y - margin)
 	)
-	local clampedWorldPosition = area.CFrame:PointToWorldSpace(clampedLocalPosition)
+	local clampedWorldPosition = movementCFrame:PointToWorldSpace(clampedLocalPosition)
 	self.cframe = CFrame.new(clampedWorldPosition) * self.cframe.Rotation
 end
 
@@ -244,6 +253,14 @@ function Zombie:TakeDamage(amount, hitOrigin, knockbackImpulse, damageContext, n
 	if appliedAmount > 0 and self.specialBehavior and self.specialBehavior.OnDamaged then
 		self.specialBehavior.OnDamaged(self, appliedAmount, now or workspace:GetServerTimeNow())
 	end
+	if appliedAmount > 0 and type(damageContext) == "table" then
+		local player = damageContext.player
+		if typeof(player) == "Instance" and player:IsA("Player") then
+			-- The most recent authoritative damaging player owns kill attribution; clients never report kills.
+			self.lastDamager = player
+			self.lastDamageSource = damageContext.source
+		end
+	end
 	return appliedAmount > 0 or handled
 end
 
@@ -274,7 +291,7 @@ function Zombie:GetSpawnPacket()
 		self.scale,
 		self.animationSpeedMultiplier,
 		self.health,
-		self.definition.MaxHealth,
+		self.maximumHealth,
 		self.specialState,
 		self.specialSequence,
 		self.specialStartedAt,
@@ -291,7 +308,7 @@ function Zombie:GetUpdatePacket()
 		self.attackSequence,
 		self.attackStartedAt,
 		self.health,
-		self.definition.MaxHealth,
+		self.maximumHealth,
 		self.specialState,
 		self.specialSequence,
 		self.specialStartedAt,

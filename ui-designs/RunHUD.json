@@ -1,0 +1,54 @@
+{
+  "pinevex_object": {
+    "type": "Frame", "name": "Preview", "size": [1, 0, 1, 0], "bg": [20, 25, 31],
+    "children": [
+      { "type": "Frame", "name": "Coin", "size": [0, 164, 0, 48], "position": [0, 24, 0, 26], "bg": [35, 31, 24], "strokes": [{ "thickness": 2, "color": [216, 163, 62], "applyMode": "Border" }], "children": [
+        { "type": "ImageLabel", "name": "Icon", "size": [0, 32, 0, 32], "position": [0, 10, 0.5, 0], "anchor": [0, 0.5], "bgTransparency": 1, "icon": "rbxassetid://117589844207603" },
+        { "type": "TextLabel", "name": "Balance", "size": [1, -56, 1, -10], "position": [0, 50, 0, 5], "bgTransparency": 1, "text": "1,284", "textColor": [255, 231, 158], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Bold" }
+      ]},
+      { "type": "Frame", "name": "ChoiceTray", "size": [0, 780, 0, 252], "position": [0.5, 0, 0, 72], "anchor": [0.5, 0], "bgTransparency": 1, "children": [
+        { "type": "TextLabel", "name": "Prompt", "size": [1, 0, 0, 30], "position": [0.5, 0, 0, 0], "anchor": [0.5, 0], "bgTransparency": 1, "text": "LEVEL UP  -  CHOOSE ONE", "textColor": [224, 238, 246], "textScaled": true, "font": "Ubuntu", "fontWeight": "Bold", "strokes": [{ "thickness": 3, "color": [5, 8, 12] }] },
+        { "type": "TextButton", "name": "Card1", "size": [0, 238, 0, 210], "position": [0, 8, 0, 40], "bg": [24, 34, 43], "text": "", "strokes": [{ "thickness": 3, "color": [82, 201, 255], "applyMode": "Border" }], "children": [
+          { "type": "Frame", "name": "Header", "size": [1, 0, 0, 42], "bg": [39, 129, 176], "children": [{ "type": "TextLabel", "name": "Kind", "size": [1, -16, 1, 0], "position": [0, 8, 0, 0], "bgTransparency": 1, "text": "UPGRADE", "textColor": [214, 247, 255], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Bold" }] },
+          { "type": "ImageLabel", "name": "Icon", "size": [0, 54, 0, 54], "position": [0.5, 0, 0, 52], "anchor": [0.5, 0], "bgTransparency": 1, "icon": "rbxassetid://74070337315898" },
+          { "type": "TextLabel", "name": "Name", "size": [1, -18, 0, 27], "position": [0.5, 0, 0, 108], "anchor": [0.5, 0], "bgTransparency": 1, "text": "DAGGER", "textColor": [255, 255, 255], "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy" },
+          { "type": "TextLabel", "name": "Level", "size": [1, -18, 0, 20], "position": [0.5, 0, 0, 136], "anchor": [0.5, 0], "bgTransparency": 1, "text": "LEVEL 2  ->  3", "textColor": [124, 217, 255], "textScaled": true, "font": "Ubuntu", "fontWeight": "Bold" },
+          { "type": "TextLabel", "name": "Stats", "size": [1, -24, 0, 42], "position": [0.5, 0, 0, 160], "anchor": [0.5, 0], "bgTransparency": 1, "text": "DAMAGE 28 -> 36  -  SIZE +12%", "textColor": [190, 205, 215], "textScaled": true, "font": "Ubuntu", "fontWeight": "Medium" }
+        ]},
+        { "type": "TextButton", "name": "Card2", "size": [0, 238, 0, 210], "position": [0.5, 0, 0, 40], "anchor": [0.5, 0], "bg": [27, 38, 37], "text": "", "strokes": [{ "thickness": 3, "color": [98, 230, 157], "applyMode": "Border" }], "children": [
+          { "type": "Frame", "name": "Header", "size": [1, 0, 0, 42], "bg": [35, 142, 91], "children": [{ "type": "TextLabel", "name": "Kind", "size": [1, -16, 1, 0], "position": [0, 8, 0, 0], "bgTransparency": 1, "text": "NEW ABILITY", "textColor": [220, 255, 235], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Bold" }] },
+          { "type": "ImageLabel", "name": "Icon", "size": [0, 54, 0, 54], "position": [0.5, 0, 0, 52], "anchor": [0.5, 0], "bgTransparency": 1, "icon": "rbxassetid://84367243209042" },
+          { "type": "TextLabel", "name": "Name", "size": [1, -18, 0, 27], "position": [0.5, 0, 0, 108], "anchor": [0.5, 0], "bgTransparency": 1, "text": "ORBITING SWORDS", "textColor": [255, 255, 255], "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy" },
+          { "type": "TextLabel", "name": "Level", "size": [1, -18, 0, 20], "position": [0.5, 0, 0, 136], "anchor": [0.5, 0], "bgTransparency": 1, "text": "STARTS AT LEVEL 1", "textColor": [119, 241, 169], "textScaled": true, "font": "Ubuntu", "fontWeight": "Bold" },
+          { "type": "TextLabel", "name": "Stats", "size": [1, -24, 0, 42], "position": [0.5, 0, 0, 160], "anchor": [0.5, 0], "bgTransparency": 1, "text": "ORBIT DAMAGE  -  COOLDOWN", "textColor": [190, 205, 215], "textScaled": true, "font": "Ubuntu", "fontWeight": "Medium" }
+        ]},
+        { "type": "TextButton", "name": "Card3", "size": [0, 238, 0, 210], "position": [1, -8, 0, 40], "anchor": [1, 0], "bg": [40, 29, 28], "text": "", "strokes": [{ "thickness": 3, "color": [255, 134, 73], "applyMode": "Border" }], "children": [
+          { "type": "Frame", "name": "Header", "size": [1, 0, 0, 42], "bg": [184, 75, 45], "children": [{ "type": "TextLabel", "name": "Kind", "size": [1, -16, 1, 0], "position": [0, 8, 0, 0], "bgTransparency": 1, "text": "NEW ABILITY", "textColor": [255, 231, 216], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Bold" }] },
+          { "type": "ImageLabel", "name": "Icon", "size": [0, 54, 0, 54], "position": [0.5, 0, 0, 52], "anchor": [0.5, 0], "bgTransparency": 1, "icon": "rbxassetid://84367243209042" },
+          { "type": "TextLabel", "name": "Name", "size": [1, -18, 0, 27], "position": [0.5, 0, 0, 108], "anchor": [0.5, 0], "bgTransparency": 1, "text": "FIREBALL", "textColor": [255, 255, 255], "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy" },
+          { "type": "TextLabel", "name": "Level", "size": [1, -18, 0, 20], "position": [0.5, 0, 0, 136], "anchor": [0.5, 0], "bgTransparency": 1, "text": "STARTS AT LEVEL 1", "textColor": [255, 155, 102], "textScaled": true, "font": "Ubuntu", "fontWeight": "Bold" },
+          { "type": "TextLabel", "name": "Stats", "size": [1, -24, 0, 42], "position": [0.5, 0, 0, 160], "anchor": [0.5, 0], "bgTransparency": 1, "text": "DAMAGE  -  BLAST RADIUS", "textColor": [205, 201, 199], "textScaled": true, "font": "Ubuntu", "fontWeight": "Medium" }
+        ]}
+      ]},
+      { "type": "Frame", "name": "XPBar", "size": [0.46, 80, 0, 52], "position": [0.5, 0, 1, -28], "anchor": [0.5, 1], "bg": [14, 20, 27], "strokes": [{ "thickness": 2, "color": [51, 71, 85], "applyMode": "Border" }], "children": [
+        { "type": "TextLabel", "name": "Level", "size": [0, 112, 0, 18], "position": [0, 10, 0, 5], "bgTransparency": 1, "text": "LEVEL 7", "textColor": [229, 240, 247], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Bold" },
+        { "type": "TextLabel", "name": "Value", "size": [0, 120, 0, 18], "position": [1, -10, 0, 5], "anchor": [1, 0], "bgTransparency": 1, "text": "78 / 105 XP", "textColor": [152, 177, 191], "textScaled": true, "textXAlignment": "Right", "font": "Ubuntu", "fontWeight": "Medium" },
+        { "type": "Frame", "name": "Track", "size": [1, -20, 0, 17], "position": [0.5, 0, 1, -8], "anchor": [0.5, 1], "bg": [28, 39, 46], "children": [
+          { "type": "Frame", "name": "Fill", "size": [0.74, 0, 1, 0], "bg": [74, 226, 154], "gradient": { "rotation": 0, "colors": [[0, "#42D68A"], [1, "#B8FF6A"]], "transparency": [[0, 0], [1, 0]] }, "children": [] }
+        ]}
+      ]},
+      { "type": "Frame", "name": "Rage", "size": [0, 220, 0, 48], "position": [0, 24, 1, -28], "anchor": [0, 1], "bg": [31, 22, 22], "strokes": [{ "thickness": 2, "color": [133, 57, 43], "applyMode": "Border" }], "children": [
+        { "type": "TextLabel", "name": "Label", "size": [0, 78, 0, 18], "position": [0, 9, 0, 5], "bgTransparency": 1, "text": "RAGE 72%", "textColor": [255, 210, 184], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Bold" },
+        { "type": "Frame", "name": "Track", "size": [1, -102, 0, 12], "position": [0, 9, 1, -8], "anchor": [0, 1], "bg": [53, 35, 34], "children": [{ "type": "Frame", "name": "Fill", "size": [0.72, 0, 1, 0], "bg": [239, 80, 43], "gradient": { "rotation": 0, "colors": [[0, "#DD422F"], [1, "#FFB347"]], "transparency": [[0, 0], [1, 0]] }, "children": [] }] },
+        { "type": "TextButton", "name": "Activate", "size": [0, 86, 1, -12], "position": [1, -6, 0.5, 0], "anchor": [1, 0.5], "bg": [111, 52, 41], "text": "CHARGING", "textColor": [209, 168, 152], "textScaled": true, "font": "Ubuntu", "fontWeight": "Bold", "strokes": [{ "thickness": 2, "color": [70, 31, 26], "applyMode": "Border" }] }
+      ]},
+      { "type": "Frame", "name": "Abilities", "size": [0, 264, 0, 66], "position": [1, -24, 1, -38], "anchor": [1, 1], "bgTransparency": 1, "children": [
+        { "type": "Frame", "name": "Slot1", "size": [0, 60, 0, 60], "position": [0, 0, 0.5, 0], "anchor": [0, 0.5], "bg": [27, 36, 44], "strokes": [{ "thickness": 2, "color": [92, 138, 166], "applyMode": "Border" }], "children": [{ "type": "ImageLabel", "name": "Icon", "size": [0, 38, 0, 38], "position": [0.5, 0, 0.45, 0], "anchor": [0.5, 0.5], "bgTransparency": 1, "icon": "rbxassetid://74070337315898" }, { "type": "TextLabel", "name": "Level", "size": [1, -6, 0, 14], "position": [0.5, 0, 1, -3], "anchor": [0.5, 1], "bgTransparency": 1, "text": "LV.3", "textColor": [229, 240, 247], "textScaled": true, "font": "Ubuntu", "fontWeight": "Bold" }] },
+        { "type": "Frame", "name": "Slot2", "size": [0, 60, 0, 60], "position": [0, 68, 0.5, 0], "anchor": [0, 0.5], "bg": [27, 36, 44], "strokes": [{ "thickness": 2, "color": [92, 138, 166], "applyMode": "Border" }], "children": [{ "type": "ImageLabel", "name": "Icon", "size": [0, 38, 0, 38], "position": [0.5, 0, 0.45, 0], "anchor": [0.5, 0.5], "bgTransparency": 1, "icon": "rbxassetid://84367243209042" }, { "type": "TextLabel", "name": "Level", "size": [1, -6, 0, 14], "position": [0.5, 0, 1, -3], "anchor": [0.5, 1], "bgTransparency": 1, "text": "LV.2", "textColor": [229, 240, 247], "textScaled": true, "font": "Ubuntu", "fontWeight": "Bold" }] },
+        { "type": "Frame", "name": "Slot3", "size": [0, 60, 0, 60], "position": [0, 136, 0.5, 0], "anchor": [0, 0.5], "bg": [27, 36, 44], "strokes": [{ "thickness": 2, "color": [92, 138, 166], "applyMode": "Border" }], "children": [{ "type": "ImageLabel", "name": "Icon", "size": [0, 38, 0, 38], "position": [0.5, 0, 0.45, 0], "anchor": [0.5, 0.5], "bgTransparency": 1, "icon": "rbxassetid://84367243209042" }, { "type": "TextLabel", "name": "Level", "size": [1, -6, 0, 14], "position": [0.5, 0, 1, -3], "anchor": [0.5, 1], "bgTransparency": 1, "text": "LV.1", "textColor": [229, 240, 247], "textScaled": true, "font": "Ubuntu", "fontWeight": "Bold" }] }
+      ]}
+    ]
+  },
+  "viewport_size": [1280, 720],
+  "transparent_background": false
+}
