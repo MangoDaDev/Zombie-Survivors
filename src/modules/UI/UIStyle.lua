@@ -1,5 +1,5 @@
 local UIStyle = {
-	Font = Font.fromName("ComicNeueAngular"),
+	Font = Font.fromName "Ubuntu",
 	StudTexture = "rbxassetid://6927295847",
 	GlowTexture = "rbxassetid://85440167673906",
 	Colors = {

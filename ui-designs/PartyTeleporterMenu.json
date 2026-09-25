@@ -1,0 +1,141 @@
+{
+  "pinevex_object": {
+    "type": "Frame",
+    "name": "Preview",
+    "size": [1, 0, 1, 0],
+    "bg": [17, 23, 31],
+    "children": [
+      { "type": "Frame", "name": "Shadow", "size": [0, 724, 0, 594], "position": [0.5, 7, 0.5, 9], "anchor": [0.5, 0.5], "bg": [0, 6, 12], "corner": 0.035, "children": [] },
+      {
+        "type": "Frame",
+        "name": "Panel",
+        "size": [0, 724, 0, 594],
+        "position": [0.5, 0, 0.5, 0],
+        "anchor": [0.5, 0.5],
+        "bg": [4, 18, 29],
+        "corner": 0.035,
+        "strokes": [
+          { "thickness": 8, "color": [1, 8, 14], "applyMode": "Border" },
+          { "thickness": 4, "color": [0, 225, 238], "applyMode": "Border" }
+        ],
+        "children": [
+          {
+            "type": "Frame",
+            "name": "Body",
+            "size": [1, -22, 1, -146],
+            "position": [0.5, 0, 1, -12],
+            "anchor": [0.5, 1],
+            "bg": [4, 31, 49],
+            "corner": 0.045,
+            "gradient": { "rotation": 90, "colors": [[0, "#073A57"], [1, "#031827"]], "transparency": [[0, 0], [1, 0]] },
+            "strokes": [{ "thickness": 4, "color": [0, 185, 207], "applyMode": "Border" }],
+            "children": [
+              { "type": "ImageLabel", "name": "StudTexture", "size": [1, 0, 1, 0], "bgTransparency": 1, "icon": "rbxassetid://6927295847", "imageTransparency": 0.84, "scaleType": "Tile", "tileSize": [0, 56, 0, 56] },
+              {
+                "type": "Frame",
+                "name": "PartySummary",
+                "size": [1, -30, 0, 86],
+                "position": [0.5, 0, 0, 16],
+                "anchor": [0.5, 0],
+                "bg": [2, 15, 25],
+                "corner": 0.1,
+                "strokes": [{ "thickness": 4, "color": [0, 112, 144], "applyMode": "Border" }],
+                "children": [
+                  { "type": "TextLabel", "name": "LeaderLabel", "size": [0, 215, 0, 26], "position": [0, 18, 0, 10], "bgTransparency": 1, "text": "PARTY LEADER", "textColor": [33, 207, 255], "textScaled": true, "textXAlignment": "Left", "font": "ComicNeueAngular", "fontWeight": "Bold", "strokes": [{ "thickness": 2, "color": [0, 28, 43] }] },
+                  { "type": "TextLabel", "name": "LeaderName", "size": [0.62, -20, 0, 38], "position": [0, 18, 0, 39], "bgTransparency": 1, "text": "RYAN", "textColor": [255, 255, 255], "textScaled": true, "textXAlignment": "Left", "font": "ComicNeueAngular", "fontWeight": "Heavy", "strokes": [{ "thickness": 4, "color": [0, 0, 0] }] },
+                  {
+                    "type": "Frame",
+                    "name": "Occupancy",
+                    "size": [0, 190, 0, 58],
+                    "position": [1, -14, 0.5, 0],
+                    "anchor": [1, 0.5],
+                    "bg": [241, 180, 67],
+                    "corner": 0.15,
+                    "gradient": { "rotation": 90, "colors": [[0, "#FFE05F"], [1, "#F39B24"]], "transparency": [[0, 0], [1, 0]] },
+                    "strokes": [{ "thickness": 4, "color": [82, 51, 10], "applyMode": "Border" }],
+                    "children": [
+                      { "type": "TextLabel", "name": "Count", "size": [0.48, 0, 1, -8], "position": [0, 8, 0, 4], "bgTransparency": 1, "text": "2 / 4", "textColor": [255, 255, 255], "textScaled": true, "font": "ComicNeueAngular", "fontWeight": "Heavy", "strokes": [{ "thickness": 4, "color": [70, 40, 7] }] },
+                      { "type": "TextLabel", "name": "Players", "size": [0.46, -7, 0.62, 0], "position": [0.52, 0, 0.19, 0], "bgTransparency": 1, "text": "PLAYERS", "textColor": [92, 55, 13], "textScaled": true, "font": "ComicNeueAngular", "fontWeight": "Bold" }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "Frame",
+                "name": "SizePanel",
+                "size": [0.5, -22, 0, 158],
+                "position": [0, 15, 0, 116],
+                "bg": [36, 92, 188],
+                "corner": 0.07,
+                "gradient": { "rotation": 90, "colors": [[0, "#3D7FFF"], [1, "#183E99"]], "transparency": [[0, 0], [1, 0]] },
+                "strokes": [{ "thickness": 5, "color": [2, 17, 42], "applyMode": "Border" }, { "thickness": 2, "color": [71, 215, 255], "applyMode": "Border" }],
+                "children": [
+                  { "type": "ImageLabel", "name": "StudTexture", "size": [1, 0, 1, 0], "bgTransparency": 1, "icon": "rbxassetid://6927295847", "imageTransparency": 0.79, "scaleType": "Tile", "tileSize": [0, 48, 0, 48] },
+                  { "type": "TextLabel", "name": "Title", "size": [1, -24, 0, 44], "position": [0, 12, 0, 10], "bgTransparency": 1, "text": "PARTY SIZE", "textColor": [255, 255, 255], "textScaled": true, "font": "ComicNeueAngular", "fontWeight": "Heavy", "strokes": [{ "thickness": 4, "color": [0, 10, 34] }] },
+                  { "type": "TextButton", "name": "Minus", "size": [0, 66, 0, 66], "position": [0, 18, 0, 73], "bg": [14, 202, 255], "corner": 0.12, "text": "−", "textColor": [255, 255, 255], "textScaled": true, "font": "ComicNeueAngular", "fontWeight": "Heavy", "strokes": [{ "thickness": 5, "color": [0, 39, 75], "applyMode": "Border" }, { "thickness": 4, "color": [0, 39, 75] }] },
+                  { "type": "TextLabel", "name": "Value", "size": [0, 92, 0, 72], "position": [0.5, 0, 0, 69], "anchor": [0.5, 0], "bg": [2, 16, 35], "corner": 0.1, "text": "4", "textColor": [255, 222, 67], "textScaled": true, "font": "ComicNeueAngular", "fontWeight": "Heavy", "strokes": [{ "thickness": 4, "color": [0, 0, 0], "applyMode": "Border" }, { "thickness": 4, "color": [0, 0, 0] }] },
+                  { "type": "TextButton", "name": "Plus", "size": [0, 66, 0, 66], "position": [1, -18, 0, 73], "anchor": [1, 0], "bg": [14, 202, 255], "corner": 0.12, "text": "+", "textColor": [255, 255, 255], "textScaled": true, "font": "ComicNeueAngular", "fontWeight": "Heavy", "strokes": [{ "thickness": 5, "color": [0, 39, 75], "applyMode": "Border" }, { "thickness": 4, "color": [0, 39, 75] }] }
+                ]
+              },
+              {
+                "type": "Frame",
+                "name": "PrivacyPanel",
+                "size": [0.5, -22, 0, 158],
+                "position": [0.5, 7, 0, 116],
+                "bg": [72, 29, 161],
+                "corner": 0.07,
+                "gradient": { "rotation": 90, "colors": [[0, "#B43CFF"], [1, "#5320A9"]], "transparency": [[0, 0], [1, 0]] },
+                "strokes": [{ "thickness": 5, "color": [31, 6, 63], "applyMode": "Border" }, { "thickness": 2, "color": [230, 108, 255], "applyMode": "Border" }],
+                "children": [
+                  { "type": "ImageLabel", "name": "StudTexture", "size": [1, 0, 1, 0], "bgTransparency": 1, "icon": "rbxassetid://6927295847", "imageTransparency": 0.79, "scaleType": "Tile", "tileSize": [0, 48, 0, 48] },
+                  { "type": "TextLabel", "name": "Title", "size": [1, -24, 0, 44], "position": [0, 12, 0, 10], "bgTransparency": 1, "text": "WHO CAN JOIN?", "textColor": [255, 255, 255], "textScaled": true, "font": "ComicNeueAngular", "fontWeight": "Heavy", "strokes": [{ "thickness": 4, "color": [23, 3, 50] }] },
+                  { "type": "TextButton", "name": "Privacy", "size": [1, -34, 0, 68], "position": [0, 17, 0, 72], "bg": [55, 225, 95], "corner": 0.1, "text": "FRIENDS ONLY", "textColor": [255, 255, 255], "textScaled": true, "font": "ComicNeueAngular", "fontWeight": "Heavy", "gradient": { "rotation": 90, "colors": [[0, "#59F77C"], [1, "#24B64B"]], "transparency": [[0, 0], [1, 0]] }, "strokes": [{ "thickness": 5, "color": [7, 70, 26], "applyMode": "Border" }, { "thickness": 4, "color": [7, 70, 26] }] }
+                ]
+              },
+              { "type": "TextLabel", "name": "Status", "size": [1, -30, 0, 48], "position": [0.5, 0, 0, 289], "anchor": [0.5, 0], "bg": [241, 180, 67], "corner": 0.12, "text": "CHOOSE SETTINGS, THEN CONFIRM", "textColor": [255, 255, 255], "textScaled": true, "font": "ComicNeueAngular", "fontWeight": "Heavy", "gradient": { "rotation": 90, "colors": [[0, "#FFD95B"], [1, "#E99621"]], "transparency": [[0, 0], [1, 0]] }, "strokes": [{ "thickness": 5, "color": [79, 48, 8], "applyMode": "Border" }, { "thickness": 4, "color": [79, 48, 8] }] },
+              { "type": "TextButton", "name": "Confirm", "size": [1, -30, 0, 68], "position": [0.5, 0, 1, -16], "anchor": [0.5, 1], "bg": [54, 225, 93], "corner": 0.1, "text": "CONFIRM PARTY", "textColor": [255, 255, 255], "textScaled": true, "font": "ComicNeueAngular", "fontWeight": "Heavy", "gradient": { "rotation": 90, "colors": [[0, "#5CFF82"], [1, "#22B84D"]], "transparency": [[0, 0], [1, 0]] }, "strokes": [{ "thickness": 6, "color": [4, 65, 21], "applyMode": "Border" }, { "thickness": 5, "color": [4, 65, 21] }] }
+            ]
+          },
+          {
+            "type": "Frame",
+            "name": "Header",
+            "size": [1, -148, 0, 116],
+            "position": [0, 11, 0, 11],
+            "bg": [18, 196, 255],
+            "corner": 0.08,
+            "gradient": { "rotation": 90, "colors": [[0, "#28E8FF"], [1, "#147BFF"]], "transparency": [[0, 0], [1, 0]] },
+            "strokes": [{ "thickness": 7, "color": [0, 5, 13], "applyMode": "Border" }, { "thickness": 3, "color": [121, 244, 255], "applyMode": "Border" }],
+            "children": [
+              { "type": "ImageLabel", "name": "StudTexture", "size": [1, 0, 1, 0], "bgTransparency": 1, "icon": "rbxassetid://6927295847", "imageTransparency": 0.74, "scaleType": "Tile", "tileSize": [0, 50, 0, 50] },
+              { "type": "TextLabel", "name": "Title", "size": [1, -34, 0, 66], "position": [0, 20, 0, 8], "bgTransparency": 1, "text": "CREATE PARTY", "textColor": [255, 255, 255], "textScaled": true, "textXAlignment": "Left", "font": "ComicNeueAngular", "fontWeight": "Heavy", "strokes": [{ "thickness": 6, "color": [0, 0, 0] }] },
+              { "type": "TextLabel", "name": "Subtitle", "size": [1, -34, 0, 27], "position": [0, 21, 0, 78], "bgTransparency": 1, "text": "TELEPORTER 02  •  SETTINGS OPEN", "textColor": [2, 48, 97], "textScaled": true, "textXAlignment": "Left", "font": "ComicNeueAngular", "fontWeight": "Bold" },
+              { "type": "ImageLabel", "name": "Sparkle", "size": [0, 40, 0, 40], "position": [0, -15, 0, -14], "bgTransparency": 1, "icon": "rbxassetid://5639840603", "imageColor": [255, 255, 255], "imageTransparency": 0.14, "scaleType": "Fit" }
+            ]
+          },
+          {
+            "type": "TextButton",
+            "name": "Exit",
+            "size": [0, 114, 0, 116],
+            "position": [1, -11, 0, 11],
+            "anchor": [1, 0],
+            "bg": [255, 56, 65],
+            "corner": 0.1,
+            "text": "X",
+            "textColor": [255, 255, 255],
+            "textScaled": true,
+            "font": "ComicNeueAngular",
+            "fontWeight": "Heavy",
+            "gradient": { "rotation": 90, "colors": [[0, "#FF5B62"], [1, "#E41F2A"]], "transparency": [[0, 0], [1, 0]] },
+            "strokes": [{ "thickness": 7, "color": [0, 5, 13], "applyMode": "Border" }, { "thickness": 6, "color": [0, 0, 0] }],
+            "children": [
+              { "type": "TextLabel", "name": "Hint", "size": [1, 0, 0, 20], "position": [0, 0, 1, -23], "bgTransparency": 1, "text": "CANCEL", "textColor": [108, 8, 14], "textScaled": true, "font": "ComicNeueAngular", "fontWeight": "Bold" }
+            ]
+          },
+          { "type": "ImageLabel", "name": "HeaderSparkle", "size": [0, 42, 0, 42], "position": [1, -132, 0, -11], "bgTransparency": 1, "icon": "rbxassetid://5639840603", "imageColor": [255, 255, 255], "imageTransparency": 0.12, "scaleType": "Fit" }
+        ]
+      }
+    ]
+  },
+  "viewport_size": [1280, 720],
+  "transparent_background": false
+}

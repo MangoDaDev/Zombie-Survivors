@@ -327,14 +327,20 @@ Use references to understand:
 - visual hierarchy
 - theme treatment
 
+Do not completely copy the references, make sure the UI is good for the use including the layout and colors. The references are only for guide.
+
 Choose references relevant to the type of UI being created. For example, a new button should primarily reference existing buttons rather than copying the layout of an entire menu.
 
 References define the project's visual language, not an exact layout that must always be copied.
 
 When multiple references exist, extract their shared design principles rather than combining every decorative feature into one element.
 
+Before implementation, visibly reproduce the references' dominant silhouette, border depth, title scale, and surface contrast; matching only their palette or stud texture is not sufficient.
+
 Also inspect good existing production UI under `src/UI/` when it is relevant to the task.
 
 Do not copy obsolete, unused, or visibly inconsistent UI merely because it exists in the codebase.
 
 FOR STUD TEXTURE, THERE IS ONE IN UISTYLE! DO NOT CREATE STUD TEXTURE WITH CODE! THE IMAGE IS 4x4 STUDS.
+
+The UI should match the style of the UI in the references or the libary

@@ -19,6 +19,7 @@ return function()
 		-- Simulator-era roll, inventory, currency, and extraction HUD components remain preserved in
 		-- UI/HUD, but are intentionally not composed until a future lobby or post-run flow owns them.
 		Notifications(),
+		-- The Creation Menu is presentation-only; party membership, settings, and departure stay authoritative.
 		PartyTeleporterMenu(),
 		Confirmation.Component(),
 		-- Keep the optional child last so Lobby composition has no nil gap between mounted UI elements.

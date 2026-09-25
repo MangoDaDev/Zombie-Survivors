@@ -6,7 +6,7 @@ Quick reference for the reusable first-party Luau foundation. Generated Wally de
 
 | Path | Responsibility |
 | --- | --- |
-| `src/client/init.client.lua` | Initializes client DataService, active foundation controllers (including party teleporter presentation), the reduced UI root, and character lifecycle dispatch; simulator controllers are deliberately unregistered. |
+| `src/client/init.client.lua` | Initializes client DataService, active foundation controllers (including party teleporter networking and presentation), the reduced UI root, and character lifecycle dispatch; simulator controllers are deliberately unregistered. |
 | `src/server/init.server.lua` | Resolves lobby/game session context before initializing DataService, maps, active foundation controllers, and player/character lifecycle dispatch; simulator controllers are deliberately unregistered. |
 | `src/loading/init.client.lua` | Shows startup progress, waits for the app and character controller, requests the initial character, and fades away. |
 
@@ -125,7 +125,7 @@ These modules provide shared game configuration, persistent player-data defaults
 
 | Path | Responsibility |
 | --- | --- |
-| `src/UI/App.lua` | Composes the neutral `App` ScreenGui and retained generic overlays. |
+| `src/UI/App.lua` | Composes the neutral `App` ScreenGui, party Creation Menu, and retained generic overlays. |
 | `src/UI/UIOrigin.lua` | Mounts the Vide application once into LocalPlayer.PlayerGui. |
 | `src/UI/App.story.lua` | Exposes the app component for UI story previews. |
 | `src/UI/Classes/Button.lua` | Provides a reusable reactive STUD-style button. |
@@ -137,7 +137,7 @@ These modules provide shared game configuration, persistent player-data defaults
 | `src/UI/HUD/AbilityInterface.lua` | **Archived/dormant:** ability management and roll-discovery presentation. |
 | `src/UI/HUD/RageBar.lua` | Renders the responsive STUD-style Rage meter, ready/active states, activation control, and screen pulse. |
 | `src/UI/HUD/Notifications.lua` | Renders transient notifications from NotificationManager. |
-| `src/UI/HUD/PartyTeleporterMenu.lua` | Renders the reactive STUD-style party leader/member controls while a player occupies a lobby teleporter. |
+| `src/UI/HUD/PartyTeleporterMenu.lua` | Renders the responsive party Creation Menu, leader-only setup controls, departure status, and lock-aware member or leader exit. |
 | `src/UI/HUD/RollControls.lua` | **Archived/dormant:** Roll/Hide/Show, Auto Roll progress, and ability-menu controls. |
 | `src/UI/HUD/RollInterface.lua` | **Archived/dormant:** full-screen or compact item/clover reel presentation. |
 | `src/modules/UI/NotificationManager.lua` | Emits reusable transient notification events. |
