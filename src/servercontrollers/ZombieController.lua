@@ -20,6 +20,7 @@ local VARIATION_MAXIMUM = 1.05
 local ZombieController = {}
 local zombieNetwork
 local simulationConnection
+local contextChangedConnection
 local nextZombieId = 0
 local nextSnapshotAt = 0
 local separationAccumulator = 0
@@ -380,16 +381,10 @@ function ZombieController.GetNearestZombies(position: Vector3, maximumDistance: 
 	return candidates
 end
 
-function ZombieController.Init()
-	zombieNetwork = Networker.server.new("ZombieController", ZombieController, {
-		ZombieController.GetSnapshot,
-	})
-	if ServerContext.IsLobbyServer() then
-		-- Keep the read-only network endpoint available to the shared client bootstrap, but do not
-		-- build spawn state or connect simulation in a lobby server. No zombie can be created here.
+local function startSimulation()
+	if simulationConnection then
 		return
 	end
-
 	buildGroundOffsets()
 	for _, area in ZombieAreas do
 		areaRuntime[area.Id] = {
@@ -400,6 +395,24 @@ function ZombieController.Init()
 
 	nextSnapshotAt = workspace:GetServerTimeNow() + ZombieProtocol.SnapshotInterval
 	simulationConnection = RunService.Heartbeat:Connect(stepSimulation)
+end
+
+function ZombieController.Init()
+	zombieNetwork = Networker.server.new("ZombieController", ZombieController, {
+		ZombieController.GetSnapshot,
+	})
+	if ServerContext.IsGameServer() then
+		startSimulation()
+	elseif RunService:IsStudio() then
+		-- Studio can promote the one local server into the fake destination after this controller initializes.
+		contextChangedConnection = ServerContext.GetChangedSignal():Connect(function(serverType)
+			if serverType == "Game" then
+				startSimulation()
+				contextChangedConnection:Disconnect()
+				contextChangedConnection = nil
+			end
+		end)
+	end
 end
 
 return ZombieController

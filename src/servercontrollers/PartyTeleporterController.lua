@@ -46,7 +46,9 @@ type TeleporterState = {
 	deadline: number?,
 	fullAccelerated: boolean,
 	locked: boolean,
+	loading: boolean,
 	teleportAttempt: number,
+	activeRunId: string?,
 	lastDisplayedSecond: number?,
 }
 
@@ -147,7 +149,7 @@ local function updateWorldView(state: TeleporterState, now: number)
 
 	if state.locked then
 		color = STARTING_COLOR
-		status = "STARTING..."
+		status = if state.loading then "LOADING..." else "STARTING..."
 	elseif memberCount > 0 and not state.configured then
 		color = WAITING_COLOR
 		status = "CONFIGURING"
@@ -198,6 +200,7 @@ local function makePacket(state: TeleporterState, player: Player)
 		countdown = getCountdown(state, Workspace:GetServerTimeNow()),
 		isLeader = state.leader == player,
 		locked = state.locked,
+		loading = state.loading,
 	}
 end
 
@@ -290,6 +293,9 @@ local function updateFullCountdown(state: TeleporterState, now: number)
 end
 
 local function resetState(state: TeleporterState, suppressMembers: boolean?)
+	if state.activeRunId then
+		PartyTeleportService.Cancel(state.activeRunId)
+	end
 	for _, member in state.members do
 		playerState[member] = nil
 		teleportingPlayers[member] = nil
@@ -310,6 +316,8 @@ local function resetState(state: TeleporterState, suppressMembers: boolean?)
 	state.deadline = nil
 	state.fullAccelerated = false
 	state.locked = false
+	state.loading = false
+	state.activeRunId = nil
 	state.teleportAttempt += 1
 	updateWorldView(state, Workspace:GetServerTimeNow())
 end
@@ -407,6 +415,16 @@ local function failTeleport(state: TeleporterState, message: string, attempt: nu
 	end
 end
 
+local function findStateForRun(runId: string, players: { Player }): TeleporterState?
+	for _, player in players do
+		local state = teleportingPlayers[player]
+		if state and state.activeRunId == runId then
+			return state
+		end
+	end
+	return nil
+end
+
 local function startTeleport(state: TeleporterState)
 	if state.locked or #state.members == 0 then
 		return
@@ -440,10 +458,11 @@ local function startTeleport(state: TeleporterState)
 
 	task.spawn(function()
 		local runId = HttpService:GenerateGUID(false)
+		state.activeRunId = runId
 		local success, errorMessage = PartyTeleportService.Teleport(validMembers, state.leader :: Player, runId)
 		if not success then
 			warn("Party teleport failed: " .. (errorMessage or "Unknown error"))
-			failTeleport(state, "Teleport failed. Everyone was returned to the lobby.", teleportAttempt)
+			failTeleport(state, errorMessage or "Teleport failed. Everyone was returned to the lobby.", teleportAttempt)
 			return
 		end
 
@@ -686,7 +705,9 @@ function PartyTeleporterController.Init()
 			deadline = nil,
 			fullAccelerated = false,
 			locked = false,
+			loading = false,
 			teleportAttempt = 0,
+			activeRunId = nil,
 			lastDisplayedSecond = nil,
 		}
 		table.insert(orderedStates, state)
@@ -701,6 +722,29 @@ function PartyTeleporterController.Init()
 			failTeleport(state, "Teleport failed. Everyone was returned to the lobby.", attempt)
 		end
 	end)
+	if RunService:IsStudio() then
+		-- These signals are emitted only by the guarded local simulator; published success remains Roblox-owned.
+		PartyTeleportService.GetStudioLoadingStartedSignal():Connect(function(runId, players)
+			local state = findStateForRun(runId, players)
+			if state and state.locked then
+				state.loading = true
+				updateWorldView(state, Workspace:GetServerTimeNow())
+				broadcastState(state)
+			end
+		end)
+		PartyTeleportService.GetStudioCompletedSignal():Connect(function(runId, players)
+			local state = findStateForRun(runId, players)
+			if state and state.locked then
+				resetState(state)
+			end
+		end)
+		PartyTeleportService.GetStudioFailedSignal():Connect(function(runId, players, errorMessage)
+			local state = findStateForRun(runId, players)
+			if state then
+				failTeleport(state, errorMessage or "The Studio teleport failed.")
+			end
+		end)
+	end
 	heartbeatConnection = RunService.Heartbeat:Connect(stepZones)
 end
 

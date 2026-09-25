@@ -102,7 +102,10 @@ return function()
 		},
 		makeText("Title", function()
 			local state = partyState()
-			return if state and state.configuring then "CREATE PARTY" else "PARTY READY"
+			return if state and state.loading
+				then "LOADING GAME"
+				elseif state and state.configuring then "CREATE PARTY"
+				else "PARTY READY"
 		end, UDim2.fromScale(0.08, 0.025), UDim2.fromScale(0.84, 0.12)),
 		makeText("Leader", function()
 			local state = partyState()
@@ -116,7 +119,10 @@ return function()
 			if state.configuring then
 				return "CHOOSE SETTINGS"
 			end
-			local timing = if state.locked then "STARTING" else string.format("%ds", state.countdown or 0)
+			local timing = if state.loading
+				then "LOCAL TEST"
+				elseif state.locked then "STARTING"
+				else string.format("%ds", state.countdown or 0)
 			return string.format("%d / %d     %s", state.memberCount, state.maxSize, timing)
 		end, UDim2.fromScale(0.08, 0.23), UDim2.fromScale(0.84, 0.095), UIStyle.Colors.Gold),
 		makeText("PartySizeLabel", "PARTY SIZE", UDim2.fromScale(0.14, 0.35), UDim2.fromScale(0.72, 0.065)),

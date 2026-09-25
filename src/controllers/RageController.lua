@@ -1,5 +1,6 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
@@ -23,7 +24,9 @@ local state = {
 local activeHighlight: Highlight?
 local activeAttachment: Attachment?
 local presentationEndToken = 0
-local isGameServer = Workspace:FindFirstChild("Game") ~= nil
+local isGameServer = false
+local inputConnection: RBXScriptConnection?
+local gameAddedConnection: RBXScriptConnection?
 
 local stateChanged = Signal.new()
 local activated = Signal.new()
@@ -169,17 +172,32 @@ function RageController.RageStateChanged(_, packet)
 	end
 end
 
-function RageController.Init()
-	rageNetwork = Networker.client.new("RageController", RageController)
-	if not isGameServer then
-		-- Rage is run-only. Lobby clients keep the controller endpoint available without input or VFX.
+local function enableGameSession()
+	isGameServer = true
+	if inputConnection then
 		return
 	end
-	UserInputService.InputBegan:Connect(function(input, gameProcessed)
+	inputConnection = UserInputService.InputBegan:Connect(function(input, gameProcessed)
 		if not gameProcessed and input.KeyCode == RageConfig.ActivationKey then
 			RageController.Activate()
 		end
 	end)
+end
+
+function RageController.Init()
+	rageNetwork = Networker.client.new("RageController", RageController)
+	if Workspace:FindFirstChild("Game") then
+		enableGameSession()
+	elseif RunService:IsStudio() then
+		-- A Studio fake teleport promotes the existing client when the authoritative Game map replicates in.
+		gameAddedConnection = Workspace.ChildAdded:Connect(function(child)
+			if child.Name == "Game" then
+				enableGameSession()
+				gameAddedConnection:Disconnect()
+				gameAddedConnection = nil
+			end
+		end)
+	end
 end
 
 function RageController.OnCharacterAdded(_character: Model)

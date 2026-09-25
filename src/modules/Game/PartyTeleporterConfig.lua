@@ -10,6 +10,8 @@ local PartyTeleporterConfig = {
 	EntryPadding = 2.5,
 	RequestCooldown = 0.15,
 	TeleportWatchdogDuration = 15,
+	-- Studio holds the locked/loading state briefly so local tests exercise the same asynchronous handoff flow.
+	StudioTeleportLoadingDelay = 1.5,
 	WorldDisplayDistance = 170,
 }
 

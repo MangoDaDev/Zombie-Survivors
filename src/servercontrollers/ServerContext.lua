@@ -1,4 +1,8 @@
 local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+
+local Signal = require(ReplicatedStorage.Packages.signal)
 
 local SERVER_TYPE_LOBBY = "Lobby"
 local SERVER_TYPE_GAME = "Game"
@@ -9,6 +13,7 @@ local ServerContext = {}
 local resolved = false
 local serverType = SERVER_TYPE_LOBBY
 local runData
+local changed = Signal.new()
 
 local function containsUserId(userIds, userId: number): boolean
 	if type(userIds) ~= "table" then
@@ -44,6 +49,15 @@ local function resolveFromPlayer(player: Player)
 	end
 end
 
+local function isValidStudioRunData(teleportData): boolean
+	return type(teleportData) == "table"
+		and teleportData.version == TELEPORT_DATA_VERSION
+		and teleportData.serverType == SERVER_TYPE_GAME
+		and type(teleportData.runId) == "string"
+		and teleportData.runId ~= ""
+		and type(teleportData.partyMemberIds) == "table"
+end
+
 function ServerContext.Resolve()
 	if resolved then
 		return
@@ -71,6 +85,37 @@ end
 
 function ServerContext.GetRunData()
 	return runData
+end
+
+function ServerContext.CanActivateStudioGameSession(teleportData): (boolean, string?)
+	-- Studio is the only environment allowed to replace Roblox-verified join data with server-authored test data.
+	if not RunService:IsStudio() then
+		return false, "Studio session simulation is unavailable in published servers."
+	end
+	if not resolved or serverType ~= SERVER_TYPE_LOBBY then
+		return false, "This local server is no longer an available lobby session."
+	end
+	if not isValidStudioRunData(teleportData) then
+		return false, "The local teleport payload is invalid."
+	end
+	return true, nil
+end
+
+function ServerContext.ActivateStudioGameSession(teleportData): (boolean, string?)
+	local canActivate, errorMessage = ServerContext.CanActivateStudioGameSession(teleportData)
+	if not canActivate then
+		return false, errorMessage
+	end
+
+	-- Keep the exact server-authored payload available to gameplay just as GetJoinData would in a reserved server.
+	serverType = SERVER_TYPE_GAME
+	runData = teleportData
+	changed:Fire(serverType, runData)
+	return true, nil
+end
+
+function ServerContext.GetChangedSignal()
+	return changed
 end
 
 return ServerContext

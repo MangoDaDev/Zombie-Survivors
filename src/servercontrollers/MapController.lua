@@ -1,4 +1,5 @@
 local ServerStorage = game:GetService("ServerStorage")
+local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
 local ServerContext = require(script.Parent.ServerContext)
@@ -34,30 +35,43 @@ local function findMap(name: string): Instance?
 	return inactiveMaps and inactiveMaps:FindFirstChild(name) or nil
 end
 
-function MapController.Init()
-	local activeMapName = if ServerContext.IsGameServer() then GAME_MAP_NAME else LOBBY_MAP_NAME
-	local inactiveMapName = if ServerContext.IsGameServer() then LOBBY_MAP_NAME else GAME_MAP_NAME
-	local spawnName = if ServerContext.IsGameServer() then GAME_SPAWN_NAME else LOBBY_SPAWN_NAME
+local function activateMap(activeMapName: string, inactiveMapName: string, spawnName: string): (boolean, string?)
 	local inactiveMaps = getOrCreateInactiveMapsFolder()
 	local activeMap = findMap(activeMapName)
 	local inactiveMap = findMap(inactiveMapName)
 
-	if activeMap then
-		activeMap.Parent = Workspace
-	else
-		warn(string.format("MapController could not find the %s map", activeMapName))
+	if not activeMap then
+		return false, string.format("MapController could not find the %s map", activeMapName)
 	end
+	local spawn = activeMap:FindFirstChild(spawnName)
+	if not spawn or not spawn:IsA("SpawnLocation") then
+		return false, string.format("MapController could not find %s.%s", activeMapName, spawnName)
+	end
+
+	activeMap.Parent = Workspace
 	if inactiveMap then
 		-- Only one complete map may remain replicated and physically active in a server at a time.
 		inactiveMap.Parent = inactiveMaps
 	end
+	activeSpawn = spawn
+	return true, nil
+end
 
-	local spawn = activeMap and activeMap:FindFirstChild(spawnName)
-	if spawn and spawn:IsA("SpawnLocation") then
-		activeSpawn = spawn
-	else
-		warn(string.format("MapController could not find %s.%s", activeMapName, spawnName))
+function MapController.Init()
+	local success, errorMessage = if ServerContext.IsGameServer()
+		then activateMap(GAME_MAP_NAME, LOBBY_MAP_NAME, GAME_SPAWN_NAME)
+		else activateMap(LOBBY_MAP_NAME, GAME_MAP_NAME, LOBBY_SPAWN_NAME)
+	if not success then
+		warn(errorMessage)
 	end
+end
+
+function MapController.ActivateStudioGameDestination(): (boolean, string?)
+	-- Published servers select their map only from verified join data during bootstrap.
+	if not RunService:IsStudio() then
+		return false, "Studio destination switching is unavailable in published servers."
+	end
+	return activateMap(GAME_MAP_NAME, LOBBY_MAP_NAME, GAME_SPAWN_NAME)
 end
 
 function MapController.GetSpawnCFrame(): CFrame?

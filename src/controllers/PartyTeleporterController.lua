@@ -25,6 +25,7 @@ local function isValidState(state): boolean
 		and (state.countdown == nil or type(state.countdown) == "number")
 		and type(state.isLeader) == "boolean"
 		and type(state.locked) == "boolean"
+		and type(state.loading) == "boolean"
 end
 
 local function setState(state)

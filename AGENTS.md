@@ -55,3 +55,20 @@ ONLY IF IT APPLIES TO ALL SYSTEMS IN THE GAME write something in THIS Agents.md.
 Dont put stuff that is too niche in Agents.md. You can put it in/create an Agents.md or a script in the niche if needed but not in this one.
 Put UI-specific development rules in `src/UI/AGENTSCREATINGUI.md`, not in this root `AGENTS.md`.
 If in need of an asset that does not exist, create a blank instance in the appropriate folder and inform the user.
+
+## UI Development
+
+For any task that creates, modifies, restyles, reviews, or fixes Roblox UI, you MUST read and follow `AgentsCreatingUI.md` before making changes.
+
+UI CREATION:
+`AgentsCreatingUI.md` defines:
+- the project's STUD visual design system
+- Vide UI requirements
+- reusable UI component rules
+- Pinevex rendering and visual iteration workflow
+- responsive UI requirements
+- UI completion criteria
+
+Do not treat `AgentsCreatingUI.md` as optional guidance. It is the authoritative instruction file for UI work in this repository.
+
+For substantial visual UI work, do not consider the task complete until the Pinevex render → inspect → revise workflow defined in `AgentsCreatingUI.md` has been followed.

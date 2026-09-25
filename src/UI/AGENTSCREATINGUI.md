@@ -307,3 +307,34 @@ UI work is complete only when all relevant items below are satisfied:
 - major visual defects found during inspection have been corrected
 - no unnecessary duplicate UI systems or components were introduced
 Code correctness alone is not sufficient for substantial UI work.
+
+If no examples are provided in the prompt, use UI reference libary!
+# UI Reference Library
+
+Visual reference material is stored in `ui-references/`.
+
+Before designing substantial UI, inspect relevant references from this directory.
+
+Use references to understand:
+- STUD surface construction
+- button depth
+- panel layering
+- texture density
+- stroke thickness
+- corner radii
+- typography
+- spacing
+- visual hierarchy
+- theme treatment
+
+Choose references relevant to the type of UI being created. For example, a new button should primarily reference existing buttons rather than copying the layout of an entire menu.
+
+References define the project's visual language, not an exact layout that must always be copied.
+
+When multiple references exist, extract their shared design principles rather than combining every decorative feature into one element.
+
+Also inspect good existing production UI under `src/UI/` when it is relevant to the task.
+
+Do not copy obsolete, unused, or visibly inconsistent UI merely because it exists in the codebase.
+
+FOR STUD TEXTURE, THERE IS ONE IN UISTYLE! DO NOT CREATE STUD TEXTURE WITH CODE! THE IMAGE IS 4x4 STUDS.
