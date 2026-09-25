@@ -1,0 +1,50 @@
+{
+  "pinevex_object": {
+    "type": "Frame",
+    "name": "Main",
+    "size": [1, 0, 1, 0],
+    "bg": [18, 21, 28],
+    "children": [
+      {
+        "type": "Frame",
+        "name": "Panel",
+        "size": [0.42, 0, 0.48, 0],
+        "position": [0.5, 0, 0.5, 0],
+        "anchor": [0.5, 0.5],
+        "bg": [42, 47, 59],
+        "corner": 0.06,
+        "children": [
+          {
+            "type": "TextLabel",
+            "name": "Title",
+            "size": [0.8, 0, 0.18, 0],
+            "position": [0.5, 0, 0.18, 0],
+            "anchor": [0.5, 0.5],
+            "bgTransparency": 1,
+            "text": "ZOMBIE SURVIVORS",
+            "textColor": [255, 255, 255],
+            "textScaled": true,
+            "font": "Gotham",
+            "children": []
+          },
+          {
+            "type": "TextButton",
+            "name": "PlayButton",
+            "size": [0.55, 0, 0.18, 0],
+            "position": [0.5, 0, 0.72, 0],
+            "anchor": [0.5, 0.5],
+            "bg": [77, 190, 104],
+            "corner": 0.16,
+            "text": "PLAY",
+            "textColor": [255, 255, 255],
+            "textScaled": true,
+            "font": "Gotham",
+            "children": []
+          }
+        ]
+      }
+    ]
+  },
+  "viewport_size": [1280, 720],
+  "transparent_background": false
+}

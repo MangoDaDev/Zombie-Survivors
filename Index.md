@@ -16,7 +16,7 @@ Quick reference for the reusable first-party Luau foundation. Generated Wally de
 | --- | --- |
 | `src/controllers/ChatCommandController.lua` | Displays server-authorized command responses in modern chat with a notification fallback. |
 | `src/controllers/CharacterController.lua` | Requests server-authorized character spawning and manages local camera and respawn behavior. |
-| `src/controllers/PartyTeleporterController.lua` | Mirrors validated party state, sends leader/member requests, and presents server messages through the shared notification system. |
+| `src/controllers/PartyTeleporterController.lua` | Mirrors validated party/setup state, sends leader confirmation and member requests, and presents server messages through the shared notification system. |
 | `src/controllers/AbilityController.lua` | Mirrors authoritative ability state and dispatches validated weapon and passive presentation events. |
 | `src/controllers/Ability/ActiveWeaponEffects.lua` | Renders Fireball, Lightning, and latency-corrected Boomerang presentation from authoritative server packets. |
 | `src/controllers/Ability/OrbitingSwordsView.lua` | Renders smoothly reconciled spectral sword orbits, Rage blades, trails, and released-blade return flights. |
@@ -36,7 +36,7 @@ Quick reference for the reusable first-party Luau foundation. Generated Wally de
 | `src/servercontrollers/MapController.lua` | Keeps only the current session's Lobby or Game map in Workspace and exposes its inspected spawn position. |
 | `src/servercontrollers/CharacterController.lua` | Serializes and authorizes character loads, rate-limits client spawn requests, and places characters at the current session map's spawn. |
 | `src/servercontrollers/PartyTeleportService.lua` | Starts same-place reserved-server party teleports with JSON-compatible, server-authored Game session metadata. |
-| `src/servercontrollers/PartyTeleporterController.lua` | Owns closed-elevator lobby entry/exit placement, party leadership, capacity/privacy settings, countdowns, world feedback, and failure recovery. |
+| `src/servercontrollers/PartyTeleporterController.lua` | Owns closed-elevator entry/exit, the timed leader setup phase, party settings/countdowns, world feedback, and whole-party ejection on teleport failure. |
 | `src/servercontrollers/AbilityController.lua` | Owns ability state, active/passive refreshes, ability-specific Rage behavior, and authoritative damage; lobby sessions keep loadouts but do not schedule dagger attacks. |
 | `src/servercontrollers/Ability/ActiveWeapons.lua` | Runs the shared authoritative Fireball, Lightning, and Boomerang scheduler, projectile hits, status ticks, area caps, Rage variants, and cleanup only in Game sessions. |
 | `src/servercontrollers/Ability/OrbitingSwords.lua` | Simulates authoritative sword combat in Game sessions while preserving non-damaging orbit presentation in Lobby sessions. |
@@ -76,7 +76,7 @@ These modules provide shared game configuration, persistent player-data defaults
 | Path | Responsibility |
 | --- | --- |
 | `src/modules/Game/CoinsConfig.lua` | Defines the shared coin data key, default, and exact-integer balance limit. |
-| `src/modules/Game/PartyTeleporterConfig.lua` | Defines party capacity, countdown, zone cadence, watchdog, and world-display limits shared by lobby teleporter UI and authority. |
+| `src/modules/Game/PartyTeleporterConfig.lua` | Defines party capacity, setup/countdown timing, zone cadence, watchdog, and world-display limits shared by lobby teleporter UI and authority. |
 | `src/modules/Game/BackpackConfig.lua` | **Archived/dormant:** maps carried totals to authored backpack stages and mount offsets. |
 | `src/modules/Game/CoinDropConfig.lua` | **Archived/dormant:** defines world-drop pickup distance, timing, and client-prediction batching limits. |
 | `src/modules/Game/Abilities/AbilityDefinitions.lua` | Defines expandable ability metadata, rarity odds, equip limits, upgrade costs, per-level stats, visible milestones, Rage tuning, and configurable Blast, Burn, and Thorns progression. |

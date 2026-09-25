@@ -2,6 +2,7 @@ local PartyTeleporterConfig = {
 	MinimumPartySize = 1,
 	MaximumPartySize = 4,
 	DefaultPartySize = 4,
+	SetupDuration = 15,
 	NormalCountdown = 15,
 	FullCountdown = 3,
 	LeaveRecoveryCountdown = 3,

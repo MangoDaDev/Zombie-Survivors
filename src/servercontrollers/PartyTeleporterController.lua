@@ -40,6 +40,8 @@ type TeleporterState = {
 	leader: Player?,
 	maxSize: number,
 	friendsOnly: boolean,
+	configured: boolean,
+	setupDeadline: number?,
 	normalDeadline: number?,
 	deadline: number?,
 	fullAccelerated: boolean,
@@ -146,6 +148,9 @@ local function updateWorldView(state: TeleporterState, now: number)
 	if state.locked then
 		color = STARTING_COLOR
 		status = "STARTING..."
+	elseif memberCount > 0 and not state.configured then
+		color = WAITING_COLOR
+		status = "CONFIGURING"
 	elseif memberCount >= state.maxSize and memberCount > 0 then
 		color = FULL_COLOR
 		status = "FULL"
@@ -157,7 +162,10 @@ local function updateWorldView(state: TeleporterState, now: number)
 	state.view.status.Text = status
 	state.view.status.TextColor3 = color
 	state.view.occupancy.Text = string.format("%d / %d", memberCount, state.maxSize)
-	state.view.countdown.Text = if countdown then string.format("%ds", countdown) else "ENTER TO JOIN"
+	state.view.countdown.Text = if memberCount > 0 and not state.configured
+		then "LEADER SETTING UP"
+		elseif countdown then string.format("%ds", countdown)
+		else "ENTER TO JOIN"
 	state.view.leader.Text = if state.leader then "LEADER  " .. state.leader.DisplayName else ""
 	state.view.light.Color = color
 	state.view.light.Brightness = if state.locked then 2.8 elseif memberCount > 0 then 1.55 else 0.8
@@ -186,6 +194,7 @@ local function makePacket(state: TeleporterState, player: Player)
 		leaderUserId = state.leader and state.leader.UserId or 0,
 		leaderName = state.leader and state.leader.DisplayName or "",
 		friendsOnly = state.friendsOnly,
+		configuring = not state.configured,
 		countdown = getCountdown(state, Workspace:GetServerTimeNow()),
 		isLeader = state.leader == player,
 		locked = state.locked,
@@ -267,7 +276,7 @@ local function restoreNormalCountdown(state: TeleporterState, now: number)
 end
 
 local function updateFullCountdown(state: TeleporterState, now: number)
-	if state.locked or #state.members == 0 then
+	if state.locked or not state.configured or #state.members == 0 then
 		return
 	end
 	if #state.members >= state.maxSize then
@@ -295,12 +304,29 @@ local function resetState(state: TeleporterState, suppressMembers: boolean?)
 	state.leader = nil
 	state.maxSize = PartyTeleporterConfig.DefaultPartySize
 	state.friendsOnly = false
+	state.configured = false
+	state.setupDeadline = nil
 	state.normalDeadline = nil
 	state.deadline = nil
 	state.fullAccelerated = false
 	state.locked = false
 	state.teleportAttempt += 1
 	updateWorldView(state, Workspace:GetServerTimeNow())
+end
+
+local function finishSetup(state: TeleporterState, now: number)
+	if state.locked or state.configured or #state.members == 0 then
+		return
+	end
+
+	state.configured = true
+	state.setupDeadline = nil
+	state.normalDeadline = now + PartyTeleporterConfig.NormalCountdown
+	state.deadline = state.normalDeadline
+	updateFullCountdown(state, now)
+	updateWorldView(state, now)
+	broadcastState(state)
+	playSound(state, "Popup")
 end
 
 local function removeMember(state: TeleporterState, player: Player, suppressUntilExit: boolean?)
@@ -358,8 +384,7 @@ local function tryAddMember(state: TeleporterState, player: Player)
 	movePlayer(player, state.entryCFrame)
 	if not state.leader then
 		state.leader = player
-		state.normalDeadline = now + PartyTeleporterConfig.NormalCountdown
-		state.deadline = state.normalDeadline
+		state.setupDeadline = now + PartyTeleporterConfig.SetupDuration
 	end
 
 	updateFullCountdown(state, now)
@@ -372,19 +397,14 @@ local function failTeleport(state: TeleporterState, message: string, attempt: nu
 	if not state.locked or (attempt and state.teleportAttempt ~= attempt) then
 		return
 	end
-	state.locked = false
-	state.teleportAttempt += 1
-	state.fullAccelerated = false
-	local now = Workspace:GetServerTimeNow()
-	state.normalDeadline = now + PartyTeleporterConfig.NormalCountdown
-	state.deadline = state.normalDeadline
-	for _, member in state.members do
-		teleportingPlayers[member] = nil
-		teleportingAttempts[member] = nil
+	local members = table.clone(state.members)
+	for _, member in members do
 		notify(member, message, "Error")
 	end
-	updateWorldView(state, now)
-	broadcastState(state)
+	resetState(state, true)
+	for _, member in members do
+		movePlayer(member, state.exitCFrame)
+	end
 end
 
 local function startTeleport(state: TeleporterState)
@@ -399,7 +419,11 @@ local function startTeleport(state: TeleporterState)
 		end
 	end
 	if #validMembers == 0 or not state.leader or not table.find(validMembers, state.leader) then
-		resetState(state)
+		local members = table.clone(state.members)
+		resetState(state, true)
+		for _, member in members do
+			movePlayer(member, state.exitCFrame)
+		end
 		return
 	end
 
@@ -419,7 +443,7 @@ local function startTeleport(state: TeleporterState)
 		local success, errorMessage = PartyTeleportService.Teleport(validMembers, state.leader :: Player, runId)
 		if not success then
 			warn("Party teleport failed: " .. (errorMessage or "Unknown error"))
-			failTeleport(state, "Teleport failed. The party has been reset and will retry.", teleportAttempt)
+			failTeleport(state, "Teleport failed. Everyone was returned to the lobby.", teleportAttempt)
 			return
 		end
 
@@ -427,7 +451,7 @@ local function startTeleport(state: TeleporterState)
 		-- the party in this server without producing a synchronous error.
 		task.delay(PartyTeleporterConfig.TeleportWatchdogDuration, function()
 			if state.locked and state.teleportAttempt == teleportAttempt and #state.members > 0 then
-				failTeleport(state, "Teleport timed out. The party is ready to try again.", teleportAttempt)
+				failTeleport(state, "Teleport timed out. Everyone was returned to the lobby.", teleportAttempt)
 			end
 		end)
 	end)
@@ -466,14 +490,20 @@ local function stepZones(deltaTime: number)
 
 	for _, state in orderedStates do
 		if #state.members > 0 and not state.locked then
-			local countdown = getCountdown(state, now)
-			if countdown and countdown <= 0 then
-				startTeleport(state)
-			elseif countdown ~= state.lastDisplayedSecond then
-				updateWorldView(state, now)
-				broadcastState(state)
-				if countdown and countdown <= 3 then
-					playSound(state, "CountdownBeep")
+			if not state.configured then
+				if state.setupDeadline and now >= state.setupDeadline then
+					finishSetup(state, now)
+				end
+			else
+				local countdown = getCountdown(state, now)
+				if countdown and countdown <= 0 then
+					startTeleport(state)
+				elseif countdown ~= state.lastDisplayedSecond then
+					updateWorldView(state, now)
+					broadcastState(state)
+					if countdown and countdown <= 3 then
+						playSound(state, "CountdownBeep")
+					end
 				end
 			end
 		end
@@ -499,6 +529,7 @@ function PartyTeleporterController.SetMaxPartySize(_, player: Player, maximumSiz
 	if not canRequest(player)
 		or not state
 		or state.locked
+		or state.configured
 		or state.leader ~= player
 		or type(maximumSize) ~= "number"
 		or maximumSize % 1 ~= 0
@@ -519,6 +550,7 @@ function PartyTeleporterController.SetFriendsOnly(_, player: Player, enabled: an
 	if not canRequest(player)
 		or not state
 		or state.locked
+		or state.configured
 		or state.leader ~= player
 		or type(enabled) ~= "boolean"
 	then
@@ -527,6 +559,16 @@ function PartyTeleporterController.SetFriendsOnly(_, player: Player, enabled: an
 	state.friendsOnly = enabled
 	updateWorldView(state, Workspace:GetServerTimeNow())
 	broadcastState(state)
+end
+
+function PartyTeleporterController.ConfirmParty(_, player: Player)
+	if not canRequest(player) then
+		return
+	end
+	local state = playerState[player]
+	if state and not state.locked and not state.configured and state.leader == player then
+		finishSetup(state, Workspace:GetServerTimeNow())
+	end
 end
 
 function PartyTeleporterController.LeaveParty(_, player: Player)
@@ -562,6 +604,7 @@ function PartyTeleporterController.Init()
 		PartyTeleporterController.GetState,
 		PartyTeleporterController.SetMaxPartySize,
 		PartyTeleporterController.SetFriendsOnly,
+		PartyTeleporterController.ConfirmParty,
 		PartyTeleporterController.LeaveParty,
 		PartyTeleporterController.CancelParty,
 	})
@@ -637,6 +680,8 @@ function PartyTeleporterController.Init()
 			leader = nil,
 			maxSize = PartyTeleporterConfig.DefaultPartySize,
 			friendsOnly = false,
+			configured = false,
+			setupDeadline = nil,
 			normalDeadline = nil,
 			deadline = nil,
 			fullAccelerated = false,
@@ -653,7 +698,7 @@ function PartyTeleporterController.Init()
 		local attempt = teleportingAttempts[player]
 		if state and attempt then
 			warn(string.format("Teleport failed for %s (%s): %s", player.Name, teleportResult.Name, errorMessage))
-			failTeleport(state, "Teleport failed. The party is ready to try again.", attempt)
+			failTeleport(state, "Teleport failed. Everyone was returned to the lobby.", attempt)
 		end
 	end)
 	heartbeatConnection = RunService.Heartbeat:Connect(stepZones)

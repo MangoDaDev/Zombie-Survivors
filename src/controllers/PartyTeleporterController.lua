@@ -21,6 +21,7 @@ local function isValidState(state): boolean
 		and type(state.leaderUserId) == "number"
 		and type(state.leaderName) == "string"
 		and type(state.friendsOnly) == "boolean"
+		and type(state.configuring) == "boolean"
 		and (state.countdown == nil or type(state.countdown) == "number")
 		and type(state.isLeader) == "boolean"
 		and type(state.locked) == "boolean"
@@ -71,6 +72,12 @@ end
 function PartyTeleporterController.SetFriendsOnly(enabled: boolean)
 	if partyNetwork and type(enabled) == "boolean" then
 		(partyNetwork :: Networker.Client):fire("SetFriendsOnly", enabled)
+	end
+end
+
+function PartyTeleporterController.ConfirmParty()
+	if partyNetwork then
+		(partyNetwork :: Networker.Client):fire("ConfirmParty")
 	end
 end
 

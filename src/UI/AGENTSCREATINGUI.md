@@ -1,870 +1,309 @@
-FOLLOW THIS UI STYLE: **"STUD" UI STYLE**
-
-When using a UIAspectRatioConstraint, keep meaningful nonzero responsive Size values on both axes unless a zero axis is explicitly required.
-
-Avoid UITextSizeConstraint and UISizeConstraint where practical; UIAspectRatioConstraint is fine when preserving proportions is useful.
-
-Use a mix of relative Scale values and pixel offsets in UI sizes and positions. Do not design layouts using only pixels or only Scale.
-
-Avoid creating CanvasGroups unless they are needed for scrolling UI. Use Frames or other suitable GuiObjects for ordinary UI, including notifications.
-
-Not everything has to have a background! Only have buttons and stuff with the button background. If no background have stroke.
-
-local function WhiteRectangularButtonExample()
-	return
-    create "Frame" {
-        Name = "WhiteRectangularButtonExample",
-        Size = UDim2.new(1, 0, 1, 0),
-        BackgroundColor3 = Color3.fromRGB(40, 40, 40),
-        BorderSizePixel = 0,
-        
-        create "UICorner" {
-            CornerRadius = UDim.new(0.05, 0),
-        },
-        create "UIStroke" {
-            Color = Color3.fromRGB(30, 30, 30),
-            Thickness = 3,
-            Transparency = 0.07999999821186066,
-            ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-            
-            create "UIGradient" {
-                Rotation = 12,
-                Name = "ThemeGradient",
-            },
-        },
-        create "ImageLabel" {
-            Image = "rbxassetid://85440167673906",
-            ImageTransparency = 0.7200000286102295,
-            Name = "Glow",
-            Size = UDim2.new(1.4, 0, 1.8, 0),
-            Position = UDim2.new(0.5, 0, 0.5, 0),
-            AnchorPoint = Vector2.new(0.5, 0.5),
-            BackgroundTransparency = 1,
-            
-            create "UIGradient" {
-                Name = "ThemeGradient",
-            },
-        },
-        create "Frame" {
-            Name = "Content",
-            Size = UDim2.new(1, 0, 0.86, 0),
-            BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-            BorderSizePixel = 0,
-            BorderColor3 = Color3.fromRGB(87, 136, 171),
-            ZIndex = 2,
-            
-            create "UICorner" {
-                CornerRadius = UDim.new(0.05, 0),
-            },
-            create "UIGradient" {
-                Rotation = 90,
-            },
-            create "ImageLabel" {
-                Image = "rbxassetid://6927295847",
-                ImageTransparency = 0.7400000095367432,
-                ScaleType = Enum.ScaleType.Tile,
-                TileSize = UDim2.new(0, 80, 0, 80),
-                Name = "StudTexture",
-                Size = UDim2.new(1, 0, 1, 0),
-                BackgroundTransparency = 1,
-                ZIndex = 3,
-            },
-            create "TextLabel" {
-                Text = "Text",
-                TextColor3 = Color3.fromRGB(255, 255, 255),
-                FontFace = Font.new("rbxasset://fonts/families/ComicNeueAngular.json", Enum.FontWeight.Regular, Enum.FontStyle.Normal),
-                TextWrapped = true,
-                TextScaled = true,
-                Name = "ButtonText",
-                Size = UDim2.new(0.851955, 0, 0.840779, 0),
-                Position = UDim2.new(0.070409, 0, 0.488095, 0),
-                AnchorPoint = Vector2.new(0, 0.5),
-                BackgroundTransparency = 1,
-                ZIndex = 5,
-                
-                create "UIStroke" {
-                    Thickness = 0.05999999865889549,
-                },
-            },
-            create "UIStroke" {
-                Color = Color3.fromRGB(255, 255, 255),
-                Thickness = 3.799999952316284,
-                Transparency = 0.550000011920929,
-                ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-                Name = "InsideStroke",
-                
-                create "UIGradient" {
-                    Rotation = -90,
-                },
-            },
-        },
-        create "TextButton" {
-            Text = "",
-            AutoButtonColor = false,
-            Name = "Sensor",
-            Size = UDim2.new(1, 0, 1, 0),
-            BackgroundTransparency = 1,
-            ZIndex = 20,
-        },
-        create "UIAspectRatioConstraint" {
-            AspectRatio = 3,
-        },
-    }
-end
-
-return WhiteRectangularButtonExample
-
-local function RebirthMenuExample()
-	return
-    create "Frame" {
-        Name = "RebirthMenuExample",
-        Size = UDim2.new(1, 0, 1, 0),
-        Position = UDim2.new(0.5, 0, 0.5, 0),
-        AnchorPoint = Vector2.new(0.5, 0.5),
-        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-        BackgroundTransparency = 1,
-        BorderSizePixel = 0,
-        BorderColor3 = Color3.fromRGB(0, 0, 0),
-        ZIndex = 100,
-        
-        create "Frame" {
-            Name = "Background",
-            Size = UDim2.new(0.4, 200, 0.4, 200),
-            Position = UDim2.new(0.5, 0, 0.5, 0),
-            AnchorPoint = Vector2.new(0.5, 0.5),
-            BackgroundColor3 = Color3.fromRGB(30, 30, 30),
-            BorderSizePixel = 0,
-            BorderColor3 = Color3.fromRGB(58, 41, 15),
-            ZIndex = 60,
-            
-            create "UICorner" {
-                CornerRadius = UDim.new(0.02, 0),
-            },
-            create "UIStroke" {
-                Color = Color3.fromRGB(30, 30, 30),
-                Thickness = 0.014999999664723873,
-                ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-            },
-            create "UIAspectRatioConstraint" {
-                AspectRatio = 1.6180000305175781,
-            },
-            create "Frame" {
-                Name = "Content",
-                Size = UDim2.new(1, 0, 0.835948, 0),
-                Position = UDim2.new(0.5, 0, 0.552563, 0),
-                AnchorPoint = Vector2.new(0.5, 0.5),
-                BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-                BorderSizePixel = 0,
-                BorderColor3 = Color3.fromRGB(0, 0, 0),
-                
-                create "UICorner" {
-                    CornerRadius = UDim.new(0.02, 0),
-                },
-                create "UIStroke" {
-                    Color = Color3.fromRGB(30, 30, 30),
-                    Thickness = 0.014999999664723873,
-                    ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-                },
-                create "UIGradient" {
-                    Color = ColorSequence.new({ColorSequenceKeypoint.new(0, Color3.fromRGB(163, 163, 163)), ColorSequenceKeypoint.new(0.0259516, Color3.fromRGB(206, 206, 206)), ColorSequenceKeypoint.new(0.0640138, Color3.fromRGB(255, 255, 255)), ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 255, 255))}),
-                    Rotation = 90,
-                },
-                create "ImageLabel" {
-                    Image = "rbxassetid://140085487158609",
-                    ImageColor3 = Color3.fromRGB(65, 52, 29),
-                    ImageTransparency = 0.8399999737739563,
-                    TileSize = UDim2.new(0.3, 0, 0.75, 0),
-                    Size = UDim2.new(0.956825, 0, 0.833117, 0),
-                    Position = UDim2.new(0.499583, 0, 0.463743, 0),
-                    AnchorPoint = Vector2.new(0.5, 0.5),
-                    BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-                    BackgroundTransparency = 1,
-                    BorderSizePixel = 0,
-                    BorderColor3 = Color3.fromRGB(0, 0, 0),
-                    ZIndex = 2,
-                },
-                create "Frame" {
-                    Name = "Changes",
-                    Size = UDim2.new(0.897564, 0, 0.731498, 0),
-                    Position = UDim2.new(0.5, 0, 0.486843, 0),
-                    AnchorPoint = Vector2.new(0.5, 0.5),
-                    BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-                    BackgroundTransparency = 1,
-                    BorderSizePixel = 0,
-                    BorderColor3 = Color3.fromRGB(0, 0, 0),
-                    ZIndex = 3,
-                    
-                    create "TextLabel" {
-                        Text = "1000",
-                        TextColor3 = Color3.fromRGB(255, 255, 255),
-                        TextSize = 14,
-                        FontFace = Font.new("rbxasset://fonts/families/ComicNeueAngular.json", Enum.FontWeight.Regular, Enum.FontStyle.Normal),
-                        TextWrapped = true,
-                        TextXAlignment = Enum.TextXAlignment.Left,
-                        TextScaled = true,
-                        Name = "CoinsBefore",
-                        Size = UDim2.new(0.315518, 0, 0.229606, 0),
-                        Position = UDim2.new(0.249757, 0, 0.112362, 0),
-                        AnchorPoint = Vector2.new(0.5, 0.5),
-                        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-                        BackgroundTransparency = 1,
-                        BorderSizePixel = 0,
-                        BorderColor3 = Color3.fromRGB(0, 0, 0),
-                        
-                        create "UIStroke" {
-                            Color = Color3.fromRGB(21, 21, 21),
-                            Thickness = 0.05999999865889549,
-                        },
-                    },
-                    create "TextLabel" {
-                        Text = "1000",
-                        TextColor3 = Color3.fromRGB(255, 255, 255),
-                        TextSize = 14,
-                        FontFace = Font.new("rbxasset://fonts/families/ComicNeueAngular.json", Enum.FontWeight.Regular, Enum.FontStyle.Normal),
-                        TextWrapped = true,
-                        TextXAlignment = Enum.TextXAlignment.Left,
-                        TextScaled = true,
-                        Name = "BucksBefore",
-                        Size = UDim2.new(0.315518, 0, 0.229606, 0),
-                        Position = UDim2.new(0.249757, 0, 0.343979, 0),
-                        AnchorPoint = Vector2.new(0.5, 0.5),
-                        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-                        BackgroundTransparency = 1,
-                        BorderSizePixel = 0,
-                        BorderColor3 = Color3.fromRGB(0, 0, 0),
-                        
-                        create "UIStroke" {
-                            Color = Color3.fromRGB(21, 21, 21),
-                            Thickness = 0.05999999865889549,
-                        },
-                    },
-                    create "TextLabel" {
-                        Text = "Jungle",
-                        TextColor3 = Color3.fromRGB(255, 255, 255),
-                        TextSize = 14,
-                        FontFace = Font.new("rbxasset://fonts/families/ComicNeueAngular.json", Enum.FontWeight.Regular, Enum.FontStyle.Normal),
-                        TextWrapped = true,
-                        TextXAlignment = Enum.TextXAlignment.Left,
-                        TextScaled = true,
-                        Name = "AreasBefore",
-                        Size = UDim2.new(0.315518, 0, 0.229606, 0),
-                        Position = UDim2.new(0.249757, 0, 0.573569, 0),
-                        AnchorPoint = Vector2.new(0.5, 0.5),
-                        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-                        BackgroundTransparency = 1,
-                        BorderSizePixel = 0,
-                        BorderColor3 = Color3.fromRGB(0, 0, 0),
-                        
-                        create "UIStroke" {
-                            Color = Color3.fromRGB(21, 21, 21),
-                            Thickness = 0.05999999865889549,
-                        },
-                    },
-                    create "TextLabel" {
-                        Text = "Plains",
-                        TextColor3 = Color3.fromRGB(255, 255, 255),
-                        TextSize = 14,
-                        FontFace = Font.new("rbxasset://fonts/families/ComicNeueAngular.json", Enum.FontWeight.Regular, Enum.FontStyle.Normal),
-                        TextWrapped = true,
-                        TextXAlignment = Enum.TextXAlignment.Left,
-                        TextScaled = true,
-                        Name = "AreasAfter",
-                        Size = UDim2.new(0.315518, 0, 0.229606, 0),
-                        Position = UDim2.new(0.842306, 0, 0.572105, 0),
-                        AnchorPoint = Vector2.new(0.5, 0.5),
-                        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-                        BackgroundTransparency = 1,
-                        BorderSizePixel = 0,
-                        BorderColor3 = Color3.fromRGB(0, 0, 0),
-                        
-                        create "UIStroke" {
-                            Color = Color3.fromRGB(21, 21, 21),
-                            Thickness = 0.05999999865889549,
-                        },
-                        create "UIGradient" {},
-                    },
-                    create "TextLabel" {
-                        Text = "0",
-                        TextColor3 = Color3.fromRGB(255, 255, 255),
-                        TextSize = 14,
-                        FontFace = Font.new("rbxasset://fonts/families/ComicNeueAngular.json", Enum.FontWeight.Regular, Enum.FontStyle.Normal),
-                        TextWrapped = true,
-                        TextXAlignment = Enum.TextXAlignment.Left,
-                        TextScaled = true,
-                        Name = "BucksAfter",
-                        Size = UDim2.new(0.315518, 0, 0.229606, 0),
-                        Position = UDim2.new(0.842306, 0, 0.342516, 0),
-                        AnchorPoint = Vector2.new(0.5, 0.5),
-                        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-                        BackgroundTransparency = 1,
-                        BorderSizePixel = 0,
-                        BorderColor3 = Color3.fromRGB(0, 0, 0),
-                        
-                        create "UIStroke" {
-                            Color = Color3.fromRGB(21, 21, 21),
-                            Thickness = 0.05999999865889549,
-                        },
-                    },
-                    create "TextLabel" {
-                        Text = "0",
-                        TextColor3 = Color3.fromRGB(255, 255, 255),
-                        TextSize = 14,
-                        FontFace = Font.new("rbxasset://fonts/families/ComicNeueAngular.json", Enum.FontWeight.Regular, Enum.FontStyle.Normal),
-                        TextWrapped = true,
-                        TextXAlignment = Enum.TextXAlignment.Left,
-                        TextScaled = true,
-                        Name = "CoinsAfter",
-                        Size = UDim2.new(0.315518, 0, 0.229606, 0),
-                        Position = UDim2.new(0.842306, 0, 0.110899, 0),
-                        AnchorPoint = Vector2.new(0.5, 0.5),
-                        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-                        BackgroundTransparency = 1,
-                        BorderSizePixel = 0,
-                        BorderColor3 = Color3.fromRGB(0, 0, 0),
-                        
-                        create "UIStroke" {
-                            Color = Color3.fromRGB(21, 21, 21),
-                            Thickness = 0.05999999865889549,
-                        },
-                    },
-                    create "ImageLabel" {
-                        Image = "rbxassetid://117589844207603",
-                        Size = UDim2.new(0.09, 0, 0.215, 0),
-                        Position = UDim2.new(-0.00334774, 0, 0.000633695, 0),
-                        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-                        BackgroundTransparency = 1,
-                        BorderSizePixel = 0,
-                        BorderColor3 = Color3.fromRGB(0, 0, 0),
-                    },
-                    create "ImageLabel" {
-                        Image = "rbxassetid://85844365023723",
-                        Size = UDim2.new(0.09, 0, 0.215, 0),
-                        Position = UDim2.new(-0.00334774, 0, 0.228973, 0),
-                        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-                        BackgroundTransparency = 1,
-                        BorderSizePixel = 0,
-                        BorderColor3 = Color3.fromRGB(0, 0, 0),
-                    },
-                    create "ImageLabel" {
-                        Image = "rbxassetid://97437550220113",
-                        Size = UDim2.new(0.09, 0, 0.215, 0),
-                        Position = UDim2.new(-0.00334774, 0, 0.461354, 0),
-                        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-                        BackgroundTransparency = 1,
-                        BorderSizePixel = 0,
-                        BorderColor3 = Color3.fromRGB(0, 0, 0),
-                    },
-                    create "ImageLabel" {
-                        Image = "rbxassetid://97437550220113",
-                        Size = UDim2.new(0.09, 0, 0.215, 0),
-                        Position = UDim2.new(0.579158, 0, 0.459031, 0),
-                        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-                        BackgroundTransparency = 1,
-                        BorderSizePixel = 0,
-                        BorderColor3 = Color3.fromRGB(0, 0, 0),
-                    },
-                    create "ImageLabel" {
-                        Image = "rbxassetid://85844365023723",
-                        Size = UDim2.new(0.09, 0, 0.215, 0),
-                        Position = UDim2.new(0.579158, 0, 0.22665, 0),
-                        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-                        BackgroundTransparency = 1,
-                        BorderSizePixel = 0,
-                        BorderColor3 = Color3.fromRGB(0, 0, 0),
-                    },
-                    create "ImageLabel" {
-                        Image = "rbxassetid://117589844207603",
-                        Size = UDim2.new(0.09, 0, 0.215, 0),
-                        Position = UDim2.new(0.579158, 0, -0.00168922, 0),
-                        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-                        BackgroundTransparency = 1,
-                        BorderSizePixel = 0,
-                        BorderColor3 = Color3.fromRGB(0, 0, 0),
-                    },
-                    create "ImageLabel" {
-                        Image = "rbxassetid://123892753905134",
-                        Size = UDim2.new(0.135461, 0, 0.32387, 0),
-                        Position = UDim2.new(0.407236, 0, 0.277643, 0),
-                        Rotation = 90,
-                        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-                        BackgroundTransparency = 1,
-                        BorderSizePixel = 0,
-                        BorderColor3 = Color3.fromRGB(0, 0, 0),
-                    },
-                    create "ImageLabel" {
-                        Image = "rbxassetid://140615134556624",
-                        Size = UDim2.new(0.125151, 0, 0.303903, 0),
-                        Position = UDim2.new(-0.00334774, 0, 0.699776, 0),
-                        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-                        BackgroundTransparency = 1,
-                        BorderSizePixel = 0,
-                        BorderColor3 = Color3.fromRGB(0, 0, 0),
-                    },
-                    create "TextLabel" {
-                        Text = "x6",
-                        TextColor3 = Color3.fromRGB(255, 255, 255),
-                        TextSize = 14,
-                        FontFace = Font.new("rbxasset://fonts/families/ComicNeueAngular.json", Enum.FontWeight.Regular, Enum.FontStyle.Normal),
-                        TextWrapped = true,
-                        TextXAlignment = Enum.TextXAlignment.Left,
-                        TextScaled = true,
-                        Name = "LuckBefore",
-                        Size = UDim2.new(0.305475, 0, 0.270016, 0),
-                        Position = UDim2.new(0.284908, 0, 0.84836, 0),
-                        AnchorPoint = Vector2.new(0.5, 0.5),
-                        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-                        BackgroundTransparency = 1,
-                        BorderSizePixel = 0,
-                        BorderColor3 = Color3.fromRGB(0, 0, 0),
-                        
-                        create "UIStroke" {
-                            Color = Color3.fromRGB(21, 21, 21),
-                            Thickness = 0.05999999865889549,
-                        },
-                    },
-                    create "TextLabel" {
-                        Text = "x7",
-                        TextColor3 = Color3.fromRGB(255, 255, 255),
-                        TextSize = 14,
-                        FontFace = Font.new("rbxasset://fonts/families/ComicNeueAngular.json", Enum.FontWeight.Regular, Enum.FontStyle.Normal),
-                        TextWrapped = true,
-                        TextXAlignment = Enum.TextXAlignment.Left,
-                        TextScaled = true,
-                        Name = "LuckAfter",
-                        Size = UDim2.new(0.305475, 0, 0.270016, 0),
-                        Position = UDim2.new(0.847328, 0, 0.84836, 0),
-                        AnchorPoint = Vector2.new(0.5, 0.5),
-                        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-                        BackgroundTransparency = 1,
-                        BorderSizePixel = 0,
-                        BorderColor3 = Color3.fromRGB(0, 0, 0),
-                        
-                        create "UIStroke" {
-                            Color = Color3.fromRGB(21, 21, 21),
-                            Thickness = 0.05999999865889549,
-                        },
-                        create "UIGradient" {
-                            Color = ColorSequence.new({ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 247, 0)), ColorSequenceKeypoint.new(1, Color3.fromRGB(203, 189, 82))}),
-                            Transparency = NumberSequence.new({NumberSequenceKeypoint.new(0, 0, 0), NumberSequenceKeypoint.new(0.660093, 0, 0), NumberSequenceKeypoint.new(0.820186, 0.24375, 0), NumberSequenceKeypoint.new(1, 0.25625, 0)}),
-                            Rotation = 90,
-                        },
-                    },
-                    create "ImageLabel" {
-                        Image = "rbxassetid://140615134556624",
-                        Size = UDim2.new(0.125151, 0, 0.303903, 0),
-                        Position = UDim2.new(0.559072, 0, 0.699776, 0),
-                        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-                        BackgroundTransparency = 1,
-                        BorderSizePixel = 0,
-                        BorderColor3 = Color3.fromRGB(0, 0, 0),
-                    },
-                    create "TextLabel" {
-                        Text = "Rebirth 0",
-                        TextColor3 = Color3.fromRGB(255, 255, 255),
-                        TextSize = 14,
-                        FontFace = Font.new("rbxasset://fonts/families/ComicNeueAngular.json", Enum.FontWeight.Regular, Enum.FontStyle.Normal),
-                        TextWrapped = true,
-                        TextXAlignment = Enum.TextXAlignment.Left,
-                        TextScaled = true,
-                        Name = "RebirthsBefore",
-                        Size = UDim2.new(0.315518, 0, 0.121835, 0),
-                        Position = UDim2.new(0.154346, 0, -0.060783, 0),
-                        AnchorPoint = Vector2.new(0.5, 0.5),
-                        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-                        BackgroundTransparency = 1,
-                        BorderSizePixel = 0,
-                        BorderColor3 = Color3.fromRGB(0, 0, 0),
-                        
-                        create "UIStroke" {
-                            Color = Color3.fromRGB(21, 21, 21),
-                            Thickness = 0.05999999865889549,
-                        },
-                    },
-                    create "TextLabel" {
-                        Text = "Rebirth 1",
-                        TextColor3 = Color3.fromRGB(255, 255, 255),
-                        TextSize = 14,
-                        FontFace = Font.new("rbxasset://fonts/families/ComicNeueAngular.json", Enum.FontWeight.Regular, Enum.FontStyle.Normal),
-                        TextWrapped = true,
-                        TextXAlignment = Enum.TextXAlignment.Left,
-                        TextScaled = true,
-                        Name = "RebirthsAfter",
-                        Size = UDim2.new(0.315518, 0, 0.121835, 0),
-                        Position = UDim2.new(0.736852, 0, -0.060783, 0),
-                        AnchorPoint = Vector2.new(0.5, 0.5),
-                        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-                        BackgroundTransparency = 1,
-                        BorderSizePixel = 0,
-                        BorderColor3 = Color3.fromRGB(0, 0, 0),
-                        
-                        create "UIStroke" {
-                            Color = Color3.fromRGB(21, 21, 21),
-                            Thickness = 0.05999999865889549,
-                        },
-                        create "UIGradient" {
-                            Color = ColorSequence.new({ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 247, 0)), ColorSequenceKeypoint.new(1, Color3.fromRGB(203, 189, 82))}),
-                            Transparency = NumberSequence.new({NumberSequenceKeypoint.new(0, 0, 0), NumberSequenceKeypoint.new(0.660093, 0, 0), NumberSequenceKeypoint.new(0.820186, 0.24375, 0), NumberSequenceKeypoint.new(1, 0.25625, 0)}),
-                            Rotation = 90,
-                        },
-                    },
-                },
-                create "ImageLabel" {
-                    Image = "rbxassetid://6927295847",
-                    ImageTransparency = 0.7400000095367432,
-                    ScaleType = Enum.ScaleType.Tile,
-                    TileSize = UDim2.new(0, 80, 0, 80),
-                    Name = "StudTexture",
-                    Size = UDim2.new(1, 0, 1, 0),
-                    BackgroundTransparency = 1,
-                    ZIndex = 2,
-                },
-                create "Frame" {
-                    Name = "WhiteRectangularButtonExample",
-                    Size = UDim2.new(0.2, 0, 0.2, 0),
-                    Position = UDim2.new(0.5, 0, 0.93, 0),
-                    AnchorPoint = Vector2.new(0.5, 0.5),
-                    BackgroundColor3 = Color3.fromRGB(40, 40, 40),
-                    BorderSizePixel = 0,
-                    ZIndex = 5,
-                    
-                    create "UICorner" {
-                        CornerRadius = UDim.new(0.05, 0),
-                    },
-                    create "UIStroke" {
-                        Color = Color3.fromRGB(30, 30, 30),
-                        Thickness = 3,
-                        Transparency = 0.07999999821186066,
-                        ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-                        
-                        create "UIGradient" {
-                            Rotation = 12,
-                            Name = "ThemeGradient",
-                        },
-                    },
-                    create "ImageLabel" {
-                        Image = "rbxassetid://85440167673906",
-                        ImageTransparency = 0.7200000286102295,
-                        Name = "Glow",
-                        Size = UDim2.new(1.4, 0, 1.8, 0),
-                        Position = UDim2.new(0.5, 0, 0.5, 0),
-                        AnchorPoint = Vector2.new(0.5, 0.5),
-                        BackgroundTransparency = 1,
-                        
-                        create "UIGradient" {
-                            Name = "ThemeGradient",
-                        },
-                    },
-                    create "Frame" {
-                        Name = "Content",
-                        Size = UDim2.new(1, 0, 0.86, 0),
-                        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-                        BorderSizePixel = 0,
-                        BorderColor3 = Color3.fromRGB(87, 136, 171),
-                        ZIndex = 2,
-                        
-                        create "UICorner" {
-                            CornerRadius = UDim.new(0.05, 0),
-                        },
-                        create "UIGradient" {
-                            Rotation = 90,
-                        },
-                        create "ImageLabel" {
-                            Image = "rbxassetid://6927295847",
-                            ImageTransparency = 0.7400000095367432,
-                            ScaleType = Enum.ScaleType.Tile,
-                            TileSize = UDim2.new(0, 80, 0, 80),
-                            Name = "StudTexture",
-                            Size = UDim2.new(1, 0, 1, 0),
-                            BackgroundTransparency = 1,
-                            ZIndex = 3,
-                        },
-                        create "TextLabel" {
-                            Text = "Rebirth",
-                            TextColor3 = Color3.fromRGB(255, 255, 255),
-                            FontFace = Font.new("rbxasset://fonts/families/ComicNeueAngular.json", Enum.FontWeight.Regular, Enum.FontStyle.Normal),
-                            TextWrapped = true,
-                            TextScaled = true,
-                            Name = "ButtonText",
-                            Size = UDim2.new(0.851955, 0, 0.840779, 0),
-                            Position = UDim2.new(0.070409, 0, 0.488095, 0),
-                            AnchorPoint = Vector2.new(0, 0.5),
-                            BackgroundTransparency = 1,
-                            ZIndex = 5,
-                            
-                            create "UIStroke" {
-                                Thickness = 0.05999999865889549,
-                            },
-                        },
-                        create "UIStroke" {
-                            Color = Color3.fromRGB(255, 255, 255),
-                            Thickness = 3.799999952316284,
-                            Transparency = 0.550000011920929,
-                            ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-                            Name = "InsideStroke",
-                            
-                            create "UIGradient" {
-                                Rotation = -90,
-                            },
-                        },
-                    },
-                    create "TextButton" {
-                        Text = "",
-                        AutoButtonColor = false,
-                        Name = "Sensor",
-                        Size = UDim2.new(1, 0, 1, 0),
-                        BackgroundTransparency = 1,
-                        ZIndex = 20,
-                    },
-                    create "UIAspectRatioConstraint" {
-                        AspectRatio = 4,
-                    },
-                },
-                create "UIStroke" {
-                    Color = Color3.fromRGB(255, 255, 255),
-                    Thickness = 0.009999999776482582,
-                    Transparency = 0.550000011920929,
-                    ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-                    Name = "InsideStroke",
-                    
-                    create "UIGradient" {
-                        Rotation = -90,
-                    },
-                },
-            },
-            create "UIGradient" {
-                Color = ColorSequence.new({ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 255, 255)), ColorSequenceKeypoint.new(0.934256, Color3.fromRGB(255, 255, 255)), ColorSequenceKeypoint.new(1, Color3.fromRGB(199, 199, 199))}),
-                Rotation = 90,
-            },
-            create "Frame" {
-                Name = "Title",
-                Size = UDim2.new(1.019, 0, 0.161, 0),
-                Position = UDim2.new(0.5, 0, 0.0629793, 0),
-                AnchorPoint = Vector2.new(0.5, 0.5),
-                BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-                BorderSizePixel = 0,
-                BorderColor3 = Color3.fromRGB(0, 0, 0),
-                
-                create "UICorner" {
-                    CornerRadius = UDim.new(0.07, 0),
-                },
-                create "UIStroke" {
-                    Color = Color3.fromRGB(30, 30, 30),
-                    Thickness = 0.09000000357627869,
-                    ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-                },
-                create "UIStroke" {
-                    Color = Color3.fromRGB(255, 255, 255),
-                    Thickness = 0.05000000074505806,
-                    Transparency = 0.699999988079071,
-                    ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-                    
-                    create "UIGradient" {
-                        Transparency = NumberSequence.new({NumberSequenceKeypoint.new(0, 0, 0), NumberSequenceKeypoint.new(0.535492, 0.291925, 0), NumberSequenceKeypoint.new(1, 0.521739, 0)}),
-                        Rotation = 90,
-                    },
-                },
-                create "ImageLabel" {
-                    Image = "rbxassetid://6927295847",
-                    ImageColor3 = Color3.fromRGB(0, 0, 0),
-                    ImageTransparency = 0.9399999976158142,
-                    ScaleType = Enum.ScaleType.Tile,
-                    TileSize = UDim2.new(0, 80, 0, 80),
-                    Size = UDim2.new(1, 0, 1, 0),
-                    BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-                    BackgroundTransparency = 1,
-                    BorderSizePixel = 0,
-                    BorderColor3 = Color3.fromRGB(0, 0, 0),
-                },
-                create "TextLabel" {
-                    Text = "Rebirth",
-                    TextColor3 = Color3.fromRGB(255, 255, 255),
-                    TextSize = 14,
-                    FontFace = Font.new("rbxasset://fonts/families/ComicNeueAngular.json", Enum.FontWeight.Regular, Enum.FontStyle.Normal),
-                    TextWrapped = true,
-                    TextXAlignment = Enum.TextXAlignment.Left,
-                    TextScaled = true,
-                    Size = UDim2.new(0.97, 0, 1.05625, 0),
-                    Position = UDim2.new(0.5, 0, 0.515625, 0),
-                    AnchorPoint = Vector2.new(0.5, 0.5),
-                    BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-                    BackgroundTransparency = 1,
-                    BorderSizePixel = 0,
-                    BorderColor3 = Color3.fromRGB(0, 0, 0),
-                    
-                    create "UIStroke" {
-                        Color = Color3.fromRGB(21, 21, 21),
-                        Thickness = 0.05999999865889549,
-                    },
-                },
-                create "UIGradient" {},
-                create "Frame" {
-                    Name = "WhiteCloseButtonExample",
-                    Size = UDim2.new(0.1, 0, 0.8, 0),
-                    Position = UDim2.new(0.94, 0, 0.5, 0),
-                    AnchorPoint = Vector2.new(0.5, 0.5),
-                    BackgroundColor3 = Color3.fromRGB(40, 40, 40),
-                    BorderSizePixel = 0,
-                    ZIndex = 6,
-                    
-                    create "UICorner" {
-                        CornerRadius = UDim.new(0.05, 0),
-                    },
-                    create "UIStroke" {
-                        Color = Color3.fromRGB(30, 30, 30),
-                        Thickness = 3,
-                        Transparency = 0.07999999821186066,
-                        ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-                        
-                        create "UIGradient" {
-                            Rotation = 12,
-                            Name = "ThemeGradient",
-                        },
-                    },
-                    create "ImageLabel" {
-                        Image = "rbxassetid://85440167673906",
-                        ImageTransparency = 0.7200000286102295,
-                        Name = "Glow",
-                        Size = UDim2.new(1.4, 0, 1.8, 0),
-                        Position = UDim2.new(0.5, 0, 0.5, 0),
-                        AnchorPoint = Vector2.new(0.5, 0.5),
-                        BackgroundTransparency = 1,
-                        
-                        create "UIGradient" {
-                            Name = "ThemeGradient",
-                        },
-                    },
-                    create "Frame" {
-                        Name = "Content",
-                        Size = UDim2.new(1, 0, 0.86, 0),
-                        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-                        BorderSizePixel = 0,
-                        BorderColor3 = Color3.fromRGB(87, 136, 171),
-                        ZIndex = 2,
-                        
-                        create "UICorner" {
-                            CornerRadius = UDim.new(0.05, 0),
-                        },
-                        create "UIGradient" {
-                            Rotation = 90,
-                        },
-                        create "ImageLabel" {
-                            Image = "rbxassetid://6927295847",
-                            ImageTransparency = 0.7400000095367432,
-                            ScaleType = Enum.ScaleType.Tile,
-                            TileSize = UDim2.new(0, 80, 0, 80),
-                            Name = "StudTexture",
-                            Size = UDim2.new(1, 0, 1, 0),
-                            BackgroundTransparency = 1,
-                            ZIndex = 3,
-                        },
-                        create "TextLabel" {
-                            Text = "X",
-                            TextColor3 = Color3.fromRGB(255, 255, 255),
-                            FontFace = Font.new("rbxasset://fonts/families/ComicNeueAngular.json", Enum.FontWeight.Regular, Enum.FontStyle.Normal),
-                            TextWrapped = true,
-                            TextScaled = true,
-                            Name = "ButtonText",
-                            Size = UDim2.new(0.851955, 0, 0.840779, 0),
-                            Position = UDim2.new(0.070409, 0, 0.488095, 0),
-                            AnchorPoint = Vector2.new(0, 0.5),
-                            BackgroundTransparency = 1,
-                            ZIndex = 5,
-                            
-                            create "UIStroke" {
-                                Thickness = 0.05999999865889549,
-                            },
-                        },
-                        create "UIStroke" {
-                            Color = Color3.fromRGB(255, 255, 255),
-                            Thickness = 3.799999952316284,
-                            Transparency = 0.550000011920929,
-                            ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-                            Name = "InsideStroke",
-                            
-                            create "UIGradient" {
-                                Rotation = -90,
-                            },
-                        },
-                    },
-                    create "TextButton" {
-                        Text = "",
-                        AutoButtonColor = false,
-                        Name = "Sensor",
-                        Size = UDim2.new(1, 0, 1, 0),
-                        BackgroundTransparency = 1,
-                        ZIndex = 20,
-                    },
-                    create "UIAspectRatioConstraint" {},
-                },
-                create "UIStroke" {
-                    Color = Color3.fromRGB(255, 255, 255),
-                    Thickness = 0.029999999329447746,
-                    Transparency = 0.550000011920929,
-                    ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-                    Name = "InsideStroke",
-                    
-                    create "UIGradient" {
-                        Rotation = -90,
-                    },
-                },
-            },
-        },
-    }
-end
-
-return RebirthMenuExample
-
-Use the provided UI code as the main visual reference. Match its overall appearance, structure, depth, texture, outlines, gradients, typography, and proportions across any UI you create or modify.
-
-The example is **only a reference**, not something that must be copied exactly. Adapt the style appropriately depending on whether the element is a button, panel, card, upgrade node, tab, notification, progress bar, etc.
-
-Additional rules:
-
-* Keep the style consistent across the entire UI/codebase.
-* Use the same general stud texture, layered depth, rounded corners, strokes, and subtle gradients demonstrated in the reference.
-* Feel free to add icons, images, labels, badges, glows, or other elements when they improve the UI.
-* Do not overuse effects. Keep gradients, glows, and animations subtle.
-* Dark outlines/backing layers should be slightly lerped toward the intended theme color instead of always being generic black/dark gray.
-* Do **not** calculate this lerp continuously/live. Use the resulting color as a normal static UI color.
-* Different theme colors should still use the same STUD structure and styling.
-* Keep spacing, padding, text sizing, stroke thickness, corner radius, and visual hierarchy consistent.
-* Interactive elements should have appropriate hover, pressed, disabled, selected, and notification states when needed.
-* Reuse existing hover/click/animation modules if the codebase already contains them instead of duplicating functionality.
-* Preserve existing functionality when restyling UI. Do not break logic just to change appearance.
-* Prefer responsive sizing and layouts so the UI works across different screen sizes.
-* Use `TextScaled` for rendered UI text. Preserve hierarchy through appropriately sized containers, adding text-size constraints only when a label needs explicit readable bounds.
-* Use clear internal names such as `Content`, `StudTexture`, `Glow`, `Icon`, `Label`, `Cost`, `Sensor`, etc.
-
-### Reusable Elements
-
-Create reusable **Elements/components** for UI structures that appear repeatedly.
-
-For example:
-
-* Standard buttons
-* Icon buttons
-* Panels
-* Cards
-* Upgrade nodes
-* Tabs
-* Cost/currency displays
-* Notification badges
-* Locked overlays
-* Progress bars
-
-Do not rebuild the same styled button or panel separately in multiple places.
-
-Reusable Elements should accept the values they need, such as text, icon, theme color, size, price, selected state, locked state, disabled state, callbacks, etc., while keeping the actual STUD styling controlled internally.
-
-Avoid over-engineering or creating components for tiny one-off pieces.
-
-### Style Consistency
-
-When adding a new UI element, first determine which existing STUD Element it should use or extend.
-
-Do not create a completely different visual style for individual screens.
-
-Do not use weak-key tables as the sole ownership registry for live Instance-backed UI. Keep explicit ownership, clean it up when the Instance is removed, and deduplicate against the actual hierarchy before creating another UI instance.
-
-The final result should make every UI feel like it belongs to the same **STUD design system**, while still allowing different UI types to have layouts appropriate to their purpose.
-
+AgentsCreatingUI.md
+Purpose
+This file defines how agents must create, modify, review, and polish Roblox UI in this project.
+The project uses Vide for production UI and Pinevex Renderer for headless visual iteration. UI work is not complete when the code merely runs; agents must render, inspect, revise, and re-render the interface until the result is visually coherent and matches the project design system.
+Core Rules
+- Production UI must use Vide unless the surrounding system explicitly requires otherwise.
+- Preserve existing gameplay logic, state, signals, callbacks, controllers, and data flow when changing UI.
+- Do not replace working behavior just to simplify styling.
+- Reuse existing UI components, style modules, animation helpers, image registries, and interaction modules where appropriate.
+- Do not create a second visual system for one screen.
+- Prefer clear, maintainable component boundaries over a single giant UI function.
+- Do not duplicate the same styled control across multiple screens.
+- Do not add large example blocks, mock systems, or unrelated demo UI to production files.
+Visual Design System
+All UI should belong to the same STUD design language.
+The style should feel:
+- chunky
+- playful
+- polished
+- game-like
+- readable at a glance
+- visually layered without becoming noisy
+The UI should not look like a generic flat web dashboard.
+STUD Style Characteristics
+Use these traits consistently where appropriate:
+- layered depth rather than one flat rectangle
+- subtle top-to-bottom or directional gradients
+- dark backing layers or outlines that are slightly tinted toward the element theme color
+- rounded corners
+- visible but controlled strokes
+- tiled stud texture on major filled surfaces
+- restrained glow/highlight layers where they improve depth
+- strong readable text
+- clear separation between primary, secondary, and decorative elements
+- theme colors that vary by feature while preserving the same structural language
+Effects must support hierarchy, not compete with it.
+Do not add glow, gradients, texture, strokes, shadows, and overlays to every object indiscriminately.
+Layout Rules
+Responsive Sizing
+Use a deliberate mix of:
+- Scale
+- pixel offsets
+Do not build an entire interface using only offsets.
+Do not build an entire interface using only scale.
+Layouts must remain usable across different viewport sizes.
+When using UIAspectRatioConstraint, keep meaningful non-zero responsive size values on both axes unless a zero axis is intentionally required.
+Avoid UITextSizeConstraint and UISizeConstraint unless they solve a real layout problem.
+Use UIAspectRatioConstraint when preserving proportions materially improves the element.
+Positioning
+Prefer:
+- logical container hierarchy
+- padding
+- list/grid layouts where suitable
+- consistent anchor points
+- predictable alignment
+Avoid excessive hand-positioned children when a layout object would be clearer and more robust.
+Do not use arbitrary positioning values merely to make one screenshot look correct if they make the component fragile.
+Backgrounds
+Not every UI element needs a filled background.
+Use filled surfaces mainly for:
+- buttons
+- cards
+- panels
+- bars
+- important interactive containers
+- elements that need visual grouping
+For simple labels or lightweight information, transparent backgrounds with text strokes or surrounding structure are often better.
+Typography
+Use TextScaled for rendered UI text unless there is a specific reason not to.
+Typography must preserve hierarchy through:
+- container size
+- weight
+- spacing
+- contrast
+- placement
+Do not make every label equally prominent.
+Primary titles, important values, action labels, secondary text, and helper text should visibly differ in importance.
+Prevent:
+- clipping
+- cramped text
+- overly wide lines
+- weak contrast
+- tiny text on mobile
+- text touching strokes or panel edges
+Use the project's existing font choices and text-stroke conventions unless the task explicitly requires a different treatment.
+Color and Theme
+Use strong theme colors, but keep supporting colors controlled.
+Dark outline/backing colors should generally be slightly biased toward the element's theme color rather than defaulting to pure black or neutral gray.
+Do not calculate those colors continuously at runtime. Use the final intended color directly.
+Maintain sufficient contrast between:
+- text and background
+- icons and background
+- selected and unselected states
+- enabled and disabled states
+- foreground and decorative texture
+Different systems may have different theme colors, but they should still look like part of the same UI family.
+Texture, Depth, and Surface Treatment
+For major filled STUD surfaces, consider the project's existing stud texture.
+Typical surface construction may include:
+- darker outer/back layer
+- lighter front/content layer
+- subtle gradient
+- tiled stud texture
+- inner or outer stroke
+- optional restrained glow
+Do not blindly apply the full stack to every object.
+Small controls should remain visually clean.
+Decorative layers must not interfere with input or readability.
+Reusable UI Components
+Create reusable Vide components for visual structures that appear repeatedly.
+Good candidates include:
+- standard buttons
+- icon buttons
+- close buttons
+- panels
+- cards
+- tabs
+- progress bars
+- currency/cost displays
+- badges
+- locked states
+- selected states
+- notification elements
+- upgrade nodes
+Reusable components should accept the data and state they need while keeping STUD styling internally consistent.
+Do not create reusable abstractions for tiny one-off elements.
+Before building a new control from scratch, inspect the existing UI codebase for an appropriate component to reuse or extend.
+Interaction States
+Interactive elements must clearly communicate their state.
+Where relevant, support:
+- hover
+- pressed
+- selected
+- disabled
+- locked
+- notification/attention states
+Reuse existing interaction, hover, click, tween, or animation helpers when available.
+Do not duplicate animation systems unnecessarily.
+Animations should feel responsive and intentional.
+Avoid excessive motion that reduces readability or delays interaction.
+Vide Requirements
+Production UI must integrate cleanly with the project's existing Vide architecture.
+Use the existing project import style and conventions.
+Keep visual structure separate from unrelated gameplay logic when practical.
+Do not destroy or bypass:
+- reactive state
+- cleanup logic
+- controller subscriptions
+- callbacks
+- signals
+- visibility conditions
+- existing ownership rules
+When modifying an existing component, preserve its external API unless a task explicitly requires changing it.
+Avoid introducing duplicate live UI instances.
+Do not use weak-key tables as the sole ownership registry for live Instance-backed UI. Keep explicit ownership, clean it up when the Instance is removed, and deduplicate against the actual hierarchy before creating another instance.
+Pinevex Visual Workflow
+Pinevex is the required headless visual feedback tool for substantial UI work.
+The local Pinevex server is expected to run at:
+http://127.0.0.1:8000
+Project UI design files live in:
+ui-designs/
+Rendered previews live in:
+.ui-previews/
+The project renderer command is:
+python tools/pinevex/render.py ui-designs/<Name>.json
+When Pinevex Must Be Used
+Use the Pinevex loop when:
+- creating a new screen
+- creating a new major component
+- substantially restyling an existing component
+- recreating UI from a screenshot/reference
+- changing layout hierarchy
+- changing spacing, proportions, or visual structure
+- performing visual polish that cannot be validated from code alone
+Minor text or logic-only changes do not require a full visual iteration cycle unless they affect layout.
+Required Visual Iteration Loop
+For substantial UI work, follow this loop:
+1. Inspect the relevant existing UI code, shared components, style modules, and image registries.
+2. Determine the intended hierarchy and interaction model.
+3. Create or update the corresponding Pinevex design in ui-designs/.
+4. Render it with the project Pinevex tool.
+5. Inspect the generated PNG in .ui-previews/.
+6. Identify the highest-impact visual problems.
+7. Correct those problems.
+8. Render again.
+9. Repeat until another pass would not create a meaningful visual improvement.
+10. Implement or update the production Vide UI to match the validated design.
+11. Re-check that existing behavior and reactive logic still work.
+Do not declare substantial UI work complete after only writing code.
+Do not assume the first render is acceptable.
+Visual Review Order
+Review each render in this order:
+1. overall composition
+2. hierarchy
+3. proportions
+4. alignment
+5. spacing and padding
+6. control sizing
+7. typography
+8. contrast and color balance
+9. strokes, corners, gradients, texture, and depth
+10. small polish
+Fix the largest structural issues before adjusting minor decorative details.
+Do not waste iterations tuning tiny color differences while major layout problems remain.
+Iteration Discipline
+After each render, focus on the 1-3 highest-impact defects.
+Avoid changing many unrelated visual decisions at once.
+Each iteration should have a clear reason.
+Good iteration behavior:
+- identify a concrete problem
+- make a targeted correction
+- render again
+- verify whether the correction actually improved the result
+Bad iteration behavior:
+- random restyling
+- changing multiple unrelated areas without evidence
+- endlessly tweaking insignificant values
+- declaring success without inspecting the render
+Stop when:
+- hierarchy is clear
+- spacing is consistent
+- proportions are coherent
+- text is readable
+- states are understandable
+- the UI matches the project style
+- further changes would be marginal rather than meaningful
+Reference Images
+When a screenshot or visual reference is provided, treat it as a target rather than loose inspiration unless the task says otherwise.
+Compare:
+- overall silhouette
+- hierarchy
+- relative sizes
+- spacing
+- alignment
+- major colors
+- panel structure
+- button treatment
+- typography
+- icon placement
+- decorative density
+Do not blindly copy defects from a reference.
+Preserve the project's STUD visual language while matching the intended composition.
+When the requested design conflicts with established project style, keep the requested structure while adapting the finish so it still belongs to the game.
+Pinevex vs Production Vide
+Pinevex is the visual design and validation layer.
+Vide is the production implementation layer.
+Do not maintain two independently designed versions of the same interface.
+The Pinevex design should describe the intended visual result, and the Vide implementation should match it as closely as practical.
+If Pinevex cannot represent a Roblox/Vide feature exactly:
+- use Pinevex for the closest visual approximation
+- implement the real feature correctly in Vide
+- preserve the same layout and visual intent
+Do not reduce production functionality merely to fit Pinevex limitations.
+Responsive Validation
+Major screens should be checked at more than one viewport when practical.
+Pay particular attention to:
+- desktop
+- narrow/mobile layouts
+- text wrapping
+- panel overflow
+- controls becoming too small
+- excessive empty space
+- aspect-ratio breakage
+A UI that only looks correct at one exact resolution is not finished.
+Existing Codebase First
+Before creating new UI infrastructure, inspect:
+- existing UI components
+- shared style modules
+- image/asset registries
+- existing animation helpers
+- current Vide patterns
+- nearby screens with related functionality
+Prefer extending what already exists over creating parallel systems.
+Do not rewrite a working system unless the task specifically requires it.
+Code Quality
+UI code should be:
+- readable
+- modular
+- consistently named
+- easy to revise
+- explicit about ownership and cleanup
+Use clear internal names such as:
+- Content
+- StudTexture
+- Glow
+- Icon
+- Label
+- Cost
+- Sensor
+- Header
+- Body
+- Footer
+Avoid meaningless autogenerated names.
+Avoid giant components when meaningful visual sections can be separated cleanly.
+Do not over-engineer simple UI.
+Completion Criteria
+UI work is complete only when all relevant items below are satisfied:
+- production UI uses Vide correctly
+- existing logic still works
+- visual structure matches the requested design
+- STUD styling is consistent with the rest of the project
+- repeated controls reuse appropriate components
+- layout is responsive enough for intended viewports
+- text is readable and unclipped
+- interaction states are clear
+- Pinevex preview has been rendered and inspected for substantial visual work
+- major visual defects found during inspection have been corrected
+- no unnecessary duplicate UI systems or components were introduced
+Code correctness alone is not sufficient for substantial UI work.
