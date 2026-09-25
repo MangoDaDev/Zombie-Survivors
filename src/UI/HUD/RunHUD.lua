@@ -2,6 +2,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
+local StudTexture = require(script.Parent.Parent.Classes.StudTexture)
 local AbilityDefinitions = require(ReplicatedStorage.Modules.Game.Abilities.AbilityDefinitions)
 local CoinsController = require(ReplicatedStorage.Controllers.CoinsController)
 local FormatNumber = require(ReplicatedStorage.Modules.Math.FormatNumber)
@@ -19,8 +20,8 @@ local source = Vide.source
 local spring = Vide.spring
 
 local localPlayer = Players.LocalPlayer
-local PANEL = Color3.fromRGB(21, 29, 36)
-local PANEL_LIGHT = Color3.fromRGB(31, 43, 52)
+local PANEL = Color3.fromRGB(3, 24, 39)
+local PANEL_LIGHT = Color3.fromRGB(3, 20, 33)
 local MUTED = Color3.fromRGB(157, 180, 193)
 local XP_GREEN = Color3.fromRGB(67, 222, 143)
 
@@ -75,6 +76,7 @@ local function abilitySlot(definition, state, tooltipId)
 		ZIndex = 102,
 		create "UICorner" { CornerRadius = UDim.new(0, 5) },
 		stroke(definition.Color:Lerp(Color3.new(0, 0, 0), 0.25), 2),
+		StudTexture({ ZIndex = 103, ImageTransparency = 0.86, TileSize = UDim2.fromOffset(18, 18) }),
 		create "ImageLabel" {
 			AnchorPoint = Vector2.new(0.5, 0),
 			BackgroundTransparency = 1,
@@ -82,7 +84,7 @@ local function abilitySlot(definition, state, tooltipId)
 			Position = UDim2.new(0.5, 0, 0, 4),
 			Size = UDim2.fromOffset(30, 30),
 			ScaleType = Enum.ScaleType.Fit,
-			ZIndex = 103,
+			ZIndex = 104,
 		},
 		create "TextLabel" {
 			AnchorPoint = Vector2.new(0, 1),
@@ -97,7 +99,7 @@ local function abilitySlot(definition, state, tooltipId)
 			TextColor3 = Color3.new(1, 1, 1),
 			TextScaled = true,
 			TextXAlignment = Enum.TextXAlignment.Left,
-			ZIndex = 104,
+			ZIndex = 105,
 			textStroke(),
 		},
 		create "TextLabel" {
@@ -113,7 +115,7 @@ local function abilitySlot(definition, state, tooltipId)
 			TextColor3 = MUTED,
 			TextScaled = true,
 			TextXAlignment = Enum.TextXAlignment.Right,
-			ZIndex = 104,
+			ZIndex = 105,
 		},
 		create "TextButton" {
 			Active = visible,
@@ -227,13 +229,14 @@ return function()
 			ZIndex = 80,
 			create "UICorner" { CornerRadius = UDim.new(0, 5) },
 			stroke(Color3.fromRGB(216, 163, 62), 2),
+			StudTexture({ ZIndex = 81, ImageTransparency = 0.84 }),
 			create "ImageLabel" {
 				AnchorPoint = Vector2.new(0, 0.5),
 				BackgroundTransparency = 1,
 				Image = Images.Coin,
 				Position = UDim2.new(0, 8, 0.5, 0),
 				Size = UDim2.fromOffset(30, 30),
-				ZIndex = 81,
+				ZIndex = 82,
 			},
 			create "TextLabel" {
 				BackgroundTransparency = 1,
@@ -246,7 +249,7 @@ return function()
 				TextColor3 = Color3.fromRGB(255, 231, 158),
 				TextScaled = true,
 				TextXAlignment = Enum.TextXAlignment.Left,
-				ZIndex = 81,
+				ZIndex = 82,
 			},
 		},
 		create "Frame" {
@@ -259,7 +262,8 @@ return function()
 			Visible = inGame,
 			ZIndex = 90,
 			create "UICorner" { CornerRadius = UDim.new(0, 4) },
-			stroke(Color3.fromRGB(51, 71, 85), 2),
+			stroke(Color3.fromRGB(0, 139, 168), 2),
+			StudTexture({ ZIndex = 91, ImageTransparency = 0.88 }),
 			create "TextLabel" {
 				BackgroundTransparency = 1,
 				FontFace = Font.new(UIStyle.Font.Family, Enum.FontWeight.Bold),
@@ -349,6 +353,7 @@ return function()
 			end,
 			ZIndex = 120,
 			create "UICorner" { CornerRadius = UDim.new(0, 5) },
+			StudTexture({ ZIndex = 121, ImageTransparency = 0.86 }),
 			create "UIStroke" {
 				Color = function()
 					local definition = tooltipDefinition()

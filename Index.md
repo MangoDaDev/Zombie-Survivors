@@ -139,7 +139,7 @@ These modules provide shared game configuration, persistent player-data defaults
 | --- | --- |
 | `src/UI/App.lua` | Composes the neutral `App` ScreenGui, untouched party Creation Menu, reactive in-match HUD, and retained generic overlays. |
 | `src/UI/HUD/RunHUD.lua` | Renders the revamped game HUD: permanent coins, animated run XP, ability levels/cooldowns, and hover/tap tooltips. |
-| `src/UI/HUD/LevelUpChoices.lua` | Renders compact fast ability reels with sequential punch/expand, subtle screen shading, camera/FOV impact feedback, and one server-validated choice without pausing gameplay. |
+| `src/UI/HUD/LevelUpChoices.lua` | Sequentially consumes every authoritative level-up set in a small top-screen reel strip with layered sound, sparkle/ring bursts, punch/expand, minimal shading, and camera/FOV feedback. |
 | `src/UI/HUD/GameOver.lua` | Renders the defeated player's authoritative run summary and live 15-second lobby-return countdown while surviving teammates continue. |
 | `src/UI/UIOrigin.lua` | Mounts the Vide application once into LocalPlayer.PlayerGui. |
 | `src/UI/App.story.lua` | Exposes the app component for UI story previews. |

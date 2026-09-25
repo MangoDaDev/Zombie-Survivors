@@ -2,6 +2,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
+local StudTexture = require(script.Parent.Parent.Classes.StudTexture)
 local RunSessionController = require(ReplicatedStorage.Controllers.RunSessionController)
 local FormatNumber = require(ReplicatedStorage.Modules.Math.FormatNumber)
 local UIStyle = require(ReplicatedStorage.Modules.UI.UIStyle)
@@ -13,8 +14,8 @@ local derive = Vide.derive
 local source = Vide.source
 
 local RETURN_DELAY = 15
-local PANEL = Color3.fromRGB(17, 20, 25)
-local PANEL_LIGHT = Color3.fromRGB(27, 31, 38)
+local PANEL = Color3.fromRGB(3, 20, 33)
+local PANEL_LIGHT = Color3.fromRGB(3, 24, 39)
 local RED = Color3.fromRGB(231, 63, 69)
 local MUTED = Color3.fromRGB(164, 174, 184)
 
@@ -32,6 +33,7 @@ local function statTile(name: string, label: string, value, order: number)
 		Size = UDim2.new(0.5, -6, 0, 72),
 		ZIndex = 406,
 		create "UICorner" { CornerRadius = UDim.new(0, 6) },
+		StudTexture({ ZIndex = 407, ImageTransparency = 0.88 }),
 		create "TextLabel" {
 			BackgroundTransparency = 1,
 			FontFace = UIStyle.Font,
@@ -133,6 +135,7 @@ return function()
 				MaxSize = Vector2.new(520, 520),
 			},
 			create "UICorner" { CornerRadius = UDim.new(0, 10) },
+			StudTexture({ ZIndex = 403, ImageTransparency = 0.9, TileSize = UDim2.fromOffset(28, 28) }),
 			create "UIStroke" {
 				ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
 				Color = Color3.fromRGB(113, 30, 35),
@@ -145,6 +148,7 @@ return function()
 				Size = UDim2.fromScale(1, 0.2),
 				ZIndex = 403,
 				create "UICorner" { CornerRadius = UDim.new(0, 10) },
+				StudTexture({ ZIndex = 404, ImageTransparency = 0.78, TileSize = UDim2.fromOffset(34, 34) }),
 				create "TextLabel" {
 					BackgroundTransparency = 1,
 					FontFace = Font.new(UIStyle.Font.Family, Enum.FontWeight.Heavy),

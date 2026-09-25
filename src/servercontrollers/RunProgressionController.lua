@@ -209,6 +209,10 @@ function RunProgressionController.AddXP(player: Player, amount: number): boolean
 	if earnedLevels > 0 then
 		-- One pending token always corresponds to exactly one server-validated card selection.
 		state.pendingChoices += earnedLevels
+	end
+	if state.pendingChoices > 0 then
+		-- Retry unresolved tokens on every XP update. This closes the brief startup window where progression
+		-- can initialize before the run ability pool and guarantees every earned level eventually gets a roll.
 		offerNextChoice(player, state)
 	end
 	sendState(player, state)
@@ -246,6 +250,9 @@ function RunProgressionController.GetSnapshot(_, player: Player)
 		initializePlayer(player)
 	end
 	local state = states[player]
+	if state and state.pendingChoices > 0 then
+		offerNextChoice(player, state)
+	end
 	return state and makePacket(player, state) or {
 		active = false,
 		level = 1,

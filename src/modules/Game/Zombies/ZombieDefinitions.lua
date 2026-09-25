@@ -2,6 +2,9 @@
 -- spawning, networking, and rendering code never need type-specific branches.
 -- XPValue and CoinValue feed the central death reward pipeline. Stronger variants should generally
 -- increase encounter pressure and reward value instead of relying on health scaling alone.
+local ZOMBIE_MOVE_SPEED_MULTIPLIER = 1.35
+local ZOMBIE_ATTACK_RANGE_MULTIPLIER = 1.35
+
 local function define(overrides)
 	local definition = {
 		AssetName = "Walker",
@@ -27,6 +30,10 @@ local function define(overrides)
 	for key, value in overrides do
 		definition[key] = value
 	end
+	-- Every archetype receives the same pressure increase so slow specials and fast runners both
+	-- remain true to their role while moving players can no longer kite contact attacks for free.
+	definition.MoveSpeed *= ZOMBIE_MOVE_SPEED_MULTIPLIER
+	definition.AttackRange *= ZOMBIE_ATTACK_RANGE_MULTIPLIER
 	return definition
 end
 

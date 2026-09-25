@@ -3,6 +3,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
+local StudTexture = require(script.Parent.Parent.Classes.StudTexture)
 local RageController = require(ReplicatedStorage.Controllers.RageController)
 local RageConfig = require(ReplicatedStorage.Modules.Game.Rage.RageConfig)
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
@@ -89,6 +90,7 @@ return function()
 		Visible = inGame,
 		ZIndex = 90,
 		create "UICorner" { CornerRadius = UDim.new(0, 5) },
+		StudTexture({ ZIndex = 91, ImageTransparency = 0.86 }),
 		create "UIStroke" {
 			ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
 			Color = function()
@@ -171,6 +173,7 @@ return function()
 			TextScaled = true,
 			ZIndex = 93,
 			create "UICorner" { CornerRadius = UDim.new(0, 4) },
+			StudTexture({ ZIndex = 94, ImageTransparency = 0.82, TileSize = UDim2.fromOffset(16, 16) }),
 			create "UIStroke" {
 				Color = Color3.fromRGB(70, 31, 26),
 				Thickness = 2,

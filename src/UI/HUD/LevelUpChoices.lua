@@ -8,6 +8,7 @@ local Workspace = game:GetService("Workspace")
 
 local AbilityDefinitions = require(ReplicatedStorage.Modules.Game.Abilities.AbilityDefinitions)
 local RunProgressionController = require(ReplicatedStorage.Controllers.RunProgressionController)
+local Images = require(ReplicatedStorage.Modules.UI.Images)
 local SafeArea = require(ReplicatedStorage.Modules.UI.SafeArea)
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
 local UIStyle = require(ReplicatedStorage.Modules.UI.UIStyle)
@@ -26,7 +27,7 @@ local RESULT_INDEX = 18
 local ENTRY_HEIGHT = 0.26
 local ENTRY_STRIDE = 0.29
 local REEL_DURATIONS = { 0.68, 0.86, 1.04 }
-local CAMERA_SHAKE_BINDING = "LevelUpChoiceShake_" .. tostring(localPlayer.UserId)
+local CAMERA_SHAKE_BINDING = "LevelUpChoiceShake_" .. tostring(localPlayer and localPlayer.UserId or "Edit")
 local CARD_COLORS = {
 	Color3.fromRGB(67, 190, 255),
 	Color3.fromRGB(177, 91, 255),
@@ -45,8 +46,7 @@ type CardView = {
 	icon: ImageLabel,
 	name: TextLabel,
 	level: TextLabel,
-	description: TextLabel,
-	stats: TextLabel,
+	summary: TextLabel,
 	entryScales: { UIScale },
 	connections: { RBXScriptConnection },
 	tweens: { Tween },
@@ -68,6 +68,20 @@ local function makeStroke(parent: Instance, color: Color3, thickness: number)
 	return border
 end
 
+local function makeStudTexture(parent: Instance, zIndex: number, transparency: number)
+	local texture = Instance.new("ImageLabel")
+	texture.Name = "StudTexture"
+	texture.BackgroundTransparency = 1
+	texture.Image = UIStyle.StudTexture
+	texture.ImageTransparency = transparency
+	texture.ScaleType = Enum.ScaleType.Tile
+	texture.Size = UDim2.fromScale(1, 1)
+	texture.TileSize = UDim2.fromOffset(22, 22)
+	texture.ZIndex = zIndex
+	texture.Parent = parent
+	return texture
+end
+
 local function makeLabel(parent: Instance, name: string, position: UDim2, size: UDim2, zIndex: number): TextLabel
 	local label = Instance.new("TextLabel")
 	label.Name = name
@@ -85,6 +99,45 @@ end
 
 local function randomDefinition()
 	return AbilityDefinitions.List[visualRandom:NextInteger(1, #AbilityDefinitions.List)]
+end
+
+local NEW_ABILITY_SUMMARIES = {
+	Dagger = "AUTO-THROWN DAGGERS",
+	OrbitingSwords = "SWORDS ORBIT YOU",
+	Fireball = "EXPLODING FIREBALLS",
+	Lightning = "CHAIN LIGHTNING",
+	Boomerang = "RETURNING BOOMERANGS",
+	Heart = "MORE MAX HEALTH",
+	Boots = "FASTER MOVEMENT",
+	Blast = "KILLS CAN EXPLODE",
+	Burn = "ATTACKS CAN BURN",
+	Thorns = "REFLECTS DAMAGE",
+}
+
+local UPGRADE_SUMMARIES = {
+	Dagger = "DAMAGE INCREASED",
+	OrbitingSwords = "SWORD POWER INCREASED",
+	Fireball = "DAMAGE + BLAST INCREASED",
+	Lightning = "DAMAGE + CHAINS INCREASED",
+	Boomerang = "DAMAGE + SIZE INCREASED",
+	Heart = "MAX HEALTH INCREASED",
+	Boots = "MOVE SPEED INCREASED",
+	Blast = "BLAST POWER INCREASED",
+	Burn = "BURN POWER INCREASED",
+	Thorns = "REFLECTION INCREASED",
+}
+
+local function getChoiceSummary(definition, choice): string
+	local nextStats = definition.GetStats and definition.GetStats(math.max(choice.nextLevel, 1)) or nil
+	-- Counts are the only numbers worth surfacing here: the card intentionally communicates the
+	-- upgrade's identity at a glance instead of reproducing the detailed tooltip stat table.
+	if definition.Id == "OrbitingSwords" and nextStats and nextStats.MainSwordCount then
+		return string.format("%d SWORDS", nextStats.MainSwordCount)
+	elseif definition.Id == "Dagger" and nextStats and nextStats.DaggerCount and nextStats.DaggerCount > 1 then
+		return string.format("%d DAGGERS", nextStats.DaggerCount)
+	end
+	local summaries = if choice.kind == "New" then NEW_ABILITY_SUMMARIES else UPGRADE_SUMMARIES
+	return summaries[definition.Id] or (if choice.kind == "New" then "NEW ABILITY" else "POWER INCREASED")
 end
 
 local function disconnectCard(card: CardView)
@@ -119,9 +172,11 @@ local function createCard(parent: Frame, index: number): CardView
 	frame.Parent = slot
 	makeCorner(frame, 8)
 	makeStroke(frame, accent, 3)
+	makeStudTexture(frame, 303, 0.86)
 
 	local visualScale = Instance.new("UIScale")
-	visualScale.Scale = 0.58
+	-- The reel stays compact on screen, but its moving cards remain large enough to read and enjoy.
+	visualScale.Scale = 0.82
 	visualScale.Parent = frame
 
 	local header = makeLabel(frame, "Header", UDim2.fromScale(0.06, 0.025), UDim2.fromScale(0.88, 0.075), 306)
@@ -144,10 +199,11 @@ local function createCard(parent: Frame, index: number): CardView
 	iconPanel.BackgroundColor3 = Color3.fromRGB(8, 12, 17)
 	iconPanel.BorderSizePixel = 0
 	iconPanel.Position = UDim2.fromScale(0.5, 0.01)
-	iconPanel.Size = UDim2.fromScale(0.88, 0.43)
+	iconPanel.Size = UDim2.fromScale(0.88, 0.61)
 	iconPanel.ZIndex = 304
 	iconPanel.Parent = details
 	makeCorner(iconPanel, 6)
+	makeStudTexture(iconPanel, 305, 0.9)
 
 	local icon = Instance.new("ImageLabel")
 	icon.Name = "Icon"
@@ -155,30 +211,29 @@ local function createCard(parent: Frame, index: number): CardView
 	icon.BackgroundTransparency = 1
 	icon.Position = UDim2.fromScale(0.5, 0.5)
 	icon.ScaleType = Enum.ScaleType.Fit
-	icon.Size = UDim2.fromScale(0.72, 0.78)
-	icon.ZIndex = 305
+	icon.Size = UDim2.fromScale(0.84, 0.86)
+	icon.ZIndex = 306
 	icon.Parent = iconPanel
 
-	local nameLabel = makeLabel(details, "AbilityName", UDim2.fromScale(0.06, 0.47), UDim2.fromScale(0.88, 0.075), 305)
+	local nameLabel = makeLabel(details, "AbilityName", UDim2.fromScale(0.06, 0.64), UDim2.fromScale(0.88, 0.09), 306)
 	nameLabel.FontFace = Font.new(UIStyle.Font.Family, Enum.FontWeight.Bold)
-	local levelLabel = makeLabel(details, "Level", UDim2.fromScale(0.06, 0.55), UDim2.fromScale(0.88, 0.05), 305)
+	local levelLabel = makeLabel(details, "Level", UDim2.fromScale(0.06, 0.73), UDim2.fromScale(0.88, 0.055), 306)
 	levelLabel.FontFace = Font.new(UIStyle.Font.Family, Enum.FontWeight.Bold)
 	levelLabel.TextColor3 = accent
-	local description = makeLabel(details, "Description", UDim2.fromScale(0.07, 0.615), UDim2.fromScale(0.86, 0.13), 305)
-	description.TextColor3 = Color3.fromRGB(190, 204, 213)
 
 	local statsPanel = Instance.new("Frame")
-	statsPanel.Name = "StatsPanel"
+	statsPanel.Name = "SummaryPanel"
 	statsPanel.BackgroundColor3 = Color3.fromRGB(9, 14, 19)
 	statsPanel.BorderSizePixel = 0
-	statsPanel.Position = UDim2.fromScale(0.055, 0.76)
-	statsPanel.Size = UDim2.fromScale(0.89, 0.2)
+	statsPanel.Position = UDim2.fromScale(0.055, 0.81)
+	statsPanel.Size = UDim2.fromScale(0.89, 0.15)
 	statsPanel.ZIndex = 304
 	statsPanel.Parent = details
 	makeCorner(statsPanel, 5)
-	local stats = makeLabel(statsPanel, "Stats", UDim2.fromScale(0.05, 0.08), UDim2.fromScale(0.9, 0.84), 305)
-	stats.TextColor3 = Color3.fromRGB(170, 190, 202)
-	stats.TextXAlignment = Enum.TextXAlignment.Left
+	makeStudTexture(statsPanel, 305, 0.9)
+	local summary = makeLabel(statsPanel, "Summary", UDim2.fromScale(0.05, 0.12), UDim2.fromScale(0.9, 0.76), 306)
+	summary.FontFace = Font.new(UIStyle.Font.Family, Enum.FontWeight.Bold)
+	summary.TextColor3 = accent
 
 	local window = Instance.new("CanvasGroup")
 	window.Name = "ReelWindow"
@@ -234,8 +289,7 @@ local function createCard(parent: Frame, index: number): CardView
 		icon = icon,
 		name = nameLabel,
 		level = levelLabel,
-		description = description,
-		stats = stats,
+		summary = summary,
 		entryScales = {},
 		connections = {},
 		tweens = {},
@@ -308,6 +362,60 @@ local function updateEntryScales(card: CardView): number
 	return closestIndex
 end
 
+local function emitCardBurst(card: CardView, accent: Color3, isFinalLanding: boolean)
+	local ring = Instance.new("Frame")
+	ring.Name = "LandingRing"
+	ring.AnchorPoint = Vector2.new(0.5, 0.5)
+	ring.BackgroundTransparency = 1
+	ring.Position = UDim2.fromScale(0.5, 0.5)
+	ring.Size = UDim2.fromScale(0.22, 0.22)
+	ring.ZIndex = 324
+	ring.Parent = card.frame
+	makeCorner(ring, 999)
+	local ringStroke = makeStroke(ring, accent, if isFinalLanding then 4 else 3)
+	local ringTween = TweenService:Create(
+		ring,
+		TweenInfo.new(0.32, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+		{ Size = UDim2.fromScale(1.12, 1.12), Rotation = 34 }
+	)
+	TweenService:Create(ringStroke, TweenInfo.new(0.25), { Transparency = 1 }):Play()
+	ringTween.Completed:Once(function()
+		ring:Destroy()
+	end)
+	ringTween:Play()
+
+	local sparkleCount = if isFinalLanding then 12 else 7
+	for sparkleIndex = 1, sparkleCount do
+		local angle = math.pi * 2 * sparkleIndex / sparkleCount + visualRandom:NextNumber(-0.18, 0.18)
+		local distance = visualRandom:NextNumber(if isFinalLanding then 54 else 38, if isFinalLanding then 82 else 60)
+		local sparkle = Instance.new("ImageLabel")
+		sparkle.Name = "LandingSparkle"
+		sparkle.AnchorPoint = Vector2.new(0.5, 0.5)
+		sparkle.BackgroundTransparency = 1
+		sparkle.Image = Images.Sparkle
+		sparkle.ImageColor3 = accent:Lerp(Color3.new(1, 1, 1), 0.3)
+		sparkle.Position = UDim2.fromScale(0.5, 0.5)
+		sparkle.Rotation = visualRandom:NextNumber(-30, 30)
+		sparkle.Size = UDim2.fromOffset(if isFinalLanding then 15 else 11, if isFinalLanding then 15 else 11)
+		sparkle.ZIndex = 325
+		sparkle.Parent = card.frame
+		local sparkleTween = TweenService:Create(
+			sparkle,
+			TweenInfo.new(visualRandom:NextNumber(0.28, 0.42), Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+			{
+				ImageTransparency = 1,
+				Position = UDim2.new(0.5, math.cos(angle) * distance, 0.5, math.sin(angle) * distance),
+				Rotation = sparkle.Rotation + visualRandom:NextNumber(100, 220),
+				Size = UDim2.fromOffset(3, 3),
+			}
+		)
+		sparkleTween.Completed:Once(function()
+			sparkle:Destroy()
+		end)
+		sparkleTween:Play()
+	end
+end
+
 return function()
 	local root: Frame?
 	local chain: Frame?
@@ -317,8 +425,8 @@ return function()
 	local activeSetId = 0
 	local landedCount = 0
 	local generation = 0
-	local selecting = false
-	local queuedState = nil
+	local presentationPhase = "Idle"
+	local pendingPresentationState = nil
 	local topOffset = SafeArea.GetTopOffset(26)
 	local shakeMagnitude = 0
 	local shakeBound = false
@@ -424,7 +532,19 @@ return function()
 		setSensors(false)
 	end
 
-	local function startPresentation(runState)
+	local startPresentation
+	local function advancePresentation()
+		local nextState = pendingPresentationState or RunProgressionController.GetState()
+		pendingPresentationState = nil
+		if type(nextState.choices) == "table" and #nextState.choices > 0 then
+			startPresentation(nextState)
+		else
+			presentationPhase = "Idle"
+			hidePresentation()
+		end
+	end
+
+	startPresentation = function(runState)
 		if not root or not chain or type(runState.choices) ~= "table" or #runState.choices == 0 then
 			return
 		end
@@ -432,8 +552,8 @@ return function()
 		local thisGeneration = generation
 		activeSetId = runState.choiceSetId
 		landedCount = 0
-		selecting = false
-		queuedState = nil
+		presentationPhase = "Rolling"
+		pendingPresentationState = nil
 		baseFieldOfView = Workspace.CurrentCamera and Workspace.CurrentCamera.FieldOfView or nil
 		root.Visible = true
 		chain.Position = UDim2.new(0.5, 0, 0, topOffset)
@@ -459,15 +579,16 @@ return function()
 				end
 			end))
 			table.insert(card.connections, card.button.Activated:Connect(function()
-				if selecting or landedCount < #runState.choices or not card.choice then
+				if presentationPhase ~= "Choosing" or landedCount < #runState.choices or not card.choice then
 					return
 				end
-				selecting = true
+				presentationPhase = "Selecting"
 				setSensors(false)
 				Sounds.Play("Click", localPlayer.PlayerGui)
+				Sounds.Play("Reward3", localPlayer.PlayerGui)
 				RunProgressionController.SelectChoice(activeSetId, index)
 				for otherIndex, otherCard in cards do
-					local targetScale = if otherIndex == index then 1.08 else 0.84
+					local targetScale = if otherIndex == index then 1.04 else 0.82
 					local targetTransparency = if otherIndex == index then 0 else 1
 					TweenService:Create(otherCard.visualScale, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = targetScale }):Play()
 					TweenService:Create(otherCard.frame, TweenInfo.new(0.28, Enum.EasingStyle.Quad), { GroupTransparency = targetTransparency }):Play()
@@ -477,11 +598,7 @@ return function()
 					if generation ~= thisGeneration then
 						return
 					end
-					if queuedState then
-						startPresentation(queuedState)
-					else
-						hidePresentation()
-					end
+					advancePresentation()
 				end)
 			end))
 
@@ -498,7 +615,7 @@ return function()
 			card.frame.BackgroundTransparency = 0
 			card.frame.GroupTransparency = 0
 			card.frame.Rotation = 0
-			card.visualScale.Scale = 0.58
+			card.visualScale.Scale = 0.82
 			card.details.GroupTransparency = 1
 			card.window.GroupTransparency = 0
 			card.window.Visible = true
@@ -509,10 +626,7 @@ return function()
 			card.level.Text = if choice.kind == "New"
 				then "STARTS AT LEVEL 1"
 				else string.format("LEVEL %d  >  %d", choice.currentLevel, choice.nextLevel)
-			card.description.Text = AbilityDefinitions.GetDescription(definition, math.max(choice.nextLevel, 1))
-			card.stats.Text = if definition.GetStatsText
-				then definition.GetStatsText(if choice.kind == "New" then 1 else choice.currentLevel)
-				else definition.UpgradeDescription
+			card.summary.Text = getChoiceSummary(definition, choice)
 			fillReel(card, definition)
 			local lastCrossed = 1
 			table.insert(card.connections, card.track:GetPropertyChangedSignal("Position"):Connect(function()
@@ -543,7 +657,12 @@ return function()
 					revealSound.PlaybackSpeed = 0.92 + index * 0.08
 					revealSound.Volume *= if finalLanding then 1.18 else 1
 				end
+				Sounds.Play("Swoosh", localPlayer.PlayerGui)
+				if finalLanding then
+					Sounds.Play("NewRarest", localPlayer.PlayerGui)
+				end
 				playLandingFeedback(CARD_COLORS[index], finalLanding)
+				emitCardBurst(card, CARD_COLORS[index], finalLanding)
 				local linePulse = TweenService:Create(card.selectionLine, TweenInfo.new(0.11, Enum.EasingStyle.Quad, Enum.EasingDirection.Out, 0, true), {
 					BackgroundTransparency = 0,
 					Size = UDim2.new(0.94, 0, 0, 8),
@@ -552,7 +671,7 @@ return function()
 				TweenService:Create(card.window, TweenInfo.new(0.16, Enum.EasingStyle.Quad), { GroupTransparency = 1 }):Play()
 				TweenService:Create(card.details, TweenInfo.new(0.24, Enum.EasingStyle.Quad), { GroupTransparency = 0 }):Play()
 				card.frame.Rotation = if index % 2 == 0 then 1.6 else -1.6
-				local expand = TweenService:Create(card.visualScale, TweenInfo.new(0.16, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1.12 })
+				local expand = TweenService:Create(card.visualScale, TweenInfo.new(0.16, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1.08 })
 				expand:Play()
 				expand.Completed:Once(function()
 					if generation == thisGeneration then
@@ -562,6 +681,7 @@ return function()
 					end
 				end)
 				if finalLanding then
+					presentationPhase = "Choosing"
 					setSensors(true)
 				end
 			end)
@@ -571,13 +691,27 @@ return function()
 
 	local initialState = RunProgressionController.GetState()
 	local stateConnection = RunProgressionController.GetStateChangedSignal():Connect(function(runState)
+		if not runState.active then
+			pendingPresentationState = nil
+			presentationPhase = "Idle"
+			hidePresentation()
+			return
+		end
 		if type(runState.choices) == "table" and #runState.choices > 0 then
-			if selecting then
-				queuedState = runState
-			elseif runState.choiceSetId ~= activeSetId or not root or not root.Visible then
+			if presentationPhase == "Idle" then
 				startPresentation(runState)
+			elseif runState.choiceSetId ~= activeSetId or presentationPhase == "Selecting" then
+				-- Preserve the newest authoritative set while the current reel or selection animation finishes.
+				pendingPresentationState = runState
+			elseif prompt then
+				prompt.Text = if runState.pendingChoices > 1
+					then string.format("LEVEL UP  -  CHOOSE ONE  -  %d QUEUED", runState.pendingChoices)
+					else "LEVEL UP  -  CHOOSE ONE"
 			end
-		elseif not selecting then
+		elseif presentationPhase == "Selecting" then
+			-- An accepted choice with no next token clears any stale same-set packet received before the response.
+			pendingPresentationState = nil
+		elseif presentationPhase == "Idle" then
 			hidePresentation()
 		end
 	end)
@@ -620,9 +754,9 @@ return function()
 		create "Frame" {
 			Name = "TopFade",
 			BackgroundColor3 = Color3.fromRGB(5, 8, 12),
-			BackgroundTransparency = 0.68,
+			BackgroundTransparency = 0.82,
 			BorderSizePixel = 0,
-			Size = UDim2.fromScale(1, 0.5),
+			Size = UDim2.fromScale(1, 0.35),
 			ZIndex = 295,
 			create "UIGradient" {
 				Transparency = NumberSequence.new({
@@ -638,7 +772,7 @@ return function()
 			BackgroundColor3 = Color3.new(1, 1, 1),
 			BackgroundTransparency = 1,
 			BorderSizePixel = 0,
-			Size = UDim2.fromScale(1, 0.5),
+			Size = UDim2.fromScale(1, 0.35),
 			ZIndex = 296,
 			action(function(instance)
 				impactFlash = instance :: Frame
@@ -649,7 +783,8 @@ return function()
 			AnchorPoint = Vector2.new(0.5, 0),
 			BackgroundTransparency = 1,
 			Position = UDim2.fromScale(0.5, 0.07),
-			Size = UDim2.new(0.82, 0, 0.44, 0),
+			-- A wide responsive slot keeps mobile cards tappable; the pixel cap keeps desktop presentation compact.
+			Size = UDim2.new(0.92, 0, 0.32, 0),
 			ZIndex = 300,
 			action(function(instance)
 				chain = instance :: Frame
@@ -666,7 +801,7 @@ return function()
 				row.ZIndex = 302
 				row.Parent = chain
 				local sizeConstraint = Instance.new("UISizeConstraint")
-				sizeConstraint.MaxSize = Vector2.new(720, 330)
+				sizeConstraint.MaxSize = Vector2.new(510, 230)
 				sizeConstraint.Parent = row
 				local layout = Instance.new("UIListLayout")
 				layout.FillDirection = Enum.FillDirection.Horizontal
