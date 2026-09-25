@@ -190,7 +190,8 @@ local orbitingSwords = {
 		MaximumHitsPerSwordStep = 12,
 		BaseDamage = 18,
 		BaseScale = 0.3,
-		BaseRotationSpeed = 1.9,
+		-- Orbiting swords intentionally spin at twice the original baseline so their motion feels immediately active.
+		BaseRotationSpeed = 3.8,
 		BaseHitCooldown = 0.72,
 		BaseRadius = 7.5,
 		HitRadius = 1.65,

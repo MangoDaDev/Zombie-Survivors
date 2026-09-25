@@ -27,6 +27,7 @@ local RESULT_INDEX = 18
 local ENTRY_HEIGHT = 0.26
 local ENTRY_STRIDE = 0.29
 local REEL_DURATIONS = { 0.68, 0.86, 1.04 }
+local ROLLING_PRESENTATION_SCALE = 1.45
 local CAMERA_SHAKE_BINDING = "LevelUpChoiceShake_" .. tostring(localPlayer and localPlayer.UserId or "Edit")
 local CARD_COLORS = {
 	Color3.fromRGB(67, 190, 255),
@@ -175,21 +176,22 @@ local function createCard(parent: Frame, index: number): CardView
 	makeStudTexture(frame, 303, 0.86)
 
 	local visualScale = Instance.new("UIScale")
-	-- The reel stays compact on screen, but its moving cards remain large enough to read and enjoy.
-	visualScale.Scale = 0.82
+	visualScale.Scale = 1
 	visualScale.Parent = frame
 
-	local header = makeLabel(frame, "Header", UDim2.fromScale(0.06, 0.025), UDim2.fromScale(0.88, 0.075), 306)
-	header.FontFace = Font.new(UIStyle.Font.Family, Enum.FontWeight.Bold)
-	header.TextColor3 = accent
-	header.TextXAlignment = Enum.TextXAlignment.Left
+	-- The reward type is intentionally a quiet footer: the ability artwork and name must lead the card hierarchy.
+	local header = makeLabel(frame, "Header", UDim2.fromScale(0.1, 0.935), UDim2.fromScale(0.8, 0.035), 306)
+	header.FontFace = Font.new(UIStyle.Font.Family, Enum.FontWeight.Medium)
+	header.TextColor3 = accent:Lerp(Color3.fromRGB(145, 156, 164), 0.72)
+	header.TextTransparency = 0.2
+	header.TextXAlignment = Enum.TextXAlignment.Center
 
 	local details = Instance.new("CanvasGroup")
 	details.Name = "RewardDetails"
 	details.BackgroundTransparency = 1
 	details.GroupTransparency = 1
-	details.Position = UDim2.fromScale(0, 0.1)
-	details.Size = UDim2.fromScale(1, 0.9)
+	details.Position = UDim2.fromScale(0, 0)
+	details.Size = UDim2.fromScale(1, 0.92)
 	details.ZIndex = 304
 	details.Parent = frame
 
@@ -198,8 +200,8 @@ local function createCard(parent: Frame, index: number): CardView
 	iconPanel.AnchorPoint = Vector2.new(0.5, 0)
 	iconPanel.BackgroundColor3 = Color3.fromRGB(8, 12, 17)
 	iconPanel.BorderSizePixel = 0
-	iconPanel.Position = UDim2.fromScale(0.5, 0.01)
-	iconPanel.Size = UDim2.fromScale(0.88, 0.61)
+	iconPanel.Position = UDim2.fromScale(0.5, 0.025)
+	iconPanel.Size = UDim2.fromScale(0.88, 0.6)
 	iconPanel.ZIndex = 304
 	iconPanel.Parent = details
 	makeCorner(iconPanel, 6)
@@ -215,9 +217,9 @@ local function createCard(parent: Frame, index: number): CardView
 	icon.ZIndex = 306
 	icon.Parent = iconPanel
 
-	local nameLabel = makeLabel(details, "AbilityName", UDim2.fromScale(0.06, 0.64), UDim2.fromScale(0.88, 0.09), 306)
-	nameLabel.FontFace = Font.new(UIStyle.Font.Family, Enum.FontWeight.Bold)
-	local levelLabel = makeLabel(details, "Level", UDim2.fromScale(0.06, 0.73), UDim2.fromScale(0.88, 0.055), 306)
+	local nameLabel = makeLabel(details, "AbilityName", UDim2.fromScale(0.06, 0.65), UDim2.fromScale(0.88, 0.1), 306)
+	nameLabel.FontFace = Font.new(UIStyle.Font.Family, Enum.FontWeight.Heavy)
+	local levelLabel = makeLabel(details, "Level", UDim2.fromScale(0.06, 0.755), UDim2.fromScale(0.88, 0.055), 306)
 	levelLabel.FontFace = Font.new(UIStyle.Font.Family, Enum.FontWeight.Bold)
 	levelLabel.TextColor3 = accent
 
@@ -225,7 +227,7 @@ local function createCard(parent: Frame, index: number): CardView
 	statsPanel.Name = "SummaryPanel"
 	statsPanel.BackgroundColor3 = Color3.fromRGB(9, 14, 19)
 	statsPanel.BorderSizePixel = 0
-	statsPanel.Position = UDim2.fromScale(0.055, 0.81)
+	statsPanel.Position = UDim2.fromScale(0.055, 0.825)
 	statsPanel.Size = UDim2.fromScale(0.89, 0.15)
 	statsPanel.ZIndex = 304
 	statsPanel.Parent = details
@@ -419,6 +421,7 @@ end
 return function()
 	local root: Frame?
 	local chain: Frame?
+	local rowScale: UIScale?
 	local prompt: TextLabel?
 	local impactFlash: Frame?
 	local cards: { CardView } = {}
@@ -557,6 +560,11 @@ return function()
 		baseFieldOfView = Workspace.CurrentCamera and Workspace.CurrentCamera.FieldOfView or nil
 		root.Visible = true
 		chain.Position = UDim2.new(0.5, 0, 0, topOffset)
+		if rowScale then
+			-- Enlarge the complete reel so card spacing scales with it; scaling individual layout children
+			-- would make the three rolling cards overlap and remain difficult to read.
+			rowScale.Scale = ROLLING_PRESENTATION_SCALE
+		end
 		if prompt then
 			prompt.Text = if runState.pendingChoices > 1
 				then string.format("LEVEL UP  -  CHOOSE ONE  -  %d QUEUED", runState.pendingChoices)
@@ -615,12 +623,12 @@ return function()
 			card.frame.BackgroundTransparency = 0
 			card.frame.GroupTransparency = 0
 			card.frame.Rotation = 0
-			card.visualScale.Scale = 0.82
+			card.visualScale.Scale = 1
 			card.details.GroupTransparency = 1
 			card.window.GroupTransparency = 0
 			card.window.Visible = true
 			card.track.Position = UDim2.fromScale(0, 0.5 - ENTRY_HEIGHT / 2)
-			card.header.Text = if choice.kind == "New" then "NEW ABILITY" else "ABILITY UPGRADE"
+			card.header.Text = if choice.kind == "New" then "NEW ABILITY" else "UPGRADE"
 			card.icon.Image = definition.Icon
 			card.name.Text = string.upper(definition.Name)
 			card.level.Text = if choice.kind == "New"
@@ -681,6 +689,13 @@ return function()
 					end
 				end)
 				if finalLanding then
+					if rowScale then
+						TweenService:Create(
+							rowScale,
+							TweenInfo.new(0.24, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+							{ Scale = 1 }
+						):Play()
+					end
 					presentationPhase = "Choosing"
 					setSensors(true)
 				end
@@ -791,6 +806,13 @@ return function()
 				local title = makeLabel(chain, "Prompt", UDim2.fromScale(0.05, 0), UDim2.fromScale(0.9, 0.09), 301)
 				title.FontFace = Font.new(UIStyle.Font.Family, Enum.FontWeight.Bold)
 				title.Text = "LEVEL UP  -  CHOOSE ONE"
+				local titleStroke = Instance.new("UIStroke")
+				titleStroke.Name = "TextStroke"
+				titleStroke.Color = Color3.fromRGB(3, 6, 9)
+				titleStroke.StrokeSizingMode = Enum.StrokeSizingMode.ScaledSize
+				titleStroke.Thickness = 0.065
+				titleStroke.Transparency = 0.05
+				titleStroke.Parent = title
 				prompt = title
 				local row = Instance.new("Frame")
 				row.Name = "Cards"
@@ -800,6 +822,10 @@ return function()
 				row.Size = UDim2.fromScale(1, 0.895)
 				row.ZIndex = 302
 				row.Parent = chain
+				local scale = Instance.new("UIScale")
+				scale.Scale = 1
+				scale.Parent = row
+				rowScale = scale
 				local sizeConstraint = Instance.new("UISizeConstraint")
 				sizeConstraint.MaxSize = Vector2.new(510, 230)
 				sizeConstraint.Parent = row

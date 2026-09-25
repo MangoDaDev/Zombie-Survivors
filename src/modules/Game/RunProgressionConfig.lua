@@ -41,17 +41,22 @@ local RunProgressionConfig = {
 	},
 
 	Spawning = {
-		MinimumDistance = 30,
-		-- Slightly closer groups make the opening engage quickly even though its population is intentionally smaller.
-		PreferredDistance = NumberRange.new(30, 44),
-		OutsideViewDot = 0.3,
-		AttemptsPerGroup = 16,
-		ElapsedRampSeconds = 480,
-		MaximumElapsedRamp = 1.75,
+		-- The main combat floor is 300x300, so groups should enter from meaningfully beyond immediate attack range.
+		MinimumDistance = 45,
+		PreferredDistance = NumberRange.new(48, 72),
+		AttemptsPerGroup = 24,
+		-- Some groups deliberately form in the player's travel lane so endlessly running in one direction
+		-- cannot leave the entire horde behind. Velocity wins over facing once the player is actually moving.
+		ForwardSpawnChance = 0.4,
+		ForwardSpawnConeDegrees = 32,
+		MovementHeadingSpeedThreshold = 3,
+		-- Horde pressure reaches its full cadence and group-size bonus after five minutes of survival.
+		ElapsedRampSeconds = 300,
+		MaximumElapsedRamp = 3,
 		-- Total horde pressure follows the requested sublinear multiplayer curve: players ^ 0.8.
 		PlayerCountExponent = 0.8,
-		MinimumSpawnInterval = 0.55,
-		MaximumGroupMultiplier = 2,
+		MinimumSpawnInterval = 0.35,
+		MaximumGroupSizeBonus = 3,
 	},
 }
 

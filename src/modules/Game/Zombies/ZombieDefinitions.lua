@@ -4,6 +4,7 @@
 -- increase encounter pressure and reward value instead of relying on health scaling alone.
 local ZOMBIE_MOVE_SPEED_MULTIPLIER = 1.35
 local ZOMBIE_ATTACK_RANGE_MULTIPLIER = 1.35
+local ZOMBIE_AGGRO_DISTANCE_MULTIPLIER = 2.5
 
 local function define(overrides)
 	local definition = {
@@ -34,6 +35,8 @@ local function define(overrides)
 	-- remain true to their role while moving players can no longer kite contact attacks for free.
 	definition.MoveSpeed *= ZOMBIE_MOVE_SPEED_MULTIPLIER
 	definition.AttackRange *= ZOMBIE_ATTACK_RANGE_MULTIPLIER
+	-- Sight ranges are scaled for the 300x300 combat floor so distant spawns immediately join the chase.
+	definition.AggroDistance *= ZOMBIE_AGGRO_DISTANCE_MULTIPLIER
 	return definition
 end
 

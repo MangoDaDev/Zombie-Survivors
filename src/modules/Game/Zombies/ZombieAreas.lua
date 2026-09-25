@@ -18,8 +18,8 @@ local ZombieAreas = {
 		MovementCFrame = GAME_FLOOR_CFRAME,
 		MovementSize = GAME_FLOOR_SIZE,
 		HealthMultiplier = 0.5,
-		-- With no population cap, the opening builds through slow single spawns instead of front-loading a crowd.
-		SpawnInterval = 3.5,
+		-- Keep the uncapped opening lively with quick single spawns, without front-loading a grouped crowd.
+		SpawnInterval = 1.5,
 		GroupSize = NumberRange.new(1, 1),
 		GroupRadius = 10,
 		MinPlayerDistance = 28,

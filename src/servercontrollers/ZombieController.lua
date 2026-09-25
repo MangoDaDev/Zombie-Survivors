@@ -208,21 +208,34 @@ local function findGroundPosition(area, worldPosition: Vector3, candidates)
 	return surfacePosition
 end
 
+local function getTravelDirection(candidate): Vector3
+	local horizontalVelocity = Vector3.new(candidate.velocity.X, 0, candidate.velocity.Z)
+	if horizontalVelocity.Magnitude >= RunProgressionConfig.Spawning.MovementHeadingSpeedThreshold then
+		return horizontalVelocity.Unit
+	end
+	local horizontalFacing = Vector3.new(candidate.lookVector.X, 0, candidate.lookVector.Z)
+	return if horizontalFacing.Magnitude > 0.001 then horizontalFacing.Unit else Vector3.zAxis
+end
+
 local function chooseGroupCenter(area, candidates, areaCandidates)
 	local halfSize = area.Size * 0.5 - Vector2.one * maximumBoundaryRadius * VARIATION_MAXIMUM
-	local distanceRange = RunProgressionConfig.Spawning.PreferredDistance
+	local spawnConfig = RunProgressionConfig.Spawning
+	local distanceRange = spawnConfig.PreferredDistance
+	-- Decide once per group, rather than per attempt, so the configured share creates coherent
+	-- interception groups while failed edge-of-map attempts can still fall back to any direction.
+	local preferForward = random:NextNumber() < spawnConfig.ForwardSpawnChance
+	local forwardAttempts = math.floor(spawnConfig.AttemptsPerGroup * 0.6)
 	for attempt = 1, RunProgressionConfig.Spawning.AttemptsPerGroup do
 		local anchor = areaCandidates[random:NextInteger(1, #areaCandidates)]
-		local angle = random:NextNumber(0, math.pi * 2)
-		local direction = Vector3.new(math.cos(angle), 0, math.sin(angle))
-		local forward = Vector3.new(anchor.lookVector.X, 0, anchor.lookVector.Z)
-		-- Most attempts prefer the character's rear hemisphere; later attempts relax this so enclosed
-		-- layouts do not stall spawning when every off-screen point is obstructed or outside the floor.
-		if attempt <= math.floor(RunProgressionConfig.Spawning.AttemptsPerGroup * 0.7)
-			and forward.Magnitude > 0.001
-			and forward.Unit:Dot(direction) > RunProgressionConfig.Spawning.OutsideViewDot
-		then
-			continue
+		local direction
+		if preferForward and attempt <= forwardAttempts then
+			local heading = getTravelDirection(anchor)
+			local coneRadians = math.rad(spawnConfig.ForwardSpawnConeDegrees)
+			local yawOffset = random:NextNumber(-coneRadians, coneRadians)
+			direction = CFrame.fromAxisAngle(Vector3.yAxis, yawOffset):VectorToWorldSpace(heading)
+		else
+			local angle = random:NextNumber(0, math.pi * 2)
+			direction = Vector3.new(math.cos(angle), 0, math.sin(angle))
 		end
 		local distance = random:NextNumber(distanceRange.Min, distanceRange.Max)
 		local desired = anchor.position + direction * distance
@@ -299,24 +312,26 @@ end
 
 local function getPressure(areaPlayerCount: number, now: number)
 	local config = RunProgressionConfig.Spawning
-	local elapsedAlpha = math.clamp((now - runStartedAt) / config.ElapsedRampSeconds, 0, 1)
+	-- Match the visible survival timer: pressure begins rising only after the first zombie actually spawns.
+	local pressureStartedAt = firstZombieSpawnedAt or runStartedAt
+	local elapsedAlpha = math.clamp((now - pressureStartedAt) / config.ElapsedRampSeconds, 0, 1)
 	local elapsedMultiplier = 1 + elapsedAlpha * (config.MaximumElapsedRamp - 1)
 	local playerMultiplier = math.max(areaPlayerCount, 1) ^ config.PlayerCountExponent
-	-- With no population cap, pressure scales through cadence while retaining players ^ 0.8 party scaling.
+	-- With no population cap, pressure scales continuously through cadence while retaining players ^ 0.8 party scaling.
 	local rateMultiplier = elapsedMultiplier * playerMultiplier
-	return rateMultiplier, elapsedMultiplier
+	return rateMultiplier, elapsedAlpha
 end
 
-local function spawnGroup(area, candidates, areaCandidates, serverTime, elapsedMultiplier)
+local function spawnGroup(area, candidates, areaCandidates, serverTime, elapsedAlpha)
 	local groupCenter = chooseGroupCenter(area, candidates, areaCandidates)
 	if not groupCenter then
 		return
 	end
 
-	local maximumGroupSize = math.max(
-		area.GroupSize.Min,
-		math.floor(area.GroupSize.Max * math.min(elapsedMultiplier, RunProgressionConfig.Spawning.MaximumGroupMultiplier))
-	)
+	-- Additive growth makes even the one-zombie opening group become dangerous over time without
+	-- multiplying already-large late-area groups into extreme single-frame spawn bursts.
+	local groupSizeBonus = math.floor(elapsedAlpha * RunProgressionConfig.Spawning.MaximumGroupSizeBonus + 0.001)
+	local maximumGroupSize = math.max(area.GroupSize.Min, area.GroupSize.Max + groupSizeBonus)
 	local requestedSize = random:NextInteger(area.GroupSize.Min, maximumGroupSize)
 	local groupSize = requestedSize
 	local spawnPackets = {}
@@ -392,14 +407,14 @@ local function stepSimulation(deltaTime)
 				table.insert(areaCandidates, candidate)
 			end
 		end
-		local rateMultiplier, elapsedMultiplier = getPressure(#areaCandidates, now)
+		local rateMultiplier, elapsedAlpha = getPressure(#areaCandidates, now)
 		if now >= runtime.nextSpawnAt then
 			runtime.nextSpawnAt = now
 				+ math.max(area.SpawnInterval / math.max(rateMultiplier, 1), RunProgressionConfig.Spawning.MinimumSpawnInterval)
 			-- Only occupied combat floors spawn enemies; each group is placed around one of that floor's
 			-- living players instead of silently filling remote areas they cannot currently interact with.
 			if #areaCandidates > 0 then
-				spawnGroup(area, candidates, areaCandidates, now, elapsedMultiplier)
+				spawnGroup(area, candidates, areaCandidates, now, elapsedAlpha)
 			end
 		end
 	end
