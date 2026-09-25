@@ -2,6 +2,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
+local Button = require(script.Parent.Parent.Classes.Button)
 local StudTexture = require(script.Parent.Parent.Classes.StudTexture)
 local RunSessionController = require(ReplicatedStorage.Controllers.RunSessionController)
 local FormatNumber = require(ReplicatedStorage.Modules.Math.FormatNumber)
@@ -64,6 +65,7 @@ return function()
 	local state = source(initialState)
 	local remaining = source(if initialState.active then math.max(initialState.returnAt - Workspace:GetServerTimeNow(), 0) else 0)
 	local failureMessage = source("")
+	local replayPending = source(false)
 	local visible = derive(function()
 		return state().active == true
 	end)
@@ -80,9 +82,14 @@ return function()
 	local stateConnection = RunSessionController.GetStateChangedSignal():Connect(function(packet)
 		state(packet)
 		failureMessage("")
+		replayPending(false)
 		remaining(if packet.active then math.max(packet.returnAt - Workspace:GetServerTimeNow(), 0) else 0)
 	end)
 	local failureConnection = RunSessionController.GetReturnFailedSignal():Connect(function(message)
+		failureMessage(message)
+	end)
+	local replayFailureConnection = RunSessionController.GetReplayFailedSignal():Connect(function(message)
+		replayPending(false)
 		failureMessage(message)
 	end)
 	local elapsed = 0
@@ -99,6 +106,7 @@ return function()
 	cleanup(function()
 		stateConnection:Disconnect()
 		failureConnection:Disconnect()
+		replayFailureConnection:Disconnect()
 		heartbeatConnection:Disconnect()
 	end)
 
@@ -229,6 +237,9 @@ return function()
 					if failureMessage() ~= "" then
 						return failureMessage()
 					end
+					if replayPending() then
+						return "RESTARTING RUN..."
+					end
 					return string.format("RETURNING TO LOBBY IN %d", math.ceil(remaining()))
 				end,
 				TextColor3 = function()
@@ -259,14 +270,44 @@ return function()
 				},
 			},
 			create "TextLabel" {
+				Name = "TeammateStatus",
 				BackgroundTransparency = 1,
 				FontFace = UIStyle.Font,
-				Position = UDim2.fromScale(0.08, 0.89),
-				Size = UDim2.fromScale(0.84, 0.04),
+				Position = UDim2.fromScale(0.08, 0.705),
+				Size = UDim2.fromScale(0.84, 0.03),
 				Text = "YOUR TEAMMATES CAN KEEP FIGHTING",
 				TextColor3 = Color3.fromRGB(126, 137, 147),
 				TextScaled = true,
 				ZIndex = 405,
+			},
+			create "Frame" {
+				Name = "ReplayAction",
+				BackgroundTransparency = 1,
+				Position = UDim2.fromScale(0.08, 0.885),
+				Size = UDim2.fromScale(0.84, 0.085),
+				ZIndex = 405,
+				Button({
+					Text = function()
+						return if replayPending() then "RESTARTING..." else "PLAY AGAIN"
+					end,
+					Enabled = function()
+						return visible() and not replayPending()
+					end,
+					BackgroundColor3 = UIStyle.Colors.Green,
+					CornerRadius = UIStyle.CornerRadius,
+					FontFace = Font.new(UIStyle.Font.Family, Enum.FontWeight.Bold),
+					MaxTextSize = 22,
+					MinTextSize = 13,
+					Size = UDim2.fromScale(1, 1),
+					OnActivated = function()
+						if replayPending() or not visible() then
+							return
+						end
+						failureMessage("")
+						replayPending(true)
+						RunSessionController.RequestReplay()
+					end,
+				}),
 			},
 		},
 	}

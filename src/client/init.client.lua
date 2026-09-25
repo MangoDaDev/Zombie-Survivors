@@ -18,6 +18,7 @@ local modules_to_init = {
 	ReplicatedStorage.Controllers.ZombieController,
 	ReplicatedStorage.Controllers.CoinDropController,
 	ReplicatedStorage.Controllers.XPDropController,
+	ReplicatedStorage.Controllers.PowerupDropController,
 	ReplicatedStorage.Controllers.PartyTeleporterController,
 	ReplicatedStorage.UI.UIOrigin,
 }

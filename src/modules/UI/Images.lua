@@ -59,6 +59,12 @@ local Images = {
 		Fireball = "rbxassetid://84367243209042",
 		Lightning = "rbxassetid://84367243209042",
 		Boomerang = "rbxassetid://84367243209042",
+		-- Semantic entries keep these weapons ready for unique authored icons without changing UI consumers.
+		Aura = "rbxassetid://97437550220113", -- TODO: Replace with the uploaded Aura icon.
+		Ball = "rbxassetid://117589844207603", -- TODO: Replace with the uploaded Ball icon.
+		Drill = "rbxassetid://109595730626206", -- TODO: Replace with the uploaded Drill icon.
+		Mine = "rbxassetid://86050971312005", -- TODO: Replace with the uploaded Mine icon.
+		Poison = "rbxassetid://135880301537221", -- TODO: Replace with the uploaded Poison icon.
 		-- These semantic entries keep each passive on one stable icon across rolls, inventory, slots, and upgrades.
 		Blast = "rbxassetid://86050971312005",
 		Burn = "rbxassetid://86050971312005",

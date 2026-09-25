@@ -6,6 +6,7 @@ local ServerStorage = game:GetService("ServerStorage")
 local Networker = require(ReplicatedStorage.Packages.networker)
 local AbilityController = require(ServerStorage.Controllers.AbilityController)
 local BackpackController = require(ServerStorage.Controllers.BackpackController)
+local CharacterController = require(ServerStorage.Controllers.CharacterController)
 local CoinDropController = require(ServerStorage.Controllers.CoinDropController)
 local PartyTeleportService = require(ServerStorage.Controllers.PartyTeleportService)
 local RageController = require(ServerStorage.Controllers.RageController)
@@ -23,6 +24,7 @@ type RunRuntime = {
 	resultPacket: any?,
 	deathConnection: RBXScriptConnection?,
 	returnToken: number,
+	restarting: boolean,
 }
 
 local RunSessionController = {}
@@ -49,6 +51,7 @@ local function initializePlayer(player: Player)
 		resultPacket = nil,
 		deathConnection = nil,
 		returnToken = 0,
+		restarting = false,
 	}
 end
 
@@ -109,9 +112,60 @@ function RunSessionController.GetSnapshot(_, player: Player)
 	return runtime and (runtime.resultPacket or { active = false, startedAt = runtime.startedAt }) or { active = false }
 end
 
+function RunSessionController.RequestReplay(_, player: Player)
+	local runtime = runtimes[player]
+	if
+		not runtime
+		or not runtime.ended
+		or runtime.restarting
+		or player.Parent ~= Players
+		or not ServerContext.IsGameServer()
+	then
+		return
+	end
+
+	runtime.restarting = true
+	-- Replaying is an in-server character reload. Invalidating the token guarantees the old delayed lobby
+	-- teleport cannot race the reload and move the player into a different server after they press Play Again.
+	runtime.returnToken += 1
+	disconnectDeath(runtime)
+
+	if not CharacterController.ReloadCharacter(player) then
+		runtime.restarting = false
+		local resultPacket = runtime.resultPacket
+		if resultPacket then
+			local token = runtime.returnToken
+			task.delay(math.max(resultPacket.returnAt - workspace:GetServerTimeNow(), 0), returnPlayerToLobby, player, runtime, token)
+		end
+		if sessionNetwork and player.Parent == Players then
+			sessionNetwork:fire(player, "ReplayFailed", "Could not restart the run. Please try again.")
+		end
+		return
+	end
+
+	local startedAt = workspace:GetServerTimeNow()
+	runtime.startedAt = startedAt
+	runtime.zombiesKilled = 0
+	runtime.coinsCollected = 0
+	runtime.ended = false
+	runtime.resultPacket = nil
+	runtime.restarting = false
+
+	AbilityController.RestartRun(player)
+	RunProgressionController.RestartRun(player)
+	RageController.EndRun(player)
+	BackpackController.SetCarriedCoins(player, 0)
+	RunSessionController.OnCharacterAdded(player, player.Character)
+
+	if sessionNetwork and player.Parent == Players then
+		sessionNetwork:fire(player, "RunStarted", startedAt)
+	end
+end
+
 function RunSessionController.Init()
 	sessionNetwork = Networker.server.new("RunSessionController", RunSessionController, {
 		RunSessionController.GetSnapshot,
+		RunSessionController.RequestReplay,
 	})
 	local function beginSurvivalClock(startedAt: number)
 		for player, runtime in runtimes do

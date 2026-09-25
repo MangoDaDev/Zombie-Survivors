@@ -245,6 +245,18 @@ function RunProgressionController.EndRun(player: Player)
 	end
 end
 
+function RunProgressionController.RestartRun(player: Player): boolean
+	if player.Parent ~= Players or not ServerContext.IsGameServer() then
+		return false
+	end
+
+	-- Replays start at level one with no queued choices while persistent ability ownership remains untouched.
+	endedPlayers[player] = nil
+	states[player] = nil
+	initializePlayer(player)
+	return states[player] ~= nil
+end
+
 function RunProgressionController.GetSnapshot(_, player: Player)
 	if not states[player] then
 		initializePlayer(player)

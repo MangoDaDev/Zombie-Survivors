@@ -1,6 +1,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Images = require(ReplicatedStorage.Modules.UI.Images)
+local CrowdWeaponDefinitions = require(script.Parent.CrowdWeaponDefinitions)
 
 local AbilityDefinitions = {}
 
@@ -1291,7 +1292,13 @@ function thorns.GetStatsText(level: number): string
 	return table.concat(lines, "\n")
 end
 
-AbilityDefinitions.List = { dagger, orbitingSwords, fireball, lightning, boomerang, heart, boots, blast, burn, thorns }
+AbilityDefinitions.List = { dagger, orbitingSwords, fireball, lightning, boomerang }
+for _, definition in CrowdWeaponDefinitions.List do
+	table.insert(AbilityDefinitions.List, definition)
+end
+for _, definition in { heart, boots, blast, burn, thorns } do
+	table.insert(AbilityDefinitions.List, definition)
+end
 AbilityDefinitions.ById = {
 	[dagger.Id] = dagger,
 	[orbitingSwords.Id] = orbitingSwords,
@@ -1304,6 +1311,9 @@ AbilityDefinitions.ById = {
 	[burn.Id] = burn,
 	[thorns.Id] = thorns,
 }
+for _, definition in CrowdWeaponDefinitions.List do
+	AbilityDefinitions.ById[definition.Id] = definition
+end
 
 function AbilityDefinitions.GetUpgradeCost(ability, currentLevel: number): number?
 	if currentLevel >= ability.MaxLevel then

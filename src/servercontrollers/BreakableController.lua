@@ -7,6 +7,7 @@ local Workspace = game:GetService("Workspace")
 
 local BreakableConfig = require(script.Parent.Breakable.BreakableConfig)
 local MapController = require(script.Parent.MapController)
+local PowerupDropController = require(script.Parent.PowerupDropController)
 local ServerContext = require(script.Parent.ServerContext)
 
 type Breakable = {
@@ -193,6 +194,10 @@ local function breakModel(breakable: Breakable, hitOrigin: Vector3?, knockbackIm
 	breakable.feedbackSequence += 1
 	local model = breakable.model
 	local primaryPart = model.PrimaryPart
+	local boundingCFrame, boundingSize = model:GetBoundingBox()
+	-- Every destroyed prop releases exactly one collectible; use its actual lower bound so tall authored
+	-- models do not leave the reward floating above the floor.
+	PowerupDropController.Spawn(breakable.position, boundingCFrame.Position.Y - boundingSize.Y * 0.5)
 	if primaryPart then
 		playSound(primaryPart, BreakableConfig.BreakSounds, 0.8)
 	end

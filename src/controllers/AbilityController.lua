@@ -11,6 +11,7 @@ local NotificationManager = require(ReplicatedStorage.Modules.UI.NotificationMan
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
 local UIStyle = require(ReplicatedStorage.Modules.UI.UIStyle)
 local ActiveWeaponEffects = require(script.Parent.Ability.ActiveWeaponEffects)
+local CrowdWeaponEffects = require(script.Parent.Ability.CrowdWeaponEffects)
 local OrbitingSwordsView = require(script.Parent.Ability.OrbitingSwordsView)
 local PassiveEffectsView = require(script.Parent.Ability.PassiveEffectsView)
 
@@ -196,6 +197,7 @@ local function renderProjectiles(deltaTime: number)
 		end
 	end
 	ActiveWeaponEffects.Render(now, deltaTime)
+	CrowdWeaponEffects.Render(now, deltaTime)
 	OrbitingSwordsView.Render(now, deltaTime)
 	PassiveEffectsView.Render()
 end
@@ -353,8 +355,73 @@ function AbilityController.BoomerangEnded(_, id)
 	ActiveWeaponEffects.BoomerangEnded(id)
 end
 
+function AbilityController.AuraState(_, packet)
+	CrowdWeaponEffects.AuraState(packet)
+end
+
+function AbilityController.AuraHit(_, packet)
+	CrowdWeaponEffects.AuraHit(packet)
+end
+
+function AbilityController.AuraPulse(_, packet)
+	CrowdWeaponEffects.AuraPulse(packet)
+end
+
+function AbilityController.BallSpawned(_, packet)
+	CrowdWeaponEffects.BallSpawned(packet)
+end
+
+function AbilityController.BallRedirected(_, packet)
+	CrowdWeaponEffects.BallRedirected(packet)
+end
+
+function AbilityController.BallHit(_, packet)
+	CrowdWeaponEffects.BallHit(packet)
+end
+
+function AbilityController.BallEnded(_, id)
+	CrowdWeaponEffects.BallEnded(id)
+end
+
+function AbilityController.DrillSpawned(_, packet)
+	CrowdWeaponEffects.DrillSpawned(packet)
+end
+
+function AbilityController.DrillHit(_, packet)
+	CrowdWeaponEffects.DrillHit(packet)
+end
+
+function AbilityController.DrillEnded(_, id)
+	CrowdWeaponEffects.DrillEnded(id)
+end
+
+function AbilityController.MinePlaced(_, packet)
+	CrowdWeaponEffects.MinePlaced(packet)
+end
+
+function AbilityController.MineTriggered(_, packet)
+	CrowdWeaponEffects.MineTriggered(packet)
+end
+
+function AbilityController.MineExploded(_, packet)
+	CrowdWeaponEffects.MineExploded(packet)
+end
+
+function AbilityController.MineRemoved(_, id)
+	CrowdWeaponEffects.MineRemoved(id)
+end
+
+function AbilityController.PoisonCreated(_, packet)
+	CrowdWeaponEffects.PoisonCreated(packet)
+end
+
+function AbilityController.PoisonRemoved(_, id)
+	CrowdWeaponEffects.PoisonRemoved(id)
+end
+
 function AbilityController.AbilityEffectsCleared(_, ownerUserId, abilityId)
 	ActiveWeaponEffects.AbilityEffectsCleared(ownerUserId, abilityId)
+	CrowdWeaponEffects.AbilityEffectsCleared(ownerUserId, abilityId)
 end
 
 function AbilityController.SetDataService(service)
@@ -367,6 +434,7 @@ function AbilityController.Init()
 	effectsFolder.Name = "AbilityEffects"
 	effectsFolder.Parent = Workspace
 	ActiveWeaponEffects.Init(effectsFolder)
+	CrowdWeaponEffects.Init(effectsFolder)
 	OrbitingSwordsView.Init(effectsFolder)
 	PassiveEffectsView.Init(effectsFolder)
 	renderConnection = RunService.RenderStepped:Connect(renderProjectiles)

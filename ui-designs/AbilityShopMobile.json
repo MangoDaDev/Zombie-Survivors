@@ -1,0 +1,56 @@
+{
+  "pinevex_object": {
+    "type": "Frame", "name": "Preview", "size": [1, 0, 1, 0], "bg": [12, 18, 27],
+    "children": [
+      { "type": "Frame", "name": "Dim", "size": [1, 0, 1, 0], "bg": [2, 8, 14], "bgTransparency": 0.18, "children": [] },
+      {
+        "type": "Frame", "name": "Panel", "size": [1, -18, 1, -30], "position": [0.5, 0, 0.5, 0], "anchor": [0.5, 0.5], "bg": [3, 18, 30],
+        "strokes": [{ "thickness": 6, "color": [0, 5, 10], "applyMode": "Border" }, { "thickness": 3, "color": [0, 184, 219], "applyMode": "Border" }],
+        "children": [
+          { "type": "Frame", "name": "Header", "size": [1, -76, 0, 82], "position": [0, 9, 0, 9], "bg": [16, 168, 219], "gradient": { "rotation": 90, "colors": [[0, "#22DCFA"], [1, "#126CBF"]], "transparency": [[0, 0], [1, 0]] }, "strokes": [{ "thickness": 2, "color": [69, 229, 249], "applyMode": "Border" }], "children": [
+            { "type": "TextLabel", "name": "Title", "size": [1, -18, 0, 42], "position": [0, 10, 0, 5], "bgTransparency": 1, "text": "ABILITY ARSENAL", "textColor": [255, 255, 255], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Heavy", "strokes": [{ "thickness": 3, "color": [0, 20, 36] }] },
+            { "type": "TextLabel", "name": "Balance", "size": [1, -18, 0, 24], "position": [0, 10, 0, 52], "bgTransparency": 1, "text": "COINS  2,450", "textColor": [255, 226, 137], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Heavy" }
+          ] },
+          { "type": "TextButton", "name": "Close", "size": [0, 50, 0, 82], "position": [1, -9, 0, 9], "anchor": [1, 0], "bg": [221, 57, 67], "text": "X", "textColor": [255, 255, 255], "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy", "strokes": [{ "thickness": 3, "color": [80, 15, 23], "applyMode": "Border" }] },
+          { "type": "TextButton", "name": "WeaponsTab", "size": [0.5, -14, 0, 42], "position": [0, 9, 0, 102], "bg": [16, 155, 211], "text": "WEAPONS  3/10", "textColor": [255, 255, 255], "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy", "strokes": [{ "thickness": 2, "color": [0, 65, 94], "applyMode": "Border" }] },
+          { "type": "TextButton", "name": "PassivesTab", "size": [0.5, -14, 0, 42], "position": [0.5, 5, 0, 102], "bg": [29, 48, 62], "text": "PASSIVES  1/5", "textColor": [164, 188, 201], "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy", "strokes": [{ "thickness": 2, "color": [5, 15, 23], "applyMode": "Border" }] },
+          { "type": "Frame", "name": "Catalog", "size": [1, -18, 0, 204], "position": [0, 9, 0, 154], "bg": [4, 29, 45], "strokes": [{ "thickness": 2, "color": [0, 120, 148], "applyMode": "Border" }], "children": [
+            { "type": "Frame", "name": "Boomerang", "size": [1, -12, 0, 76], "position": [0, 6, 0, 6], "bg": [12, 73, 98], "strokes": [{ "thickness": 3, "color": [95, 183, 255], "applyMode": "Border" }], "children": [
+              { "type": "ImageLabel", "name": "Icon", "size": [0, 50, 0, 50], "position": [0, 8, 0.5, 0], "anchor": [0, 0.5], "bgTransparency": 1, "icon": "rbxassetid://84367243209042" },
+              { "type": "TextLabel", "name": "Name", "size": [0.5, 0, 0, 26], "position": [0, 66, 0, 10], "bgTransparency": 1, "text": "BOOMERANG", "textColor": [255, 255, 255], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Heavy" },
+              { "type": "TextLabel", "name": "Rarity", "size": [0.5, 0, 0, 18], "position": [0, 66, 0, 43], "bgTransparency": 1, "text": "RARE WEAPON", "textColor": [140, 210, 255], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Bold" },
+              { "type": "TextLabel", "name": "Cost", "size": [0, 86, 0, 28], "position": [1, -8, 0.5, 0], "anchor": [1, 0.5], "bg": [67, 55, 26], "text": "600", "textColor": [255, 224, 129], "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy", "strokes": [{ "thickness": 2, "color": [210, 157, 47], "applyMode": "Border" }] }
+            ] },
+            { "type": "Frame", "name": "Fireball", "size": [1, -12, 0, 76], "position": [0, 6, 0, 90], "bg": [24, 39, 50], "strokes": [{ "thickness": 2, "color": [76, 105, 119], "applyMode": "Border" }], "children": [
+              { "type": "ImageLabel", "name": "Icon", "size": [0, 50, 0, 50], "position": [0, 8, 0.5, 0], "anchor": [0, 0.5], "bgTransparency": 1, "icon": "rbxassetid://84367243209042", "imageColor": [255, 109, 57] },
+              { "type": "TextLabel", "name": "Name", "size": [0.5, 0, 0, 26], "position": [0, 66, 0, 10], "bgTransparency": 1, "text": "FIREBALL", "textColor": [255, 255, 255], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Heavy" },
+              { "type": "TextLabel", "name": "Rarity", "size": [0.52, 0, 0, 18], "position": [0, 66, 0, 43], "bgTransparency": 1, "text": "LEGENDARY", "textColor": [255, 178, 82], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Bold" },
+              { "type": "TextLabel", "name": "Cost", "size": [0, 86, 0, 28], "position": [1, -8, 0.5, 0], "anchor": [1, 0.5], "bg": [67, 55, 26], "text": "1,600", "textColor": [255, 224, 129], "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy", "strokes": [{ "thickness": 2, "color": [210, 157, 47], "applyMode": "Border" }] }
+            ] },
+            { "type": "TextLabel", "name": "Hint", "size": [1, -12, 0, 26], "position": [0, 6, 1, -32], "bgTransparency": 1, "text": "SCROLL FOR MORE", "textColor": [92, 143, 164], "textScaled": true, "font": "Ubuntu", "fontWeight": "Bold" }
+          ] },
+          { "type": "Frame", "name": "Details", "size": [1, -18, 1, -378], "position": [0, 9, 0, 368], "bg": [235, 242, 247], "strokes": [{ "thickness": 2, "color": [96, 145, 171], "applyMode": "Border" }], "children": [
+            { "type": "ImageLabel", "name": "Preview", "size": [0, 92, 0, 92], "position": [0, 14, 0, 14], "bgTransparency": 1, "icon": "rbxassetid://84367243209042" },
+            { "type": "TextLabel", "name": "Name", "size": [1, -128, 0, 38], "position": [0, 116, 0, 12], "bgTransparency": 1, "text": "BOOMERANG", "textColor": [36, 113, 168], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Heavy" },
+            { "type": "TextLabel", "name": "Rarity", "size": [1, -128, 0, 21], "position": [0, 117, 0, 55], "bgTransparency": 1, "text": "RARE WEAPON", "textColor": [67, 92, 108], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Bold" },
+            { "type": "TextLabel", "name": "Description", "size": [1, -128, 0, 54], "position": [0, 117, 0, 82], "bgTransparency": 1, "text": "Damages zombies on the way out and on the return.", "textColor": [24, 41, 52], "textScaled": true, "textWrapped": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Regular" },
+            { "type": "Frame", "name": "Stats", "size": [1, -28, 0, 104], "position": [0, 14, 0, 150], "bg": [205, 220, 229], "strokes": [{ "thickness": 2, "color": [110, 143, 160], "applyMode": "Border" }], "children": [
+              { "type": "TextLabel", "name": "StatsTitle", "size": [1, -20, 0, 24], "position": [0, 10, 0, 8], "bgTransparency": 1, "text": "STARTING RUN STATS", "textColor": [36, 92, 120], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Heavy" },
+              { "type": "TextLabel", "name": "DamageLabel", "size": [0.48, 0, 0, 18], "position": [0, 8, 0, 43], "bgTransparency": 1, "text": "DAMAGE", "textColor": [50, 91, 111], "textScaled": true, "font": "Ubuntu", "fontWeight": "Bold" },
+              { "type": "TextLabel", "name": "DamageValue", "size": [0.48, 0, 0, 24], "position": [0, 8, 0, 67], "bgTransparency": 1, "text": "18 > 19", "textColor": [25, 45, 57], "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy" },
+              { "type": "TextLabel", "name": "CooldownLabel", "size": [0.48, -8, 0, 18], "position": [0.52, 0, 0, 43], "bgTransparency": 1, "text": "COOLDOWN", "textColor": [50, 91, 111], "textScaled": true, "font": "Ubuntu", "fontWeight": "Bold" },
+              { "type": "TextLabel", "name": "CooldownValue", "size": [0.48, -8, 0, 24], "position": [0.52, 0, 0, 67], "bgTransparency": 1, "text": "2.1s > 2.0s", "textColor": [25, 45, 57], "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy" }
+            ] },
+            { "type": "Frame", "name": "RunInfo", "size": [1, -28, 0, 68], "position": [0, 14, 0, 270], "bg": [218, 239, 246], "strokes": [{ "thickness": 2, "color": [78, 170, 193], "applyMode": "Border" }], "children": [
+              { "type": "TextLabel", "name": "RunInfoTitle", "size": [1, -20, 0, 26], "position": [0, 10, 0, 8], "bgTransparency": 1, "text": "PERMANENT UNLOCK", "textColor": [17, 76, 96], "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy" },
+              { "type": "TextLabel", "name": "RunInfoText", "size": [1, -20, 0, 22], "position": [0, 10, 0, 39], "bgTransparency": 1, "text": "Appears in future run choices.", "textColor": [17, 76, 96], "textScaled": true, "font": "Ubuntu", "fontWeight": "Bold" }
+            ] },
+            { "type": "TextButton", "name": "Unlock", "size": [1, -28, 0, 54], "position": [0, 14, 1, -68], "bg": [237, 169, 45], "text": "UNLOCK FOR 600 COINS", "textColor": [255, 255, 255], "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy", "strokes": [{ "thickness": 3, "color": [105, 66, 10], "applyMode": "Border" }, { "thickness": 2, "color": [105, 66, 10] }] }
+          ] }
+        ]
+      }
+    ]
+  },
+  "viewport_size": [390, 844],
+  "transparent_background": false
+}

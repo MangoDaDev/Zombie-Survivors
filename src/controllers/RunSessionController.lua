@@ -5,9 +5,11 @@ local Signal = require(ReplicatedStorage.Packages.signal)
 
 local RunSessionController = {}
 
+local sessionNetwork: Networker.Client?
 local state = { active = false }
 local stateChanged = Signal.new()
 local returnFailed = Signal.new()
+local replayFailed = Signal.new()
 
 local function isValidPacket(packet): boolean
 	if type(packet) ~= "table" or type(packet.active) ~= "boolean" then
@@ -50,9 +52,15 @@ function RunSessionController.LobbyReturnFailed(_, message)
 	end
 end
 
+function RunSessionController.ReplayFailed(_, message)
+	if type(message) == "string" and message ~= "" then
+		replayFailed:Fire(message)
+	end
+end
+
 function RunSessionController.Init()
-	local network = Networker.client.new("RunSessionController", RunSessionController)
-	setState(network:fetch("GetSnapshot"))
+	sessionNetwork = Networker.client.new("RunSessionController", RunSessionController)
+	setState((sessionNetwork :: Networker.Client):fetch("GetSnapshot"))
 end
 
 function RunSessionController.GetState()
@@ -65,6 +73,16 @@ end
 
 function RunSessionController.GetReturnFailedSignal()
 	return returnFailed
+end
+
+function RunSessionController.GetReplayFailedSignal()
+	return replayFailed
+end
+
+function RunSessionController.RequestReplay()
+	if sessionNetwork and state.active then
+		(sessionNetwork :: Networker.Client):fire("RequestReplay")
+	end
 end
 
 return RunSessionController

@@ -75,7 +75,7 @@ For substantial visual UI work, do not consider the task complete until the Pine
 
 
 If the user PROMPTS you to create models, create them in the stud style:
-Use a classic Roblox Stud Building Style: construct assets entirely from simple rectangular Parts, with chunky proportions, strong silhouettes, and visible studs on appropriate surfaces. Approximate curves, slopes, and complex forms using layered, stepped, or rotated blocks rather than smooth geometry. Keep colors and materials simple, use purposeful structural layering, and avoid excessive micro-detail. Assets should feel deliberately hand-built in Roblox Studio, readable from gameplay distance, and consistent with classic Roblox construction. Do not use MeshParts, SpecialMeshes, Cylinders, Balls, Wedges, or CornerWedges. Make sure to put the models in the appropriate folder. Do not generate on runtime.
+Use a classic Roblox Stud Building Style: construct assets entirely from simple rectangular Parts, with chunky proportions, strong silhouettes, and visible studs on appropriate surfaces. Approximate curves, slopes, and complex forms using layered, stepped, or rotated blocks rather than smooth geometry. Keep colors and materials simple, use purposeful structural layering, and avoid excessive micro-detail. Assets should feel deliberately hand-built in Roblox Studio, readable from gameplay distance, and consistent with classic Roblox construction. Do not use MeshParts, SpecialMeshes, Cylinders, Balls, Wedges, or CornerWedges. Make sure to put the models in the appropriate folder. Do not generate on runtime. Make sure the material is set to plastic (not smooth) and ALL the surfaces are studs.
 
 If vfx does not exist and the player has prompted you to create it yourself:
 

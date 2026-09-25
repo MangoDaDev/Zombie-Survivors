@@ -299,6 +299,22 @@ local function beginCollection(coin: CoinState, player: Player, now: number)
 	coinNetwork:fireAll("CollectCoin", coin.id, player.UserId, now, CoinDropConfig.CollectionDuration)
 end
 
+function CoinDropController.CollectAll(player: Player): number
+	if player.Parent ~= Players or not getLiveRoot(player) then
+		return 0
+	end
+	local collectedCount = 0
+	local now = workspace:GetServerTimeNow()
+	for _, coin in coins do
+		if not coin.collectingPlayer and canCollect(coin, player) then
+			-- Scrap Magnet is an authoritative reward, so it may start collection outside the normal radius.
+			beginCollection(coin, player, now)
+			collectedCount += 1
+		end
+	end
+	return collectedCount
+end
+
 local function sendAuthoritativeCoinState(player: Player, id: number, coin: CoinState?, now: number)
 	if not coin then
 		coinNetwork:fire(player, "DespawnCoins", { id })

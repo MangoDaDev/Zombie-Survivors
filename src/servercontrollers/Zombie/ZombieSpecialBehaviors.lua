@@ -27,7 +27,11 @@ end
 
 local function moveToward(zombie, direction, distance, deltaTime, facing, stopDistance, speedMultiplier)
 	local travelDistance = math.min(
-		zombie.definition.MoveSpeed * zombie.moveSpeedMultiplier * (speedMultiplier or 1) * deltaTime,
+		zombie.definition.MoveSpeed
+			* zombie.moveSpeedMultiplier
+			* zombie.statusMoveSpeedMultiplier
+			* (speedMultiplier or 1)
+			* deltaTime,
 		math.max(distance - stopDistance, 0)
 	)
 	zombie.cframe = CFrame.new(zombie.cframe.Position + direction * travelDistance) * facing

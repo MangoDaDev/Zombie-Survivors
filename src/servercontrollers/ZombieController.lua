@@ -8,6 +8,7 @@ local GetRandomFromWeightedTable =
 local ServerContext = require(script.Parent.ServerContext)
 local MapController = require(script.Parent.MapController)
 local RunProgressionConfig = require(ReplicatedStorage.Modules.Game.RunProgressionConfig)
+local RuntimeState = require(ReplicatedStorage.Modules.Game.RuntimeState)
 local ZombieAreas = require(ReplicatedStorage.Modules.Game.Zombies.ZombieAreas)
 local ZombieDefinitions = require(ReplicatedStorage.Modules.Game.Zombies.ZombieDefinitions)
 local ZombieProtocol = require(ReplicatedStorage.Modules.Game.Zombies.ZombieProtocol)
@@ -52,6 +53,11 @@ type DamageContext = {
 local function onZombieDamagedPlayer(zombie, player: Player, actualDamage: number)
 	-- This server-only signal carries the exact attacker and post-mitigation health loss to defensive passives.
 	playerDamagedByZombie:Fire(player, zombie.id, zombie.cframe.Position, actualDamage)
+end
+
+local function isPlayerInvulnerable(player: Player): boolean
+	local endsAt = RuntimeState.Get(player, "GuardianHaloEndsAt", 0)
+	return type(endsAt) == "number" and workspace:GetServerTimeNow() < endsAt
 end
 
 local function createVariation(definition)
@@ -157,6 +163,7 @@ end
 local zombieServices = {
 	Random = random,
 	OnPlayerDamaged = onZombieDamagedPlayer,
+	IsPlayerInvulnerable = isPlayerInvulnerable,
 	BroadcastAbility = broadcastAbility,
 	DamagePlayersInRadius = damagePlayersInRadius,
 	DamageZombiesInRadius = damageZombiesInRadius,
@@ -645,6 +652,34 @@ function ZombieController.GetZombiesInRadius(position: Vector3, maximumDistance:
 		end
 	end
 	return candidates
+end
+
+function ZombieController.SlowZombiesInRadius(
+	position: Vector3,
+	maximumDistance: number,
+	moveSpeedMultiplier: number,
+	duration: number,
+	maximumCount: number?
+): { number }
+	if typeof(position) ~= "Vector3"
+		or type(maximumDistance) ~= "number"
+		or maximumDistance <= 0
+		or type(moveSpeedMultiplier) ~= "number"
+		or type(duration) ~= "number"
+		or duration <= 0
+	then
+		return {}
+	end
+	local affectedIds = {}
+	local endsAt = workspace:GetServerTimeNow() + duration
+	for _, target in ZombieController.GetZombiesInRadius(position, maximumDistance, maximumCount) do
+		local zombie = zombies[target.id]
+		if zombie then
+			zombie:ApplySlow(moveSpeedMultiplier, endsAt)
+			table.insert(affectedIds, target.id)
+		end
+	end
+	return affectedIds
 end
 
 function ZombieController.GetZombiePosition(id: number): Vector3?

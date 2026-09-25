@@ -25,6 +25,7 @@ local modules_to_init = {
 	ServerStorage.Controllers.RageController,
 	ServerStorage.Controllers.PlayerStatController,
 	ServerStorage.Controllers.BackpackController,
+	ServerStorage.Controllers.PowerupDropController,
 	ServerStorage.Controllers.BreakableController,
 	ServerStorage.Controllers.AbilityController,
 	ServerStorage.Controllers.RunProgressionController,

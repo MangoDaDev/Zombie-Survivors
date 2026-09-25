@@ -28,6 +28,8 @@ function Zombie.new(id, typeName, definition, spawnCFrame, area, variation, boun
 	self.health = self.maximumHealth
 	self.scale = variation.Scale
 	self.moveSpeedMultiplier = variation.MoveSpeed
+	self.statusMoveSpeedMultiplier = 1
+	self.slowEndsAt = 0
 	self.turnSpeedMultiplier = variation.TurnSpeed
 	self.animationSpeedMultiplier = variation.AnimationSpeed
 	self.boundaryRadius = boundaryRadius * variation.Scale
@@ -69,6 +71,9 @@ end
 
 function Zombie:DamagePlayer(targetCandidate, amount)
 	if not targetCandidate or targetCandidate.humanoid.Health <= 0 then
+		return 0
+	end
+	if self.services.IsPlayerInvulnerable and self.services.IsPlayerInvulnerable(targetCandidate.player) then
 		return 0
 	end
 	-- All zombie damage, including special abilities, is intentionally reduced to one third while
@@ -138,6 +143,10 @@ end
 function Zombie:Step(deltaTime, candidates, candidateLookup, now)
 	if self.health <= 0 then
 		return
+	end
+	if self.statusMoveSpeedMultiplier < 1 and now >= self.slowEndsAt then
+		self.statusMoveSpeedMultiplier = 1
+		self.slowEndsAt = 0
 	end
 
 	-- Damage applies an impulse to this server-owned CFrame simulation instead of relying on client
@@ -269,6 +278,15 @@ end
 
 function Zombie:IsDead()
 	return self.health <= 0
+end
+
+function Zombie:ApplySlow(moveSpeedMultiplier: number, endsAt: number)
+	if type(moveSpeedMultiplier) ~= "number" or type(endsAt) ~= "number" then
+		return
+	end
+	-- Overlapping Stopwatches keep the strongest slow and the longest remaining duration.
+	self.statusMoveSpeedMultiplier = math.min(self.statusMoveSpeedMultiplier, math.clamp(moveSpeedMultiplier, 0, 1))
+	self.slowEndsAt = math.max(self.slowEndsAt, endsAt)
 end
 
 function Zombie:OnDeath()

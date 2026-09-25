@@ -30,6 +30,7 @@ type TeleporterState = {
 	id: string,
 	hitbox: BasePart,
 	base: BasePart,
+	baseDecals: { Decal },
 	baseColor: Color3,
 	baseMaterial: Enum.Material,
 	entryCFrame: CFrame,
@@ -172,7 +173,12 @@ local function updateWorldView(state: TeleporterState, now: number)
 	state.view.leader.Text = if state.leader then "LEADER  " .. state.leader.DisplayName else ""
 	state.view.light.Color = color
 	state.view.light.Brightness = if state.locked then 2.8 elseif memberCount > 0 then 1.55 else 0.8
-	state.base.Color = state.baseColor:Lerp(color, if memberCount > 0 then 0.62 else 0.15)
+	local baseTint = state.baseColor:Lerp(color, if memberCount > 0 then 0.62 else 0.15)
+	state.base.Color = baseTint
+	-- Keep the authored base decals synchronized with the teleporter's state color.
+	for _, decal in state.baseDecals do
+		decal.Color3 = baseTint
+	end
 	state.base.Material = if memberCount > 0 then Enum.Material.Neon else state.baseMaterial
 	state.lastDisplayedSecond = countdown
 end
@@ -704,10 +710,17 @@ function PartyTeleporterController.Init()
 			+ math.abs(localExitDirection.Z) * halfSize.Z
 		local exitPosition = insidePosition
 			+ exitDirection * (edgeDistance + PartyTeleporterConfig.EntryPadding + 4)
+		local baseDecals: { Decal } = {}
+		for _, baseChild in base:GetChildren() do
+			if baseChild:IsA("Decal") then
+				table.insert(baseDecals, baseChild)
+			end
+		end
 		local state: TeleporterState = {
 			id = tostring(index),
 			hitbox = hitbox,
 			base = base,
+			baseDecals = baseDecals,
 			baseColor = base.Color,
 			baseMaterial = base.Material,
 			entryCFrame = CFrame.lookAt(insidePosition, insidePosition + exitDirection),

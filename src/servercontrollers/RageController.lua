@@ -13,6 +13,7 @@ type PlayerRuntime = {
 	revision: number,
 	activationToken: number,
 	lastActivationRequestAt: number,
+	bonusRestoreChargeStartedAt: number?,
 	deathConnection: RBXScriptConnection?,
 }
 
@@ -46,7 +47,21 @@ local function clearRage(player: Player, runtime: PlayerRuntime, chargeStartedAt
 	runtime.active = false
 	runtime.endsAt = 0
 	runtime.chargeStartedAt = chargeStartedAt or workspace:GetServerTimeNow()
+	runtime.bonusRestoreChargeStartedAt = nil
 	sendState(player, runtime)
+end
+
+local function scheduleRageEnd(player: Player, runtime: PlayerRuntime)
+	local token = runtime.activationToken
+	local endsAt = runtime.endsAt
+	task.delay(math.max(endsAt - workspace:GetServerTimeNow(), 0), function()
+		if runtimes[player] ~= runtime or runtime.activationToken ~= token or not runtime.active then
+			return
+		end
+		-- Bonus Rage preserves the meter's original timeline; normal Rage begins recharging when it ends.
+		local nextChargeStartedAt = runtime.bonusRestoreChargeStartedAt or endsAt
+		clearRage(player, runtime, nextChargeStartedAt)
+	end)
 end
 
 function RageController.IsActive(player: Player): boolean
@@ -77,19 +92,48 @@ function RageController.ActivateRage(_, player: Player)
 	end
 
 	runtime.activationToken += 1
-	local token = runtime.activationToken
 	runtime.active = true
 	runtime.endsAt = now + RageConfig.Duration
+	runtime.bonusRestoreChargeStartedAt = nil
 	sendState(player, runtime)
 	activated:Fire(player)
+	scheduleRageEnd(player, runtime)
+end
 
-	task.delay(RageConfig.Duration, function()
-		if runtimes[player] ~= runtime or runtime.activationToken ~= token or not runtime.active then
-			return
-		end
-		-- Charge resumes from the authoritative end timestamp even if this delayed task runs a frame late.
-		clearRage(player, runtime, runtime.endsAt)
-	end)
+function RageController.ActivateBonusRage(player: Player, duration: number?): (boolean, number?)
+	local runtime = runtimes[player]
+	local character = player.Character
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	if not runtime or ServerContext.IsLobbyServer() or not humanoid or humanoid.Health <= 0 then
+		return false, nil
+	end
+
+	local now = workspace:GetServerTimeNow()
+	local bonusDuration = if type(duration) == "number" and duration > 0 then duration else RageConfig.Duration
+	local wasActive = runtime.active and now < runtime.endsAt
+	if runtime.active and not wasActive then
+		-- Reconcile a just-expired timer before preserving charge for the canister.
+		runtime.active = false
+		runtime.chargeStartedAt = runtime.bonusRestoreChargeStartedAt or runtime.endsAt
+		runtime.bonusRestoreChargeStartedAt = nil
+	end
+	if wasActive then
+		-- Extending a naturally activated Rage lets its meter recharge from the original end time.
+		runtime.bonusRestoreChargeStartedAt = runtime.bonusRestoreChargeStartedAt or runtime.endsAt
+	else
+		-- The canister is a true bonus: partial or fully ready natural charge is never consumed.
+		runtime.bonusRestoreChargeStartedAt = runtime.chargeStartedAt
+	end
+
+	runtime.activationToken += 1
+	runtime.active = true
+	runtime.endsAt = math.min(math.max(now, runtime.endsAt) + bonusDuration, now + RageConfig.Duration * 2)
+	sendState(player, runtime)
+	if not wasActive then
+		activated:Fire(player)
+	end
+	scheduleRageEnd(player, runtime)
+	return true, runtime.endsAt
 end
 
 function RageController.GetActivatedSignal()
@@ -118,6 +162,7 @@ function RageController.OnPlayerAdded(player: Player)
 		revision = 0,
 		activationToken = 0,
 		lastActivationRequestAt = -math.huge,
+		bonusRestoreChargeStartedAt = nil,
 		deathConnection = nil,
 	}
 	sendState(player, runtimes[player])

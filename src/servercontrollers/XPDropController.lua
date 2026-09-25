@@ -19,6 +19,7 @@ type XPDropState = {
 	ownerUserId: number?,
 	collectingPlayer: Player?,
 	magnetSpeed: number,
+	forcedCollection: boolean,
 }
 
 local XPDropController = {}
@@ -104,6 +105,7 @@ function XPDropController.Spawn(position: Vector3, value: number, owner: Player?
 		ownerUserId = ownerUserId,
 		collectingPlayer = nil,
 		magnetSpeed = config.MagnetInitialSpeed,
+		forcedCollection = false,
 	}
 	drops[drop.id] = drop
 	activeCount += 1
@@ -123,6 +125,7 @@ end
 local function releaseDrop(drop: XPDropState)
 	drop.collectingPlayer = nil
 	drop.magnetSpeed = RunProgressionConfig.Pickups.XP.MagnetInitialSpeed
+	drop.forcedCollection = false
 	xpNetwork:fireAll("ReleaseXP", drop.id, drop.position)
 end
 
@@ -163,7 +166,7 @@ local function stepDrops(deltaTime: number, now: number)
 					collectDrop(id, drop, collector)
 					continue
 				end
-				if offset.Magnitude > config.MagnetRadius * 3 then
+				if not drop.forcedCollection and offset.Magnitude > config.MagnetRadius * 3 then
 					releaseDrop(drop)
 				else
 					drop.magnetSpeed += config.MagnetAcceleration * deltaTime
@@ -189,6 +192,7 @@ local function stepDrops(deltaTime: number, now: number)
 			if nearest then
 				drop.collectingPlayer = nearest
 				drop.magnetSpeed = config.MagnetInitialSpeed
+				drop.forcedCollection = false
 				xpNetwork:fireAll("MagnetXP", id, nearest.UserId, drop.position, now)
 			end
 		end
@@ -196,6 +200,24 @@ local function stepDrops(deltaTime: number, now: number)
 	if #expiredIds > 0 then
 		xpNetwork:fireAll("DespawnXP", expiredIds)
 	end
+end
+
+function XPDropController.CollectAll(player: Player): number
+	if player.Parent ~= Players or not getLiveRoot(player) then
+		return 0
+	end
+	local collectedCount = 0
+	local now = workspace:GetServerTimeNow()
+	for _, drop in drops do
+		if not drop.collectingPlayer and canCollect(drop, player) then
+			drop.collectingPlayer = player
+			drop.forcedCollection = true
+			drop.magnetSpeed = math.max(RunProgressionConfig.Pickups.XP.MagnetInitialSpeed * 5, 80)
+			xpNetwork:fireAll("MagnetXP", drop.id, player.UserId, drop.position, now)
+			collectedCount += 1
+		end
+	end
+	return collectedCount
 end
 
 local function onHeartbeat(deltaTime: number)
