@@ -71,6 +71,9 @@ function Zombie:DamagePlayer(targetCandidate, amount)
 	if not targetCandidate or targetCandidate.humanoid.Health <= 0 then
 		return 0
 	end
+	-- All zombie damage, including special abilities, is intentionally reduced to one third while
+	-- their much larger reach and higher speed create sustained pressure through frequent contact.
+	amount *= self.definition.DamageMultiplier or 1
 	local healthBefore = targetCandidate.humanoid.Health
 	targetCandidate.humanoid:TakeDamage(amount)
 	local actualDamage = math.max(healthBefore - targetCandidate.humanoid.Health, 0)

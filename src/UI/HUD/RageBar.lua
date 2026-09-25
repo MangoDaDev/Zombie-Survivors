@@ -24,10 +24,6 @@ return function()
 	local progressTarget = source(displayedRage() / RageConfig.Maximum)
 	local hovered = source(false)
 	local inGame = source(Workspace:FindFirstChild("Game") ~= nil)
-	local viewportWidth = source(Workspace.CurrentCamera and Workspace.CurrentCamera.ViewportSize.X or 1280)
-	local narrowViewport = derive(function()
-		return viewportWidth() < 700
-	end)
 	local smoothProgress = spring(progressTarget, 0.18, 0.9)
 	local ready = derive(function()
 		return not state().active and displayedRage() >= RageConfig.Maximum
@@ -63,29 +59,20 @@ return function()
 			inGame(false)
 		end
 	end)
-	local viewportConnection = if Workspace.CurrentCamera
-		then Workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(function()
-			viewportWidth(Workspace.CurrentCamera.ViewportSize.X)
-		end)
-		else nil
 	cleanup(function()
 		stateConnection:Disconnect()
 		renderConnection:Disconnect()
 		childAddedConnection:Disconnect()
 		childRemovedConnection:Disconnect()
-		if viewportConnection then
-			viewportConnection:Disconnect()
-		end
 	end)
 
 	return create "Frame" {
 		Name = "RageBar",
-		AnchorPoint = Vector2.new(0, 1),
+		AnchorPoint = Vector2.new(0.5, 1),
 		BackgroundColor3 = Color3.fromRGB(31, 22, 22),
 		BorderSizePixel = 0,
-		Position = function()
-			return if narrowViewport() then UDim2.new(0, 12, 1, -76) else UDim2.new(0, 20, 1, -24)
-		end,
+		-- Keep Rage in the same centered HUD stack, directly above the level/XP bar on every viewport.
+		Position = UDim2.new(0.5, 0, 1, -84),
 		Size = UDim2.fromOffset(220, 48),
 		Visible = inGame,
 		ZIndex = 90,

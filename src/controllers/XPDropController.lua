@@ -4,11 +4,12 @@ local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
 local Networker = require(ReplicatedStorage.Packages.networker)
+local RunProgressionConfig = require(ReplicatedStorage.Modules.Game.RunProgressionConfig)
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
 
-local IDLE_BOB_HEIGHT = 0.18
+local IDLE_BOB_HEIGHT = 0.28
 local IDLE_BOB_SPEED = 2.6
-local IDLE_SPIN_SPEED = 1.15
+local IDLE_SPIN_SPEED = 1.6
 local MAGNET_ACCELERATION = 5.4
 
 type XPView = {
@@ -53,11 +54,8 @@ end
 local function applyValueStyle(view: XPView, value: number, scale: number)
 	view.value = value
 	view.model:ScaleTo(scale)
-	local color = if value >= 25
-		then Color3.fromRGB(255, 100, 232)
-		elseif value >= 12 then Color3.fromRGB(121, 104, 255)
-		elseif value >= 7 then Color3.fromRGB(58, 196, 255)
-		else Color3.fromRGB(76, 123, 255)
+	local tier = RunProgressionConfig.GetXPVisualTier(value)
+	local color = tier.Color
 	for _, descendant in view.model:GetDescendants() do
 		if descendant:IsA("BasePart") then
 			descendant.Color = color
@@ -66,6 +64,11 @@ local function applyValueStyle(view: XPView, value: number, scale: number)
 	local light = view.model:FindFirstChild("XPGlow", true)
 	if light and light:IsA("PointLight") then
 		light.Color = color
+	end
+	local highlight = view.model:FindFirstChild("XPHighlight")
+	if highlight and highlight:IsA("Highlight") then
+		highlight.FillColor = color
+		highlight.OutlineColor = color:Lerp(Color3.new(1, 1, 1), 0.35)
 	end
 end
 
@@ -91,11 +94,18 @@ local function createView(id: number, value: number, position: Vector3, scale: n
 	if rootPart then
 		local light = Instance.new("PointLight")
 		light.Name = "XPGlow"
-		light.Brightness = 1.25
-		light.Range = 7
+		light.Brightness = 2.4
+		light.Range = 12
 		light.Shadows = false
 		light.Parent = rootPart
 	end
+	local highlight = Instance.new("Highlight")
+	highlight.Name = "XPHighlight"
+	highlight.Adornee = model
+	highlight.DepthMode = Enum.HighlightDepthMode.Occluded
+	highlight.FillTransparency = 0.72
+	highlight.OutlineTransparency = 0.12
+	highlight.Parent = model
 	model:PivotTo(CFrame.new(position))
 	model.Parent = effectsFolder
 

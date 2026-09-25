@@ -26,8 +26,10 @@ local ENTRY_COUNT = 21
 local RESULT_INDEX = 18
 local ENTRY_HEIGHT = 0.26
 local ENTRY_STRIDE = 0.29
-local REEL_DURATIONS = { 0.68, 0.86, 1.04 }
+-- Keep each reel readable long enough to follow before its punchy landing sequence begins.
+local REEL_DURATIONS = { 1.15, 1.4, 1.65 }
 local ROLLING_PRESENTATION_SCALE = 1.45
+local LEVEL_UP_TOP_PADDING = 8
 local CAMERA_SHAKE_BINDING = "LevelUpChoiceShake_" .. tostring(localPlayer and localPlayer.UserId or "Edit")
 local CARD_COLORS = {
 	Color3.fromRGB(67, 190, 255),
@@ -430,7 +432,7 @@ return function()
 	local generation = 0
 	local presentationPhase = "Idle"
 	local pendingPresentationState = nil
-	local topOffset = SafeArea.GetTopOffset(26)
+	local topOffset = SafeArea.GetTopOffset(LEVEL_UP_TOP_PADDING)
 	local shakeMagnitude = 0
 	local shakeBound = false
 	local baseFieldOfView: number? = nil
@@ -731,7 +733,7 @@ return function()
 		end
 	end)
 	local safeAreaConnection = SafeArea.GetChangedSignal():Connect(function()
-		topOffset = SafeArea.GetTopOffset(26)
+		topOffset = SafeArea.GetTopOffset(LEVEL_UP_TOP_PADDING)
 		if chain then
 			chain.Position = UDim2.new(0.5, 0, 0, topOffset)
 		end

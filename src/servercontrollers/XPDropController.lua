@@ -43,7 +43,10 @@ local function canCollect(drop: XPDropState, player: Player): boolean
 end
 
 local function getVisualScale(value: number): number
-	return 0.82 + math.min(math.log(math.max(value, 1)) / math.log(2) * 0.08, 0.62)
+	local config = RunProgressionConfig.Pickups.XP
+	local tier = RunProgressionConfig.GetXPVisualTier(value)
+	local valueGrowth = math.min(math.log(math.max(value, 1)) / math.log(2) * 0.08, 0.45)
+	return (config.BaseVisualScale + valueGrowth) * tier.ScaleMultiplier
 end
 
 local function addOverflowValue(position: Vector3, value: number, ownerUserId: number?): boolean
@@ -83,9 +86,10 @@ function XPDropController.Spawn(position: Vector3, value: number, owner: Player?
 	local angle = random:NextNumber(0, math.pi * 2)
 	local distance = random:NextNumber(config.ScatterRadius.Min, config.ScatterRadius.Max)
 	local floorY = if type(groundY) == "number" then groundY else position.Y
+	local visualScale = getVisualScale(value)
 	local target = Vector3.new(
 		position.X + math.cos(angle) * distance,
-		floorY + config.VisualHeight,
+		floorY + config.VisualHeight * visualScale,
 		position.Z + math.sin(angle) * distance
 	)
 	local duration = random:NextNumber(config.ScatterDuration.Min, config.ScatterDuration.Max)
@@ -111,7 +115,7 @@ function XPDropController.Spawn(position: Vector3, value: number, owner: Player?
 		launchAt = now,
 		duration = duration,
 		arcHeight = random:NextNumber(2.2, 4.2),
-		scale = getVisualScale(value),
+		scale = visualScale,
 		ownerUserId = drop.ownerUserId,
 	})
 end

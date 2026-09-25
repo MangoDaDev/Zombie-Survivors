@@ -17,6 +17,7 @@ local ZombieSeparation = require(script.Parent.Zombie.ZombieSeparation)
 local SEPARATION_INTERVAL = 0.05
 local VARIATION_MINIMUM = 0.95
 local VARIATION_MAXIMUM = 1.05
+local TAU = math.pi * 2
 
 local ZombieController = {}
 local zombieNetwork
@@ -221,20 +222,35 @@ local function chooseGroupCenter(area, candidates, areaCandidates)
 	local halfSize = area.Size * 0.5 - Vector2.one * maximumBoundaryRadius * VARIATION_MAXIMUM
 	local spawnConfig = RunProgressionConfig.Spawning
 	local distanceRange = spawnConfig.PreferredDistance
-	-- Decide once per group, rather than per attempt, so the configured share creates coherent
-	-- interception groups while failed edge-of-map attempts can still fall back to any direction.
+	local runtime = areaRuntime[area.Id]
+	local sectorCount = spawnConfig.SurroundSectorCount
+	local sector = runtime and runtime.nextSurroundSector or random:NextInteger(0, sectorCount - 1)
+	if runtime then
+		-- The advance is coprime with eight sectors, so every direction is visited before repeating.
+		runtime.nextSurroundSector = (sector + spawnConfig.SurroundSectorAdvance) % sectorCount
+	end
+	local surroundAngle = TAU * sector / sectorCount
+	-- Decide once per group so each horde has a coherent approach: some intercept movement while
+	-- the rest rotate around the player through every surrounding sector.
 	local preferForward = random:NextNumber() < spawnConfig.ForwardSpawnChance
-	local forwardAttempts = math.floor(spawnConfig.AttemptsPerGroup * 0.6)
+	local directedAttempts = math.floor(spawnConfig.AttemptsPerGroup * spawnConfig.DirectedSpawnAttemptFraction)
 	for attempt = 1, RunProgressionConfig.Spawning.AttemptsPerGroup do
 		local anchor = areaCandidates[random:NextInteger(1, #areaCandidates)]
 		local direction
-		if preferForward and attempt <= forwardAttempts then
-			local heading = getTravelDirection(anchor)
-			local coneRadians = math.rad(spawnConfig.ForwardSpawnConeDegrees)
-			local yawOffset = random:NextNumber(-coneRadians, coneRadians)
-			direction = CFrame.fromAxisAngle(Vector3.yAxis, yawOffset):VectorToWorldSpace(heading)
+		if attempt <= directedAttempts then
+			if preferForward then
+				local heading = getTravelDirection(anchor)
+				local coneRadians = math.rad(spawnConfig.ForwardSpawnConeDegrees)
+				local yawOffset = random:NextNumber(-coneRadians, coneRadians)
+				direction = CFrame.fromAxisAngle(Vector3.yAxis, yawOffset):VectorToWorldSpace(heading)
+			else
+				local jitter = math.rad(spawnConfig.SurroundSpawnJitterDegrees)
+				local angle = surroundAngle + random:NextNumber(-jitter, jitter)
+				direction = Vector3.new(math.cos(angle), 0, math.sin(angle))
+			end
 		else
-			local angle = random:NextNumber(0, math.pi * 2)
+			-- Relax the requested direction after repeated failures near floor edges so spawning never stalls.
+			local angle = random:NextNumber(0, TAU)
 			direction = Vector3.new(math.cos(angle), 0, math.sin(angle))
 		end
 		local distance = random:NextNumber(distanceRange.Min, distanceRange.Max)
@@ -668,6 +684,8 @@ local function startSimulation()
 	for _, area in ZombieAreas do
 		areaRuntime[area.Id] = {
 			count = 0,
+			-- Start each combat floor in a random sector, then deterministically cover all eight directions.
+			nextSurroundSector = random:NextInteger(0, RunProgressionConfig.Spawning.SurroundSectorCount - 1),
 			-- The first group arrives promptly; later groups use the normal area cadence and pressure scaling.
 			nextSpawnAt = workspace:GetServerTimeNow() + random:NextNumber(0.25, math.min(area.SpawnInterval, 0.8)),
 		}

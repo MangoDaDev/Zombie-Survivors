@@ -7,7 +7,8 @@ local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
 
 local TAU = math.pi * 2
 local ORBIT_CORRECTION_SPEED = 18
--- Preserve the orbit-facing CFrame while applying the authored sword's horizontal pitch and clockwise local-Y quarter turn.
+-- The authored blade tip points along local +Y. This correction maps local +Y onto lookAt's +Z,
+-- so callers aim lookAt opposite the desired blade direction.
 local MODEL_ORIENTATION = CFrame.Angles(math.rad(90), 0, 0) * CFrame.Angles(0, math.rad(-90), 0)
 
 local OrbitingSwordsView = {}
@@ -18,6 +19,13 @@ local releasedBlades = {}
 
 local function isFiniteNumber(value: any): boolean
 	return type(value) == "number" and value == value and math.abs(value) < math.huge
+end
+
+local function getBladeCFrame(position: Vector3, bladeDirection: Vector3, roll: number?): CFrame
+	local direction = if bladeDirection.Magnitude > 0.001 then bladeDirection.Unit else Vector3.zAxis
+	return CFrame.lookAt(position, position - direction)
+		* MODEL_ORIENTATION
+		* CFrame.Angles(0, roll or 0, 0)
 end
 
 local function destroyView(userId: number)
@@ -304,10 +312,9 @@ function OrbitingSwordsView.Render(now: number, deltaTime: number)
 					radius = packet.innerRadius
 				end
 				local radial = Vector3.new(math.cos(swordAngle), 0, math.sin(swordAngle))
-				local tangent = Vector3.new(-radial.Z, 0, radial.X)
 				local position = center + radial * radius
-				-- The authored sword's blade runs along local Y; its model offset is composed after the dynamic orbit CFrame.
-				sword.model:PivotTo(CFrame.lookAt(position, position + tangent) * MODEL_ORIENTATION)
+				-- Point the blade tip away from the owner so its full length contributes to visible orbit reach.
+				sword.model:PivotTo(getBladeCFrame(position, radial))
 			end
 		end
 	end
@@ -338,7 +345,7 @@ function OrbitingSwordsView.Render(now: number, deltaTime: number)
 		if flightDirection.Magnitude < 0.001 then
 			flightDirection = Vector3.zAxis
 		end
-		blade.model:PivotTo(CFrame.lookAt(position, position + flightDirection) * CFrame.Angles(0, 0, elapsed * 8))
+		blade.model:PivotTo(getBladeCFrame(position, flightDirection, elapsed * 8))
 		if elapsed >= blade.outwardDuration * 2 then
 			blade.model:Destroy()
 			table.remove(releasedBlades, index)

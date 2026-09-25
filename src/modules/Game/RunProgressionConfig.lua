@@ -21,7 +21,14 @@ local RunProgressionConfig = {
 			Lifetime = 45,
 			ScatterRadius = NumberRange.new(1.5, 3.75),
 			ScatterDuration = NumberRange.new(0.35, 0.55),
-			VisualHeight = 1.15,
+			-- Scale and tier multipliers make the single XP drop visually outweigh a multi-coin burst.
+			BaseVisualScale = 1.25,
+			VisualHeight = 1.35,
+			VisualTiers = {
+				{ Name = "Blue", MinimumValue = 1, Color = Color3.fromRGB(55, 145, 255), ScaleMultiplier = 1 },
+				{ Name = "Green", MinimumValue = 12, Color = Color3.fromRGB(68, 235, 132), ScaleMultiplier = 1.12 },
+				{ Name = "PinkPurple", MinimumValue = 24, Color = Color3.fromRGB(226, 79, 255), ScaleMultiplier = 1.25 },
+			},
 			MaximumActive = 240,
 		},
 		Coin = {
@@ -34,9 +41,18 @@ local RunProgressionConfig = {
 
 	Abilities = {
 		ChoiceCount = 3,
-		-- A fresh profile needs a viable run before the dormant permanent-unlock flow has awarded anything.
-		-- Permanent discoveries expand this pool; these baseline abilities are never persisted as discoveries.
-		AlwaysAvailable = { "Dagger", "OrbitingSwords", "Fireball" },
+		-- The permanent-unlock flow is dormant, so every passive must remain eligible for level-up rolls.
+		-- Keep the starter weapon pool here too; these run-only choices are never persisted as discoveries.
+		AlwaysAvailable = {
+			"Dagger",
+			"OrbitingSwords",
+			"Fireball",
+			"Heart",
+			"Boots",
+			"Blast",
+			"Burn",
+			"Thorns",
+		},
 		StartingAbilities = { "Dagger" },
 	},
 
@@ -47,9 +63,15 @@ local RunProgressionConfig = {
 		AttemptsPerGroup = 24,
 		-- Some groups deliberately form in the player's travel lane so endlessly running in one direction
 		-- cannot leave the entire horde behind. Velocity wins over facing once the player is actually moving.
-		ForwardSpawnChance = 0.4,
+		ForwardSpawnChance = 0.3,
 		ForwardSpawnConeDegrees = 32,
 		MovementHeadingSpeedThreshold = 3,
+		-- Non-interception hordes rotate through every surrounding sector instead of repeatedly
+		-- sampling the same easy-to-escape side of the player.
+		SurroundSectorCount = 8,
+		SurroundSectorAdvance = 3,
+		SurroundSpawnJitterDegrees = 12,
+		DirectedSpawnAttemptFraction = 0.6,
 		-- Difficulty never caps: each five-minute step adds cadence pressure, larger hordes, and a
 		-- stronger bias toward the highest-threat zombie types available in the current area.
 		DifficultyStepSeconds = 300,
@@ -71,6 +93,19 @@ function RunProgressionConfig.GetXPRequirement(level: number): number
 		+ curve.CurveCoefficient * completedLevels ^ curve.CurvePower
 	-- Five-XP steps are easy to read in the HUD and simple to rebalance.
 	return math.max(5, math.floor(raw / 5 + 0.5) * 5)
+end
+
+function RunProgressionConfig.GetXPVisualTier(value: number)
+	local tiers = RunProgressionConfig.Pickups.XP.VisualTiers
+	local selectedTier = tiers[1]
+	for _, tier in tiers do
+		if value >= tier.MinimumValue then
+			selectedTier = tier
+		else
+			break
+		end
+	end
+	return selectedTier
 end
 
 return table.freeze(RunProgressionConfig)

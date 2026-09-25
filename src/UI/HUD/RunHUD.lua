@@ -51,6 +51,15 @@ local function getRunAbility(state, abilityId: string)
 	return nil
 end
 
+local function hasRunAbilityCategory(state, category: string): boolean
+	for _, ability in state.abilities do
+		if ability.category == category then
+			return true
+		end
+	end
+	return false
+end
+
 local function getCooldownText(definition, level: number): string
 	local stats = definition.GetStats and definition.GetStats(level) or nil
 	local cooldown = stats and stats.Cooldown or definition.Combat and definition.Combat.Cooldown
@@ -236,9 +245,13 @@ return function()
 		end
 	end)
 
-	local abilitySlots = {}
+	local weaponAbilitySlots = {}
+	local passiveAbilitySlots = {}
 	for _, definition in AbilityDefinitions.List do
-		table.insert(abilitySlots, abilitySlot(definition, state, tooltipId))
+		local slots = if definition.Category == AbilityDefinitions.Categories.Passive
+			then passiveAbilitySlots
+			else weaponAbilitySlots
+		table.insert(slots, abilitySlot(definition, state, tooltipId))
 	end
 
 	local tooltipDefinition = derive(function()
@@ -409,16 +422,47 @@ return function()
 			Size = UDim2.fromOffset(270, 106),
 			Visible = inGame,
 			ZIndex = 100,
-			create "UIGridLayout" {
-				CellPadding = UDim2.fromOffset(6, 6),
-				CellSize = UDim2.fromOffset(48, 48),
-				FillDirection = Enum.FillDirection.Horizontal,
-				FillDirectionMaxCells = 5,
+			create "UIListLayout" {
+				FillDirection = Enum.FillDirection.Vertical,
 				HorizontalAlignment = Enum.HorizontalAlignment.Right,
+				Padding = UDim.new(0, 6),
 				SortOrder = Enum.SortOrder.LayoutOrder,
 				VerticalAlignment = Enum.VerticalAlignment.Bottom,
 			},
-			abilitySlots,
+			create "Frame" {
+				Name = "WeaponAbilities",
+				BackgroundTransparency = 1,
+				LayoutOrder = 1,
+				Size = UDim2.new(1, 0, 0, 48),
+				Visible = function()
+					return hasRunAbilityCategory(state(), AbilityDefinitions.Categories.Weapon)
+				end,
+				-- Weapons always occupy the upper row so passives cannot flow beside them as slots fill.
+				create "UIListLayout" {
+					FillDirection = Enum.FillDirection.Horizontal,
+					HorizontalAlignment = Enum.HorizontalAlignment.Right,
+					Padding = UDim.new(0, 6),
+					SortOrder = Enum.SortOrder.LayoutOrder,
+				},
+				weaponAbilitySlots,
+			},
+			create "Frame" {
+				Name = "PassiveAbilities",
+				BackgroundTransparency = 1,
+				LayoutOrder = 2,
+				Size = UDim2.new(1, 0, 0, 48),
+				Visible = function()
+					return hasRunAbilityCategory(state(), AbilityDefinitions.Categories.Passive)
+				end,
+				-- Passives have a dedicated lower row regardless of how many weapon slots are visible.
+				create "UIListLayout" {
+					FillDirection = Enum.FillDirection.Horizontal,
+					HorizontalAlignment = Enum.HorizontalAlignment.Right,
+					Padding = UDim.new(0, 6),
+					SortOrder = Enum.SortOrder.LayoutOrder,
+				},
+				passiveAbilitySlots,
+			},
 		},
 		create "Frame" {
 			Name = "AbilityTooltip",

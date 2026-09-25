@@ -2,9 +2,11 @@
 -- spawning, networking, and rendering code never need type-specific branches.
 -- XPValue and CoinValue feed the central death reward pipeline. Stronger variants should generally
 -- increase encounter pressure and reward value instead of relying on health scaling alone.
-local ZOMBIE_MOVE_SPEED_MULTIPLIER = 1.35
-local ZOMBIE_ATTACK_RANGE_MULTIPLIER = 1.35
-local ZOMBIE_AGGRO_DISTANCE_MULTIPLIER = 2.5
+local ZOMBIE_MOVE_SPEED_MULTIPLIER = 1.7
+local ZOMBIE_ATTACK_RANGE_MULTIPLIER = 3.5
+local ZOMBIE_AGGRO_DISTANCE_MULTIPLIER = 3.5
+local ZOMBIE_DAMAGE_MULTIPLIER = 1 / 3
+local XP_ADVANTAGE_PER_THREAT_LEVEL = 2
 
 local function define(overrides)
 	local definition = {
@@ -18,6 +20,7 @@ local function define(overrides)
 		AggroDistance = 70,
 		AttackRange = 4.5,
 		AttackDamage = 4,
+		DamageMultiplier = ZOMBIE_DAMAGE_MULTIPLIER,
 		AttackCooldown = 1.25,
 		AttackWindupDuration = 0.55,
 		AttackStrikeDuration = 0.18,
@@ -31,6 +34,13 @@ local function define(overrides)
 	}
 	for key, value in overrides do
 		definition[key] = value
+	end
+	local threatLevel = definition.ThreatLevel
+	if type(threatLevel) == "number" and threatLevel >= 1 then
+		-- Threat is the authoritative reward floor: dangerous archetypes always pay more coins, while
+		-- XP remains the larger reward so run progression stays ahead of permanent currency income.
+		definition.CoinValue = math.max(math.floor(definition.CoinValue), threatLevel * (threatLevel + 1))
+		definition.XPValue = math.max(math.floor(definition.XPValue), definition.CoinValue + threatLevel * XP_ADVANTAGE_PER_THREAT_LEVEL)
 	end
 	-- Every archetype receives the same pressure increase so slow specials and fast runners both
 	-- remain true to their role while moving players can no longer kite contact attacks for free.
@@ -109,7 +119,8 @@ local ZombieDefinitions = {
 	-- Splitlings are internal offspring and are deliberately absent from every weighted spawn pool.
 	Splitling = define({
 		AssetName = "Runner", MaxHealth = 38, XPValue = 2, CoinValue = 1, MoveSpeed = 16, AttackDamage = 2, ModelScale = 0.68,
-		SeparationRadius = 1.1, TintColor = Color3.fromRGB(112, 224, 151), AnimationStyle = "Runner",
+		-- Summoned offspring keep their deliberately tiny reward instead of inheriting a full horde reward floor.
+		ThreatLevel = 0, SeparationRadius = 1.1, TintColor = Color3.fromRGB(112, 224, 151), AnimationStyle = "Runner",
 	}),
 	Burrower = define({
 		AssetName = "Runner", MaxHealth = 150, XPValue = 11, CoinValue = 8, ThreatLevel = 3, MoveSpeed = 9, TintColor = Color3.fromRGB(132, 91, 55),
