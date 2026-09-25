@@ -6,8 +6,8 @@ local PartyTeleporterConfig = {
 	FullCountdown = 3,
 	LeaveRecoveryCountdown = 3,
 	ZoneCheckInterval = 0.15,
+	EntryPadding = 2.5,
 	RequestCooldown = 0.15,
-	FailureResetDelay = 2,
 	TeleportWatchdogDuration = 15,
 	WorldDisplayDistance = 170,
 }

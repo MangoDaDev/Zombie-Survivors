@@ -7,6 +7,7 @@ local AbilityDefinitions = require(ReplicatedStorage.Modules.Game.Abilities.Abil
 local RollDefinitions = require(ReplicatedStorage.Modules.Game.Rolls.RollDefinitions)
 local CoinsController = require(ServerStorage.Controllers.CoinsController)
 local RageController = require(ServerStorage.Controllers.RageController)
+local ServerContext = require(ServerStorage.Controllers.ServerContext)
 local ZombieController = require(ServerStorage.Controllers.ZombieController)
 local ActiveWeapons = require(script.Parent.Ability.ActiveWeapons)
 local OrbitingSwords = require(script.Parent.Ability.OrbitingSwords)
@@ -208,7 +209,8 @@ local function refreshAttacks(player: Player)
 	runtime.attackToken += 1
 	local token = runtime.attackToken
 	local data = getData(player)
-	if not isEquipped(data, "Dagger") then
+	-- Lobby loadouts remain replicated for presentation, but no attack scheduler runs outside a game session.
+	if ServerContext.IsLobbyServer() or not isEquipped(data, "Dagger") then
 		return
 	end
 

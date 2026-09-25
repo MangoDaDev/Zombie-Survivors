@@ -2,6 +2,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Networker = require(ReplicatedStorage.Packages.networker)
+local MapController = require(script.Parent.MapController)
 
 local REQUEST_COOLDOWN = 0.5
 
@@ -58,6 +59,21 @@ function CharacterController.OnPlayerRemoving(player: Player)
 	readyPlayers[player] = nil
 	loadingPlayers[player] = nil
 	lastRequestAt[player] = nil
+end
+
+function CharacterController.OnCharacterAdded(player: Player, character: Model)
+	local spawnCFrame = MapController.GetSpawnCFrame()
+	if not spawnCFrame then
+		return
+	end
+
+	-- CharacterAutoLoads is disabled, so this authoritative placement guarantees each session mode
+	-- uses its inspected spawn even if Roblox's default SpawnLocation selection changes later.
+	task.defer(function()
+		if player.Parent == Players and player.Character == character then
+			character:PivotTo(spawnCFrame * CFrame.new(0, 3.5, 0))
+		end
+	end)
 end
 
 return CharacterController

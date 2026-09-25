@@ -27,7 +27,6 @@ function PartyTeleportService.Teleport(players: { Player }, leader: Player, runI
 	})
 
 	local success, result = pcall(TeleportService.TeleportAsync, TeleportService, game.PlaceId, players, teleportOptions)
-	teleportOptions:Destroy()
 	if not success then
 		return false, tostring(result)
 	end

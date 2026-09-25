@@ -5,6 +5,7 @@ local Networker = require(ReplicatedStorage.Packages.networker)
 local Signal = require(ReplicatedStorage.Packages.signal)
 local GetRandomFromWeightedTable =
 	require(ReplicatedStorage.Modules.Math.GetRandomFromWeightedTable).GetRandomFromWeightedTable
+local ServerContext = require(script.Parent.ServerContext)
 local ZombieAreas = require(ReplicatedStorage.Modules.Game.Zombies.ZombieAreas)
 local ZombieDefinitions = require(ReplicatedStorage.Modules.Game.Zombies.ZombieDefinitions)
 local ZombieProtocol = require(ReplicatedStorage.Modules.Game.Zombies.ZombieProtocol)
@@ -380,6 +381,15 @@ function ZombieController.GetNearestZombies(position: Vector3, maximumDistance: 
 end
 
 function ZombieController.Init()
+	zombieNetwork = Networker.server.new("ZombieController", ZombieController, {
+		ZombieController.GetSnapshot,
+	})
+	if ServerContext.IsLobbyServer() then
+		-- Keep the read-only network endpoint available to the shared client bootstrap, but do not
+		-- build spawn state or connect simulation in a lobby server. No zombie can be created here.
+		return
+	end
+
 	buildGroundOffsets()
 	for _, area in ZombieAreas do
 		areaRuntime[area.Id] = {
@@ -388,9 +398,6 @@ function ZombieController.Init()
 		}
 	end
 
-	zombieNetwork = Networker.server.new("ZombieController", ZombieController, {
-		ZombieController.GetSnapshot,
-	})
 	nextSnapshotAt = workspace:GetServerTimeNow() + ZombieProtocol.SnapshotInterval
 	simulationConnection = RunService.Heartbeat:Connect(stepSimulation)
 end

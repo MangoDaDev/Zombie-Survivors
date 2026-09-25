@@ -23,6 +23,7 @@ local state = {
 local activeHighlight: Highlight?
 local activeAttachment: Attachment?
 local presentationEndToken = 0
+local isGameServer = Workspace:FindFirstChild("Game") ~= nil
 
 local stateChanged = Signal.new()
 local activated = Signal.new()
@@ -170,6 +171,10 @@ end
 
 function RageController.Init()
 	rageNetwork = Networker.client.new("RageController", RageController)
+	if not isGameServer then
+		-- Rage is run-only. Lobby clients keep the controller endpoint available without input or VFX.
+		return
+	end
 	UserInputService.InputBegan:Connect(function(input, gameProcessed)
 		if not gameProcessed and input.KeyCode == RageConfig.ActivationKey then
 			RageController.Activate()
@@ -185,7 +190,7 @@ function RageController.OnCharacterAdded(_character: Model)
 end
 
 function RageController.Activate()
-	if not rageNetwork or state.active or RageController.GetCurrentRage() < RageConfig.Maximum then
+	if not isGameServer or not rageNetwork or state.active or RageController.GetCurrentRage() < RageConfig.Maximum then
 		return
 	end
 	local character = localPlayer.Character

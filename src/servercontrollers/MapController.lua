@@ -26,8 +26,12 @@ local function getOrCreateInactiveMapsFolder(): Folder
 end
 
 local function findMap(name: string): Instance?
-	return Workspace:FindFirstChild(name) or ServerStorage:FindFirstChild(INACTIVE_MAPS_FOLDER_NAME)
-		and ServerStorage[INACTIVE_MAPS_FOLDER_NAME]:FindFirstChild(name)
+	local activeMap = Workspace:FindFirstChild(name)
+	if activeMap then
+		return activeMap
+	end
+	local inactiveMaps = ServerStorage:FindFirstChild(INACTIVE_MAPS_FOLDER_NAME)
+	return inactiveMaps and inactiveMaps:FindFirstChild(name) or nil
 end
 
 function MapController.Init()

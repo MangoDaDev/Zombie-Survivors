@@ -14,6 +14,7 @@ local modules_to_init = {
 	ReplicatedStorage.Controllers.AbilityController,
 	ReplicatedStorage.Controllers.CharacterController,
 	ReplicatedStorage.Controllers.ZombieController,
+	ReplicatedStorage.Controllers.PartyTeleporterController,
 	ReplicatedStorage.UI.UIOrigin,
 }
 

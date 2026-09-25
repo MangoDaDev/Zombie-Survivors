@@ -4,6 +4,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Networker = require(ReplicatedStorage.Packages.networker)
 local Signal = require(ReplicatedStorage.Packages.signal)
 local RageConfig = require(ReplicatedStorage.Modules.Game.Rage.RageConfig)
+local ServerContext = require(script.Parent.ServerContext)
 
 type PlayerRuntime = {
 	active: boolean,
@@ -55,7 +56,8 @@ end
 
 function RageController.ActivateRage(_, player: Player)
 	local runtime = runtimes[player]
-	if not runtime then
+	if not runtime or ServerContext.IsLobbyServer() then
+		-- Rage is a run mechanic and must never activate from a Lobby request.
 		return
 	end
 

@@ -4,6 +4,7 @@ local ServerStorage = game:GetService("ServerStorage")
 
 local AbilityDefinitions = require(ReplicatedStorage.Modules.Game.Abilities.AbilityDefinitions)
 local RageController = require(ServerStorage.Controllers.RageController)
+local ServerContext = require(ServerStorage.Controllers.ServerContext)
 local ZombieController = require(ServerStorage.Controllers.ZombieController)
 
 local TAU = math.pi * 2
@@ -271,6 +272,13 @@ local function runOrbit(player: Player, runtime: Runtime, token: number)
 		local angleStep = angularSpeed * deltaTime
 		runtime.angle = (runtime.angle + angleStep) % TAU
 		runtime.rotationTravel += angleStep
+		if ServerContext.IsLobbyServer() then
+			-- Lobby swords stay visible and animated, but never query targets, deal damage, or release blades.
+			runtime.nextReleaseTravel = math.huge
+			sendVisualState(player, runtime, stats, level, now)
+			task.wait(definition.Combat.SimulationInterval)
+			continue
+		end
 		local center = root.Position + Vector3.new(0, 1.2, 0)
 		local hitRadius = definition.Combat.HitRadius * (stats.SwordScale / definition.Combat.BaseScale)
 		-- Inflate by half this frame's arc so high Rage speed cannot tunnel between discrete server checks.

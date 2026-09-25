@@ -4,8 +4,12 @@ local RunService = game:GetService("RunService")
 local ServerStorage = game:GetService("ServerStorage")
 
 local data_service = require(ReplicatedStorage.Packages.dataservice).server
+local server_context = require(ServerStorage.Controllers.ServerContext)
 
 Players.CharacterAutoLoads = false
+
+-- Resolve the session once from Roblox-verified join information before maps or gameplay controllers start.
+server_context.Resolve()
 
 data_service:init({
 	template = require(ReplicatedStorage.Modules.Game.DataTemplate),
@@ -14,6 +18,7 @@ data_service:init({
 })
 
 local modules_to_init = {
+	ServerStorage.Controllers.MapController,
 	ServerStorage.Controllers.ChatCommandController,
 	ServerStorage.Controllers.PlayerStateController,
 	ServerStorage.Controllers.CoinsController,
@@ -22,6 +27,7 @@ local modules_to_init = {
 	ServerStorage.Controllers.AbilityController,
 	ServerStorage.Controllers.CollisionController,
 	ServerStorage.Controllers.CharacterController,
+	ServerStorage.Controllers.PartyTeleporterController,
 	ServerStorage.Controllers.ZombieController,
 }
 

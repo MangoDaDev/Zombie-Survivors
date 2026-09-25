@@ -5,6 +5,7 @@ local ServerStorage = game:GetService("ServerStorage")
 
 local AbilityDefinitions = require(ReplicatedStorage.Modules.Game.Abilities.AbilityDefinitions)
 local RageController = require(ServerStorage.Controllers.RageController)
+local ServerContext = require(ServerStorage.Controllers.ServerContext)
 local ZombieController = require(ServerStorage.Controllers.ZombieController)
 
 local ACTIVE_ABILITY_IDS = { "Fireball", "Lightning", "Boomerang" }
@@ -729,6 +730,9 @@ local function cleanupAbility(player: Player, abilityId: string)
 end
 
 local function scheduleAttacks(now: number)
+	if ServerContext.IsLobbyServer() then
+		return
+	end
 	for player, runtime in runtimes do
 		if player.Parent ~= Players then
 			continue
