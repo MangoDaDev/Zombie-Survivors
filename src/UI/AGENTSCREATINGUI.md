@@ -290,3 +290,4 @@ Verify typography against the production component path: explicitly set required
 Also inspect good existing production UI under `src/UI/` when it is relevant to the task.
 
 Do not copy obsolete, unused, or visibly inconsistent UI merely because it exists in the codebase.
+Make sure to avoid unnesscecary rendering. If you arent greatly altering the visuals of something, do not render.

@@ -41,6 +41,10 @@ function CharacterController.OnCharacterAdded(character: Model)
 		Workspace.CurrentCamera.CameraSubject = humanoid
 	end
 	deathConnection = humanoid.Died:Connect(function()
+		-- A game-session death ends the run; RunSessionController owns the personal result/countdown flow.
+		if Workspace:FindFirstChild("Game") then
+			return
+		end
 		task.delay(Players.RespawnTime, function()
 			if localPlayer.Character == character or localPlayer.Character == nil then
 				CharacterController.RequestCharacter()

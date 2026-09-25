@@ -24,6 +24,7 @@ local modules_to_init = {
 	ServerStorage.Controllers.CoinsController,
 	ServerStorage.Controllers.RageController,
 	ServerStorage.Controllers.PlayerStatController,
+	ServerStorage.Controllers.BackpackController,
 	ServerStorage.Controllers.BreakableController,
 	ServerStorage.Controllers.AbilityController,
 	ServerStorage.Controllers.RunProgressionController,
@@ -34,10 +35,11 @@ local modules_to_init = {
 	ServerStorage.Controllers.PartyTeleporterController,
 	ServerStorage.Controllers.ZombieRewardsController,
 	ServerStorage.Controllers.ZombieController,
+	ServerStorage.Controllers.RunSessionController,
 }
 
--- Simulator-era rolls, carried backpacks, and extraction remain dormant. In-match pickups now use the
--- revived authoritative drop controller and persist collected coins directly through CoinsController.
+-- Simulator-era reward rolls and extraction remain dormant. Run pickups, wearable bags, progression,
+-- and per-player game-over sessions are active through their dedicated controllers.
 
 local initialized_modules = {}
 local removing_players = {}

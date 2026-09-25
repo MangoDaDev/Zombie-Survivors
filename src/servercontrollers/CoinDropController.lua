@@ -4,8 +4,10 @@ local RunService = game:GetService("RunService")
 local ServerStorage = game:GetService("ServerStorage")
 
 local Networker = require(ReplicatedStorage.Packages.networker)
+local Signal = require(ReplicatedStorage.Packages.signal)
 local CoinDropConfig = require(ReplicatedStorage.Modules.Game.CoinDropConfig)
 local RunProgressionConfig = require(ReplicatedStorage.Modules.Game.RunProgressionConfig)
+local BackpackController = require(ServerStorage.Controllers.BackpackController)
 local CoinsController = require(ServerStorage.Controllers.CoinsController)
 local ServerContext = require(ServerStorage.Controllers.ServerContext)
 
@@ -42,6 +44,7 @@ local accumulator = 0
 local mergeAccumulator = 0
 local coins: { [number]: CoinState } = {}
 local lastClientClaimAt: { [Player]: number } = {}
+local coinCollected = Signal.new()
 
 local function getLiveRoot(player: Player): BasePart?
 	local character = player.Character
@@ -265,6 +268,9 @@ local function finishCollections(now: number)
 			if player.Parent == Players and getLiveRoot(player) then
 				local awarded = CoinsController.Add(player, coin.value)
 				if awarded then
+					-- Permanent currency is credited first; the run-only bag and stats mirror only confirmed awards.
+					BackpackController.AddCarriedCoins(player, coin.value)
+					coinCollected:Fire(player, coin.value)
 					coins[id] = nil
 					activeCount -= 1
 					coinNetwork:fireAll("CoinCollected", id, player.UserId, coin.value)
@@ -281,6 +287,10 @@ local function finishCollections(now: number)
 			end
 		end
 	end
+end
+
+function CoinDropController.GetCoinCollectedSignal()
+	return coinCollected
 end
 
 local function beginCollection(coin: CoinState, player: Player, now: number)

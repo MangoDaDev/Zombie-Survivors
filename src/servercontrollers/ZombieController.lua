@@ -295,9 +295,10 @@ local function getPressure(area, areaPlayerCount: number, now: number)
 	local config = RunProgressionConfig.Spawning
 	local elapsedAlpha = math.clamp((now - runStartedAt) / config.ElapsedRampSeconds, 0, 1)
 	local elapsedMultiplier = 1 + elapsedAlpha * (config.MaximumElapsedRamp - 1)
-	local extraPlayers = math.max(areaPlayerCount - 1, 0)
-	local capMultiplier = elapsedMultiplier * (1 + extraPlayers * config.PlayersCapPerExtra)
-	local rateMultiplier = elapsedMultiplier * (1 + extraPlayers * config.PlayersRatePerExtra)
+	local playerMultiplier = math.max(areaPlayerCount, 1) ^ config.PlayerCountExponent
+	local capMultiplier = elapsedMultiplier * playerMultiplier
+	-- Spawn cadence scales with the same sublinear curve so larger parties actually reach their larger cap.
+	local rateMultiplier = elapsedMultiplier * playerMultiplier
 	return math.max(1, math.floor(area.MaxZombies * capMultiplier)), rateMultiplier, elapsedMultiplier
 end
 
@@ -613,7 +614,8 @@ local function startSimulation()
 	for _, area in ZombieAreas do
 		areaRuntime[area.Id] = {
 			count = 0,
-			nextSpawnAt = workspace:GetServerTimeNow() + random:NextNumber(0.5, area.SpawnInterval),
+			-- The first group arrives promptly; later groups use the normal area cadence and pressure scaling.
+			nextSpawnAt = workspace:GetServerTimeNow() + random:NextNumber(0.25, math.min(area.SpawnInterval, 0.8)),
 			dynamicCap = area.MaxZombies,
 		}
 	end

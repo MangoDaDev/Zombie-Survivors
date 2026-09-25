@@ -3,6 +3,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Networker = require(ReplicatedStorage.Packages.networker)
 local MapController = require(script.Parent.MapController)
+local ServerContext = require(script.Parent.ServerContext)
 
 local REQUEST_COOLDOWN = 0.5
 
@@ -39,6 +40,10 @@ function CharacterController.RequestCharacter(_, player: Player): boolean
 	local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
 	if humanoid and humanoid.Health > 0 then
 		return true
+	end
+	if ServerContext.IsGameServer() and player.Character then
+		-- Run deaths are terminal; clients cannot use the normal spawn request to re-enter combat.
+		return false
 	end
 
 	-- CharacterAutoLoads is disabled so every spawn request remains server-authorized and rate-limited.

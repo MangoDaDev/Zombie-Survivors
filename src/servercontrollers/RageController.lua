@@ -96,6 +96,13 @@ function RageController.GetActivatedSignal()
 	return activated
 end
 
+function RageController.EndRun(player: Player)
+	local runtime = runtimes[player]
+	if runtime then
+		clearRage(player, runtime)
+	end
+end
+
 function RageController.Init()
 	rageNetwork = Networker.server.new("RageController", RageController, {
 		RageController.ActivateRage,

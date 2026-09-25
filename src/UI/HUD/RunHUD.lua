@@ -54,183 +54,6 @@ local function getCooldownText(definition, level: number): string
 	return if type(cooldown) == "number" then string.format("%.1fs", cooldown) else "PASSIVE"
 end
 
-local function choiceCard(index: number, state, submitting)
-	local hovered = source(false)
-	local choice = derive(function()
-		local choices = state().choices
-		return type(choices) == "table" and choices[index] or nil
-	end)
-	local definition = derive(function()
-		local current = choice()
-		return current and AbilityDefinitions.ById[current.abilityId] or nil
-	end)
-	local accent = derive(function()
-		local ability = definition()
-		return ability and ability.Color or UIStyle.Colors.Blue
-	end)
-	local visible = derive(function()
-		return choice() ~= nil
-	end)
-
-	return create "Frame" {
-		Name = "Choice" .. index,
-		BackgroundColor3 = function()
-			return PANEL:Lerp(accent(), if hovered() then 0.16 else 0.09)
-		end,
-		BorderSizePixel = 0,
-		LayoutOrder = index,
-		Size = UDim2.new(0.333, -10, 1, 0),
-		Visible = visible,
-		ZIndex = 202,
-		create "UICorner" { CornerRadius = UDim.new(0, 5) },
-		create "UIStroke" {
-			ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-			Color = accent,
-			Thickness = function()
-				return if hovered() then 4 else 3
-			end,
-		},
-		create "Frame" {
-			Name = "Header",
-			BackgroundColor3 = function()
-				return accent():Lerp(Color3.new(0, 0, 0), 0.28)
-			end,
-			BorderSizePixel = 0,
-			Size = UDim2.new(1, 0, 0, 34),
-			ZIndex = 203,
-			create "UICorner" { CornerRadius = UDim.new(0, 5) },
-			create "TextLabel" {
-				BackgroundTransparency = 1,
-				FontFace = Font.new(UIStyle.Font.Family, Enum.FontWeight.Bold),
-				Position = UDim2.fromOffset(10, 4),
-				Size = UDim2.new(1, -20, 1, -8),
-				Text = function()
-					local current = choice()
-					return if current and current.kind == "New" then "NEW ABILITY" else "UPGRADE"
-				end,
-				TextColor3 = Color3.new(1, 1, 1),
-				TextScaled = true,
-				TextXAlignment = Enum.TextXAlignment.Left,
-				ZIndex = 204,
-			},
-		},
-		create "ImageLabel" {
-			Name = "Icon",
-			AnchorPoint = Vector2.new(0.5, 0),
-			BackgroundTransparency = 1,
-			Image = function()
-				local ability = definition()
-				return ability and ability.Icon or ""
-			end,
-			Position = UDim2.new(0.5, 0, 0, 42),
-			Size = UDim2.fromOffset(48, 48),
-			ScaleType = Enum.ScaleType.Fit,
-			ZIndex = 204,
-		},
-		create "TextLabel" {
-			Name = "AbilityName",
-			AnchorPoint = Vector2.new(0.5, 0),
-			BackgroundTransparency = 1,
-			FontFace = Font.new(UIStyle.Font.Family, Enum.FontWeight.Bold),
-			Position = UDim2.new(0.5, 0, 0, 94),
-			Size = UDim2.new(1, -18, 0, 25),
-			Text = function()
-				local ability = definition()
-				return ability and string.upper(ability.Name) or ""
-			end,
-			TextColor3 = Color3.new(1, 1, 1),
-			TextScaled = true,
-			ZIndex = 204,
-			textStroke(),
-		},
-		create "TextLabel" {
-			Name = "Level",
-			AnchorPoint = Vector2.new(0.5, 0),
-			BackgroundTransparency = 1,
-			FontFace = Font.new(UIStyle.Font.Family, Enum.FontWeight.Bold),
-			Position = UDim2.new(0.5, 0, 0, 121),
-			Size = UDim2.new(1, -18, 0, 18),
-			Text = function()
-				local current = choice()
-				if not current then
-					return ""
-				end
-				return if current.kind == "New"
-					then "STARTS AT LEVEL 1"
-					else string.format("LEVEL %d  ->  %d", current.currentLevel, current.nextLevel)
-			end,
-			TextColor3 = accent,
-			TextScaled = true,
-			ZIndex = 204,
-		},
-		create "TextLabel" {
-			Name = "Description",
-			AnchorPoint = Vector2.new(0.5, 0),
-			BackgroundTransparency = 1,
-			FontFace = UIStyle.Font,
-			Position = UDim2.new(0.5, 0, 0, 144),
-			Size = UDim2.new(1, -22, 0, 34),
-			Text = function()
-				local current = choice()
-				local ability = definition()
-				return if current and ability then ability.Description else ""
-			end,
-			TextColor3 = Color3.fromRGB(214, 224, 230),
-			TextScaled = true,
-			TextWrapped = true,
-			ZIndex = 204,
-		},
-		create "TextLabel" {
-			Name = "Changes",
-			AnchorPoint = Vector2.new(0.5, 0),
-			BackgroundColor3 = Color3.fromRGB(12, 17, 22),
-			BackgroundTransparency = 0.25,
-			BorderSizePixel = 0,
-			FontFace = UIStyle.Font,
-			Position = UDim2.new(0.5, 0, 0, 183),
-			Size = UDim2.new(1, -18, 1, -191),
-			Text = function()
-				local current = choice()
-				local ability = definition()
-				if not current or not ability then
-					return ""
-				end
-				return if current.kind == "New"
-					then "LEVEL 1\n" .. AbilityDefinitions.GetDescription(ability, 1)
-					else ability.GetStatsText and ability.GetStatsText(current.currentLevel) or ability.UpgradeDescription
-			end,
-			TextColor3 = MUTED,
-			TextScaled = true,
-			TextWrapped = true,
-			ZIndex = 204,
-			create "UICorner" { CornerRadius = UDim.new(0, 3) },
-		},
-		create "TextButton" {
-			Name = "Sensor",
-			Active = visible,
-			AutoButtonColor = false,
-			BackgroundTransparency = 1,
-			Selectable = visible,
-			Size = UDim2.fromScale(1, 1),
-			Text = "",
-			ZIndex = 210,
-			MouseEnter = function()
-				hovered(true)
-				Sounds.Play("HoverStart", localPlayer.PlayerGui)
-			end,
-			MouseLeave = function()
-				hovered(false)
-			end,
-			Activated = function()
-				local currentState = state()
-				if currentState.choices and currentState.choices[index] then
-					submitting(currentState.choiceSetId, index)
-				end
-			end,
-		},
-	}
-end
-
 local function abilitySlot(definition, state, tooltipId)
 	local hovered = source(false)
 	local runAbility = derive(function()
@@ -337,22 +160,8 @@ return function()
 		-- amount cannot remain hidden after the Studio destination replaces the lobby map.
 		return state().active or gameMapPresent()
 	end)
-	local lastSubmittedSetId = 0
-
-	local function submitChoice(choiceSetId: number, index: number)
-		if choiceSetId == lastSubmittedSetId then
-			return
-		end
-		lastSubmittedSetId = choiceSetId
-		Sounds.Play("Click", localPlayer.PlayerGui)
-		RunProgressionController.SelectChoice(choiceSetId, index)
-	end
-
 	local stateConnection = RunProgressionController.GetStateChangedSignal():Connect(function(newState)
 		state(newState)
-		if newState.choiceSetId ~= lastSubmittedSetId then
-			lastSubmittedSetId = 0
-		end
 		progressTarget(if newState.xpRequired > 0 then math.clamp(newState.xp / newState.xpRequired, 0, 1) else 1)
 	end)
 	local coinConnection = CoinsController.GetChangedSignal():Connect(function(newBalance)
@@ -389,10 +198,6 @@ return function()
 		end
 	end)
 
-	local choiceCards = {}
-	for index = 1, 3 do
-		table.insert(choiceCards, choiceCard(index, state, submitChoice))
-	end
 	local abilitySlots = {}
 	for _, definition in AbilityDefinitions.List do
 		table.insert(abilitySlots, abilitySlot(definition, state, tooltipId))
@@ -442,52 +247,6 @@ return function()
 				TextScaled = true,
 				TextXAlignment = Enum.TextXAlignment.Left,
 				ZIndex = 81,
-			},
-		},
-		create "Frame" {
-			Name = "ChoiceTray",
-			AnchorPoint = Vector2.new(0.5, 0),
-			BackgroundTransparency = 1,
-			Position = function()
-				return UDim2.new(0.5, 0, 0, topOffset() + 48)
-			end,
-			Size = UDim2.new(0.92, 0, 0, 270),
-			Visible = function()
-				return inGame() and type(state().choices) == "table" and #state().choices > 0
-			end,
-			ZIndex = 200,
-			create "UISizeConstraint" {
-				MaxSize = Vector2.new(820, 270),
-				MinSize = Vector2.new(300, 250),
-			},
-			create "TextLabel" {
-				Name = "Prompt",
-				BackgroundTransparency = 1,
-				FontFace = Font.new(UIStyle.Font.Family, Enum.FontWeight.Bold),
-				Size = UDim2.new(1, 0, 0, 28),
-				Text = function()
-					local queued = state().pendingChoices
-					return if queued > 1
-						then string.format("LEVEL UP  -  CHOOSE ONE  (%d QUEUED)", queued)
-						else "LEVEL UP  -  CHOOSE ONE"
-				end,
-				TextColor3 = Color3.fromRGB(224, 238, 246),
-				TextScaled = true,
-				ZIndex = 201,
-				textStroke(),
-			},
-			create "Frame" {
-				BackgroundTransparency = 1,
-				Position = UDim2.fromOffset(0, 38),
-				Size = UDim2.new(1, 0, 1, -38),
-				ZIndex = 202,
-				create "UIListLayout" {
-					FillDirection = Enum.FillDirection.Horizontal,
-					HorizontalAlignment = Enum.HorizontalAlignment.Center,
-					Padding = UDim.new(0.015, 0),
-					SortOrder = Enum.SortOrder.LayoutOrder,
-				},
-				choiceCards,
 			},
 		},
 		create "Frame" {

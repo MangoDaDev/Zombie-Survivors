@@ -1,5 +1,3 @@
--- Currently unused while carried simulator loot is archived. Preserved for future wearable progression.
-
 local BackpackConfig = {
 	ModelName = "CoinBackpack",
 	TargetPartName = "GatheredNeck",

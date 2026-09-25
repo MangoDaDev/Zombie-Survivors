@@ -24,6 +24,7 @@ type PlayerRuntime = {
 	lastRequestAt: number,
 	nextDaggerAt: number,
 	runData: any?,
+	runEnded: boolean,
 }
 
 local AbilityController = {}
@@ -115,7 +116,10 @@ local function getCombatData(player: Player)
 	local runtime = runtimes[player]
 	-- A run owns its own levels and equipped set. Persistent discovery data only controls which new
 	-- abilities may be offered; it must never be mutated by an in-match upgrade.
-	return if ServerContext.IsGameServer() and runtime and runtime.runData then runtime.runData else getData(player)
+	if ServerContext.IsGameServer() and runtime then
+		return if runtime.runEnded then makeEmptyData() elseif runtime.runData then runtime.runData else getData(player)
+	end
+	return getData(player)
 end
 
 local function initializeRunData(player: Player)
@@ -135,6 +139,7 @@ local function initializeRunData(player: Player)
 		end
 	end
 	runtime.runData = runData
+	runtime.runEnded = false
 end
 
 local function isEquipped(data, abilityId: string): boolean
@@ -303,6 +308,19 @@ end
 function AbilityController.GetRunData(player: Player)
 	local runtime = runtimes[player]
 	return runtime and runtime.runData or nil
+end
+
+function AbilityController.EndRun(player: Player)
+	local runtime = runtimes[player]
+	if not runtime or runtime.runEnded then
+		return
+	end
+	runtime.runEnded = true
+	runtime.runData = nil
+	refreshAttacks(player)
+	ActiveWeapons.Refresh(player)
+	OrbitingSwords.Refresh(player)
+	PassiveEffects.Refresh(player)
 end
 
 function AbilityController.IsAvailableInRun(player: Player, abilityId: string): boolean
@@ -519,6 +537,7 @@ function AbilityController.OnPlayerAdded(player: Player)
 		lastRequestAt = -math.huge,
 		nextDaggerAt = workspace:GetServerTimeNow() + 0.2,
 		runData = nil,
+		runEnded = false,
 	}
 
 	local rawData = dataService:get(player, AbilityDefinitions.DataKey)

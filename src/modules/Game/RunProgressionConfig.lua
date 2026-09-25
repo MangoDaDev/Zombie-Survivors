@@ -40,13 +40,14 @@ local RunProgressionConfig = {
 
 	Spawning = {
 		MinimumDistance = 30,
-		PreferredDistance = NumberRange.new(34, 52),
+		-- Slightly closer groups make the opening engage quickly even though its population is intentionally smaller.
+		PreferredDistance = NumberRange.new(30, 44),
 		OutsideViewDot = 0.3,
 		AttemptsPerGroup = 16,
 		ElapsedRampSeconds = 480,
 		MaximumElapsedRamp = 1.75,
-		PlayersCapPerExtra = 0.55,
-		PlayersRatePerExtra = 0.3,
+		-- Total horde pressure follows the requested sublinear multiplayer curve: players ^ 0.8.
+		PlayerCountExponent = 0.8,
 		MinimumSpawnInterval = 0.55,
 		MaximumGroupMultiplier = 2,
 	},

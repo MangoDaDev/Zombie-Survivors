@@ -13,6 +13,7 @@ local modules_to_init = {
 	ReplicatedStorage.Controllers.RageController,
 	ReplicatedStorage.Controllers.AbilityController,
 	ReplicatedStorage.Controllers.RunProgressionController,
+	ReplicatedStorage.Controllers.RunSessionController,
 	ReplicatedStorage.Controllers.CharacterController,
 	ReplicatedStorage.Controllers.ZombieController,
 	ReplicatedStorage.Controllers.CoinDropController,
@@ -21,8 +22,8 @@ local modules_to_init = {
 	ReplicatedStorage.UI.UIOrigin,
 }
 
--- Simulator-era rolls and extraction remain dormant. World pickup presentation is active only when its
--- authoritative game-server controllers publish drops.
+-- Simulator-era reward rolls and extraction remain dormant. Current run choices, pickups, and death
+-- presentation are driven by their authoritative game-server controllers.
 
 local initialized_modules = {}
 

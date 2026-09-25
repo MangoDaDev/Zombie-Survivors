@@ -19,6 +19,7 @@ type Choice = {
 type PlayerRunState = {
 	level: number,
 	xp: number,
+	totalXP: number,
 	xpRequired: number,
 	pendingChoices: number,
 	choiceSetId: number,
@@ -30,6 +31,7 @@ local RunProgressionController = {}
 local progressionNetwork
 local random = Random.new()
 local states: { [Player]: PlayerRunState } = {}
+local endedPlayers: { [Player]: boolean } = {}
 
 local function getAbilitySnapshot(player: Player)
 	local snapshot = {}
@@ -161,7 +163,7 @@ local function offerNextChoice(player: Player, state: PlayerRunState)
 end
 
 local function initializePlayer(player: Player)
-	if states[player] or not ServerContext.IsGameServer() then
+	if states[player] or endedPlayers[player] or not ServerContext.IsGameServer() then
 		return
 	end
 	-- XP state is independent of ability state. In Studio, both systems react to the same asynchronous
@@ -169,6 +171,7 @@ local function initializePlayer(player: Player)
 	local state: PlayerRunState = {
 		level = 1,
 		xp = 0,
+		totalXP = 0,
 		xpRequired = RunProgressionConfig.GetXPRequirement(1),
 		pendingChoices = 0,
 		choiceSetId = 0,
@@ -189,7 +192,9 @@ function RunProgressionController.AddXP(player: Player, amount: number): boolean
 		return false
 	end
 
-	state.xp += math.max(1, math.floor(amount))
+	local awardedXP = math.max(1, math.floor(amount))
+	state.xp += awardedXP
+	state.totalXP += awardedXP
 	local earnedLevels = 0
 	while state.level < RunProgressionConfig.XP.MaximumLevel and state.xp >= state.xpRequired do
 		state.xp -= state.xpRequired
@@ -208,6 +213,32 @@ function RunProgressionController.AddXP(player: Player, amount: number): boolean
 	end
 	sendState(player, state)
 	return true
+end
+
+function RunProgressionController.GetRunSummary(player: Player)
+	local state = states[player]
+	return {
+		level = state and state.level or 1,
+		totalXP = state and state.totalXP or 0,
+	}
+end
+
+function RunProgressionController.EndRun(player: Player)
+	endedPlayers[player] = true
+	states[player] = nil
+	if progressionNetwork and player.Parent == Players then
+		-- Clear all run-only progression and queued choices without touching persistent ability data.
+		progressionNetwork:fire(player, "RunStateChanged", {
+			active = false,
+			level = 1,
+			xp = 0,
+			xpRequired = RunProgressionConfig.GetXPRequirement(1),
+			pendingChoices = 0,
+			choiceSetId = 0,
+			choices = nil,
+			abilities = {},
+		})
+	end
 end
 
 function RunProgressionController.GetSnapshot(_, player: Player)
@@ -276,11 +307,13 @@ function RunProgressionController.Init()
 end
 
 function RunProgressionController.OnPlayerAdded(player: Player)
+	endedPlayers[player] = nil
 	initializePlayer(player)
 end
 
 function RunProgressionController.OnPlayerRemoving(player: Player)
 	states[player] = nil
+	endedPlayers[player] = nil
 end
 
 return RunProgressionController

@@ -165,6 +165,20 @@ function PartyTeleportService.Teleport(players: { Player }, leader: Player, runI
 	return true, nil
 end
 
+function PartyTeleportService.ReturnToLobby(player: Player): (boolean, string?)
+	if player.Parent ~= Players then
+		return false, "The player is no longer connected."
+	end
+	if RunService:IsStudio() then
+		-- A single Studio process cannot move one dead client back to Lobby without ending surviving clients' run.
+		return false, "Studio cannot independently return one player to the lobby."
+	end
+
+	-- No reserved-server options or Game teleport data means the destination bootstraps as the normal lobby.
+	local success, result = pcall(TeleportService.TeleportAsync, TeleportService, game.PlaceId, { player })
+	return success, if success then nil else tostring(result)
+end
+
 function PartyTeleportService.Cancel(runId: string)
 	-- Cancellation only owns local delayed work; Roblox owns accepted published teleports.
 	if RunService:IsStudio() then

@@ -18,9 +18,10 @@ local ZombieAreas = {
 		MovementCFrame = GAME_FLOOR_CFRAME,
 		MovementSize = GAME_FLOOR_SIZE,
 		HealthMultiplier = 0.5,
-		MaxZombies = 24,
-		SpawnInterval = 3,
-		GroupSize = NumberRange.new(2, 4),
+		-- Begin with a smaller readable horde, but introduce it promptly so the run never feels idle.
+		MaxZombies = 12,
+		SpawnInterval = 2,
+		GroupSize = NumberRange.new(1, 2),
 		GroupRadius = 10,
 		MinPlayerDistance = 28,
 		ZombieWeights = {

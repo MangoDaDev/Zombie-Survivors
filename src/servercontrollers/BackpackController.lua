@@ -1,9 +1,8 @@
--- Currently unused after removal of carried simulator loot. Preserved as reusable wearable-backpack logic.
-
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local BackpackConfig = require(ReplicatedStorage.Modules.Game.BackpackConfig)
+local ServerContext = require(script.Parent.ServerContext)
 
 local ASSET_FOLDER = ReplicatedStorage.Assets.Models.Bags
 local TORSO_NAMES = { "UpperTorso", "Torso" }
@@ -145,11 +144,26 @@ function BackpackController.SetCarriedCoins(player: Player, carriedCoins: number
 	end
 end
 
+function BackpackController.AddCarriedCoins(player: Player, amount: number)
+	if type(amount) ~= "number" or amount <= 0 or amount % 1 ~= 0 then
+		return
+	end
+	BackpackController.SetCarriedCoins(player, (carriedCoinsByPlayer[player] or 0) + amount)
+end
+
+function BackpackController.GetCarriedCoins(player: Player): number
+	return carriedCoinsByPlayer[player] or 0
+end
+
 function BackpackController.OnPlayerAdded(player: Player)
 	carriedCoinsByPlayer[player] = 0
 end
 
 function BackpackController.OnCharacterAdded(player: Player, character: Model)
+	if not ServerContext.IsGameServer() then
+		return
+	end
+	-- The coin bag is run equipment; lobby characters must remain unchanged.
 	attachWhenTorsoIsReady(player, character)
 end
 
