@@ -17,6 +17,7 @@ export type Props = {
 	OnActivated: (() -> ())?,
 	Enabled: Reactive<boolean>?,
 	BackgroundColor3: Reactive<Color3>?,
+	CornerRadius: Reactive<UDim>?,
 	LayoutOrder: Reactive<number>?,
 	Size: Reactive<UDim2>?,
 }
@@ -38,6 +39,15 @@ return function(props: Props)
 	end)
 	local outlineColor = derive(function()
 		return BLACK:Lerp(buttonColor(), 0.56)
+	end)
+	local faceColor = derive(function()
+		local color = buttonColor()
+		if not enabled() then
+			return color:Lerp(UIStyle.Colors.Ink, 0.45)
+		elseif pressed() then
+			return color:Lerp(tintedBlack(), 0.08)
+		end
+		return if hovered() then color:Lerp(UIStyle.Colors.Paper, 0.08) else color
 	end)
 	local scale = spring(
 		derive(function()
@@ -84,13 +94,23 @@ return function(props: Props)
 			Position = UDim2.fromScale(0.5, 0.5),
 			Size = UDim2.fromScale(1, 1),
 			BackgroundColor3 = function()
+				-- Match the exposed backing to the moving face while pressed. The label and face still
+				-- travel downward, but no dark seam appears above them during the animation.
+				if enabled() and pressed() then
+					return faceColor()
+				end
 				return if enabled() then tintedBlack() else BLACK:Lerp(buttonColor(), 0.2)
 			end,
 			BackgroundTransparency = function()
 				return if enabled() then 0 else 0.45
 			end,
 			BorderSizePixel = 0,
-			create "UICorner" { CornerRadius = UIStyle.CornerRadius },
+			create "UICorner" {
+				CornerRadius = function()
+					-- Corner rounding is opt-in so this interaction component does not impose a visual style.
+					return readOr(props.CornerRadius, UDim.new(0, 0))
+				end,
+			},
 			create "UIStroke" {
 				ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
 				-- Keep the silhouette crisp even though the other dark details inherit the button color.
@@ -112,12 +132,7 @@ return function(props: Props)
 		},
 		create "Frame" {
 			Name = "Content",
-			BackgroundColor3 = function()
-				local Color = buttonColor()
-				if not enabled() then return Color:Lerp(UIStyle.Colors.Ink, 0.45) end
-				if pressed() then return Color:Lerp(tintedBlack(), 0.08) end
-				return if hovered() then Color:Lerp(UIStyle.Colors.Paper, 0.08) else Color
-			end,
+			BackgroundColor3 = faceColor,
 			BorderSizePixel = 0,
 			-- Compress the raised face into its backing while pressed so clicks feel physical.
 			Position = function()
@@ -127,7 +142,11 @@ return function(props: Props)
 				return UDim2.fromScale(1, 0.88 - faceDepth())
 			end,
 			ZIndex = 1,
-			create "UICorner" { CornerRadius = UIStyle.CornerRadius },
+			create "UICorner" {
+				CornerRadius = function()
+					return readOr(props.CornerRadius, UDim.new(0, 0))
+				end,
+			},
 			create "ImageLabel" {
 				Name = "StudTexture",
 				BackgroundTransparency = 1,
@@ -144,7 +163,10 @@ return function(props: Props)
 					return buttonColor():Lerp(UIStyle.Colors.Paper, 0.38)
 				end,
 				Thickness = UIStyle.OutlineThickness,
-				Transparency = UIStyle.InsideStrokeTransparency,
+				Transparency = function()
+					-- The inset outline would become a floating dark line when the face moves down.
+					return if pressed() then 1 else UIStyle.InsideStrokeTransparency
+				end,
 			},
 		},
 		create "TextLabel" {

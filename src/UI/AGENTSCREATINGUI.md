@@ -1,40 +1,21 @@
 AgentsCreatingUI.md
 Purpose
 This file defines how agents must create, modify, review, and polish Roblox UI in this project.
-The project uses Vide for production UI and Pinevex Renderer for headless visual iteration. UI work is not complete when the code merely runs; agents must render, inspect, revise, and re-render the interface until the result is visually coherent and matches the project design system.
+The project uses Vide for production UI and Pinevex Renderer for headless visual iteration. UI work is not complete when the code merely runs; agents must render, inspect, revise, and re-render substantial interfaces until the result is visually coherent and matches the requested direction.
 Core Rules
 - Production UI must use Vide unless the surrounding system explicitly requires otherwise.
 - Preserve existing gameplay logic, state, signals, callbacks, controllers, and data flow when changing UI.
 - Do not replace working behavior just to simplify styling.
 - Reuse existing UI components, style modules, animation helpers, image registries, and interaction modules where appropriate.
-- Do not create a second visual system for one screen.
+- Follow the visual direction requested for the specific screen; do not impose an unrelated existing style on it.
 - Prefer clear, maintainable component boundaries over a single giant UI function.
 - Do not duplicate the same styled control across multiple screens.
 - Do not add large example blocks, mock systems, or unrelated demo UI to production files.
-Visual Design System
-All UI should belong to the same STUD design language.
-The style should feel:
-- chunky
-- playful
-- polished
-- game-like
-- readable at a glance
-- visually layered without becoming noisy
-The UI should not look like a generic flat web dashboard.
-STUD Style Characteristics
-Use these traits consistently where appropriate:
-- layered depth rather than one flat rectangle
-- subtle top-to-bottom or directional gradients
-- dark backing layers or outlines that are slightly tinted toward the element theme color
-- rounded corners
-- visible but controlled strokes
-- tiled stud texture on major filled surfaces
-- restrained glow/highlight layers where they improve depth
-- strong readable text
-- clear separation between primary, secondary, and decorative elements
-- theme colors that vary by feature while preserving the same structural language
-Effects must support hierarchy, not compete with it.
-Do not add glow, gradients, texture, strokes, shadows, and overlays to every object indiscriminately.
+Visual Direction
+There is no mandatory project-wide visual aesthetic. Follow the user's brief, supplied reference, or screen-specific direction.
+Do not assume that new UI needs rounded corners, stud textures, gradients, glow, layered depth, thick strokes, a particular palette, or any other existing treatment.
+Existing style modules and visual components are optional resources. Reuse them only when they fit the requested result; functional interaction helpers may still be reused independently of their presentation.
+Keep each screen internally coherent, readable, and appropriately polished without forcing it to match unrelated existing interfaces.
 Layout Rules
 Responsive Sizing
 Use a deliberate mix of:
@@ -82,29 +63,18 @@ Prevent:
 - weak contrast
 - tiny text on mobile
 - text touching strokes or panel edges
-Use the project's existing font choices and text-stroke conventions unless the task explicitly requires a different treatment.
+Choose typography deliberately for the requested design. Existing fonts and text-stroke conventions are optional, not defaults that override the brief.
 Color and Theme
-Use strong theme colors, but keep supporting colors controlled.
-Dark outline/backing colors should generally be slightly biased toward the element's theme color rather than defaulting to pure black or neutral gray.
-Do not calculate those colors continuously at runtime. Use the final intended color directly.
+Use a controlled palette appropriate to the requested design.
 Maintain sufficient contrast between:
 - text and background
 - icons and background
 - selected and unselected states
 - enabled and disabled states
-- foreground and decorative texture
-Different systems may have different theme colors, but they should still look like part of the same UI family.
-Texture, Depth, and Surface Treatment
-For major filled STUD surfaces, consider the project's existing stud texture.
-Typical surface construction may include:
-- darker outer/back layer
-- lighter front/content layer
-- subtle gradient
-- tiled stud texture
-- inner or outer stroke
-- optional restrained glow
-Do not blindly apply the full stack to every object.
-Small controls should remain visually clean.
+- foreground and decorative elements
+Surface Treatment
+Use corners, textures, gradients, strokes, shadows, glow, and depth only when the requested design benefits from them.
+No surface treatment is required by default.
 Decorative layers must not interfere with input or readability.
 Reusable UI Components
 Create reusable Vide components for visual structures that appear repeatedly.
@@ -122,7 +92,7 @@ Good candidates include:
 - selected states
 - notification elements
 - upgrade nodes
-Reusable components should accept the data and state they need while keeping STUD styling internally consistent.
+Reusable components should accept the data and state they need without forcing one presentation onto every consumer.
 Do not create reusable abstractions for tiny one-off elements.
 Before building a new control from scratch, inspect the existing UI codebase for an appropriate component to reuse or extend.
 Interaction States
@@ -222,7 +192,7 @@ Stop when:
 - proportions are coherent
 - text is readable
 - states are understandable
-- the UI matches the project style
+- the UI matches the requested visual direction
 - further changes would be marginal rather than meaningful
 Reference Images
 When a screenshot or visual reference is provided, treat it as a target rather than loose inspiration unless the task says otherwise.
@@ -239,8 +209,7 @@ Compare:
 - icon placement
 - decorative density
 Do not blindly copy defects from a reference.
-Preserve the project's STUD visual language while matching the intended composition.
-When the requested design conflicts with established project style, keep the requested structure while adapting the finish so it still belongs to the game.
+The user's requested design takes precedence over existing project styling. Do not adapt it back toward an established aesthetic unless asked.
 Pinevex vs Production Vide
 Pinevex is the visual design and validation layer.
 Vide is the production implementation layer.
@@ -298,7 +267,7 @@ UI work is complete only when all relevant items below are satisfied:
 - production UI uses Vide correctly
 - existing logic still works
 - visual structure matches the requested design
-- STUD styling is consistent with the rest of the project
+- visual styling matches the requested direction
 - repeated controls reuse appropriate components
 - layout is responsive enough for intended viewports
 - text is readable and unclipped
@@ -308,39 +277,16 @@ UI work is complete only when all relevant items below are satisfied:
 - no unnecessary duplicate UI systems or components were introduced
 Code correctness alone is not sufficient for substantial UI work.
 
-If no examples are provided in the prompt, use UI reference libary!
 # UI Reference Library
 
-Visual reference material is stored in `ui-references/`.
+Optional historical visual references are stored in `ui-references/`.
 
-Before designing substantial UI, inspect relevant references from this directory.
+Consult them only when the user requests that style or when a specific reference is relevant to the task. They do not define a mandatory project-wide visual language.
 
-Use references to understand:
-- STUD surface construction
-- button depth
-- panel layering
-- texture density
-- stroke thickness
-- corner radii
-- typography
-- spacing
-- visual hierarchy
-- theme treatment
+When using a reference, extract only the traits that support the requested result. Do not automatically copy its corner treatment, depth, texture, strokes, palette, decoration, or layout.
 
-Do not completely copy the references, make sure the UI is good for the use including the layout and colors. The references are only for guide.
-
-Choose references relevant to the type of UI being created. For example, a new button should primarily reference existing buttons rather than copying the layout of an entire menu.
-
-References define the project's visual language, not an exact layout that must always be copied.
-
-When multiple references exist, extract their shared design principles rather than combining every decorative feature into one element.
-
-Before implementation, visibly reproduce the references' dominant silhouette, border depth, title scale, and surface contrast; matching only their palette or stud texture is not sufficient.
+Verify typography against the production component path: explicitly set required font weights and check shared-component text-size constraints instead of assuming the preview renderer will match Studio.
 
 Also inspect good existing production UI under `src/UI/` when it is relevant to the task.
 
 Do not copy obsolete, unused, or visibly inconsistent UI merely because it exists in the codebase.
-
-FOR STUD TEXTURE, THERE IS ONE IN UISTYLE! DO NOT CREATE STUD TEXTURE WITH CODE! THE IMAGE IS 4x4 STUDS.
-
-The UI should match the style of the UI in the references or the libary

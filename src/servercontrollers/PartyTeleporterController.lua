@@ -135,10 +135,11 @@ local function createWorldView(billboardLocation: BasePart): WorldView
 end
 
 local function getCountdown(state: TeleporterState, now: number): number?
-	if not state.deadline then
+	local activeDeadline = if state.configured then state.deadline else state.setupDeadline
+	if not activeDeadline then
 		return nil
 	end
-	return math.max(0, math.ceil(state.deadline - now))
+	return math.max(0, math.ceil(activeDeadline - now))
 end
 
 local function updateWorldView(state: TeleporterState, now: number)
@@ -337,6 +338,20 @@ local function finishSetup(state: TeleporterState, now: number)
 	playSound(state, "Popup")
 end
 
+local function expireSetup(state: TeleporterState)
+	local members = table.clone(state.members)
+	for _, member in members do
+		notify(member, "Party setup expired because it was not confirmed.", "Error")
+	end
+
+	-- Setup expiry must never auto-confirm. Eject every unconfirmed member and suppress zone
+	-- re-entry until they physically leave the teleporter so the same timeout cannot loop.
+	resetState(state, true)
+	for _, member in members do
+		movePlayer(member, state.exitCFrame)
+	end
+end
+
 local function removeMember(state: TeleporterState, player: Player, suppressUntilExit: boolean?)
 	if not state.memberLookup[player] then
 		return
@@ -510,8 +525,12 @@ local function stepZones(deltaTime: number)
 	for _, state in orderedStates do
 		if #state.members > 0 and not state.locked then
 			if not state.configured then
-				if state.setupDeadline and now >= state.setupDeadline then
-					finishSetup(state, now)
+				local countdown = getCountdown(state, now)
+				if countdown and countdown <= 0 then
+					expireSetup(state)
+				elseif countdown ~= state.lastDisplayedSecond then
+					updateWorldView(state, now)
+					broadcastState(state)
 				end
 			else
 				local countdown = getCountdown(state, now)

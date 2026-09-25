@@ -1,11 +1,13 @@
 # UI References
 
-These are approved visual references for the STUD UI design system.
+These are optional historical visual references. They do not define a mandatory style for new UI.
+
+Use a reference only when the user requests that direction or when it is specifically relevant. Do not automatically apply its rounded corners, stud texture, gradients, depth, palette, or proportions to other interfaces.
 
 ## Buttons
 
 ### GreenPrimaryButton.png
-Use as the main reference for large affirmative/action buttons.
+Example of an existing large affirmative/action button.
 
 Key traits:
 - dark themed backing layer
@@ -17,19 +19,19 @@ Key traits:
 - chunky proportions
 
 ### CloseButton.png
-Use for close/dismiss controls.
+Example of an existing close/dismiss control.
 
 ## Panels
 
 ### WhiteStudPanel.png
-Main reference for neutral modal/menu surfaces.
+Example of an existing neutral modal/menu surface.
 
 ### GoldStudPanel.png
-Reference for currency/reward themed surfaces.
+Example of an existing currency/reward themed surface.
 
 ## Menus
 
 ### RebirthMenu.png
-Reference for large modal hierarchy, title treatment, spacing, and close-button positioning.
+Example of an existing large modal hierarchy, title treatment, spacing, and close-button positioning.
 
 Do not copy the exact layout unless the new menu requires the same structure.

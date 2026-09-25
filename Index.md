@@ -36,7 +36,7 @@ Quick reference for the reusable first-party Luau foundation. Generated Wally de
 | `src/servercontrollers/MapController.lua` | Keeps only the current session's Lobby or Game map in Workspace, exposes its inspected spawn, and supports the guarded Studio destination switch. |
 | `src/servercontrollers/CharacterController.lua` | Serializes and authorizes character loads, rate-limits client spawn requests, and places characters at the current session map's spawn. |
 | `src/servercontrollers/PartyTeleportService.lua` | Provides one validated party-teleport interface: same-place reserved servers in live games and a cancellable local destination simulation in Studio using the same payload. |
-| `src/servercontrollers/PartyTeleporterController.lua` | Owns closed-elevator entry/exit, timed leader setup, party settings/countdowns, Studio loading/completion tracking, and whole-party ejection on teleport failure. |
+| `src/servercontrollers/PartyTeleporterController.lua` | Owns closed-elevator entry/exit, explicitly confirmed leader setup with timeout ejection, party settings/countdowns, Studio loading/completion tracking, and whole-party ejection on teleport failure. |
 | `src/servercontrollers/AbilityController.lua` | Owns ability state, active/passive refreshes, ability-specific Rage behavior, and authoritative damage; lobby sessions keep loadouts but do not schedule dagger attacks. |
 | `src/servercontrollers/Ability/ActiveWeapons.lua` | Runs the shared authoritative Fireball, Lightning, and Boomerang scheduler, projectile hits, status ticks, area caps, Rage variants, and cleanup only in Game sessions. |
 | `src/servercontrollers/Ability/OrbitingSwords.lua` | Simulates authoritative sword combat in Game sessions while preserving non-damaging orbit presentation in Lobby sessions. |
@@ -128,7 +128,7 @@ These modules provide shared game configuration, persistent player-data defaults
 | `src/UI/App.lua` | Composes the neutral `App` ScreenGui, party Creation Menu, and retained generic overlays. |
 | `src/UI/UIOrigin.lua` | Mounts the Vide application once into LocalPlayer.PlayerGui. |
 | `src/UI/App.story.lua` | Exposes the app component for UI story previews. |
-| `src/UI/Classes/Button.lua` | Provides a reusable reactive STUD-style button. |
+| `src/UI/Classes/Button.lua` | Provides a reusable reactive button with configurable color, sizing, corner radius, interaction feedback, and sounds. |
 | `src/UI/Classes/Confirmation.lua` | Provides a reusable modal confirmation component. |
 | `src/UI/Effects/HoverExpand.lua` | Provides reusable hover scaling for GuiObjects. |
 | `src/UI/Effects/Notification.lua` | Provides a reusable counted attention badge. |
@@ -137,7 +137,7 @@ These modules provide shared game configuration, persistent player-data defaults
 | `src/UI/HUD/AbilityInterface.lua` | **Archived/dormant:** ability management and roll-discovery presentation. |
 | `src/UI/HUD/RageBar.lua` | Renders the responsive STUD-style Rage meter, ready/active states, activation control, and screen pulse. |
 | `src/UI/HUD/Notifications.lua` | Renders transient notifications from NotificationManager. |
-| `src/UI/HUD/PartyTeleporterMenu.lua` | Renders the responsive party Creation Menu, leader-only setup controls, departure status, and lock-aware member or leader exit. |
+| `src/UI/HUD/PartyTeleporterMenu.lua` | Renders the responsive leader-only Creation Menu and collapses confirmed or member views to the lock-aware exit control. |
 | `src/UI/HUD/RollControls.lua` | **Archived/dormant:** Roll/Hide/Show, Auto Roll progress, and ability-menu controls. |
 | `src/UI/HUD/RollInterface.lua` | **Archived/dormant:** full-screen or compact item/clover reel presentation. |
 | `src/modules/UI/NotificationManager.lua` | Emits reusable transient notification events. |

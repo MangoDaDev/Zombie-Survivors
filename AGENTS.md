@@ -62,7 +62,7 @@ For any task that creates, modifies, restyles, reviews, or fixes Roblox UI, you 
 
 UI CREATION:
 `AgentsCreatingUI.md` defines:
-- the project's STUD visual design system
+- task-directed visual design guidance without imposing a global aesthetic
 - Vide UI requirements
 - reusable UI component rules
 - Pinevex rendering and visual iteration workflow
