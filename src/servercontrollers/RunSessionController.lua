@@ -16,7 +16,7 @@ local ZombieController = require(ServerStorage.Controllers.ZombieController)
 local RETURN_DELAY = 15
 
 type RunRuntime = {
-	startedAt: number,
+	startedAt: number?,
 	zombiesKilled: number,
 	coinsCollected: number,
 	ended: boolean,
@@ -42,7 +42,7 @@ local function initializePlayer(player: Player)
 		return
 	end
 	runtimes[player] = {
-		startedAt = workspace:GetServerTimeNow(),
+		startedAt = ZombieController.GetFirstZombieSpawnedAt(),
 		zombiesKilled = 0,
 		coinsCollected = 0,
 		ended = false,
@@ -78,10 +78,11 @@ local function endRun(player: Player)
 	local progression = RunProgressionController.GetRunSummary(player)
 	runtime.resultPacket = {
 		active = true,
+		startedAt = runtime.startedAt,
 		endedAt = now,
 		returnAt = now + RETURN_DELAY,
 		stats = {
-			survivalTime = math.max(now - runtime.startedAt, 0),
+			survivalTime = if runtime.startedAt then math.max(now - runtime.startedAt, 0) else 0,
 			zombiesKilled = runtime.zombiesKilled,
 			levelReached = progression.level,
 			coinsCollected = runtime.coinsCollected,
@@ -105,13 +106,28 @@ end
 function RunSessionController.GetSnapshot(_, player: Player)
 	initializePlayer(player)
 	local runtime = runtimes[player]
-	return runtime and runtime.resultPacket or { active = false }
+	return runtime and (runtime.resultPacket or { active = false, startedAt = runtime.startedAt }) or { active = false }
 end
 
 function RunSessionController.Init()
 	sessionNetwork = Networker.server.new("RunSessionController", RunSessionController, {
 		RunSessionController.GetSnapshot,
 	})
+	local function beginSurvivalClock(startedAt: number)
+		for player, runtime in runtimes do
+			if not runtime.ended and not runtime.startedAt then
+				runtime.startedAt = startedAt
+				if player.Parent == Players then
+					sessionNetwork:fire(player, "RunStarted", startedAt)
+				end
+			end
+		end
+	end
+	ZombieController.GetFirstZombieSpawnedSignal():Connect(beginSurvivalClock)
+	local existingStart = ZombieController.GetFirstZombieSpawnedAt()
+	if existingStart then
+		beginSurvivalClock(existingStart)
+	end
 
 	ZombieController.GetZombieDiedSignal():Connect(function(death)
 		local killer = type(death) == "table" and death.killer or nil

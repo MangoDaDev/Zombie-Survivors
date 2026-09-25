@@ -2,7 +2,9 @@ local RunProgressionConfig = {
 	-- Run levels are transient. This curve deliberately grows sub-exponentially enough that later
 	-- hordes still produce visible progress without letting early levels arrive all at once.
 	XP = {
-		BaseRequirement = 24,
+		-- Ten XP makes the first level arrive after roughly two basic zombie drops; the unchanged
+		-- growth terms quickly take over so this accelerates the opening more than the late run.
+		BaseRequirement = 10,
 		LinearGrowth = 8,
 		CurveCoefficient = 1.5,
 		CurvePower = 1.35,

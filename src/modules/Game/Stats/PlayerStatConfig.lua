@@ -1,9 +1,9 @@
 local PlayerStatConfig = {
-	-- These are fallbacks only; the authoritative controller captures each spawned Humanoid's authored values.
+	-- Health remains a fallback for missing character state; starting movement is centralized here so
+	-- the authored character and every run modifier compose from the same predictable baseline.
 	DefaultBaseMaxHealth = 100,
-	-- A lower starting pace lets the faster horde pressure moving players; run upgrades still
-	-- compose from this baseline and retain the same global cap.
-	DefaultBaseWalkSpeed = 13,
+	-- Run upgrades compose from this baseline and retain the same global cap.
+	DefaultBaseWalkSpeed = 20,
 	-- Apply one cap after every speed modifier is composed so individual buffs still stack predictably.
 	MaximumWalkSpeed = 32,
 }

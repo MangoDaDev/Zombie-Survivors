@@ -115,10 +115,11 @@ function PlayerStatController.OnCharacterAdded(player: Player, character: Model)
 		return
 	end
 
-	-- Capture the character's authored base once per spawn. Every gameplay system should then contribute
-	-- a named modifier instead of competing by writing MaxHealth or WalkSpeed directly.
+	-- Capture authored health once per spawn. Movement uses the lower of the authored value and the
+	-- configured starting pace so unexpectedly high character values cannot bypass run balance;
+	-- every later gameplay system still contributes a named modifier instead of competing writes.
 	runtime.baseMaxHealth = humanoid.MaxHealth
-	runtime.baseWalkSpeed = humanoid.WalkSpeed
+	runtime.baseWalkSpeed = math.min(humanoid.WalkSpeed, PlayerStatConfig.DefaultBaseWalkSpeed)
 	runtime.humanoid = humanoid
 	applyStats(runtime)
 end

@@ -19,7 +19,7 @@ Quick reference for the reusable first-party Luau foundation. Generated Wally de
 | `src/controllers/PartyTeleporterController.lua` | Mirrors validated party/setup/loading state, sends leader confirmation and member requests, and presents server messages through the shared notification system. |
 | `src/controllers/AbilityController.lua` | Mirrors persistent ability state and dispatches validated weapon and passive presentation events; run loadouts are presented by the progression snapshot. |
 | `src/controllers/RunProgressionController.lua` | Mirrors the owning player's run-only level, XP, queued legal choices, and current run ability snapshot, and sends indexed card selections. |
-| `src/controllers/RunSessionController.lua` | Mirrors the owning player's authoritative game-over summary and lobby-return failure state. |
+| `src/controllers/RunSessionController.lua` | Mirrors the authoritative first-zombie survival-clock start, game-over summary, and lobby-return failure state. |
 | `src/controllers/Ability/ActiveWeaponEffects.lua` | Renders Fireball, Lightning, and latency-corrected Boomerang presentation from authoritative server packets. |
 | `src/controllers/Ability/OrbitingSwordsView.lua` | Renders smoothly reconciled spectral sword orbits, Rage blades, trails, and released-blade return flights. |
 | `src/controllers/Ability/PassiveEffectsView.lua` | Renders lightweight Blast, Burn, and Thorns feedback from authoritative server packets. |
@@ -42,7 +42,7 @@ Quick reference for the reusable first-party Luau foundation. Generated Wally de
 | `src/servercontrollers/PartyTeleporterController.lua` | Owns closed-elevator entry/exit, explicitly confirmed leader setup with timeout ejection, party settings/countdowns, Studio loading/completion tracking, and whole-party ejection on teleport failure. |
 | `src/servercontrollers/AbilityController.lua` | Owns persistent unlocks plus transient game-run loadouts/levels, active/passive refreshes, ability-specific Rage behavior, and authoritative damage. |
 | `src/servercontrollers/RunProgressionController.lua` | Owns per-player run XP/levels, queues every earned level-up, rolls three distinct legal unlocked ability choices, and validates one indexed selection at a time. |
-| `src/servercontrollers/RunSessionController.lua` | Owns independent per-player run lifetimes, final kill/coin/XP/level statistics, death cleanup, and the delayed lobby return without ending surviving players' runs. |
+| `src/servercontrollers/RunSessionController.lua` | Starts every player's survival clock on the first authoritative zombie spawn, owns final run statistics and death cleanup, and delays each lobby return independently. |
 | `src/servercontrollers/BreakableController.lua` | Spawns weighted authored props across the active Game map, owns their health and respawns, and produces local hit, fragment, sound, and fade feedback when abilities damage them. |
 | `src/servercontrollers/Breakable/BreakableConfig.lua` | Defines server-only breakable density, spacing, durability, respawn, feedback timing, authored model weights, and sound choices. |
 | `src/servercontrollers/Ability/ActiveWeapons.lua` | Runs the shared authoritative Fireball, Lightning, and Boomerang scheduler, projectile hits, status ticks, area caps, Rage variants, and cleanup only in Game sessions. |
@@ -58,10 +58,10 @@ Quick reference for the reusable first-party Luau foundation. Generated Wally de
 | `src/servercontrollers/ZombieRewardsController.lua` | Centralizes confirmed zombie-death rewards and creates configured XP and permanent-coin drops from authoritative killer attribution. |
 | `src/servercontrollers/RageController.lua` | Owns the server-timed Rage charge cycle, activation validation, duration, death resets, and replication while rejecting Lobby activation. |
 | `src/servercontrollers/PlayerStateController.lua` | Owns generic per-player runtime state and replicates requested state updates. |
-| `src/servercontrollers/PlayerStatController.lua` | Composes named player health/speed modifiers, preserves gained health, and applies the final movement-speed limit. |
+| `src/servercontrollers/PlayerStatController.lua` | Applies the configured starting pace, composes named player health/speed modifiers, preserves gained health, and enforces the final movement-speed limit. |
 | `src/servercontrollers/RollController.lua` | **Archived/dormant:** owns ability rolls, luck chains, rewards, Auto Roll scheduling, and saved preferences. |
 | `src/servercontrollers/Roll/RollServerConfig.lua` | **Archived/dormant:** defines server-only luck, cooldown, and clover-chain balance values. |
-| `src/servercontrollers/ZombieController.lua` | Runs game-only, ground-validated player-centered spawning with time/player pressure scaling, authoritative simulation, compact replication, and centralized death/damage signals. |
+| `src/servercontrollers/ZombieController.lua` | Runs uncapped game-only, ground-validated player-centered spawning with time/player cadence scaling, authoritative simulation, compact replication, and centralized spawn/death/damage signals. |
 | `src/servercontrollers/Zombie/Zombie.lua` | Defines authoritative targeting, area-bounded movement, attacks, special-behavior dispatch, health, and knockback per zombie. |
 | `src/servercontrollers/Zombie/ZombieBehaviors.lua` | Provides definition-selected movement and attack strategies without type checks in core logic. |
 | `src/servercontrollers/Zombie/ZombieSpecialBehaviors.lua` | Implements the authoritative Spitter, Charger, Screamer, Tank, Leaper, Shielder, Bomber, Grabber, Summoner, Splitter, Burrower, Frenzy, Medic, Hardened, and Dodger strategies. |
@@ -90,15 +90,15 @@ These modules provide shared game configuration, persistent player-data defaults
 | `src/modules/Game/PartyTeleporterConfig.lua` | Defines party capacity, setup/countdown timing, zone cadence, teleport watchdog, Studio loading delay, and world-display limits. |
 | `src/modules/Game/BackpackConfig.lua` | Maps authoritative carried coin totals to authored physical backpack stages and mount offsets. |
 | `src/modules/Game/CoinDropConfig.lua` | Defines permanent-coin magnet/pickup timing and client-prediction batching limits from shared run balance. |
-| `src/modules/Game/RunProgressionConfig.lua` | Centralizes the run XP curve, pickup ownership/radii/speeds/lifetimes, baseline ability pool, choice count, and sublinear `playerCount ^ 0.8` horde pressure scaling. |
+| `src/modules/Game/RunProgressionConfig.lua` | Centralizes the faster-opening run XP curve, pickup ownership/radii/speeds/lifetimes, baseline ability pool, choice count, and sublinear `playerCount ^ 0.8` spawn-rate scaling. |
 | `src/modules/Game/Abilities/AbilityDefinitions.lua` | Defines expandable ability metadata, rarity odds, equip limits, upgrade costs, per-level stats, visible milestones, Rage tuning, and configurable Blast, Burn, and Thorns progression. |
-| `src/modules/Game/Stats/PlayerStatConfig.lua` | Defines fallback player base stats and the global final movement-speed limit. |
+| `src/modules/Game/Stats/PlayerStatConfig.lua` | Defines the shared starting movement speed, base health, and the global final movement-speed limit. |
 | `src/modules/Game/Rage/RageConfig.lua` | Defines shared Rage capacity, 30-second charge, 10-second duration, keybind, and request cadence. |
 | `src/modules/Game/DataTemplate.lua` | Supplies DataService's JSON-compatible persisted player-data defaults. |
 | `src/modules/Game/Rolls/RollDefinitions.lua` | Preserves the dormant weighted roll catalog and legacy data keys; still supplies saved-data compatibility and reveal timing. |
 | `src/modules/Game/RuntimeState.lua` | Stores generic transient per-player state and change signals. |
-| `src/modules/Game/Zombies/ZombieAreas.lua` | Defines spawn regions, walkable movement bounds, the smaller fast-contact opening horde, later caps/group sizes, and weighted zombie pools. |
-| `src/modules/Game/Zombies/ZombieDefinitions.lua` | Defines expandable per-type combat, movement, special-ability balance, authoritative XP/coin rewards, recolored/scaled presentation, and animation configuration. |
+| `src/modules/Game/Zombies/ZombieAreas.lua` | Defines uncapped spawn regions, walkable movement bounds, the slower single-zombie opening cadence, later group sizes, and weighted zombie pools. |
+| `src/modules/Game/Zombies/ZombieDefinitions.lua` | Defines expandable per-type combat, global horde speed/contact-pressure multipliers, special-ability balance, authoritative XP/coin rewards, recolored/scaled presentation, and animation configuration. |
 | `src/modules/Game/Zombies/ZombieProtocol.lua` | Shares compact movement/special state codes and snapshot timing between server simulation and client rendering. |
 | `src/modules/Game/TeleportPlayer.lua` | Teleports a Player or character Model to a CFrame or BasePart. |
 | `src/modules/Game/TeleportLocalPlayer.lua` | Teleports the local character for client-side presentation use. |
@@ -138,19 +138,20 @@ These modules provide shared game configuration, persistent player-data defaults
 | Path | Responsibility |
 | --- | --- |
 | `src/UI/App.lua` | Composes the neutral `App` ScreenGui, untouched party Creation Menu, reactive in-match HUD, and retained generic overlays. |
-| `src/UI/HUD/RunHUD.lua` | Renders the revamped game HUD: permanent coins, animated run XP, ability levels/cooldowns, and hover/tap tooltips. |
-| `src/UI/HUD/LevelUpChoices.lua` | Sequentially consumes every authoritative level-up set in a small top-screen reel strip with layered sound, sparkle/ring bursts, punch/expand, minimal shading, and camera/FOV feedback. |
-| `src/UI/HUD/GameOver.lua` | Renders the defeated player's authoritative run summary and live 15-second lobby-return countdown while surviving teammates continue. |
+| `src/UI/HUD/RunHUD.lua` | Renders the STUD-styled game HUD with center-left coins, a top-center first-spawn survival timer, animated run XP, abilities, and tooltips. |
+| `src/UI/HUD/LevelUpChoices.lua` | Sequentially consumes every authoritative level-up set in an image-first STUD card reel with concise summaries, layered sound, sparkle/ring bursts, punch/expand, minimal shading, and camera/FOV feedback. |
+| `src/UI/HUD/GameOver.lua` | Renders the STUD-styled defeated-player run summary and live 15-second lobby-return countdown while surviving teammates continue. |
 | `src/UI/UIOrigin.lua` | Mounts the Vide application once into LocalPlayer.PlayerGui. |
 | `src/UI/App.story.lua` | Exposes the app component for UI story previews. |
 | `src/UI/Classes/Button.lua` | Provides a reusable reactive button with configurable presentation, unified face/text press motion, interaction feedback, and sounds. |
 | `src/UI/Classes/Confirmation.lua` | Provides a reusable modal confirmation component. |
+| `src/UI/Classes/StudTexture.lua` | Provides the reusable tiled STUD surface layer used across active HUD panels and menus. |
 | `src/UI/Effects/HoverExpand.lua` | Provides reusable hover scaling for GuiObjects. |
 | `src/UI/Effects/Notification.lua` | Provides a reusable counted attention badge. |
 | `src/UI/HUD/CoinsDisplay.lua` | **Archived/dormant:** reusable responsive permanent-currency display. |
 | `src/UI/HUD/RunRewardsDisplay.lua` | **Archived/dormant:** pending-reward claim and backpack-to-balance presentation. |
 | `src/UI/HUD/AbilityInterface.lua` | **Archived/dormant:** ability management and roll-discovery presentation. |
-| `src/UI/HUD/RageBar.lua` | Renders the compact modern Rage meter with live charge/duration progress, reactive Game-session visibility, and keyboard/touch activation. |
+| `src/UI/HUD/RageBar.lua` | Renders the compact STUD-styled Rage meter with live charge/duration progress, reactive Game-session visibility, and keyboard/touch activation. |
 | `src/UI/HUD/Notifications.lua` | Renders transient notifications from NotificationManager. |
 | `src/UI/HUD/PartyTeleporterMenu.lua` | Renders the responsive leader-only Creation Menu and collapses confirmed or member views to the lock-aware exit control. |
 | `src/UI/HUD/RollControls.lua` | **Archived/dormant:** Roll/Hide/Show, Auto Roll progress, and ability-menu controls. |

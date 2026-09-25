@@ -34,9 +34,11 @@ local maximumBoundaryRadius = 0
 local pendingSpawnRequests = {}
 local pendingProjectiles = {}
 local runStartedAt = 0
+local firstZombieSpawnedAt: number? = nil
 local zombieDamaged = Signal.new()
 local zombieDied = Signal.new()
 local playerDamagedByZombie = Signal.new()
+local firstZombieSpawned = Signal.new()
 
 type DamageContext = {
 	player: Player?,
@@ -121,13 +123,12 @@ local function healZombiesInRadius(excludedId, position, radius, amount)
 	end
 end
 
-local function queueSpawn(typeName, position, area, ignoreCap)
+local function queueSpawn(typeName, position, area)
 	if ZombieDefinitions[typeName] then
 		table.insert(pendingSpawnRequests, {
 			typeName = typeName,
 			position = Vector3.new(position.X, area.CFrame.Position.Y, position.Z),
 			area = area,
-			ignoreCap = ignoreCap == true,
 		})
 	end
 end
@@ -287,28 +288,26 @@ local function createZombie(area, typeName, surfacePosition)
 	zombie:_constrainToArea()
 	zombies[zombie.id] = zombie
 	areaRuntime[area.Id].count += 1
+	if not firstZombieSpawnedAt then
+		-- Start survival timing on the first successful authoritative spawn, after map/character loading.
+		firstZombieSpawnedAt = workspace:GetServerTimeNow()
+		firstZombieSpawned:Fire(firstZombieSpawnedAt)
+	end
 
 	return zombie:GetSpawnPacket()
 end
 
-local function getPressure(area, areaPlayerCount: number, now: number)
+local function getPressure(areaPlayerCount: number, now: number)
 	local config = RunProgressionConfig.Spawning
 	local elapsedAlpha = math.clamp((now - runStartedAt) / config.ElapsedRampSeconds, 0, 1)
 	local elapsedMultiplier = 1 + elapsedAlpha * (config.MaximumElapsedRamp - 1)
 	local playerMultiplier = math.max(areaPlayerCount, 1) ^ config.PlayerCountExponent
-	local capMultiplier = elapsedMultiplier * playerMultiplier
-	-- Spawn cadence scales with the same sublinear curve so larger parties actually reach their larger cap.
+	-- With no population cap, pressure scales through cadence while retaining players ^ 0.8 party scaling.
 	local rateMultiplier = elapsedMultiplier * playerMultiplier
-	return math.max(1, math.floor(area.MaxZombies * capMultiplier)), rateMultiplier, elapsedMultiplier
+	return rateMultiplier, elapsedMultiplier
 end
 
-local function spawnGroup(area, candidates, areaCandidates, serverTime, dynamicCap, elapsedMultiplier)
-	local runtime = areaRuntime[area.Id]
-	local availableSlots = dynamicCap - runtime.count
-	if availableSlots <= 0 then
-		return
-	end
-
+local function spawnGroup(area, candidates, areaCandidates, serverTime, elapsedMultiplier)
 	local groupCenter = chooseGroupCenter(area, candidates, areaCandidates)
 	if not groupCenter then
 		return
@@ -319,7 +318,7 @@ local function spawnGroup(area, candidates, areaCandidates, serverTime, dynamicC
 		math.floor(area.GroupSize.Max * math.min(elapsedMultiplier, RunProgressionConfig.Spawning.MaximumGroupMultiplier))
 	)
 	local requestedSize = random:NextInteger(area.GroupSize.Min, maximumGroupSize)
-	local groupSize = math.min(requestedSize, availableSlots)
+	local groupSize = requestedSize
 	local spawnPackets = {}
 
 	for _ = 1, groupSize do
@@ -393,15 +392,14 @@ local function stepSimulation(deltaTime)
 				table.insert(areaCandidates, candidate)
 			end
 		end
-		local dynamicCap, rateMultiplier, elapsedMultiplier = getPressure(area, #areaCandidates, now)
-		runtime.dynamicCap = dynamicCap
+		local rateMultiplier, elapsedMultiplier = getPressure(#areaCandidates, now)
 		if now >= runtime.nextSpawnAt then
 			runtime.nextSpawnAt = now
 				+ math.max(area.SpawnInterval / math.max(rateMultiplier, 1), RunProgressionConfig.Spawning.MinimumSpawnInterval)
 			-- Only occupied combat floors spawn enemies; each group is placed around one of that floor's
 			-- living players instead of silently filling remote areas they cannot currently interact with.
-			if #areaCandidates > 0 and runtime.count < dynamicCap then
-				spawnGroup(area, candidates, areaCandidates, now, dynamicCap, elapsedMultiplier)
+			if #areaCandidates > 0 then
+				spawnGroup(area, candidates, areaCandidates, now, elapsedMultiplier)
 			end
 		end
 	end
@@ -456,7 +454,7 @@ local function stepSimulation(deltaTime)
 		local spawnPackets = {}
 		for _, request in pendingSpawnRequests do
 			local runtime = areaRuntime[request.area.Id]
-			if runtime and (request.ignoreCap or runtime.count < (runtime.dynamicCap or request.area.MaxZombies)) then
+			if runtime then
 				local packet = createZombie(request.area, request.typeName, request.position)
 				if packet then
 					table.insert(spawnPackets, packet)
@@ -554,6 +552,14 @@ function ZombieController.GetPlayerDamagedByZombieSignal()
 	return playerDamagedByZombie
 end
 
+function ZombieController.GetFirstZombieSpawnedSignal()
+	return firstZombieSpawned
+end
+
+function ZombieController.GetFirstZombieSpawnedAt(): number?
+	return firstZombieSpawnedAt
+end
+
 function ZombieController.GetZombiesInRadius(position: Vector3, maximumDistance: number, maximumCount: number?)
 	local candidates = {}
 	local countLimit = maximumCount or math.huge
@@ -616,7 +622,6 @@ local function startSimulation()
 			count = 0,
 			-- The first group arrives promptly; later groups use the normal area cadence and pressure scaling.
 			nextSpawnAt = workspace:GetServerTimeNow() + random:NextNumber(0.25, math.min(area.SpawnInterval, 0.8)),
-			dynamicCap = area.MaxZombies,
 		}
 	end
 

@@ -14,7 +14,7 @@ local function isValidPacket(packet): boolean
 		return false
 	end
 	if not packet.active then
-		return true
+		return packet.startedAt == nil or type(packet.startedAt) == "number"
 	end
 	local stats = packet.stats
 	return type(packet.endedAt) == "number"
@@ -31,6 +31,12 @@ local function setState(packet)
 	if isValidPacket(packet) then
 		state = packet
 		stateChanged:Fire(state)
+	end
+end
+
+function RunSessionController.RunStarted(_, startedAt)
+	if type(startedAt) == "number" then
+		setState({ active = false, startedAt = startedAt })
 	end
 end
 

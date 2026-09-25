@@ -3,14 +3,14 @@
     "type": "Frame", "name": "Preview", "size": [1, 0, 1, 0], "bg": [12, 16, 20],
     "children": [
       { "type": "Frame", "name": "Shade", "size": [1, 0, 1, 0], "bg": [5, 7, 9], "bgTransparency": 0.2, "children": [
-        { "type": "Frame", "name": "Panel", "size": [0, 520, 0, 500], "position": [0.5, 0, 0.5, 0], "anchor": [0.5, 0.5], "bg": [21, 27, 32], "strokes": [{ "thickness": 3, "color": [135, 49, 42], "applyMode": "Border" }], "children": [
+        { "type": "Frame", "name": "Panel", "size": [0, 520, 0, 500], "position": [0.5, 0, 0.5, 0], "anchor": [0.5, 0.5], "bg": [3, 20, 33], "strokes": [{ "thickness": 4, "color": [180, 49, 48], "applyMode": "Border" }], "children": [
           { "type": "Frame", "name": "Header", "size": [1, 0, 0, 92], "bg": [87, 29, 27], "children": [
-            { "type": "TextLabel", "name": "Title", "size": [1, -40, 0, 52], "position": [0.5, 0, 0, 10], "anchor": [0.5, 0], "bgTransparency": 1, "text": "GAME OVER", "textColor": [255, 235, 225], "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy", "strokes": [{ "thickness": 3, "color": [30, 7, 6] }] },
-            { "type": "TextLabel", "name": "Subtitle", "size": [1, -40, 0, 22], "position": [0.5, 0, 0, 62], "anchor": [0.5, 0], "bgTransparency": 1, "text": "THE HORDE CLAIMED THIS RUN", "textColor": [216, 157, 145], "textScaled": true, "font": "Ubuntu", "fontWeight": "Bold" }
+            { "type": "TextLabel", "name": "Title", "size": [1, -40, 0, 52], "position": [0.5, 0, 0, 10], "anchor": [0.5, 0], "bgTransparency": 1, "text": "RUN OVER", "textColor": [255, 235, 225], "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy", "strokes": [{ "thickness": 3, "color": [30, 7, 6] }] },
+            { "type": "TextLabel", "name": "Subtitle", "size": [1, -40, 0, 22], "position": [0.5, 0, 0, 62], "anchor": [0.5, 0], "bgTransparency": 1, "text": "THE HORDE CLAIMED YOU", "textColor": [216, 157, 145], "textScaled": true, "font": "Ubuntu", "fontWeight": "Bold" }
           ]},
           { "type": "TextLabel", "name": "SurvivedLabel", "size": [1, -48, 0, 22], "position": [0.5, 0, 0, 116], "anchor": [0.5, 0], "bgTransparency": 1, "text": "SURVIVED", "textColor": [132, 151, 162], "textScaled": true, "font": "Ubuntu", "fontWeight": "Bold" },
           { "type": "TextLabel", "name": "SurvivedValue", "size": [1, -48, 0, 54], "position": [0.5, 0, 0, 140], "anchor": [0.5, 0], "bgTransparency": 1, "text": "12:43", "textColor": [247, 251, 253], "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy" },
-          { "type": "Frame", "name": "Stats", "size": [1, -48, 0, 188], "position": [0.5, 0, 0, 216], "anchor": [0.5, 0], "bg": [14, 19, 23], "children": [
+          { "type": "Frame", "name": "Stats", "size": [1, -48, 0, 188], "position": [0.5, 0, 0, 216], "anchor": [0.5, 0], "bg": [3, 24, 39], "strokes": [{ "thickness": 2, "color": [0, 139, 168], "applyMode": "Border" }], "children": [
             { "type": "TextLabel", "name": "KillsLabel", "size": [0.5, -24, 0, 24], "position": [0, 18, 0, 18], "bgTransparency": 1, "text": "ZOMBIES KILLED", "textColor": [143, 162, 173], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Bold" },
             { "type": "TextLabel", "name": "KillsValue", "size": [0.5, -24, 0, 32], "position": [0, 18, 0, 44], "bgTransparency": 1, "text": "438", "textColor": [242, 247, 250], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Heavy" },
             { "type": "TextLabel", "name": "LevelLabel", "size": [0.5, -24, 0, 24], "position": [0.5, 6, 0, 18], "bgTransparency": 1, "text": "LEVEL REACHED", "textColor": [143, 162, 173], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Bold" },

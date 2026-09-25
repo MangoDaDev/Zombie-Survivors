@@ -1,5 +1,6 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
 local StudTexture = require(script.Parent.Parent.Classes.StudTexture)
@@ -8,6 +9,7 @@ local CoinsController = require(ReplicatedStorage.Controllers.CoinsController)
 local FormatNumber = require(ReplicatedStorage.Modules.Math.FormatNumber)
 local Images = require(ReplicatedStorage.Modules.UI.Images)
 local RunProgressionController = require(ReplicatedStorage.Controllers.RunProgressionController)
+local RunSessionController = require(ReplicatedStorage.Controllers.RunSessionController)
 local SafeArea = require(ReplicatedStorage.Modules.UI.SafeArea)
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
 local UIStyle = require(ReplicatedStorage.Modules.UI.UIStyle)
@@ -53,6 +55,11 @@ local function getCooldownText(definition, level: number): string
 	local stats = definition.GetStats and definition.GetStats(level) or nil
 	local cooldown = stats and stats.Cooldown or definition.Combat and definition.Combat.Cooldown
 	return if type(cooldown) == "number" then string.format("%.1fs", cooldown) else "PASSIVE"
+end
+
+local function formatSurvivalTime(seconds: number): string
+	local total = math.max(math.floor(seconds), 0)
+	return string.format("%02d:%02d", math.floor(total / 60), total % 60)
 end
 
 local function abilitySlot(definition, state, tooltipId)
@@ -144,7 +151,14 @@ end
 
 return function()
 	local initialState = RunProgressionController.GetState()
+	local initialSessionState = RunSessionController.GetState()
 	local state = source(initialState)
+	local sessionState = source(initialSessionState)
+	local survivedSeconds = source(
+		if type(initialSessionState.startedAt) == "number"
+			then math.max(Workspace:GetServerTimeNow() - initialSessionState.startedAt, 0)
+			else 0
+	)
 	local coinBalance = source(CoinsController.Get())
 	local topOffset = source(SafeArea.GetTopOffset(12))
 	local progressTarget = source(
@@ -165,6 +179,26 @@ return function()
 	local stateConnection = RunProgressionController.GetStateChangedSignal():Connect(function(newState)
 		state(newState)
 		progressTarget(if newState.xpRequired > 0 then math.clamp(newState.xp / newState.xpRequired, 0, 1) else 1)
+	end)
+	local sessionConnection = RunSessionController.GetStateChangedSignal():Connect(function(newState)
+		sessionState(newState)
+		if newState.active and newState.stats then
+			survivedSeconds(newState.stats.survivalTime)
+		elseif type(newState.startedAt) == "number" then
+			survivedSeconds(math.max(Workspace:GetServerTimeNow() - newState.startedAt, 0))
+		end
+	end)
+	local timerAccumulator = 0
+	local timerConnection = RunService.Heartbeat:Connect(function(deltaTime)
+		local currentSession = sessionState()
+		if currentSession.active or type(currentSession.startedAt) ~= "number" then
+			return
+		end
+		timerAccumulator += deltaTime
+		if timerAccumulator >= 0.1 then
+			timerAccumulator = 0
+			survivedSeconds(math.max(Workspace:GetServerTimeNow() - currentSession.startedAt, 0))
+		end
 	end)
 	local coinConnection = CoinsController.GetChangedSignal():Connect(function(newBalance)
 		if type(newBalance) == "number" then
@@ -191,6 +225,8 @@ return function()
 	end)
 	cleanup(function()
 		stateConnection:Disconnect()
+		sessionConnection:Disconnect()
+		timerConnection:Disconnect()
 		coinConnection:Disconnect()
 		safeAreaConnection:Disconnect()
 		workspaceChildAddedConnection:Disconnect()
@@ -220,10 +256,11 @@ return function()
 		Visible = true,
 		create "Frame" {
 			Name = "Coins",
+			AnchorPoint = Vector2.new(0, 0.5),
 			BackgroundColor3 = Color3.fromRGB(38, 33, 24),
 			BorderSizePixel = 0,
 			Position = function()
-				return UDim2.fromOffset(20, topOffset())
+				return UDim2.new(0, if narrowViewport() then 12 else 20, 0.5, 0)
 			end,
 			Size = UDim2.new(0.1, 92, 0, 44),
 			ZIndex = 80,
@@ -250,6 +287,50 @@ return function()
 				TextScaled = true,
 				TextXAlignment = Enum.TextXAlignment.Left,
 				ZIndex = 82,
+			},
+		},
+		create "Frame" {
+			Name = "SurvivalTimer",
+			AnchorPoint = Vector2.new(0.5, 0),
+			BackgroundColor3 = PANEL,
+			BorderSizePixel = 0,
+			Position = function()
+				return UDim2.new(0.5, 0, 0, topOffset())
+			end,
+			Size = UDim2.fromOffset(174, 44),
+			Visible = function()
+				local currentSession = sessionState()
+				return inGame() and (currentSession.active or type(currentSession.startedAt) == "number")
+			end,
+			ZIndex = 80,
+			create "UICorner" { CornerRadius = UDim.new(0, 5) },
+			stroke(Color3.fromRGB(0, 139, 168), 2),
+			StudTexture({ ZIndex = 81, ImageTransparency = 0.84 }),
+			create "TextLabel" {
+				BackgroundTransparency = 1,
+				FontFace = Font.new(UIStyle.Font.Family, Enum.FontWeight.Bold),
+				Position = UDim2.fromOffset(9, 5),
+				Size = UDim2.new(0.5, -10, 1, -10),
+				Text = "SURVIVED",
+				TextColor3 = MUTED,
+				TextScaled = true,
+				TextXAlignment = Enum.TextXAlignment.Left,
+				ZIndex = 82,
+			},
+			create "TextLabel" {
+				AnchorPoint = Vector2.new(1, 0),
+				BackgroundTransparency = 1,
+				FontFace = Font.new(UIStyle.Font.Family, Enum.FontWeight.Heavy),
+				Position = UDim2.new(1, -9, 0, 5),
+				Size = UDim2.new(0.5, 0, 1, -10),
+				Text = function()
+					return formatSurvivalTime(survivedSeconds())
+				end,
+				TextColor3 = Color3.fromRGB(80, 221, 247),
+				TextScaled = true,
+				TextXAlignment = Enum.TextXAlignment.Right,
+				ZIndex = 82,
+				textStroke(),
 			},
 		},
 		create "Frame" {

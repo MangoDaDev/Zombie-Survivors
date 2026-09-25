@@ -2,9 +2,13 @@
   "pinevex_object": {
     "type": "Frame", "name": "Preview", "size": [1, 0, 1, 0], "bg": [20, 25, 31],
     "children": [
-      { "type": "Frame", "name": "Coin", "size": [0, 164, 0, 48], "position": [0, 24, 0, 26], "bg": [35, 31, 24], "strokes": [{ "thickness": 2, "color": [216, 163, 62], "applyMode": "Border" }], "children": [
+      { "type": "Frame", "name": "Coin", "size": [0, 164, 0, 48], "position": [0, 24, 0.5, 0], "anchor": [0, 0.5], "bg": [35, 31, 24], "strokes": [{ "thickness": 2, "color": [216, 163, 62], "applyMode": "Border" }], "children": [
         { "type": "ImageLabel", "name": "Icon", "size": [0, 32, 0, 32], "position": [0, 10, 0.5, 0], "anchor": [0, 0.5], "bgTransparency": 1, "icon": "rbxassetid://117589844207603" },
         { "type": "TextLabel", "name": "Balance", "size": [1, -56, 1, -10], "position": [0, 50, 0, 5], "bgTransparency": 1, "text": "1,284", "textColor": [255, 231, 158], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Bold" }
+      ]},
+      { "type": "Frame", "name": "SurvivalTimer", "size": [0, 174, 0, 44], "position": [0.5, 0, 0, 26], "anchor": [0.5, 0], "bg": [3, 24, 39], "strokes": [{ "thickness": 2, "color": [0, 139, 168], "applyMode": "Border" }], "children": [
+        { "type": "TextLabel", "name": "Label", "size": [0.5, -10, 1, -10], "position": [0, 9, 0, 5], "bgTransparency": 1, "text": "SURVIVED", "textColor": [157, 180, 193], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Bold" },
+        { "type": "TextLabel", "name": "Value", "size": [0.5, 0, 1, -10], "position": [1, -9, 0, 5], "anchor": [1, 0], "bgTransparency": 1, "text": "02:37", "textColor": [80, 221, 247], "textScaled": true, "textXAlignment": "Right", "font": "Ubuntu", "fontWeight": "Heavy", "strokes": [{ "thickness": 2, "color": [4, 7, 10] }] }
       ]},
       { "type": "Frame", "name": "ChoiceTray", "size": [0, 780, 0, 252], "position": [0.5, 0, 0, 72], "anchor": [0.5, 0], "bgTransparency": 1, "children": [
         { "type": "TextLabel", "name": "Prompt", "size": [1, 0, 0, 30], "position": [0.5, 0, 0, 0], "anchor": [0.5, 0], "bgTransparency": 1, "text": "LEVEL UP  -  CHOOSE ONE", "textColor": [224, 238, 246], "textScaled": true, "font": "Ubuntu", "fontWeight": "Bold", "strokes": [{ "thickness": 3, "color": [5, 8, 12] }] },
