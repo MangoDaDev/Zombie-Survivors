@@ -53,10 +53,10 @@ local Images = {
 
 	Abilities = {
 		-- Ability icons must use the uploaded Image asset IDs, not their Decal container IDs.
-		Dagger = "rbxassetid://74070337315898",
-		Sword = "rbxassetid://84367243209042",
-		Heart = "rbxassetid://84367243209042",
-		Boots = "rbxassetid://84367243209042",
+		Dagger = "rbxassetid://90721390422076",
+		Sword = "rbxassetid://102194989748667",
+		Heart = "rbxassetid://137700856951592",
+		Boots = "rbxassetid://117665946564493",
 		Fireball = "rbxassetid://107539350715780",
 		Lightning = "rbxassetid://103421034720026",
 		Boomerang = "rbxassetid://90733680856488",

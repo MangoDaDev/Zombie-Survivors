@@ -10,9 +10,24 @@ AbilityDefinitions.Categories = {
 	Weapon = "Weapon",
 	Passive = "Passive",
 }
--- Every account permanently owns these basics. All other abilities must be bought with coins before
--- the authoritative run roller may offer them as new choices.
-AbilityDefinitions.StarterUnlocks = { "Dagger", "Heart" }
+-- For the current balance pass, every existing ability except the Divine Orbiting Swords is a
+-- permanent starter unlock. Normalization seeds this list on every load so existing profiles migrate too.
+AbilityDefinitions.StarterUnlocks = {
+	"Dagger",
+	"Fireball",
+	"Lightning",
+	"Boomerang",
+	"Aura",
+	"Ball",
+	"Drill",
+	"Mine",
+	"Poison",
+	"Heart",
+	"Boots",
+	"Blast",
+	"Burn",
+	"Thorns",
+}
 AbilityDefinitions.UnlockCostsByRarity = {
 	Common = 150,
 	Uncommon = 300,
@@ -22,10 +37,10 @@ AbilityDefinitions.UnlockCostsByRarity = {
 	Mythic = 2_400,
 	Divine = 3_200,
 }
--- The server treats these five-slot limits as authoritative for every current and future ability.
+-- Ten slots per category is the requested current cap; the server remains authoritative over it.
 AbilityDefinitions.EquipLimits = {
-	Weapon = 5,
-	Passive = 5,
+	Weapon = 10,
+	Passive = 10,
 }
 
 local function getDaggerCount(level: number): number

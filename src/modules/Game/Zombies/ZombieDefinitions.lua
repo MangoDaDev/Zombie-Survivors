@@ -3,7 +3,8 @@
 -- XPValue and CoinValue feed the central death reward pipeline. Stronger variants should generally
 -- increase encounter pressure and reward value instead of relying on health scaling alone.
 local ZOMBIE_MOVE_SPEED_MULTIPLIER = 1.7
-local ZOMBIE_ATTACK_RANGE_MULTIPLIER = 3.5
+-- Contact reach is deliberately 2.5x lower than the previous 3.5 multiplier.
+local ZOMBIE_ATTACK_RANGE_MULTIPLIER = 1.4
 local ZOMBIE_AGGRO_DISTANCE_MULTIPLIER = 3.5
 local ZOMBIE_DAMAGE_MULTIPLIER = 1 / 3
 local XP_ADVANTAGE_PER_THREAT_LEVEL = 2

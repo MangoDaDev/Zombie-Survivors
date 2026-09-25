@@ -95,7 +95,7 @@ These modules provide shared game configuration, persistent player-data defaults
 | `src/modules/Game/BackpackConfig.lua` | Maps authoritative carried coin totals to authored physical backpack stages and mount offsets. |
 | `src/modules/Game/CoinDropConfig.lua` | Defines permanent-coin magnet/pickup timing and client-prediction batching limits from shared run balance. |
 | `src/modules/Game/RunProgressionConfig.lua` | Centralizes the faster-opening run XP curve, three XP pickup visual tiers, pickup tuning, baseline ability pool, choice count, and unbounded five-minute horde difficulty steps with sublinear `playerCount ^ 0.8` party scaling. |
-| `src/modules/Game/Abilities/AbilityDefinitions.lua` | Defines starter unlocks, rarity-priced permanent purchases, expandable ability metadata, equip limits, upgrade costs, per-level stats, milestones, and Rage tuning. |
+| `src/modules/Game/Abilities/AbilityDefinitions.lua` | Defines the current all-but-Divine starter unlock pool, rarity-priced permanent purchases, ten-slot category limits, expandable ability metadata, upgrade costs, per-level stats, milestones, and Rage tuning. |
 | `src/modules/Game/Abilities/CrowdWeaponDefinitions.lua` | Centralizes the level, milestone, combat, cap, and unique Rage balance for Aura, Ball, Drill, Mine, and Poison. |
 | `src/modules/Game/Stats/PlayerStatConfig.lua` | Defines the shared starting movement speed, base health, and the global final movement-speed limit. |
 | `src/modules/Game/Rage/RageConfig.lua` | Defines shared Rage capacity, 30-second charge, 10-second duration, keybind, and request cadence. |
@@ -104,7 +104,7 @@ These modules provide shared game configuration, persistent player-data defaults
 | `src/modules/Game/Rolls/RollDefinitions.lua` | Preserves the dormant weighted roll catalog and legacy data keys; still supplies saved-data compatibility and reveal timing. |
 | `src/modules/Game/RuntimeState.lua` | Stores generic transient per-player state and change signals. |
 | `src/modules/Game/Zombies/ZombieAreas.lua` | Defines uncapped spawn regions, walkable movement bounds, the quick single-zombie opening cadence, later group sizes, and weighted zombie pools. |
-| `src/modules/Game/Zombies/ZombieDefinitions.lua` | Defines expandable per-type combat and threat ratings, threat-scaled rewards, map-scale sight, high-reach/high-speed/low-damage horde multipliers, special-ability balance, presentation, and animation configuration. |
+| `src/modules/Game/Zombies/ZombieDefinitions.lua` | Defines expandable per-type combat and threat ratings, threat-scaled rewards, map-scale sight, reduced contact reach, high-speed/low-damage horde multipliers, special-ability balance, presentation, and animation configuration. |
 | `src/modules/Game/Zombies/ZombieProtocol.lua` | Shares compact movement/special state codes and snapshot timing between server simulation and client rendering. |
 | `src/modules/Game/TeleportPlayer.lua` | Teleports a Player or character Model to a CFrame or BasePart. |
 | `src/modules/Game/TeleportLocalPlayer.lua` | Teleports the local character for client-side presentation use. |
