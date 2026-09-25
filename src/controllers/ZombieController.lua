@@ -1,5 +1,7 @@
 local ReplicatedStorage = game:GetService "ReplicatedStorage"
 local RunService = game:GetService "RunService"
+local TweenService = game:GetService "TweenService"
+local Debris = game:GetService "Debris"
 local Workspace = game:GetService "Workspace"
 
 local Networker = require(ReplicatedStorage.Packages.networker)
@@ -19,7 +21,8 @@ local function addZombie(packet, serverTime)
 		return
 	end
 
-	local id, typeName, initialCFrame, state, attackSequence, attackStartedAt, scale, animationSpeedMultiplier, health, maximumHealth =
+	local id, typeName, initialCFrame, state, attackSequence, attackStartedAt, scale, animationSpeedMultiplier, health, maximumHealth,
+		specialState, specialSequence, specialStartedAt, specialTarget, specialValue =
 		table.unpack(packet)
 	if type(id) ~= "number" or type(typeName) ~= "string" or typeof(initialCFrame) ~= "CFrame" then
 		return
@@ -41,6 +44,11 @@ local function addZombie(packet, serverTime)
 			attackStartedAt,
 			health,
 			maximumHealth,
+			specialState,
+			specialSequence,
+			specialStartedAt,
+			specialTarget,
+			specialValue,
 			serverTime,
 			os.clock()
 		)
@@ -60,6 +68,11 @@ local function addZombie(packet, serverTime)
 		animationSpeedMultiplier,
 		health,
 		maximumHealth,
+		specialState,
+		specialSequence,
+		specialStartedAt,
+		specialTarget,
+		specialValue,
 		serverTime,
 		renderFolder
 	)
@@ -70,11 +83,80 @@ local function updateZombie(packet, serverTime, receivedAt)
 		return
 	end
 
-	local id, targetCFrame, state, attackSequence, attackStartedAt, health, maximumHealth = table.unpack(packet)
+	local id, targetCFrame, state, attackSequence, attackStartedAt, health, maximumHealth,
+		specialState, specialSequence, specialStartedAt, specialTarget, specialValue = table.unpack(packet)
 	local view = type(id) == "number" and zombieViews[id]
 	if view and typeof(targetCFrame) == "CFrame" and type(state) == "number" then
-		view:Update(targetCFrame, state, attackSequence, attackStartedAt, health, maximumHealth, serverTime, receivedAt)
+		view:Update(
+			targetCFrame,
+			state,
+			attackSequence,
+			attackStartedAt,
+			health,
+			maximumHealth,
+			specialState,
+			specialSequence,
+			specialStartedAt,
+			specialTarget,
+			specialValue,
+			serverTime,
+			receivedAt
+		)
 	end
+end
+
+local function makeEffectPart(name, color)
+	local part = Instance.new("Part")
+	part.Name = name
+	part.Anchored = true
+	part.CanCollide = false
+	part.CanTouch = false
+	part.CanQuery = false
+	part.CastShadow = false
+	part.Material = Enum.Material.Neon
+	part.Color = if typeof(color) == "Color3" then color else Color3.fromRGB(255, 100, 75)
+	part.Parent = renderFolder
+	return part
+end
+
+function ZombieController.ZombieAbility(_, packet)
+	if type(packet) ~= "table" or type(packet.Kind) ~= "string" then
+		return
+	end
+
+	if packet.Kind == "Projectile"
+		and typeof(packet.Origin) == "Vector3"
+		and typeof(packet.Target) == "Vector3"
+		and type(packet.Duration) == "number"
+	then
+		local projectile = makeEffectPart("SpitProjectile", packet.Color)
+		projectile.Shape = Enum.PartType.Ball
+		projectile.Size = Vector3.one * 1.1
+		projectile.CFrame = CFrame.new(packet.Origin)
+		TweenService:Create(
+			projectile,
+			TweenInfo.new(math.clamp(packet.Duration, 0.05, 2), Enum.EasingStyle.Linear),
+			{ CFrame = CFrame.new(packet.Target) }
+		):Play()
+		Debris:AddItem(projectile, packet.Duration + 0.1)
+		return
+	end
+
+	if typeof(packet.Position) ~= "Vector3" then
+		return
+	end
+	local radius = if type(packet.Radius) == "number" then math.clamp(packet.Radius, 1, 30) else 2.5
+	local pulse = makeEffectPart(packet.Kind, packet.Color)
+	pulse.Shape = Enum.PartType.Cylinder
+	pulse.Transparency = 0.15
+	pulse.Size = Vector3.new(0.16, 0.5, 0.5)
+	pulse.CFrame = CFrame.new(packet.Position + Vector3.yAxis * 0.12) * CFrame.Angles(0, 0, math.pi * 0.5)
+	TweenService:Create(
+		pulse,
+		TweenInfo.new(0.45, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+		{ Size = Vector3.new(0.16, radius * 2, radius * 2), Transparency = 1 }
+	):Play()
+	Debris:AddItem(pulse, 0.5)
 end
 
 function ZombieController.ZombieDamaged(_, id, health, maximumHealth, knockbackDirection, knockbackImpulse)

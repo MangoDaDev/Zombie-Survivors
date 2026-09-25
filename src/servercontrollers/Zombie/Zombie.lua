@@ -2,6 +2,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local ZombieProtocol = require(ReplicatedStorage.Modules.Game.Zombies.ZombieProtocol)
 local ZombieBehaviors = require(script.Parent.ZombieBehaviors)
+local ZombieSpecialBehaviors = require(script.Parent.ZombieSpecialBehaviors)
 
 local TARGET_REFRESH_INTERVAL = 0.5
 local TARGET_HYSTERESIS = 1.15
@@ -11,7 +12,7 @@ local MAXIMUM_KNOCKBACK_SPEED = 28
 local Zombie = {}
 Zombie.__index = Zombie
 
-function Zombie.new(id, typeName, definition, spawnCFrame, area, variation, boundaryRadius, onPlayerDamaged)
+function Zombie.new(id, typeName, definition, spawnCFrame, area, variation, boundaryRadius, services)
 	local self = setmetatable({}, Zombie)
 
 	self.id = id
@@ -36,15 +37,41 @@ function Zombie.new(id, typeName, definition, spawnCFrame, area, variation, boun
 	self.attackInProgress = false
 	self.attackDamageApplied = false
 	self.nextAttackAt = 0
-	self.onPlayerDamaged = onPlayerDamaged
+	self.services = services
+	self.onPlayerDamaged = services.OnPlayerDamaged
 	self.movementBehavior = ZombieBehaviors.Movement[definition.MovementBehavior]
 		or ZombieBehaviors.Movement.DirectChase
 	self.attackBehavior = ZombieBehaviors.Attack[definition.AttackBehavior]
 		or ZombieBehaviors.Attack.Contact
+	self.specialBehavior = definition.SpecialBehavior and ZombieSpecialBehaviors[definition.SpecialBehavior] or nil
+	self.specialRuntime = {
+		nextUseAt = workspace:GetServerTimeNow() + services.Random:NextNumber(1.5, 3.5),
+	}
+	self.specialState = ZombieProtocol.SpecialState.None
+	self.specialSequence = 0
+	self.specialStartedAt = 0
+	self.specialTarget = spawnCFrame.Position
+	self.specialValue = 0
+	if self.specialBehavior and self.specialBehavior.Initialize then
+		self.specialBehavior.Initialize(self)
+	end
 	-- Stagger target searches so a large wave does not rescan players on one frame.
 	self.nextTargetRefreshAt = (id % 10) * (TARGET_REFRESH_INTERVAL / 10)
 
 	return self
+end
+
+function Zombie:DamagePlayer(targetCandidate, amount)
+	if not targetCandidate or targetCandidate.humanoid.Health <= 0 then
+		return 0
+	end
+	local healthBefore = targetCandidate.humanoid.Health
+	targetCandidate.humanoid:TakeDamage(amount)
+	local actualDamage = math.max(healthBefore - targetCandidate.humanoid.Health, 0)
+	if actualDamage > 0 and self.onPlayerDamaged then
+		self.onPlayerDamaged(self, targetCandidate.player, actualDamage)
+	end
+	return actualDamage
 end
 
 local function getHorizontalOffset(fromPosition, toPosition)
@@ -117,6 +144,22 @@ function Zombie:Step(deltaTime, candidates, candidateLookup, now)
 	end
 
 	if not targetCandidate then
+		if self.specialBehavior and self.specialBehavior.Step then
+			local consumed = self.specialBehavior.Step(
+				self,
+				deltaTime,
+				nil,
+				now,
+				math.huge,
+				self.cframe.LookVector,
+				self.cframe.Rotation,
+				candidates
+			)
+			if consumed then
+				self:_constrainToArea()
+				return
+			end
+		end
 		local isFinishingAttack = self.attackBehavior(self, nil, now, math.huge)
 		self.state = if isFinishingAttack then ZombieProtocol.State.Attacking else ZombieProtocol.State.Idle
 		return
@@ -132,6 +175,23 @@ function Zombie:Step(deltaTime, candidates, candidateLookup, now)
 		local turnSpeed = self.definition.TurnSpeed * self.turnSpeedMultiplier
 		local turnAlpha = 1 - math.exp(-turnSpeed * deltaTime)
 		facing = self.cframe:Lerp(desiredFacing, turnAlpha).Rotation
+	end
+
+	if self.specialBehavior and self.specialBehavior.Step then
+		local consumed = self.specialBehavior.Step(
+			self,
+			deltaTime,
+			targetCandidate,
+			now,
+			distance,
+			direction,
+			facing,
+			candidates
+		)
+		if consumed then
+			self:_constrainToArea()
+			return
+		end
 	end
 
 	local isAttacking = self.attackBehavior(self, targetCandidate, now, distance)
@@ -153,13 +213,25 @@ function Zombie:Step(deltaTime, candidates, candidateLookup, now)
 	self.state = ZombieProtocol.State.Moving
 end
 
-function Zombie:TakeDamage(amount, hitOrigin, knockbackImpulse)
+function Zombie:TakeDamage(amount, hitOrigin, knockbackImpulse, damageContext, now)
 	if type(amount) ~= "number" or amount <= 0 or self.health <= 0 then
 		return false
 	end
 
-	self.health = math.max(self.health - amount, 0)
-	if typeof(hitOrigin) == "Vector3" and type(knockbackImpulse) == "number" and knockbackImpulse > 0 then
+	local appliedAmount = amount
+	local handled = false
+	if self.specialBehavior and self.specialBehavior.ModifyDamage then
+		appliedAmount, handled = self.specialBehavior.ModifyDamage(
+			self,
+			amount,
+			hitOrigin,
+			damageContext,
+			now or workspace:GetServerTimeNow()
+		)
+	end
+	appliedAmount = math.max(appliedAmount or 0, 0)
+	self.health = math.max(self.health - appliedAmount, 0)
+	if appliedAmount > 0 and typeof(hitOrigin) == "Vector3" and type(knockbackImpulse) == "number" and knockbackImpulse > 0 then
 		local offset = self.cframe.Position - hitOrigin
 		local horizontalOffset = Vector3.new(offset.X, 0, offset.Z)
 		if horizontalOffset.Magnitude > 0.001 then
@@ -169,11 +241,20 @@ function Zombie:TakeDamage(amount, hitOrigin, knockbackImpulse)
 			end
 		end
 	end
-	return true
+	if appliedAmount > 0 and self.specialBehavior and self.specialBehavior.OnDamaged then
+		self.specialBehavior.OnDamaged(self, appliedAmount, now or workspace:GetServerTimeNow())
+	end
+	return appliedAmount > 0 or handled
 end
 
 function Zombie:IsDead()
 	return self.health <= 0
+end
+
+function Zombie:OnDeath()
+	if self.specialBehavior and self.specialBehavior.OnDeath then
+		self.specialBehavior.OnDeath(self)
+	end
 end
 
 function Zombie:ApplySeparation(displacement)
@@ -194,6 +275,11 @@ function Zombie:GetSpawnPacket()
 		self.animationSpeedMultiplier,
 		self.health,
 		self.definition.MaxHealth,
+		self.specialState,
+		self.specialSequence,
+		self.specialStartedAt,
+		self.specialTarget,
+		self.specialValue,
 	}
 end
 
@@ -206,6 +292,11 @@ function Zombie:GetUpdatePacket()
 		self.attackStartedAt,
 		self.health,
 		self.definition.MaxHealth,
+		self.specialState,
+		self.specialSequence,
+		self.specialStartedAt,
+		self.specialTarget,
+		self.specialValue,
 	}
 end
 

@@ -59,8 +59,8 @@ local function studTexture(tileSize: Reactive<UDim2>, transparency: number, zInd
 	}
 end
 
--- The shared Button owns interaction feedback and sounds. This overlay keeps this menu's
--- display type explicitly heavy and avoids the shared component's intentionally compact label cap.
+-- Keep menu-specific typography declarative while the shared Button owns synchronized face/text
+-- motion, interaction feedback, and sounds.
 local function actionButton(props)
 	return create "Frame" {
 		Name = props.Name,
@@ -70,27 +70,18 @@ local function actionButton(props)
 		Size = props.Size,
 		ZIndex = props.ZIndex or 72,
 		Button({
-			Text = "",
+			Text = props.Text,
 			Enabled = props.Enabled,
 			BackgroundColor3 = props.BackgroundColor3,
 			CornerRadius = UDim.new(0, 0),
+			FontFace = HEAVY_FONT,
+			MaxTextSize = 72,
 			Size = UDim2.fromScale(1, 1),
+			StrokeThickness = props.StrokeThickness,
+			TextBounds = props.TextBounds,
+			TextCenterY = 0.46,
 			OnActivated = props.OnActivated,
 		}),
-		create "TextLabel" {
-			Name = "Label",
-			AnchorPoint = Vector2.new(0.5, 0.5),
-			BackgroundTransparency = 1,
-			FontFace = HEAVY_FONT,
-			Position = UDim2.fromScale(0.5, 0.46),
-			Size = props.TextBounds or UDim2.fromScale(0.88, 0.72),
-			Text = props.Text,
-			TextColor3 = UIStyle.Colors.Paper,
-			TextScaled = true,
-			TextTruncate = Enum.TextTruncate.AtEnd,
-			ZIndex = 8,
-			textStroke(props.StrokeThickness),
-		},
 	}
 end
 
@@ -101,7 +92,7 @@ local function createHeader(props)
 		BorderSizePixel = 0,
 		Position = UDim2.fromOffset(12, 12),
 		Size = function()
-			return UDim2.new(1, -(props.exitWidth() + 36), 0, props.headerHeight())
+			return UDim2.new(1, -24, 0, props.headerHeight())
 		end,
 		Visible = props.showConfiguration,
 		ZIndex = 64,
@@ -488,7 +479,10 @@ return function()
 		return if short() then 78 else if portrait() then 90 else 94
 	end)
 	local exitWidth = derive(function()
-		return if short() then 70 else if portrait() then 72 else 86
+		return if short() then 150 else if portrait() then 160 else 180
+	end)
+	local exitHeight = derive(function()
+		return if short() then 50 else if portrait() then 56 else 58
 	end)
 
 	local canConfigure = derive(function()
@@ -612,7 +606,6 @@ return function()
 		portrait = portrait,
 		short = short,
 		headerHeight = headerHeight,
-		exitWidth = exitWidth,
 		badgeText = badgeText,
 		statusText = statusText,
 		confirmText = confirmText,
@@ -648,21 +641,13 @@ return function()
 		end),
 		create "Frame" {
 			Name = "Panel",
-			AnchorPoint = function()
-				return if showConfiguration() then Vector2.new(0.5, 0.5) else Vector2.new(1, 0)
-			end,
+			AnchorPoint = Vector2.new(0.5, 0.5),
 			BackgroundColor3 = Color3.fromRGB(2, 10, 18),
-			BackgroundTransparency = function()
-				return if showConfiguration() then 0 else 1
-			end,
 			BorderSizePixel = 0,
 			Position = function()
-				return if showConfiguration() then UDim2.fromScale(0.5, 0.5) else UDim2.new(1, -24, 0, 24)
+				return UDim2.fromScale(0.5, if portrait() or short() then 0.44 else 0.5)
 			end,
 			Size = function()
-				if not showConfiguration() then
-					return UDim2.fromOffset(exitWidth(), headerHeight())
-				end
 				if portrait() then
 					return UDim2.new(1, -20, 1, -24)
 				elseif short() then
@@ -670,7 +655,15 @@ return function()
 				end
 				return UDim2.new(0.54, 0, 0.78, 0)
 			end,
+			Visible = showConfiguration,
 			ZIndex = 61,
+			create "UIScale" {
+				-- Reserve the bottom-center exit affordance on short landscape screens without
+				-- changing the menu's internal proportions.
+				Scale = function()
+					return if short() then 0.75 else 1
+				end,
+			},
 			create "UISizeConstraint" {
 				MaxSize = function()
 					if portrait() then
@@ -685,37 +678,29 @@ return function()
 				ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
 				Color = BLACK,
 				Thickness = 8,
-				Transparency = function()
-					return if showConfiguration() then 0 else 1
-				end,
 			},
 			create "UIStroke" {
 				ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
 				Color = CYAN,
 				Thickness = 4,
-				Transparency = function()
-					return if showConfiguration() then 0 else 1
-				end,
 			},
 			createHeader(componentProps),
-			actionButton({
-				Name = "Exit",
-				AnchorPoint = Vector2.new(1, 0),
-				Position = function()
-					return if showConfiguration() then UDim2.new(1, -12, 0, 12) else UDim2.new(1, 0, 0, 0)
-				end,
-				Size = function()
-					return UDim2.fromOffset(exitWidth(), headerHeight())
-				end,
-				Text = "X",
-				Enabled = canLeave,
-				BackgroundColor3 = RED,
-				OnActivated = exitParty,
-				TextBounds = UDim2.fromScale(0.7, 0.7),
-				StrokeThickness = 0.075,
-				ZIndex = 67,
-			}),
 			createBody(componentProps),
 		},
+		actionButton({
+			Name = "Exit",
+			AnchorPoint = Vector2.new(0.5, 1),
+			Position = UDim2.new(0.5, 0, 1, -24),
+			Size = function()
+				return UDim2.fromOffset(exitWidth(), exitHeight())
+			end,
+			Text = "EXIT",
+			Enabled = canLeave,
+			BackgroundColor3 = RED,
+			OnActivated = exitParty,
+			TextBounds = UDim2.fromScale(0.78, 0.62),
+			StrokeThickness = 0.065,
+			ZIndex = 67,
+		}),
 	}
 end

@@ -18,8 +18,14 @@ export type Props = {
 	Enabled: Reactive<boolean>?,
 	BackgroundColor3: Reactive<Color3>?,
 	CornerRadius: Reactive<UDim>?,
+	FontFace: Reactive<Font>?,
 	LayoutOrder: Reactive<number>?,
+	MaxTextSize: Reactive<number>?,
+	MinTextSize: Reactive<number>?,
 	Size: Reactive<UDim2>?,
+	StrokeThickness: Reactive<number>?,
+	TextBounds: Reactive<UDim2>?,
+	TextCenterY: Reactive<number>?,
 }
 
 local function readOr<T>(value: Reactive<T>?, default: T): T
@@ -64,7 +70,8 @@ return function(props: Props)
 	)
 	local faceDepth = spring(
 		derive(function()
-			return if enabled() and pressed() then 0.065 else 0
+			-- Keep enough backing visible to communicate depth without producing a tall dark band.
+			return if enabled() and pressed() then 0.04 else 0
 		end),
 		0.11,
 		0.9
@@ -94,11 +101,6 @@ return function(props: Props)
 			Position = UDim2.fromScale(0.5, 0.5),
 			Size = UDim2.fromScale(1, 1),
 			BackgroundColor3 = function()
-				-- Match the exposed backing to the moving face while pressed. The label and face still
-				-- travel downward, but no dark seam appears above them during the animation.
-				if enabled() and pressed() then
-					return faceColor()
-				end
 				return if enabled() then tintedBlack() else BLACK:Lerp(buttonColor(), 0.2)
 			end,
 			BackgroundTransparency = function()
@@ -163,16 +165,22 @@ return function(props: Props)
 					return buttonColor():Lerp(UIStyle.Colors.Paper, 0.38)
 				end,
 				Thickness = UIStyle.OutlineThickness,
-				Transparency = function()
-					-- The inset outline would become a floating dark line when the face moves down.
-					return if pressed() then 1 else UIStyle.InsideStrokeTransparency
-				end,
+				Transparency = UIStyle.InsideStrokeTransparency,
 			},
 		},
 		create "TextLabel" {
+			AnchorPoint = Vector2.new(0.5, 0.5),
 			BackgroundTransparency = 1,
-			Size = UDim2.fromScale(1, 1),
-			FontFace = UIStyle.Font,
+			FontFace = function()
+				return readOr(props.FontFace, UIStyle.Font)
+			end,
+			-- Move the label by the same spring offset as the raised face so the button depresses as one unit.
+			Position = function()
+				return UDim2.fromScale(0.5, readOr(props.TextCenterY, 0.5) + faceDepth())
+			end,
+			Size = function()
+				return readOr(props.TextBounds, UDim2.fromScale(1, 1))
+			end,
 			Text = function()
 				return readOr(props.Text, "Button")
 			end,
@@ -182,9 +190,18 @@ return function(props: Props)
 			create "UIStroke" {
 				Color = outlineColor,
 				StrokeSizingMode = Enum.StrokeSizingMode.ScaledSize,
-				Thickness = 0.055,
+				Thickness = function()
+					return readOr(props.StrokeThickness, 0.055)
+				end,
 			},
-			create "UITextSizeConstraint" { MaxTextSize = 24, MinTextSize = 15 },
+			create "UITextSizeConstraint" {
+				MaxTextSize = function()
+					return readOr(props.MaxTextSize, 24)
+				end,
+				MinTextSize = function()
+					return readOr(props.MinTextSize, 15)
+				end,
+			},
 		},
 		create "TextButton" {
 			Active = enabled,
@@ -194,7 +211,9 @@ return function(props: Props)
 			Size = UDim2.fromScale(1, 1),
 			Text = "",
 			TextScaled = true,
-			FontFace = UIStyle.Font,
+			FontFace = function()
+				return readOr(props.FontFace, UIStyle.Font)
+			end,
 			ZIndex = 5,
 			MouseEnter = function()
 				if enabled() and not hovered() then

@@ -61,6 +61,11 @@ function ZombieView.new(
 	animationSpeedMultiplier,
 	health,
 	maximumHealth,
+	specialState,
+	specialSequence,
+	specialStartedAt,
+	specialTarget,
+	specialValue,
 	serverTime,
 	parent
 )
@@ -72,7 +77,10 @@ function ZombieView.new(
 	local templatePivot = model:GetPivot()
 	local boundingCFrame, boundingSize = model:GetBoundingBox()
 	local partRecords = {}
+	local tintColor = definition.TintColor
 
+	-- Requested variants always reuse the three Studio-owned templates; appearance differences stay
+	-- limited to definition-driven color and whole-model scale so no parallel model library is created.
 	for _, descendant in model:GetDescendants() do
 		if descendant:IsA("BasePart") then
 			-- Client zombies are anchored visuals only and can never collide, touch, or
@@ -81,6 +89,10 @@ function ZombieView.new(
 			descendant.CanCollide = false
 			descendant.CanTouch = false
 			descendant.CanQuery = false
+			if tintColor and descendant.Transparency < 1 then
+				-- Blend instead of replacing authored colors so skin and clothing remain visually distinct.
+				descendant.Color = descendant.Color:Lerp(tintColor, 0.72)
+			end
 			table.insert(partRecords, {
 				part = descendant,
 				name = descendant.Name,
@@ -89,6 +101,19 @@ function ZombieView.new(
 			})
 		end
 	end
+
+	local warningMarker = Instance.new("Part")
+	warningMarker.Name = "AbilityWarning"
+	warningMarker.Shape = Enum.PartType.Cylinder
+	warningMarker.Anchored = true
+	warningMarker.CanCollide = false
+	warningMarker.CanTouch = false
+	warningMarker.CanQuery = false
+	warningMarker.Material = Enum.Material.Neon
+	warningMarker.Color = tintColor or Color3.fromRGB(255, 90, 70)
+	warningMarker.Transparency = 1
+	warningMarker.Size = Vector3.new(0.12, 2, 2)
+	warningMarker.Parent = model
 
 	model.Name = string.format("%s_%d", typeName, id)
 	model:PivotTo(initialCFrame)
@@ -162,6 +187,13 @@ function ZombieView.new(
 	self.animationSpeedMultiplier = math.clamp(animationSpeedMultiplier, 0.5, 2)
 	self.health = if type(health) == "number" then health else definition.MaxHealth
 	self.maximumHealth = if type(maximumHealth) == "number" then maximumHealth else definition.MaxHealth
+	self.specialState = specialState or ZombieProtocol.SpecialState.None
+	self.specialSequence = specialSequence or 0
+	self.specialStartedAt = specialStartedAt or 0
+	self.specialTarget = if typeof(specialTarget) == "Vector3" then specialTarget else initialCFrame.Position
+	self.specialValue = specialValue or 0
+	self.warningMarker = warningMarker
+	self.armorBroken = typeName ~= "Hardened" or self.specialValue <= 0
 	self.healthBar = healthBar
 	self.healthFill = healthFill
 	self.healthTween = nil
@@ -178,7 +210,21 @@ function ZombieView:GetRenderCFrame(now)
 	return self.fromCFrame:Lerp(self.targetCFrame, alpha)
 end
 
-function ZombieView:Update(targetCFrame, state, attackSequence, attackStartedAt, health, maximumHealth, serverTime, receivedAt)
+function ZombieView:Update(
+	targetCFrame,
+	state,
+	attackSequence,
+	attackStartedAt,
+	health,
+	maximumHealth,
+	specialState,
+	specialSequence,
+	specialStartedAt,
+	specialTarget,
+	specialValue,
+	serverTime,
+	receivedAt
+)
 	self.fromCFrame = self:GetRenderCFrame(receivedAt)
 	self.targetCFrame = targetCFrame
 	self.interpolationStartedAt = receivedAt
@@ -197,6 +243,20 @@ function ZombieView:Update(targetCFrame, state, attackSequence, attackStartedAt,
 	end
 	if type(attackStartedAt) == "number" then
 		self.attackStartedAt = attackStartedAt
+	end
+	self.specialState = specialState or ZombieProtocol.SpecialState.None
+	self.specialSequence = specialSequence or self.specialSequence
+	self.specialStartedAt = specialStartedAt or self.specialStartedAt
+	self.specialTarget = if typeof(specialTarget) == "Vector3" then specialTarget else self.specialTarget
+	self.specialValue = if type(specialValue) == "number" then specialValue else self.specialValue
+	if self.typeName == "Hardened" and not self.armorBroken and self.specialValue <= 0 then
+		self.armorBroken = true
+		for _, record in self.partRecords do
+			if record.part.Transparency < 1 then
+				record.part.Material = Enum.Material.SmoothPlastic
+				record.part.Color = record.part.Color:Lerp(Color3.fromRGB(82, 74, 68), 0.65)
+			end
+		end
 	end
 	self:SetHealth(health, maximumHealth, false)
 end
@@ -276,12 +336,21 @@ end
 
 function ZombieView:AppendRender(parts, cframes, camera, localNow, serverNow)
 	local renderCFrame = self:GetRenderCFrame(localNow)
-	if not self:IsVisible(camera, renderCFrame) then
+	local SpecialState = ZombieProtocol.SpecialState
+	local showWarning = self.specialState == SpecialState.Windup
+		or self.specialState == SpecialState.Warning
+		or self.specialState == SpecialState.Countdown
+	-- A warning can be on-screen even when the burrowed body or ranged caster is not.
+	if not self:IsVisible(camera, renderCFrame) and not showWarning then
 		return
 	end
 
 	local elapsed = (localNow + self.id * 0.173) * self.animationSpeedMultiplier
 	local attackElapsed = serverNow - self.attackStartedAt
+	local isHidden = self.specialState == SpecialState.Burrowed or self.specialState == SpecialState.Warning
+	if isHidden then
+		renderCFrame *= CFrame.new(0, -self.boundingSize.Y, 0)
+	end
 	for _, record in self.partRecords do
 		local animationOffset = ProceduralAnimator.GetPartOffset(
 			self.definition,
@@ -293,6 +362,23 @@ function ZombieView:AppendRender(parts, cframes, camera, localNow, serverNow)
 		)
 		table.insert(parts, record.part)
 		table.insert(cframes, renderCFrame * record.localCFrame * animationOffset)
+	end
+
+	if showWarning then
+		local radius = 3
+		if self.specialState == SpecialState.Countdown then
+			radius = self.definition.Special.Radius
+		elseif self.typeName == "Tank" then
+			radius = self.definition.Special.Radius
+		elseif self.specialState == SpecialState.Warning then
+			radius = 4
+		end
+		self.warningMarker.Transparency = 0.3 + math.sin(localNow * 12) * 0.15
+		self.warningMarker.Size = Vector3.new(0.12, radius * 2, radius * 2)
+		table.insert(parts, self.warningMarker)
+		table.insert(cframes, CFrame.new(self.specialTarget + Vector3.yAxis * 0.08) * CFrame.Angles(0, 0, math.pi * 0.5))
+	else
+		self.warningMarker.Transparency = 1
 	end
 end
 

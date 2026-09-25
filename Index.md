@@ -29,7 +29,7 @@ Quick reference for the reusable first-party Luau foundation. Generated Wally de
 | `src/controllers/RollController.lua` | **Archived/dormant:** restores saved roll preferences and validates authoritative item/clover, Auto Roll, and completion events. |
 | `src/controllers/ZombieController.lua` | Receives compact zombie snapshots/damage events and drives the single client render loop. |
 | `src/controllers/Zombie/ProceduralAnimator.lua` | Produces type-specific procedural movement and attack poses without animation tracks. |
-| `src/controllers/Zombie/ZombieView.lua` | Owns one client-rendered zombie model, interpolation, health/hit feedback, visibility, and cosmetic death ragdolls. |
+| `src/controllers/Zombie/ZombieView.lua` | Owns one client-rendered zombie model, definition-driven recoloring/scaling, special-ability ground telegraphs, interpolation, health/hit feedback, visibility, and cosmetic death ragdolls. |
 | `src/servercontrollers/ChatCommandController.lua` | Registers extensible developer-only chat commands, resolves player selectors, and executes built-in utility and confirmed data-reset actions. |
 | `src/servercontrollers/ChatCommand/ChatCommandConfig.lua` | Configures command cooldowns and server-only developer access. |
 | `src/servercontrollers/ServerContext.lua` | Classifies normal joins as Lobby, accepts Roblox-verified reserved-server party data in live servers, and owns the strictly Studio-only local Game-session promotion. |
@@ -51,9 +51,10 @@ Quick reference for the reusable first-party Luau foundation. Generated Wally de
 | `src/servercontrollers/PlayerStatController.lua` | Composes named player health/speed modifiers, preserves gained health, and applies the final movement-speed limit. |
 | `src/servercontrollers/RollController.lua` | **Archived/dormant:** owns ability rolls, luck chains, rewards, Auto Roll scheduling, and saved preferences. |
 | `src/servercontrollers/Roll/RollServerConfig.lua` | **Archived/dormant:** defines server-only luck, cooldown, and clover-chain balance values. |
-| `src/servercontrollers/ZombieController.lua` | Provides its shared client endpoint in every session, but only builds spawns and runs authoritative zombie simulation in Game sessions, including Studio-promoted sessions. |
-| `src/servercontrollers/Zombie/Zombie.lua` | Defines authoritative targeting, area-bounded movement, attacks, health, and knockback per zombie. |
+| `src/servercontrollers/ZombieController.lua` | Provides its shared client endpoint in every session, but only builds weighted/capped spawns and runs authoritative zombie simulation, special effects, summons, and projectile impacts in Game sessions, including Studio-promoted sessions. |
+| `src/servercontrollers/Zombie/Zombie.lua` | Defines authoritative targeting, area-bounded movement, attacks, special-behavior dispatch, health, and knockback per zombie. |
 | `src/servercontrollers/Zombie/ZombieBehaviors.lua` | Provides definition-selected movement and attack strategies without type checks in core logic. |
+| `src/servercontrollers/Zombie/ZombieSpecialBehaviors.lua` | Implements the authoritative Spitter, Charger, Screamer, Tank, Leaper, Shielder, Bomber, Grabber, Summoner, Splitter, Burrower, Frenzy, Medic, Hardened, and Dodger strategies. |
 | `src/servercontrollers/Zombie/ZombieSeparation.lua` | Applies throttled spatial-hash separation so dense crowds do not occupy identical positions. |
 
 ## Core modules
@@ -85,9 +86,9 @@ These modules provide shared game configuration, persistent player-data defaults
 | `src/modules/Game/DataTemplate.lua` | Supplies DataService's JSON-compatible persisted player-data defaults. |
 | `src/modules/Game/Rolls/RollDefinitions.lua` | Preserves the dormant weighted roll catalog and legacy data keys; still supplies saved-data compatibility and reveal timing. |
 | `src/modules/Game/RuntimeState.lua` | Stores generic transient per-player state and change signals. |
-| `src/modules/Game/Zombies/ZombieAreas.lua` | Defines progression-scaled spawn volumes, caps, group sizes, and weighted zombie pools. |
-| `src/modules/Game/Zombies/ZombieDefinitions.lua` | Defines expandable per-type combat, movement, legacy dormant coin metadata, asset, and animation configuration. |
-| `src/modules/Game/Zombies/ZombieProtocol.lua` | Shares compact state codes and snapshot timing between server simulation and client rendering. |
+| `src/modules/Game/Zombies/ZombieAreas.lua` | Defines progression-scaled spawn volumes, caps, group sizes, and weighted pools for standard and special zombies. |
+| `src/modules/Game/Zombies/ZombieDefinitions.lua` | Defines expandable per-type combat, movement, special-ability balance, recolored/scaled asset presentation, legacy dormant coin metadata, and animation configuration. |
+| `src/modules/Game/Zombies/ZombieProtocol.lua` | Shares compact movement/special state codes and snapshot timing between server simulation and client rendering. |
 | `src/modules/Game/TeleportPlayer.lua` | Teleports a Player or character Model to a CFrame or BasePart. |
 | `src/modules/Game/TeleportLocalPlayer.lua` | Teleports the local character for client-side presentation use. |
 | `src/modules/Game/FreezePlayer.lua` | Freezes the local character, optionally at a target CFrame. |
@@ -128,7 +129,7 @@ These modules provide shared game configuration, persistent player-data defaults
 | `src/UI/App.lua` | Composes the neutral `App` ScreenGui, party Creation Menu, and retained generic overlays. |
 | `src/UI/UIOrigin.lua` | Mounts the Vide application once into LocalPlayer.PlayerGui. |
 | `src/UI/App.story.lua` | Exposes the app component for UI story previews. |
-| `src/UI/Classes/Button.lua` | Provides a reusable reactive button with configurable color, sizing, corner radius, interaction feedback, and sounds. |
+| `src/UI/Classes/Button.lua` | Provides a reusable reactive button with configurable presentation, unified face/text press motion, interaction feedback, and sounds. |
 | `src/UI/Classes/Confirmation.lua` | Provides a reusable modal confirmation component. |
 | `src/UI/Effects/HoverExpand.lua` | Provides reusable hover scaling for GuiObjects. |
 | `src/UI/Effects/Notification.lua` | Provides a reusable counted attention badge. |

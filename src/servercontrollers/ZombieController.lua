@@ -30,6 +30,8 @@ local areaRuntime = {}
 local groundOffsets = {}
 local boundaryRadii = {}
 local maximumBoundaryRadius = 0
+local pendingSpawnRequests = {}
+local pendingProjectiles = {}
 local zombieDamaged = Signal.new()
 local playerDamagedByZombie = Signal.new()
 
@@ -46,10 +48,10 @@ local function onZombieDamagedPlayer(zombie, player: Player, actualDamage: numbe
 	playerDamagedByZombie:Fire(player, zombie.id, zombie.cframe.Position, actualDamage)
 end
 
-local function createVariation()
+local function createVariation(definition)
 	-- Independent subtle rolls prevent whole groups from sharing the same silhouette and cadence.
 	return {
-		Scale = random:NextNumber(VARIATION_MINIMUM, VARIATION_MAXIMUM),
+		Scale = definition.ModelScale * random:NextNumber(VARIATION_MINIMUM, VARIATION_MAXIMUM),
 		MoveSpeed = random:NextNumber(VARIATION_MINIMUM, VARIATION_MAXIMUM),
 		TurnSpeed = random:NextNumber(VARIATION_MINIMUM, VARIATION_MAXIMUM),
 		AnimationSpeed = random:NextNumber(VARIATION_MINIMUM, VARIATION_MAXIMUM),
@@ -68,7 +70,9 @@ local function getLivePlayerCandidates()
 			local candidate = {
 				player = player,
 				humanoid = humanoid,
+				root = root,
 				position = root.Position,
+				velocity = root.AssemblyLinearVelocity,
 			}
 			table.insert(candidates, candidate)
 			candidateLookup[player] = candidate
@@ -77,6 +81,83 @@ local function getLivePlayerCandidates()
 
 	return candidates, candidateLookup
 end
+
+local function broadcastAbility(packet)
+	zombieNetwork:fireAll("ZombieAbility", packet)
+end
+
+local function damagePlayersInRadius(attacker, position, radius, damage)
+	local candidates = getLivePlayerCandidates()
+	for _, candidate in candidates do
+		local offset = candidate.position - position
+		if math.abs(offset.Y) <= 8 and Vector2.new(offset.X, offset.Z).Magnitude <= radius then
+			attacker:DamagePlayer(candidate, damage)
+		end
+	end
+end
+
+local damageZombieInternal
+
+local function damageZombiesInRadius(excludedId, position, radius, damage)
+	for id, target in zombies do
+		if id ~= excludedId and not target:IsDead() then
+			local offset = target.cframe.Position - position
+			if math.abs(offset.Y) <= 8 and Vector2.new(offset.X, offset.Z).Magnitude <= radius then
+				damageZombieInternal(id, damage, position, 0, { source = "Bomber" })
+			end
+		end
+	end
+end
+
+local function healZombiesInRadius(excludedId, position, radius, amount)
+	for id, target in zombies do
+		if id ~= excludedId and not target:IsDead() and (target.cframe.Position - position).Magnitude <= radius then
+			target.health = math.min(target.health + amount, target.definition.MaxHealth)
+		end
+	end
+end
+
+local function queueSpawn(typeName, position, area, ignoreCap)
+	if ZombieDefinitions[typeName] then
+		table.insert(pendingSpawnRequests, {
+			typeName = typeName,
+			position = Vector3.new(position.X, area.CFrame.Position.Y, position.Z),
+			area = area,
+			ignoreCap = ignoreCap == true,
+		})
+	end
+end
+
+local function launchProjectile(attacker, targetPosition, speed, impactRadius, damage)
+	local origin = attacker.cframe.Position + Vector3.yAxis * 2
+	local distance = (targetPosition - origin).Magnitude
+	local duration = math.clamp(distance / speed, 0.2, 1.5)
+	table.insert(pendingProjectiles, {
+		attacker = attacker,
+		targetPosition = targetPosition,
+		impactRadius = impactRadius,
+		damage = damage,
+		impactAt = workspace:GetServerTimeNow() + duration,
+	})
+	broadcastAbility({
+		Kind = "Projectile",
+		Origin = origin,
+		Target = targetPosition,
+		Duration = duration,
+		Color = attacker.definition.TintColor,
+	})
+end
+
+local zombieServices = {
+	Random = random,
+	OnPlayerDamaged = onZombieDamagedPlayer,
+	BroadcastAbility = broadcastAbility,
+	DamagePlayersInRadius = damagePlayersInRadius,
+	DamageZombiesInRadius = damageZombiesInRadius,
+	HealZombiesInRadius = healZombiesInRadius,
+	QueueSpawn = queueSpawn,
+	LaunchProjectile = launchProjectile,
+}
 
 local function isAwayFromPlayers(position, candidates, minimumDistance)
 	for _, candidate in candidates do
@@ -133,7 +214,7 @@ local function createZombie(area, typeName, surfacePosition)
 	end
 
 	nextZombieId += 1
-	local variation = createVariation()
+	local variation = createVariation(definition)
 	local spawnPosition = surfacePosition + Vector3.yAxis * groundOffset * variation.Scale
 	local spawnYaw = random:NextNumber(-math.pi, math.pi)
 	local spawnCFrame = CFrame.new(spawnPosition) * CFrame.Angles(0, spawnYaw, 0)
@@ -145,8 +226,10 @@ local function createZombie(area, typeName, surfacePosition)
 		area,
 		variation,
 		boundaryRadius,
-		onZombieDamagedPlayer
+		zombieServices
 	)
+	-- Summons and split offspring can originate beside a boundary; constrain before their first packet.
+	zombie:_constrainToArea()
 	zombies[zombie.id] = zombie
 	areaRuntime[area.Id].count += 1
 
@@ -221,7 +304,7 @@ local function buildGroundOffsets()
 			-- keeps the complete rendered model inside its assigned combat floor.
 			local boundaryRadius = Vector2.new(boundingSize.X, boundingSize.Z).Magnitude * 0.5 / authoredScale
 			boundaryRadii[typeName] = boundaryRadius
-			maximumBoundaryRadius = math.max(maximumBoundaryRadius, boundaryRadius)
+			maximumBoundaryRadius = math.max(maximumBoundaryRadius, boundaryRadius * definition.ModelScale)
 		else
 			warn(string.format("Missing zombie model ReplicatedStorage.Assets.Models.Zombies.%s", definition.AssetName))
 		end
@@ -249,7 +332,27 @@ local function stepSimulation(deltaTime)
 		zombie:Step(deltaTime, candidates, candidateLookup, now)
 		if zombie:IsDead() then
 			-- Simulator coin drops are archived; run rewards will be awarded by the future session flow.
+			zombie:OnDeath()
 			table.insert(deadIds, id)
+		end
+	end
+
+	for index = #pendingProjectiles, 1, -1 do
+		local projectile = pendingProjectiles[index]
+		if now >= projectile.impactAt then
+			damagePlayersInRadius(
+				projectile.attacker,
+				projectile.targetPosition,
+				projectile.impactRadius,
+				projectile.damage
+			)
+			broadcastAbility({
+				Kind = "Impact",
+				Position = projectile.targetPosition,
+				Radius = projectile.impactRadius,
+				Color = projectile.attacker.definition.TintColor,
+			})
+			table.remove(pendingProjectiles, index)
 		end
 	end
 
@@ -260,6 +363,23 @@ local function stepSimulation(deltaTime)
 	end
 
 	removeZombies(deadIds)
+
+	if #pendingSpawnRequests > 0 then
+		local spawnPackets = {}
+		for _, request in pendingSpawnRequests do
+			local runtime = areaRuntime[request.area.Id]
+			if runtime and (request.ignoreCap or runtime.count < request.area.MaxZombies) then
+				local packet = createZombie(request.area, request.typeName, request.position)
+				if packet then
+					table.insert(spawnPackets, packet)
+				end
+			end
+		end
+		table.clear(pendingSpawnRequests)
+		if #spawnPackets > 0 then
+			zombieNetwork:fireAll("SpawnZombies", spawnPackets, now)
+		end
+	end
 
 	if now >= nextSnapshotAt then
 		nextSnapshotAt = now + ZombieProtocol.SnapshotInterval
@@ -283,7 +403,7 @@ function ZombieController.GetSnapshot(_, _player)
 	return { now, packets }
 end
 
-function ZombieController.DamageZombie(
+damageZombieInternal = function(
 	id,
 	amount,
 	hitOrigin: Vector3?,
@@ -292,7 +412,8 @@ function ZombieController.DamageZombie(
 )
 	local zombie = zombies[id]
 	local healthBefore = if zombie then zombie.health else 0
-	local damaged = zombie ~= nil and zombie:TakeDamage(amount, hitOrigin, knockbackImpulse)
+	local damaged = zombie ~= nil
+		and zombie:TakeDamage(amount, hitOrigin, knockbackImpulse, damageContext, workspace:GetServerTimeNow())
 	if damaged then
 		local actualDamage = math.max(healthBefore - zombie.health, 0)
 		local killed = zombie:IsDead()
@@ -314,12 +435,23 @@ function ZombieController.DamageZombie(
 			direction,
 			knockbackImpulse or 0
 		)
-		-- Every authored damage source reports through this one server pipeline so kill credit and hit
-		-- passives cannot be forged by clients or accidentally applied twice by individual abilities.
-		zombieDamaged:Fire(id, position, actualDamage, killed, damageContext)
+		-- Armor, shields, and dodges consume the authoritative hit but must not trigger on-damage passives.
+		if actualDamage > 0 then
+			zombieDamaged:Fire(id, position, actualDamage, killed, damageContext)
+		end
 		return true, killed
 	end
 	return false, false
+end
+
+function ZombieController.DamageZombie(
+	id,
+	amount,
+	hitOrigin: Vector3?,
+	knockbackImpulse: number?,
+	damageContext: DamageContext?
+)
+	return damageZombieInternal(id, amount, hitOrigin, knockbackImpulse, damageContext)
 end
 
 function ZombieController.GetZombieDamagedSignal()
