@@ -478,6 +478,12 @@ function AbilityController.UpgradeAbility(abilityId: string)
 	end
 end
 
+function AbilityController.UnlockAbility(abilityId: string)
+	if abilityNetwork and AbilityDefinitions.ById[abilityId] then
+		abilityNetwork:fire("UnlockAbility", abilityId)
+	end
+end
+
 function AbilityController.AcknowledgeDiscovery(abilityId: string)
 	if abilityNetwork and AbilityDefinitions.ById[abilityId] then
 		abilityNetwork:fire("AcknowledgeDiscovery", abilityId)

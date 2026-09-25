@@ -18,5 +18,9 @@
 - For reel or carousel focus effects, derive every entry's scale from its live distance to the focus point so neighboring entries cannot retain stale emphasis.
 - Reuse `Classes/Button.lua` before introducing another general-purpose button.
 - Reuse suitable Studio-owned assets when they exist instead of duplicating them, but do not make the reusable UI root depend on optional asset folders.
+- UI image assets may be searched through the Roblox Studio MCP in the Creator Store, user inventory, group inventory, or universe inventory. Search only the `Image` or `Decal` asset types; never use Creator Store models, meshes, packages, or other non-image assets for this workflow.
+- Visually inspect a candidate's returned thumbnail or source image before inserting or using it. Confirm that it looks polished, fits the requested UI, and does not contain suspicious, inappropriate, misleading, or moderation-risk content; do not use an asset merely because its name or metadata appears suitable.
+- Image-asset sourcing must never introduce scripts. Reject any result or inserted hierarchy containing a `Script`, `LocalScript`, or `ModuleScript` rather than preserving or executing it.
+- Upload images to Roblox only after verifying that the account currently active in Studio is exactly `Varie3n` and reviewing the image itself for anything Roblox moderation could reasonably flag as suspicious or inappropriate. If the account cannot be verified or the image is questionable, do not upload it and ask the user.
 - Clone sounds before playback and parent runtime copies appropriately so concurrent UI interactions do not fight over one shared Sound instance. Clean up each clone after playback.
 IF YOU ARE GOING TO BE CREATING/MODIFYING UI, READ AGENTSCREATINGUI.md

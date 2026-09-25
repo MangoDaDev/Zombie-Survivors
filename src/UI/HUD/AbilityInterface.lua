@@ -1,13 +1,12 @@
--- Currently unused after removal of simulator progression UI. Preserved for future ability management.
-
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local TweenService = game:GetService("TweenService")
 
 local Button = require(script.Parent.Parent.Classes.Button)
 local AbilityController = require(ReplicatedStorage.Controllers.AbilityController)
-local RunRewardsController = require(ReplicatedStorage.Controllers.RunRewardsController)
+local CoinsController = require(ReplicatedStorage.Controllers.CoinsController)
+local RunProgressionController = require(ReplicatedStorage.Controllers.RunProgressionController)
 local AbilityDefinitions = require(ReplicatedStorage.Modules.Game.Abilities.AbilityDefinitions)
+local FormatNumber = require(ReplicatedStorage.Modules.Math.FormatNumber)
 local Images = require(ReplicatedStorage.Modules.UI.Images)
 local SafeArea = require(ReplicatedStorage.Modules.UI.SafeArea)
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
@@ -22,404 +21,263 @@ local source = Vide.source
 local spring = Vide.spring
 
 local localPlayer = Players.LocalPlayer
-local DISCOVERY_DURATION = 5
-
-local function isOwned(state, abilityId: string): boolean
-	return type(state.Owned) == "table" and state.Owned[abilityId] == true
-end
-
-local function getLevel(state, abilityId: string): number
-	local level = type(state.Levels) == "table" and state.Levels[abilityId]
-	return if type(level) == "number" then level else 1
-end
-
-local function getEquipped(state, category: string)
-	local equipped = type(state.Equipped) == "table" and state.Equipped[category]
-	return if type(equipped) == "table" then equipped else {}
-end
-
-local function isEquipped(state, ability): boolean
-	return table.find(getEquipped(state, ability.Category), ability.Id) ~= nil
-end
+local HEAVY_FONT = Font.new(UIStyle.Font.Family, Enum.FontWeight.Heavy)
+local BOLD_FONT = Font.new(UIStyle.Font.Family, Enum.FontWeight.Bold)
+local PANEL = Color3.fromRGB(3, 18, 30)
+local PANEL_LIGHT = Color3.fromRGB(4, 29, 45)
+local PAPER = Color3.fromRGB(235, 242, 247)
+local PAPER_INSET = Color3.fromRGB(205, 220, 229)
+local CYAN = Color3.fromRGB(0, 184, 219)
+local CYAN_LIGHT = Color3.fromRGB(34, 220, 250)
+local INK = Color3.fromRGB(24, 41, 52)
 
 local function textStroke(color: Color3?, thickness: number?)
 	return create "UIStroke" {
-		Color = color or UIStyle.Colors.Ink,
+		Color = color or Color3.fromRGB(0, 12, 22),
 		StrokeSizingMode = Enum.StrokeSizingMode.ScaledSize,
-		Thickness = thickness or 0.05,
+		Thickness = thickness or 0.055,
 	}
 end
 
-local function studTexture(zIndex: number)
+local function studTexture(zIndex: number, transparency: number?)
 	return create "ImageLabel" {
 		Name = "StudTexture",
 		BackgroundTransparency = 1,
 		Image = UIStyle.StudTexture,
-		ImageTransparency = UIStyle.StudTransparency,
+		ImageTransparency = transparency or 0.86,
 		ScaleType = Enum.ScaleType.Tile,
 		Size = UDim2.fromScale(1, 1),
-		TileSize = UDim2.fromOffset(56, 56),
+		TileSize = UDim2.fromOffset(52, 52),
 		ZIndex = zIndex,
 	}
 end
 
-local function abilityIcon(ability, zIndex: number, visible)
-	local function isVisible(): boolean
-		return if visible == nil then true elseif type(visible) == "function" then visible() else visible
+local function isOwned(state, abilityId: string): boolean
+	return type(state) == "table"
+		and type(state.Owned) == "table"
+		and state.Owned[abilityId] == true
+end
+
+local function countCategory(state, category: string): (number, number)
+	local unlocked = 0
+	local total = 0
+	for _, ability in AbilityDefinitions.List do
+		if ability.Category == category then
+			total += 1
+			if isOwned(state, ability.Id) then
+				unlocked += 1
+			end
+		end
 	end
-
-	return create "ImageLabel" {
-		Name = ability.Name .. "Icon",
-		BackgroundTransparency = 1,
-		-- Do not even assign the authored asset while locked; hidden entries must remain anonymous.
-		Image = function()
-			return if isVisible() then ability.Icon else ""
-		end,
-		ScaleType = Enum.ScaleType.Fit,
-		Size = UDim2.fromScale(1, 1),
-		Visible = isVisible,
-		ZIndex = zIndex,
-	}
+	return unlocked, total
 end
 
-local function abilityCard(ability, state, category, selectedId)
+local function firstAbilityId(category: string): string
+	for _, ability in AbilityDefinitions.List do
+		if ability.Category == category then
+			return ability.Id
+		end
+	end
+	return AbilityDefinitions.List[1].Id
+end
+
+local function abilityCard(ability, order: number, props)
 	local hovered = source(false)
 	local owned = derive(function()
-		return isOwned(state(), ability.Id)
+		return isOwned(props.state(), ability.Id)
 	end)
 	local selected = derive(function()
-		return owned() and selectedId() == ability.Id
+		return props.selectedId() == ability.Id
 	end)
-	local equipped = derive(function()
-		return isEquipped(state(), ability)
-	end)
-	local cardScale = spring(function()
+	local scale = spring(function()
 		return if hovered() then 1.018 else 1
 	end, 0.16, 0.88)
+	local unlockCost = AbilityDefinitions.GetUnlockCost(ability) or 0
 
 	return create "Frame" {
 		Name = ability.Id .. "Card",
 		BackgroundColor3 = function()
-			if not owned() then
-				return UIStyle.Colors.InkSoft
+			if selected() then
+				return Color3.fromRGB(12, 73, 98)
 			end
-			if equipped() then
-				return UIStyle.Colors.Green:Lerp(UIStyle.Colors.Ink, 0.42)
-			end
-			return ability.Color:Lerp(UIStyle.Colors.Ink, if selected() then 0.55 else 0.72)
-		end,
-		BackgroundTransparency = function()
-			return if owned() then 0 else 0.22
+			return if owned() then Color3.fromRGB(13, 50, 63) else Color3.fromRGB(18, 38, 50)
 		end,
 		BorderSizePixel = 0,
-		LayoutOrder = function()
-			-- Equipped abilities always sort ahead of unequipped entries in the same category.
-			return (if equipped() then 0 else 1000) + ability.Roll.RarityRank
+		LayoutOrder = order,
+		Size = function()
+			return UDim2.new(1, -10, 0, if props.portrait() then 76 else 86)
 		end,
-		Size = UDim2.new(1, -10, 0, 154),
 		Visible = function()
-			return category() == ability.Category
+			return props.category() == ability.Category
 		end,
 		ZIndex = 325,
-		create "UICorner" { CornerRadius = UIStyle.CornerRadius },
-		create "UIScale" { Scale = cardScale },
+		create "UIScale" { Scale = scale },
 		create "UIStroke" {
+			ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
 			Color = function()
-				if not owned() then
-					return UIStyle.Colors.Muted
-				end
-				return if equipped() then Color3.fromRGB(137, 255, 158) else ability.Color
+				return if selected() then ability.Color else Color3.fromRGB(67, 104, 122)
 			end,
 			Thickness = function()
-				return if equipped() or selected() then 4 else 2
-			end,
-			Transparency = function()
-				return if owned() then 0.08 else 0.58
+				return if selected() then 3 else 2
 			end,
 		},
-		studTexture(326),
-		create "Frame" {
-			Name = "Preview",
+		create "ImageLabel" {
+			Name = "Icon",
+			AnchorPoint = Vector2.new(0, 0.5),
 			BackgroundTransparency = 1,
-			Position = UDim2.fromOffset(9, 9),
-			Size = UDim2.fromOffset(100, 100),
-			ZIndex = 328,
-			abilityIcon(ability, 328, owned),
-			create "TextLabel" {
-				Name = "UnknownPreview",
-				BackgroundTransparency = 1,
-				FontFace = UIStyle.Font,
-				Size = UDim2.fromScale(1, 1),
-				Text = "???",
-				TextColor3 = UIStyle.Colors.Muted,
-				TextScaled = true,
-				Visible = function()
-					return not owned()
-				end,
-				ZIndex = 329,
-				textStroke(),
-			},
+			Image = ability.Icon,
+			ImageColor3 = function()
+				return if owned() or selected() then Color3.new(1, 1, 1) else Color3.fromRGB(169, 178, 183)
+			end,
+			Position = UDim2.new(0, 10, 0.5, 0),
+			ScaleType = Enum.ScaleType.Fit,
+			Size = function()
+				local size = if props.portrait() then 50 else 58
+				return UDim2.fromOffset(size, size)
+			end,
+			ZIndex = 327,
 		},
 		create "TextLabel" {
 			Name = "AbilityName",
 			BackgroundTransparency = 1,
-			FontFace = UIStyle.Font,
-			Position = UDim2.new(0, 120, 0, 10),
-			Size = UDim2.new(1, -130, 0, 33),
-			Text = function()
-				return if owned() then ability.Name else "???"
+			FontFace = HEAVY_FONT,
+			Position = function()
+				return UDim2.fromOffset(if props.portrait() then 68 else 78, if props.portrait() then 9 else 12)
 			end,
-			TextColor3 = function()
-				return if owned() then ability.Color else UIStyle.Colors.Muted
-			end,
+			Size = UDim2.new(1, -190, 0, 28),
+			Text = string.upper(ability.Name),
+			TextColor3 = UIStyle.Colors.Paper,
 			TextScaled = true,
+			TextTruncate = Enum.TextTruncate.AtEnd,
 			TextXAlignment = Enum.TextXAlignment.Left,
-			ZIndex = 329,
-			textStroke(),
+			ZIndex = 327,
 		},
 		create "TextLabel" {
-			Name = "Level",
+			Name = "Rarity",
 			BackgroundTransparency = 1,
-			FontFace = UIStyle.Font,
-			Position = UDim2.new(0, 120, 0, 49),
-			Size = UDim2.new(1, -130, 0, 23),
-			Text = function()
-				return if owned() then string.format("LEVEL %d", getLevel(state(), ability.Id)) else "???"
+			FontFace = BOLD_FONT,
+			Position = function()
+				return UDim2.fromOffset(if props.portrait() then 68 else 78, if props.portrait() then 43 else 49)
 			end,
-			TextColor3 = function()
-				return if owned() then UIStyle.Colors.Paper else UIStyle.Colors.Muted
-			end,
+			Size = UDim2.new(1, -190, 0, 20),
+			Text = string.upper(ability.Roll.Rarity .. " " .. ability.Category),
+			TextColor3 = ability.Color:Lerp(Color3.new(1, 1, 1), 0.32),
 			TextScaled = true,
+			TextTruncate = Enum.TextTruncate.AtEnd,
 			TextXAlignment = Enum.TextXAlignment.Left,
-			ZIndex = 329,
-			textStroke(),
-		},
-		create "TextLabel" {
-			Name = "Category",
-			BackgroundTransparency = 1,
-			FontFace = UIStyle.Font,
-			Position = UDim2.new(0, 120, 0, 78),
-			Size = UDim2.new(1, -130, 0, 23),
-			Text = function()
-				return if owned() then ability.Category:upper() .. " ABILITY" else "???"
-			end,
-			TextColor3 = UIStyle.Colors.PaperShadow,
-			TextScaled = true,
-			TextXAlignment = Enum.TextXAlignment.Left,
-			ZIndex = 329,
+			ZIndex = 327,
 		},
 		create "Frame" {
-			Name = "EquippedBadge",
-			AnchorPoint = Vector2.new(1, 0),
+			Name = "UnlockedBadge",
+			AnchorPoint = Vector2.new(1, 0.5),
 			BackgroundColor3 = UIStyle.Colors.Green,
 			BorderSizePixel = 0,
-			Position = UDim2.new(1, -7, 0, 7),
-			Size = UDim2.fromOffset(86, 25),
-			Visible = equipped,
-			ZIndex = 332,
-			create "UICorner" { CornerRadius = UIStyle.SmallCornerRadius },
-			create "UIStroke" { Color = Color3.fromRGB(28, 93, 47), Thickness = 2 },
+			Position = UDim2.new(1, -10, 0.5, 0),
+			Size = UDim2.fromOffset(98, 30),
+			Visible = owned,
+			ZIndex = 328,
+			create "UIStroke" { Color = Color3.fromRGB(14, 70, 37), Thickness = 2 },
 			create "TextLabel" {
 				BackgroundTransparency = 1,
-				FontFace = UIStyle.Font,
+				FontFace = HEAVY_FONT,
 				Size = UDim2.fromScale(1, 1),
-				Text = "EQUIPPED",
+				Text = "UNLOCKED",
 				TextColor3 = UIStyle.Colors.Paper,
 				TextScaled = true,
-				ZIndex = 333,
-				textStroke(Color3.fromRGB(28, 93, 47)),
+				ZIndex = 329,
+				textStroke(Color3.fromRGB(14, 70, 37), 0.04),
 			},
 		},
-		create "ImageLabel" {
-			Name = "Locked",
-			AnchorPoint = Vector2.new(1, 1),
-			BackgroundTransparency = 1,
-			Image = Images.Lock,
-			ImageColor3 = UIStyle.Colors.Muted,
-			Position = UDim2.new(0, 102, 0, 102),
-			Size = UDim2.fromOffset(28, 28),
+		create "Frame" {
+			Name = "UnlockCost",
+			AnchorPoint = Vector2.new(1, 0.5),
+			BackgroundColor3 = Color3.fromRGB(67, 55, 26),
+			BorderSizePixel = 0,
+			Position = UDim2.new(1, -10, 0.5, 0),
+			Size = UDim2.fromOffset(104, 34),
 			Visible = function()
 				return not owned()
 			end,
-			ZIndex = 333,
+			ZIndex = 328,
+			create "UIStroke" { Color = Color3.fromRGB(210, 157, 47), Thickness = 2 },
+			create "ImageLabel" {
+				AnchorPoint = Vector2.new(0, 0.5),
+				BackgroundTransparency = 1,
+				Image = Images.Coin,
+				Position = UDim2.new(0, 8, 0.5, 0),
+				Size = UDim2.fromOffset(23, 23),
+				ZIndex = 329,
+			},
+			create "TextLabel" {
+				BackgroundTransparency = 1,
+				FontFace = HEAVY_FONT,
+				Position = UDim2.fromOffset(36, 4),
+				Size = UDim2.new(1, -42, 1, -8),
+				Text = FormatNumber(unlockCost) or tostring(unlockCost),
+				TextColor3 = Color3.fromRGB(255, 224, 129),
+				TextScaled = true,
+				TextXAlignment = Enum.TextXAlignment.Left,
+				ZIndex = 329,
+			},
 		},
 		create "TextButton" {
 			Name = "Sensor",
 			AutoButtonColor = false,
 			BackgroundTransparency = 1,
-			Active = owned,
-			Selectable = owned,
-			Size = UDim2.new(1, 0, 0, 106),
+			Size = UDim2.fromScale(1, 1),
 			Text = "",
-			TextScaled = true,
-			ZIndex = 340,
+			ZIndex = 335,
 			MouseEnter = function()
-				if owned() then
-					hovered(true)
-					Sounds.Play("HoverStart", localPlayer.PlayerGui)
-				end
+				hovered(true)
+				Sounds.Play("HoverStart", localPlayer.PlayerGui)
 			end,
 			MouseLeave = function()
 				hovered(false)
 			end,
 			Activated = function()
-				if owned() then
-					selectedId(ability.Id)
-					Sounds.Play("Click", localPlayer.PlayerGui)
-				end
+				props.selectedId(ability.Id)
+				Sounds.Play("Click", localPlayer.PlayerGui)
 			end,
-		},
-		create "Frame" {
-			Name = "QuickActions",
-			BackgroundTransparency = 1,
-			Position = UDim2.new(0, 116, 1, -45),
-			Size = UDim2.new(1, -126, 0, 37),
-			Visible = owned,
-			ZIndex = 342,
-			create "UIListLayout" {
-				FillDirection = Enum.FillDirection.Horizontal,
-				Padding = UDim.new(0, 8),
-				SortOrder = Enum.SortOrder.LayoutOrder,
-			},
-			Button({
-				Text = function()
-					return if equipped() then "UNEQUIP" else "EQUIP"
-				end,
-				Size = UDim2.new(0.48, -4, 1, 0),
-				BackgroundColor3 = function()
-					return if equipped() then UIStyle.Colors.Red else UIStyle.Colors.Green
-				end,
-				LayoutOrder = 1,
-				OnActivated = function()
-					if not owned() then
-						return
-					end
-					if equipped() then
-						AbilityController.UnequipAbility(ability.Id)
-					else
-						AbilityController.EquipAbility(ability.Id)
-					end
-				end,
-			}),
-			Button({
-				Text = function()
-					local level = getLevel(state(), ability.Id)
-					local cost = AbilityDefinitions.GetUpgradeCost(ability, level)
-					return if cost then string.format("UPGRADE %d", cost) else "MAX LEVEL"
-				end,
-				Size = UDim2.new(0.52, -4, 1, 0),
-				Enabled = function()
-					return owned() and getLevel(state(), ability.Id) < ability.MaxLevel
-				end,
-				BackgroundColor3 = UIStyle.Colors.Gold,
-				LayoutOrder = 2,
-				OnActivated = function()
-					if owned() then
-						AbilityController.UpgradeAbility(ability.Id)
-					end
-				end,
-			}),
 		},
 	}
 end
 
 return function()
 	local state = source(AbilityController.GetState())
+	local balance = source(CoinsController.Get())
+	local runState = source(RunProgressionController.GetState())
 	local open = source(AbilityController.IsInventoryOpen())
-	local inSafeArea = source(RunRewardsController.IsInSafeArea())
 	local category = source(AbilityDefinitions.Categories.Weapon)
-	local topOffset = source(SafeArea.GetTopOffset(0))
-	local selectedId = source(AbilityDefinitions.List[1].Id)
-	local discoveryId = source(nil :: string?)
-	local discoveryAutoPaused = source(false)
+	local selectedId = source(firstAbilityId(AbilityDefinitions.Categories.Weapon))
+	local viewportSize = source(Vector2.new(1280, 720))
+	local topOffset = source(SafeArea.GetTopOffset(12))
 	local statusText = source("")
 	local statusColor = source(UIStyle.Colors.Green)
-	local discoveryToken = 0
 	local statusToken = 0
-	local discoveryCard: Frame?
-	local discoveryScale: UIScale?
+	local viewportConnection: RBXScriptConnection?
 	local connections = {}
+
+	local portrait = derive(function()
+		local size = viewportSize()
+		return size.X < 600 and size.X < size.Y
+	end)
+	local shortLandscape = derive(function()
+		local size = viewportSize()
+		return not portrait() and size.Y < 560
+	end)
+	local inRun = derive(function()
+		return runState().active == true
+	end)
 
 	local function selectedAbility()
 		return AbilityDefinitions.ById[selectedId()] or AbilityDefinitions.List[1]
 	end
 
-	local function dismissDiscovery()
-		local abilityId = discoveryId()
-		if not abilityId then
-			return
+	local function selectCategory(nextCategory: string)
+		category(nextCategory)
+		if selectedAbility().Category ~= nextCategory then
+			selectedId(firstAbilityId(nextCategory))
 		end
-		discoveryToken += 1
-		discoveryId(nil)
-		discoveryAutoPaused(false)
-		AbilityController.AcknowledgeDiscovery(abilityId)
-	end
-
-	local function animateDiscovery()
-		if not discoveryCard or not discoveryScale then
-			return
-		end
-		discoveryScale.Scale = 0.22
-		discoveryCard.Rotation = -3
-		TweenService:Create(
-			discoveryScale,
-			TweenInfo.new(0.42, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
-			{ Scale = 1 }
-		):Play()
-		TweenService:Create(
-			discoveryCard,
-			TweenInfo.new(0.34, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
-			{ Rotation = 0 }
-		):Play()
-
-		for index = 1, 12 do
-			local angle = math.pi * 2 * index / 12
-			local sparkle = Instance.new("ImageLabel")
-			sparkle.Name = "DiscoverySparkle"
-			sparkle.AnchorPoint = Vector2.new(0.5, 0.5)
-			sparkle.BackgroundTransparency = 1
-			sparkle.Image = Images.Sparkle
-			sparkle.ImageColor3 = Color3.fromRGB(166, 224, 255)
-			sparkle.Position = UDim2.fromScale(0.5, 0.5)
-			sparkle.Size = UDim2.fromOffset(24, 24)
-			sparkle.ZIndex = 430
-			sparkle.Parent = discoveryCard
-			local distance = 150 + (index % 3) * 18
-			local tween = TweenService:Create(
-				sparkle,
-				TweenInfo.new(0.65, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-				{
-					Position = UDim2.new(0.5, math.cos(angle) * distance, 0.5, math.sin(angle) * distance),
-					ImageTransparency = 1,
-					Rotation = 180,
-				}
-			)
-			tween.Completed:Once(function()
-				sparkle:Destroy()
-			end)
-			tween:Play()
-		end
-	end
-
-	local function showDiscovery(abilityId: string, autoRollWasPaused: boolean)
-		local ability = AbilityDefinitions.ById[abilityId]
-		if not ability then
-			return
-		end
-		discoveryToken += 1
-		local token = discoveryToken
-		-- Select the newly revealed card so opening the inventory immediately shows the discovery.
-		selectedId(abilityId)
-		category(ability.Category)
-		discoveryId(abilityId)
-		discoveryAutoPaused(autoRollWasPaused)
-		Sounds.Play("NewRarest", localPlayer.PlayerGui)
-		task.defer(animateDiscovery)
-		task.delay(DISCOVERY_DURATION, function()
-			if discoveryToken == token and discoveryId() == abilityId then
-				dismissDiscovery()
-			end
-		end)
 	end
 
 	table.insert(connections, AbilityController.GetStateChangedSignal():Connect(function(newState)
@@ -428,549 +286,605 @@ return function()
 	table.insert(connections, AbilityController.GetInventoryOpenChangedSignal():Connect(function(isOpen)
 		open(isOpen)
 	end))
-	table.insert(connections, RunRewardsController.GetSafeAreaChangedSignal():Connect(function(value)
-		inSafeArea(value)
-		if not value then
-			-- Ability management is base-only; leaving closes it so no invisible interactive overlay remains.
+	table.insert(connections, CoinsController.GetChangedSignal():Connect(function(newBalance)
+		if type(newBalance) == "number" then
+			balance(newBalance)
+		end
+	end))
+	table.insert(connections, RunProgressionController.GetStateChangedSignal():Connect(function(newState)
+		runState(newState)
+		if newState.active then
+			-- Purchases are deliberately lobby-only; starting a run closes every remaining shop input.
 			AbilityController.SetInventoryOpen(false)
 		end
 	end))
-	table.insert(connections, AbilityController.GetAbilityDiscoveredSignal():Connect(showDiscovery))
-	table.insert(connections, AbilityController.GetActionResultSignal():Connect(function(success, message, milestone)
+	table.insert(connections, AbilityController.GetActionResultSignal():Connect(function(success, message)
 		statusToken += 1
 		local token = statusToken
 		statusText(message)
-		statusColor(if milestone then UIStyle.Colors.Gold elseif success then UIStyle.Colors.Green else UIStyle.Colors.Red)
-		task.delay(if milestone then 4 else 2.5, function()
+		statusColor(if success then UIStyle.Colors.Green else UIStyle.Colors.Red)
+		task.delay(3, function()
 			if statusToken == token then
 				statusText("")
 			end
 		end)
 	end))
 	table.insert(connections, SafeArea.GetChangedSignal():Connect(function()
-		topOffset(SafeArea.GetTopOffset(0))
+		topOffset(SafeArea.GetTopOffset(12))
 	end))
 	cleanup(function()
-		discoveryToken += 1
 		statusToken += 1
 		for _, connection in connections do
 			connection:Disconnect()
 		end
+		if viewportConnection then
+			viewportConnection:Disconnect()
+		end
 	end)
 
-	local detailStatsText = function()
-		local ability = selectedAbility()
-		if not isOwned(state(), ability.Id) then
-			return "Roll to discover this ability and reveal its stats."
-		end
-		local level = getLevel(state(), ability.Id)
-		return ability.GetStatsText(level)
-	end
-
-	local milestoneText = function()
-		local ability = selectedAbility()
-		local level = getLevel(state(), ability.Id)
-		local milestone = AbilityDefinitions.GetNextMilestone(ability, level)
-		return if milestone
-			then string.format(
-				if milestone.Level == level + 1 then "NEW AT LEVEL %d\n%s" else "NEXT MILESTONE - LEVEL %d\n%s",
-				milestone.Level,
-				milestone.Description
-			)
-			else "ALL MILESTONES UNLOCKED"
-	end
-
-	local upgradeText = function()
-		local ability = selectedAbility()
-		if not isOwned(state(), ability.Id) then
-			return "LOCKED"
-		end
-		local cost = AbilityDefinitions.GetUpgradeCost(ability, getLevel(state(), ability.Id))
-		return if cost then string.format("UPGRADE - %d COINS", cost) else "MAX LEVEL"
-	end
-
 	local cards = {}
-	local detailPreviews = {}
-	local discoveryPreviews = {}
-	for _, ability in AbilityDefinitions.List do
-		table.insert(cards, abilityCard(ability, state, category, selectedId))
-		table.insert(detailPreviews, abilityIcon(ability, 324, function()
-			return selectedId() == ability.Id and isOwned(state(), ability.Id)
-		end))
-		table.insert(discoveryPreviews, abilityIcon(ability, 416, function()
-			return discoveryId() == ability.Id
-		end))
+	local previewIcons = {}
+	for order, ability in AbilityDefinitions.List do
+		table.insert(cards, abilityCard(ability, order, {
+			state = state,
+			category = category,
+			selectedId = selectedId,
+			portrait = portrait,
+		}))
+		table.insert(previewIcons, create "ImageLabel" {
+			Name = ability.Id .. "Preview",
+			BackgroundTransparency = 1,
+			Image = ability.Icon,
+			ScaleType = Enum.ScaleType.Fit,
+			Size = UDim2.fromScale(1, 1),
+			Visible = function()
+				return selectedId() == ability.Id
+			end,
+			ZIndex = 327,
+		})
+	end
+
+	local headerHeight = derive(function()
+		return if portrait() then 82 else if shortLandscape() then 72 else 94
+	end)
+	local contentTop = derive(function()
+		return headerHeight() + 64
+	end)
+	local selectedOwned = derive(function()
+		return isOwned(state(), selectedAbility().Id)
+	end)
+	local selectedCost = derive(function()
+		return AbilityDefinitions.GetUnlockCost(selectedAbility()) or 0
+	end)
+	local canAfford = derive(function()
+		return balance() >= selectedCost()
+	end)
+
+	local function categoryTab(tabCategory: string, label: string, activeColor: Color3, layoutOrder: number)
+		return create "Frame" {
+			BackgroundTransparency = 1,
+			LayoutOrder = layoutOrder,
+			Size = UDim2.new(0.5, -5, 1, 0),
+			ZIndex = 318,
+			Button({
+				Text = function()
+					local unlocked, total = countCategory(state(), tabCategory)
+					return string.format("%s  %d/%d", label, unlocked, total)
+				end,
+				BackgroundColor3 = function()
+					return if category() == tabCategory then activeColor else Color3.fromRGB(29, 48, 62)
+				end,
+				FontFace = HEAVY_FONT,
+				MaxTextSize = 25,
+				Size = UDim2.fromScale(1, 1),
+				OnActivated = function()
+					selectCategory(tabCategory)
+				end,
+			}),
+		}
 	end
 
 	return create "Frame" {
 		Name = "AbilityInterface",
 		BackgroundTransparency = 1,
 		Size = UDim2.fromScale(1, 1),
-		ZIndex = 300,
+		ZIndex = 290,
+		action(function(instance)
+			local root = instance :: Frame
+			local function updateViewport()
+				viewportSize(root.AbsoluteSize)
+			end
+			updateViewport()
+			viewportConnection = root:GetPropertyChangedSignal("AbsoluteSize"):Connect(updateViewport)
+		end),
 		create "Frame" {
-			Name = "InventoryOverlay",
+			Name = "OpenButton",
+			BackgroundTransparency = 1,
+			Position = function()
+				return UDim2.fromOffset(if portrait() then 10 else 18, topOffset())
+			end,
+			Size = UDim2.fromOffset(if portrait() then 142 else 176, if portrait() then 48 else 54),
+			Visible = function()
+				return not inRun() and not open()
+			end,
+			ZIndex = 55,
+			Button({
+				Text = "ABILITIES",
+				BackgroundColor3 = Color3.fromRGB(16, 155, 211),
+				CornerRadius = UDim.new(0, 4),
+				FontFace = HEAVY_FONT,
+				MaxTextSize = 25,
+				Size = UDim2.fromScale(1, 1),
+				OnActivated = function()
+					AbilityController.SetInventoryOpen(true)
+				end,
+			}),
+		},
+		create "Frame" {
+			Name = "ShopOverlay",
 			Active = true,
-			BackgroundColor3 = Color3.fromRGB(7, 12, 24),
-			BackgroundTransparency = 0.22,
+			BackgroundColor3 = Color3.fromRGB(2, 8, 14),
+			BackgroundTransparency = 0.2,
 			BorderSizePixel = 0,
 			Size = UDim2.fromScale(1, 1),
 			Visible = function()
-				return open() and inSafeArea()
+				return open() and not inRun()
 			end,
 			ZIndex = 300,
+			create "TextButton" {
+				Name = "BackdropSensor",
+				AutoButtonColor = false,
+				BackgroundTransparency = 1,
+				Size = UDim2.fromScale(1, 1),
+				Text = "",
+				ZIndex = 300,
+				Activated = function()
+					AbilityController.SetInventoryOpen(false)
+				end,
+			},
 			create "Frame" {
-				Name = "InventoryPanel",
+				Name = "Panel",
 				AnchorPoint = Vector2.new(0.5, 0.5),
-				BackgroundColor3 = Color3.fromRGB(28, 42, 65),
+				BackgroundColor3 = PANEL,
 				BorderSizePixel = 0,
 				Position = function()
-					return UDim2.new(0.5, 0, 0.5, topOffset() * 0.2)
+					return UDim2.new(0.5, 0, 0.5, topOffset() * 0.08)
 				end,
-				Size = UDim2.new(0.78, 40, 0.76, 40),
+				Size = function()
+					if portrait() then
+						return UDim2.new(1, -18, 1, -30)
+					elseif shortLandscape() then
+						return UDim2.new(0.94, 0, 0.94, 0)
+					end
+					return UDim2.new(0.78, 40, 0.82, 30)
+				end,
 				ZIndex = 305,
-				create "UICorner" { CornerRadius = UDim.new(0, 10) },
-				create "UIStroke" { Color = Color3.fromRGB(80, 159, 222), Thickness = 4 },
-				studTexture(306),
+				create "UISizeConstraint" {
+					MaxSize = function()
+						return if portrait() then Vector2.new(420, 880) else Vector2.new(980, 620)
+					end,
+				},
+				create "UIStroke" { ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Color = Color3.fromRGB(0, 5, 10), Thickness = 7 },
+				create "UIStroke" { ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Color = CYAN, Thickness = 3 },
 				create "Frame" {
 					Name = "Header",
-					BackgroundColor3 = UIStyle.Colors.Blue,
+					BackgroundColor3 = Color3.fromRGB(16, 168, 219),
 					BorderSizePixel = 0,
-					Size = UDim2.new(1, 0, 0, 66),
+					Position = UDim2.fromOffset(12, 12),
+					Size = function()
+						return UDim2.new(1, if portrait() then -76 else -96, 0, headerHeight())
+					end,
 					ZIndex = 310,
-					create "UICorner" { CornerRadius = UDim.new(0, 10) },
-					studTexture(311),
+					create "UIGradient" {
+						Color = ColorSequence.new(CYAN_LIGHT, Color3.fromRGB(18, 108, 191)),
+						Rotation = 90,
+					},
+					create "UIStroke" { ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Color = Color3.fromRGB(69, 229, 249), Thickness = 2 },
+					studTexture(311, 0.82),
 					create "TextLabel" {
+						Name = "Title",
 						BackgroundTransparency = 1,
-						FontFace = UIStyle.Font,
-						Position = UDim2.fromOffset(20, 8),
-						Size = UDim2.new(1, -100, 1, -16),
-						Text = "ABILITIES",
+						FontFace = HEAVY_FONT,
+						Position = UDim2.fromOffset(if portrait() then 10 else 20, if portrait() then 5 else 8),
+						Size = function()
+							return UDim2.new(if portrait() then 1 else 0.58, if portrait() then -20 else 0, 0, if portrait() then 42 else 50)
+						end,
+						Text = "ABILITY ARSENAL",
 						TextColor3 = UIStyle.Colors.Paper,
 						TextScaled = true,
 						TextXAlignment = Enum.TextXAlignment.Left,
 						ZIndex = 313,
-						textStroke(),
+						textStroke(nil, 0.065),
+					},
+					create "TextLabel" {
+						Name = "Subtitle",
+						BackgroundTransparency = 1,
+						FontFace = BOLD_FONT,
+						Position = UDim2.fromOffset(22, 64),
+						Size = UDim2.new(0.66, 0, 0, 20),
+						Text = "UNLOCK ABILITIES TO ADD THEM TO YOUR RUN CHOICES",
+						TextColor3 = Color3.fromRGB(2, 47, 72),
+						TextScaled = true,
+						TextXAlignment = Enum.TextXAlignment.Left,
+						Visible = function()
+							return not portrait() and not shortLandscape()
+						end,
+						ZIndex = 313,
 					},
 					create "Frame" {
-						AnchorPoint = Vector2.new(1, 0.5),
-						BackgroundTransparency = 1,
-						Position = UDim2.new(1, -12, 0.5, 0),
-						Size = UDim2.fromOffset(62, 46),
-						ZIndex = 314,
-						Button({
-							Text = "X",
-							Size = UDim2.fromScale(1, 1),
-							BackgroundColor3 = UIStyle.Colors.Red,
-							OnActivated = function()
-								AbilityController.SetInventoryOpen(false)
+						Name = "CoinBalance",
+						AnchorPoint = function()
+							return if portrait() then Vector2.new(0, 0) else Vector2.new(1, 0.5)
+						end,
+						BackgroundColor3 = Color3.fromRGB(37, 31, 20),
+						BorderSizePixel = 0,
+						Position = function()
+							return if portrait() then UDim2.fromOffset(10, 51) else UDim2.new(1, -16, 0.5, 0)
+						end,
+						Size = function()
+							return if portrait() then UDim2.new(1, -20, 0, 24) else UDim2.fromOffset(174, 50)
+						end,
+						ZIndex = 313,
+						create "UIStroke" { Color = Color3.fromRGB(218, 164, 55), Thickness = 2 },
+						create "ImageLabel" {
+							AnchorPoint = Vector2.new(0, 0.5),
+							BackgroundTransparency = 1,
+							Image = Images.Coin,
+							Position = UDim2.new(0, if portrait() then 6 else 10, 0.5, 0),
+							Size = function()
+								local size = if portrait() then 20 else 34
+								return UDim2.fromOffset(size, size)
 							end,
-						}),
+							ZIndex = 314,
+						},
+						create "TextLabel" {
+							BackgroundTransparency = 1,
+							FontFace = HEAVY_FONT,
+							Position = function()
+								return UDim2.fromOffset(if portrait() then 30 else 52, if portrait() then 2 else 5)
+							end,
+							Size = function()
+								return UDim2.new(1, if portrait() then -34 else -58, 1, if portrait() then -4 else -10)
+							end,
+							Text = function()
+								local formatted = FormatNumber(balance()) or tostring(balance())
+								return if portrait() then "COINS  " .. formatted else formatted
+							end,
+							TextColor3 = Color3.fromRGB(255, 228, 146),
+							TextScaled = true,
+							TextXAlignment = Enum.TextXAlignment.Left,
+							ZIndex = 314,
+						},
 					},
+				},
+				create "Frame" {
+					Name = "CloseSlot",
+					AnchorPoint = Vector2.new(1, 0),
+					BackgroundTransparency = 1,
+					Position = UDim2.new(1, -12, 0, 12),
+					Size = function()
+						return UDim2.fromOffset(if portrait() then 52 else 64, headerHeight())
+					end,
+					ZIndex = 315,
+					Button({
+						Text = "X",
+						BackgroundColor3 = UIStyle.Colors.Red,
+						FontFace = HEAVY_FONT,
+						MaxTextSize = 44,
+						Size = UDim2.fromScale(1, 1),
+						OnActivated = function()
+							AbilityController.SetInventoryOpen(false)
+						end,
+					}),
 				},
 				create "Frame" {
 					Name = "Tabs",
 					BackgroundTransparency = 1,
-					Position = UDim2.fromOffset(18, 78),
-					Size = UDim2.new(0.44, -28, 0, 48),
-					ZIndex = 315,
+					Position = function()
+						return UDim2.fromOffset(12, headerHeight() + 20)
+					end,
+					Size = function()
+						return UDim2.new(if portrait() then 1 else 0.41, if portrait() then -24 else -18, 0, if portrait() then 42 else 48)
+					end,
+					ZIndex = 317,
 					create "UIListLayout" {
 						FillDirection = Enum.FillDirection.Horizontal,
 						Padding = UDim.new(0, 10),
 						SortOrder = Enum.SortOrder.LayoutOrder,
 					},
-					Button({
-						Text = "WEAPON",
-						Size = UDim2.new(0.47, -5, 1, 0),
-						BackgroundColor3 = function()
-							return if category() == AbilityDefinitions.Categories.Weapon then UIStyle.Colors.Blue else UIStyle.Colors.InkSoft
-						end,
-						LayoutOrder = 1,
-						OnActivated = function()
-							category(AbilityDefinitions.Categories.Weapon)
-						end,
-					}),
-					Button({
-						Text = "PASSIVE",
-						Size = UDim2.new(0.47, -5, 1, 0),
-						BackgroundColor3 = function()
-							return if category() == AbilityDefinitions.Categories.Passive then UIStyle.Colors.Gold else UIStyle.Colors.InkSoft
-						end,
-						LayoutOrder = 2,
-						OnActivated = function()
-							category(AbilityDefinitions.Categories.Passive)
-						end,
-					}),
-				},
-				create "TextLabel" {
-					Name = "SlotCount",
-					BackgroundTransparency = 1,
-					FontFace = UIStyle.Font,
-					Position = UDim2.new(0.44, -2, 0, 86),
-					Size = UDim2.new(0.2, 0, 0, 32),
-					Text = function()
-						return string.format(
-							"%d / %d EQUIPPED",
-							#getEquipped(state(), category()),
-							AbilityDefinitions.EquipLimits[category()]
-						)
-					end,
-					TextColor3 = UIStyle.Colors.PaperShadow,
-					TextScaled = true,
-					TextXAlignment = Enum.TextXAlignment.Left,
-					ZIndex = 316,
+					categoryTab(AbilityDefinitions.Categories.Weapon, "WEAPONS", Color3.fromRGB(16, 155, 211), 1),
+					categoryTab(AbilityDefinitions.Categories.Passive, "PASSIVES", Color3.fromRGB(176, 119, 34), 2),
 				},
 				create "ScrollingFrame" {
-					Name = "AbilityList",
+					Name = "Catalog",
 					AutomaticCanvasSize = Enum.AutomaticSize.Y,
-					BackgroundColor3 = Color3.fromRGB(16, 25, 41),
+					BackgroundColor3 = PANEL_LIGHT,
 					BorderSizePixel = 0,
 					CanvasSize = UDim2.fromScale(0, 0),
-					Position = UDim2.fromOffset(18, 136),
-					ScrollBarImageColor3 = UIStyle.Colors.Blue,
-					ScrollBarThickness = 6,
-					Size = UDim2.new(0.44, -28, 1, -154),
+					Position = function()
+						return UDim2.fromOffset(12, contentTop())
+					end,
+					ScrollBarImageColor3 = CYAN,
+					ScrollBarThickness = 5,
+					Size = function()
+						if portrait() then
+							return UDim2.new(1, -24, 0, 202)
+						end
+						return UDim2.new(0.41, -18, 1, -(contentTop() + 12))
+					end,
 					ZIndex = 320,
-					create "UICorner" { CornerRadius = UIStyle.CornerRadius },
+					create "UIStroke" { ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Color = Color3.fromRGB(0, 120, 148), Thickness = 2 },
 					create "UIPadding" {
 						PaddingBottom = UDim.new(0, 8),
-						PaddingLeft = UDim.new(0, 8),
-						PaddingRight = UDim.new(0, 8),
-						PaddingTop = UDim.new(0, 8),
+						PaddingLeft = UDim.new(0, 7),
+						PaddingRight = UDim.new(0, 7),
+						PaddingTop = UDim.new(0, 7),
 					},
 					create "UIListLayout" { Padding = UDim.new(0, 9), SortOrder = Enum.SortOrder.LayoutOrder },
 					cards,
-					create "TextLabel" {
-						BackgroundTransparency = 1,
-						FontFace = UIStyle.Font,
-						LayoutOrder = 1000,
-						Size = UDim2.new(1, -10, 0, 70),
-						Text = "No passive abilities are available yet.",
-						TextColor3 = UIStyle.Colors.Muted,
-						TextScaled = true,
-						TextWrapped = true,
-						Visible = false,
-						ZIndex = 325,
-					},
 				},
 				create "Frame" {
 					Name = "Details",
-					BackgroundColor3 = Color3.fromRGB(246, 248, 252),
+					BackgroundColor3 = PAPER,
 					BorderSizePixel = 0,
-					Position = UDim2.new(0.44, 4, 0, 78),
-					Size = UDim2.new(0.56, -22, 1, -96),
-					Visible = function()
-						local ability = selectedAbility()
-						return category() == ability.Category and isOwned(state(), ability.Id)
+					Position = function()
+						if portrait() then
+							return UDim2.fromOffset(12, contentTop() + 212)
+						end
+						return UDim2.new(0.41, 2, 0, contentTop())
+					end,
+					Size = function()
+						if portrait() then
+							return UDim2.new(1, -24, 1, -(contentTop() + 224))
+						end
+						return UDim2.new(0.59, -14, 1, -(contentTop() + 12))
 					end,
 					ZIndex = 320,
-					create "UICorner" { CornerRadius = UIStyle.CornerRadius },
-					create "UIStroke" { Color = UIStyle.Colors.Paper, Thickness = 3, Transparency = 0.25 },
-					studTexture(321),
+					create "UIStroke" { ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Color = Color3.fromRGB(96, 145, 171), Thickness = 2 },
 					create "Frame" {
-						Name = "LargePreview",
+						Name = "Preview",
 						BackgroundTransparency = 1,
-						Position = UDim2.new(0.04, 0, 0.05, 0),
-						Size = UDim2.new(0.36, 0, 0.33, 0),
-						ZIndex = 324,
-						detailPreviews,
+						Position = UDim2.fromOffset(
+							if portrait() then 14 elseif shortLandscape() then 18 else 28,
+							if portrait() then 14 elseif shortLandscape() then 16 else 28
+						),
+						Size = function()
+							local size = if portrait() then 92 elseif shortLandscape() then 110 else 176
+							return UDim2.fromOffset(size, size)
+						end,
+						ZIndex = 326,
+						previewIcons,
+						create "ImageLabel" {
+							Name = "Lock",
+							AnchorPoint = Vector2.new(1, 1),
+							BackgroundTransparency = 1,
+							Image = Images.Lock,
+							ImageColor3 = Color3.fromRGB(55, 74, 86),
+							Position = UDim2.fromScale(1, 1),
+							Size = UDim2.fromOffset(if portrait() then 32 else 46, if portrait() then 32 else 46),
+							Visible = function()
+								return not selectedOwned()
+							end,
+							ZIndex = 328,
+						},
 					},
 					create "TextLabel" {
 						Name = "Name",
 						BackgroundTransparency = 1,
-						FontFace = UIStyle.Font,
-						Position = UDim2.new(0.43, 0, 0.05, 0),
-						Size = UDim2.new(0.53, 0, 0.1, 0),
+						FontFace = HEAVY_FONT,
+						Position = function()
+							return UDim2.fromOffset(
+								if portrait() then 116 elseif shortLandscape() then 145 else 224,
+								if portrait() then 12 elseif shortLandscape() then 16 else 28
+							)
+						end,
+						Size = function()
+							return UDim2.new(
+								1,
+								if portrait() then -128 elseif shortLandscape() then -160 else -246,
+								0,
+								if portrait() then 38 elseif shortLandscape() then 34 else 46
+							)
+						end,
 						Text = function()
-							return selectedAbility().Name
+							return string.upper(selectedAbility().Name)
 						end,
 						TextColor3 = function()
-							return selectedAbility().Color
+							return selectedAbility().Color:Lerp(Color3.fromRGB(30, 95, 139), 0.36)
 						end,
 						TextScaled = true,
+						TextTruncate = Enum.TextTruncate.AtEnd,
 						TextXAlignment = Enum.TextXAlignment.Left,
-						ZIndex = 325,
-						textStroke(),
+						ZIndex = 326,
 					},
 					create "TextLabel" {
-						Name = "CategoryAndLevel",
+						Name = "Rarity",
 						BackgroundTransparency = 1,
-						FontFace = UIStyle.Font,
-						Position = UDim2.new(0.43, 0, 0.16, 0),
-						Size = UDim2.new(0.53, 0, 0.055, 0),
+						FontFace = BOLD_FONT,
+						Position = function()
+							return UDim2.fromOffset(
+								if portrait() then 117 elseif shortLandscape() then 145 else 224,
+								if portrait() then 55 elseif shortLandscape() then 56 else 82
+							)
+						end,
+						Size = function()
+							return UDim2.new(1, if portrait() then -128 elseif shortLandscape() then -160 else -246, 0, 25)
+						end,
 						Text = function()
 							local ability = selectedAbility()
-							return string.format("%s ABILITY  -  LEVEL %d", ability.Category:upper(), getLevel(state(), ability.Id))
+							return string.upper(ability.Roll.Rarity .. " " .. ability.Category)
 						end,
-						TextColor3 = UIStyle.Colors.InkSoft,
+						TextColor3 = Color3.fromRGB(67, 92, 108),
 						TextScaled = true,
 						TextXAlignment = Enum.TextXAlignment.Left,
-						ZIndex = 325,
+						ZIndex = 326,
 					},
 					create "TextLabel" {
 						Name = "Description",
 						BackgroundTransparency = 1,
 						FontFace = UIStyle.Font,
-						Position = UDim2.new(0.43, 0, 0.23, 0),
-						Size = UDim2.new(0.53, 0, 0.14, 0),
-						Text = function()
-							local ability = selectedAbility()
-							local level = getLevel(state(), ability.Id)
-							return AbilityDefinitions.GetDescription(ability, level) .. "\n" .. ability.UpgradeDescription
+						Position = function()
+							return UDim2.fromOffset(
+								if portrait() then 117 elseif shortLandscape() then 145 else 224,
+								if portrait() then 82 elseif shortLandscape() then 86 else 118
+							)
 						end,
-						TextColor3 = UIStyle.Colors.Ink,
+						Size = function()
+							return UDim2.new(
+								1,
+								if portrait() then -128 elseif shortLandscape() then -160 else -246,
+								0,
+								if portrait() or shortLandscape() then 54 else 86
+							)
+						end,
+						Text = function()
+							return AbilityDefinitions.GetDescription(selectedAbility(), 1)
+						end,
+						TextColor3 = INK,
 						TextScaled = true,
 						TextWrapped = true,
 						TextXAlignment = Enum.TextXAlignment.Left,
 						TextYAlignment = Enum.TextYAlignment.Top,
-						ZIndex = 325,
+						ZIndex = 326,
 					},
 					create "Frame" {
 						Name = "Stats",
-						BackgroundColor3 = Color3.fromRGB(214, 225, 239),
+						BackgroundColor3 = PAPER_INSET,
 						BorderSizePixel = 0,
-						Position = UDim2.new(0.04, 0, 0.42, 0),
-						Size = UDim2.new(0.92, 0, 0.24, 0),
-						ZIndex = 324,
-						create "UICorner" { CornerRadius = UIStyle.SmallCornerRadius },
-						create "UIStroke" { Color = Color3.fromRGB(126, 154, 186), Thickness = 2 },
+						Position = function()
+							return UDim2.new(
+								0,
+								if portrait() then 14 elseif shortLandscape() then 18 else 28,
+								0,
+								if portrait() or shortLandscape() then 150 else 224
+							)
+						end,
+						Size = function()
+							return UDim2.new(
+								1,
+								if portrait() then -28 elseif shortLandscape() then -36 else -56,
+								0,
+								if portrait() then 122 elseif shortLandscape() then 90 else 132
+							)
+						end,
+						ZIndex = 325,
+						create "UIStroke" { Color = Color3.fromRGB(110, 143, 160), Thickness = 2 },
 						create "TextLabel" {
+							Name = "Title",
 							BackgroundTransparency = 1,
-							FontFace = UIStyle.Font,
-							Position = UDim2.fromScale(0.035, 0.08),
-							Size = UDim2.fromScale(0.93, 0.84),
-							Text = detailStatsText,
-							TextColor3 = UIStyle.Colors.Ink,
+							FontFace = HEAVY_FONT,
+							Position = UDim2.fromOffset(12, 8),
+							Size = UDim2.new(1, -24, 0, if portrait() then 25 elseif shortLandscape() then 22 else 30),
+							Text = "STARTING RUN STATS",
+							TextColor3 = Color3.fromRGB(36, 92, 120),
+							TextScaled = true,
+							TextXAlignment = Enum.TextXAlignment.Left,
+							ZIndex = 326,
+						},
+						create "TextLabel" {
+							Name = "StatsText",
+							BackgroundTransparency = 1,
+							FontFace = BOLD_FONT,
+							Position = UDim2.fromOffset(12, if portrait() then 39 elseif shortLandscape() then 34 else 44),
+							Size = UDim2.new(1, -24, 1, if portrait() then -47 elseif shortLandscape() then -40 else -52),
+							Text = function()
+								local ability = selectedAbility()
+								return ability.GetStatsText and ability.GetStatsText(1) or ability.Description
+							end,
+							TextColor3 = INK,
 							TextScaled = true,
 							TextWrapped = true,
 							TextXAlignment = Enum.TextXAlignment.Left,
-							ZIndex = 325,
+							ZIndex = 326,
 						},
 					},
 					create "Frame" {
-						Name = "Milestone",
-						BackgroundColor3 = Color3.fromRGB(255, 225, 137),
+						Name = "RunAvailability",
+						BackgroundColor3 = Color3.fromRGB(218, 239, 246),
 						BorderSizePixel = 0,
-						Position = UDim2.new(0.04, 0, 0.69, 0),
-						Size = UDim2.new(0.92, 0, 0.12, 0),
-						ZIndex = 324,
-						create "UICorner" { CornerRadius = UIStyle.SmallCornerRadius },
-						create "UIStroke" { Color = Color3.fromRGB(172, 116, 31), Thickness = 2 },
+						Position = function()
+							return UDim2.new(0, if portrait() then 14 else 28, 0, if portrait() then 284 else 372)
+						end,
+						Size = function()
+							return UDim2.new(1, if portrait() then -28 else -56, 0, if portrait() then 58 else 60)
+						end,
+						Visible = portrait,
+						ZIndex = 325,
+						create "UIStroke" { Color = Color3.fromRGB(78, 170, 193), Thickness = 2 },
 						create "TextLabel" {
 							BackgroundTransparency = 1,
-							FontFace = UIStyle.Font,
-							Position = UDim2.fromScale(0.03, 0.1),
-							Size = UDim2.fromScale(0.94, 0.8),
-							Text = milestoneText,
-							TextColor3 = Color3.fromRGB(92, 57, 16),
+							FontFace = BOLD_FONT,
+							Position = UDim2.fromOffset(10, 7),
+							Size = UDim2.new(1, -20, 1, -14),
+							Text = function()
+								return if selectedOwned()
+									then "UNLOCKED  -  CAN APPEAR IN EVERY FUTURE RUN"
+									else "PERMANENT UNLOCK  -  ADDED TO FUTURE RUN CHOICES"
+							end,
+							TextColor3 = Color3.fromRGB(17, 76, 96),
 							TextScaled = true,
 							TextWrapped = true,
-							ZIndex = 325,
+							ZIndex = 326,
 						},
-					},
-					create "Frame" {
-						Name = "Actions",
-						BackgroundTransparency = 1,
-						Position = UDim2.new(0.04, 0, 0.84, 0),
-						Size = UDim2.new(0.92, 0, 0.11, 0),
-						ZIndex = 330,
-						create "UIListLayout" {
-							FillDirection = Enum.FillDirection.Horizontal,
-							Padding = UDim.new(0, 12),
-							SortOrder = Enum.SortOrder.LayoutOrder,
-						},
-						Button({
-							Text = function()
-								return if isEquipped(state(), selectedAbility()) then "UNEQUIP" else "EQUIP"
-							end,
-							Size = UDim2.new(0.48, -6, 1, 0),
-							Enabled = function()
-								return isOwned(state(), selectedAbility().Id)
-							end,
-							BackgroundColor3 = function()
-								return if isEquipped(state(), selectedAbility()) then UIStyle.Colors.Red else UIStyle.Colors.Green
-							end,
-							LayoutOrder = 1,
-							OnActivated = function()
-								local ability = selectedAbility()
-								if isEquipped(state(), ability) then
-									AbilityController.UnequipAbility(ability.Id)
-								else
-									AbilityController.EquipAbility(ability.Id)
-								end
-							end,
-						}),
-						Button({
-							Text = upgradeText,
-							Size = UDim2.new(0.48, -6, 1, 0),
-							Enabled = function()
-								local ability = selectedAbility()
-								return isOwned(state(), ability.Id) and getLevel(state(), ability.Id) < ability.MaxLevel
-							end,
-							BackgroundColor3 = UIStyle.Colors.Gold,
-							LayoutOrder = 2,
-							OnActivated = function()
-								AbilityController.UpgradeAbility(selectedAbility().Id)
-							end,
-						}),
 					},
 					create "TextLabel" {
-						Name = "ActionStatus",
-						AnchorPoint = Vector2.new(0.5, 0),
+						Name = "Status",
+						AnchorPoint = Vector2.new(0.5, 1),
 						BackgroundTransparency = 1,
-						FontFace = UIStyle.Font,
-						Position = UDim2.fromScale(0.5, 0.805),
-						Size = UDim2.fromScale(0.86, 0.035),
+						FontFace = BOLD_FONT,
+						Position = function()
+							return UDim2.new(0.5, 0, 1, if shortLandscape() then -60 else -72)
+						end,
+						Size = UDim2.new(1, -42, 0, 24),
 						Text = statusText,
 						TextColor3 = statusColor,
 						TextScaled = true,
+						TextTruncate = Enum.TextTruncate.AtEnd,
 						Visible = function()
 							return statusText() ~= ""
 						end,
-						ZIndex = 331,
-						textStroke(),
+						ZIndex = 332,
 					},
-				},
-				create "TextLabel" {
-					Name = "EmptyCategory",
-					BackgroundTransparency = 1,
-					FontFace = UIStyle.Font,
-					Position = UDim2.new(0.48, 0, 0.36, 0),
-					Size = UDim2.new(0.46, 0, 0.22, 0),
-					Text = "Discover an ability to reveal its details.\nLocked abilities remain completely hidden.",
-					TextColor3 = UIStyle.Colors.PaperShadow,
-					TextScaled = true,
-					TextWrapped = true,
-					Visible = function()
-						local ability = selectedAbility()
-						return category() ~= ability.Category or not isOwned(state(), ability.Id)
-					end,
-					ZIndex = 322,
-				},
-			},
-		},
-		create "Frame" {
-			Name = "DiscoveryOverlay",
-			Active = true,
-			BackgroundColor3 = Color3.fromRGB(4, 8, 18),
-			BackgroundTransparency = 0.12,
-			BorderSizePixel = 0,
-			Size = UDim2.fromScale(1, 1),
-			Visible = function()
-				return discoveryId() ~= nil
-			end,
-			ZIndex = 400,
-			create "Frame" {
-				Name = "DiscoveryCard",
-				AnchorPoint = Vector2.new(0.5, 0.5),
-				BackgroundColor3 = Color3.fromRGB(30, 65, 96),
-				BorderSizePixel = 0,
-				Position = function()
-					return UDim2.new(0.5, 0, 0.5, topOffset() * 0.2)
-				end,
-				Size = UDim2.new(0.62, 60, 0.58, 60),
-				ZIndex = 410,
-				create "UICorner" { CornerRadius = UDim.new(0, 12) },
-				create "UIStroke" { Color = Color3.fromRGB(126, 211, 255), Thickness = 5 },
-				create "UIScale" {
-					Scale = 1,
-					action(function(instance)
-						discoveryScale = instance :: UIScale
-					end),
-				},
-				studTexture(411),
-				action(function(instance)
-					discoveryCard = instance :: Frame
-				end),
-				create "ImageLabel" {
-					Name = "Glow",
-					AnchorPoint = Vector2.new(0.5, 0.5),
-					BackgroundTransparency = 1,
-					Image = UIStyle.GlowTexture,
-					ImageColor3 = Color3.fromRGB(102, 202, 255),
-					ImageTransparency = 0.54,
-					Position = UDim2.fromScale(0.5, 0.5),
-					Size = UDim2.fromScale(1.35, 1.35),
-					ZIndex = 409,
-				},
-				create "TextLabel" {
-					Name = "DiscoveryTitle",
-					BackgroundTransparency = 1,
-					FontFace = UIStyle.Font,
-					Position = UDim2.fromScale(0.05, 0.035),
-					Size = UDim2.fromScale(0.9, 0.12),
-					Text = "ABILITY DISCOVERED!",
-					TextColor3 = Color3.fromRGB(181, 231, 255),
-					TextScaled = true,
-					ZIndex = 415,
-					textStroke(Color3.fromRGB(17, 59, 89), 0.06),
-				},
-				create "Frame" {
-					Name = "Preview",
-					BackgroundTransparency = 1,
-					Position = UDim2.fromScale(0.24, 0.18),
-					Size = UDim2.fromScale(0.52, 0.43),
-					ZIndex = 416,
-					discoveryPreviews,
-				},
-				create "TextLabel" {
-					Name = "AbilityName",
-					BackgroundTransparency = 1,
-					FontFace = UIStyle.Font,
-					Position = UDim2.fromScale(0.08, 0.63),
-					Size = UDim2.fromScale(0.84, 0.1),
-					Text = function()
-						local ability = discoveryId() and AbilityDefinitions.ById[discoveryId()]
-						return ability and ability.Name or ""
-					end,
-					TextColor3 = Color3.fromRGB(160, 221, 255),
-					TextScaled = true,
-					ZIndex = 416,
-					textStroke(),
-				},
-				create "TextLabel" {
-					Name = "CategoryAndDescription",
-					BackgroundTransparency = 1,
-					FontFace = UIStyle.Font,
-					Position = UDim2.fromScale(0.08, 0.735),
-					Size = UDim2.fromScale(0.84, 0.095),
-					Text = function()
-						local ability = discoveryId() and AbilityDefinitions.ById[discoveryId()]
-						return ability
-							and (ability.Category:upper() .. " ABILITY  -  " .. AbilityDefinitions.GetDescription(ability, 1))
-							or ""
-					end,
-					TextColor3 = UIStyle.Colors.Paper,
-					TextScaled = true,
-					TextWrapped = true,
-					ZIndex = 416,
-				},
-				create "TextLabel" {
-					AnchorPoint = Vector2.new(0.5, 1),
-					BackgroundTransparency = 1,
-					FontFace = UIStyle.Font,
-					Position = UDim2.fromScale(0.5, 0.855),
-					Size = UDim2.fromScale(0.8, 0.038),
-					Text = function()
-						return if discoveryAutoPaused()
-							then "Auto Roll resumes automatically in 5 seconds"
-							else "Continue now or this closes automatically in 5 seconds"
-					end,
-					TextColor3 = UIStyle.Colors.PaperShadow,
-					TextScaled = true,
-					ZIndex = 416,
-				},
-				create "Frame" {
-					AnchorPoint = Vector2.new(0.5, 1),
-					BackgroundTransparency = 1,
-					Position = UDim2.fromScale(0.5, 0.965),
-					Size = UDim2.fromScale(0.5, 0.105),
-					ZIndex = 420,
-					Button({
-						Text = "CONTINUE",
-						Size = UDim2.fromScale(1, 1),
-						BackgroundColor3 = UIStyle.Colors.Green,
-						OnActivated = dismissDiscovery,
-					}),
+					create "Frame" {
+						Name = "Action",
+						AnchorPoint = Vector2.new(0.5, 1),
+						BackgroundTransparency = 1,
+						Position = UDim2.new(0.5, 0, 1, -14),
+						Size = UDim2.new(
+							1,
+							if portrait() then -28 elseif shortLandscape() then -36 else -56,
+							0,
+							if portrait() then 54 elseif shortLandscape() then 46 else 58
+						),
+						ZIndex = 330,
+						Button({
+							Text = function()
+								if selectedOwned() then
+									return "UNLOCKED - AVAILABLE IN RUNS"
+								end
+								local costText = FormatNumber(selectedCost()) or tostring(selectedCost())
+								if not canAfford() then
+									return "NEED " .. costText .. " COINS"
+								end
+								return "UNLOCK FOR " .. costText .. " COINS"
+							end,
+							Enabled = function()
+								return not selectedOwned() and selectedCost() > 0 and canAfford()
+							end,
+							BackgroundColor3 = function()
+								return if selectedOwned() then UIStyle.Colors.Green elseif canAfford() then UIStyle.Colors.Gold else UIStyle.Colors.Muted
+							end,
+							FontFace = HEAVY_FONT,
+							MaxTextSize = 32,
+							Size = UDim2.fromScale(1, 1),
+							OnActivated = function()
+								local ability = selectedAbility()
+								if not isOwned(state(), ability.Id) then
+									AbilityController.UnlockAbility(ability.Id)
+								end
+							end,
+						}),
+					},
 				},
 			},
 		},

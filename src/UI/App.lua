@@ -1,6 +1,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local vide = require(ReplicatedStorage.Packages.vide)
 local Confirmation = require(script.Parent.Classes.Confirmation)
+local AbilityInterface = require(script.Parent.HUD.AbilityInterface)
 local GameOver = require(script.Parent.HUD.GameOver)
 local LevelUpChoices = require(script.Parent.HUD.LevelUpChoices)
 local Notifications = require(script.Parent.HUD.Notifications)
@@ -17,9 +18,11 @@ return function()
 		IgnoreGuiInset = true,
 		ResetOnSpawn = false,
 		ScreenInsets = Enum.ScreenInsets.None,
-		-- Simulator-era roll, inventory, currency, and extraction HUD components remain preserved in
-		-- UI/HUD, but are intentionally not composed until a future lobby or post-run flow owns them.
+		-- Simulator-era roll, standalone currency, and extraction HUD components remain preserved in
+		-- UI/HUD, but are intentionally not composed; the current unlock shop is mounted below.
 		Notifications(),
+		-- Permanent ability unlocks are managed from the lobby and feed the authoritative run choice pool.
+		AbilityInterface(),
 		-- RunHUD is always mounted so Studio's promoted destination can activate reactively without remounting App.
 		RunHUD(),
 		-- Level-up presentation does not pause or intercept live combat outside the three choice cards.

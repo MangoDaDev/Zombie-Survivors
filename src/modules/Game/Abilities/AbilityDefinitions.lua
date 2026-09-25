@@ -10,6 +10,18 @@ AbilityDefinitions.Categories = {
 	Weapon = "Weapon",
 	Passive = "Passive",
 }
+-- Every account permanently owns these basics. All other abilities must be bought with coins before
+-- the authoritative run roller may offer them as new choices.
+AbilityDefinitions.StarterUnlocks = { "Dagger", "Heart" }
+AbilityDefinitions.UnlockCostsByRarity = {
+	Common = 150,
+	Uncommon = 300,
+	Rare = 600,
+	Epic = 1_000,
+	Legendary = 1_600,
+	Mythic = 2_400,
+	Divine = 3_200,
+}
 -- The server treats these five-slot limits as authoritative for every current and future ability.
 AbilityDefinitions.EquipLimits = {
 	Weapon = 5,
@@ -1323,6 +1335,16 @@ function AbilityDefinitions.GetUpgradeCost(ability, currentLevel: number): numbe
 	-- Rounding to five keeps costs readable while exponential growth preserves long-term coin value.
 	local rawCost = ability.BaseUpgradeCost * ability.UpgradeCostGrowth ^ (currentLevel - 1)
 	return math.max(5, math.floor(rawCost / 5 + 0.5) * 5)
+end
+
+function AbilityDefinitions.GetUnlockCost(ability): number?
+	if not ability or not ability.Roll or type(ability.Roll.Rarity) ~= "string" then
+		return nil
+	end
+	if table.find(AbilityDefinitions.StarterUnlocks, ability.Id) then
+		return 0
+	end
+	return AbilityDefinitions.UnlockCostsByRarity[ability.Roll.Rarity]
 end
 
 function AbilityDefinitions.GetNextMilestone(ability, currentLevel: number)

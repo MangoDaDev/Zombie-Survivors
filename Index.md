@@ -17,7 +17,7 @@ Quick reference for the reusable first-party Luau foundation. Generated Wally de
 | `src/controllers/ChatCommandController.lua` | Displays server-authorized command responses in modern chat with a notification fallback. |
 | `src/controllers/CharacterController.lua` | Requests server-authorized character spawning, manages the local camera, and leaves in-run death/respawn ownership to the run session flow. |
 | `src/controllers/PartyTeleporterController.lua` | Mirrors validated party/setup/loading state, sends leader confirmation and member requests, and presents server messages through the shared notification system. |
-| `src/controllers/AbilityController.lua` | Mirrors persistent ability state and dispatches validated weapon and passive presentation events; run loadouts are presented by the progression snapshot. |
+| `src/controllers/AbilityController.lua` | Mirrors persistent ability unlocks, sends lobby purchase requests, and dispatches validated weapon/passive presentation events; run loadouts are presented by the progression snapshot. |
 | `src/controllers/RunProgressionController.lua` | Mirrors the owning player's run-only level, XP, queued legal choices, and current run ability snapshot, and sends indexed card selections. |
 | `src/controllers/RunSessionController.lua` | Mirrors the authoritative survival-clock/game-over state and sends same-server replay requests with failure feedback. |
 | `src/controllers/Ability/ActiveWeaponEffects.lua` | Renders Fireball, Lightning, and latency-corrected Boomerang presentation from authoritative server packets. |
@@ -42,7 +42,7 @@ Quick reference for the reusable first-party Luau foundation. Generated Wally de
 | `src/servercontrollers/CharacterController.lua` | Serializes and authorizes character loads, rate-limits client spawn requests, and places characters at the current session map's spawn. |
 | `src/servercontrollers/PartyTeleportService.lua` | Provides validated same-place reserved-server party travel, Studio destination simulation, and individual post-run returns to a normal lobby server. |
 | `src/servercontrollers/PartyTeleporterController.lua` | Owns closed-elevator entry/exit, explicitly confirmed leader setup with timeout ejection, party settings/countdowns, Studio loading/completion tracking, and whole-party ejection on teleport failure. |
-| `src/servercontrollers/AbilityController.lua` | Owns persistent unlocks plus transient game-run loadouts/levels, including fresh same-server replay loadouts, active/passive refreshes, ability-specific Rage behavior, and authoritative damage. |
+| `src/servercontrollers/AbilityController.lua` | Owns server-validated coin purchases and persistent unlocks plus transient game-run loadouts/levels, including fresh same-server replay loadouts, active/passive refreshes, ability-specific Rage behavior, and authoritative damage. |
 | `src/servercontrollers/RunProgressionController.lua` | Owns and resets per-player run XP/levels, queues every earned level-up, rolls three distinct legal unlocked ability choices, and validates one indexed selection at a time. |
 | `src/servercontrollers/RunSessionController.lua` | Starts survival clocks, owns final run statistics/death cleanup, delays each lobby return independently, and validates same-server character replays that cancel the pending return. |
 | `src/servercontrollers/BreakableController.lua` | Spawns weighted authored props across the active Game map, owns their health and respawns, produces hit/fragment feedback, and releases one authoritative power-up from every destroyed prop. |
@@ -95,7 +95,7 @@ These modules provide shared game configuration, persistent player-data defaults
 | `src/modules/Game/BackpackConfig.lua` | Maps authoritative carried coin totals to authored physical backpack stages and mount offsets. |
 | `src/modules/Game/CoinDropConfig.lua` | Defines permanent-coin magnet/pickup timing and client-prediction batching limits from shared run balance. |
 | `src/modules/Game/RunProgressionConfig.lua` | Centralizes the faster-opening run XP curve, three XP pickup visual tiers, pickup tuning, baseline ability pool, choice count, and unbounded five-minute horde difficulty steps with sublinear `playerCount ^ 0.8` party scaling. |
-| `src/modules/Game/Abilities/AbilityDefinitions.lua` | Defines expandable ability metadata, rarity odds, equip limits, upgrade costs, per-level stats, visible milestones, Rage tuning, and configurable Blast, Burn, and Thorns progression. |
+| `src/modules/Game/Abilities/AbilityDefinitions.lua` | Defines starter unlocks, rarity-priced permanent purchases, expandable ability metadata, equip limits, upgrade costs, per-level stats, milestones, and Rage tuning. |
 | `src/modules/Game/Abilities/CrowdWeaponDefinitions.lua` | Centralizes the level, milestone, combat, cap, and unique Rage balance for Aura, Ball, Drill, Mine, and Poison. |
 | `src/modules/Game/Stats/PlayerStatConfig.lua` | Defines the shared starting movement speed, base health, and the global final movement-speed limit. |
 | `src/modules/Game/Rage/RageConfig.lua` | Defines shared Rage capacity, 30-second charge, 10-second duration, keybind, and request cadence. |
@@ -156,7 +156,7 @@ These modules provide shared game configuration, persistent player-data defaults
 | `src/UI/Effects/Notification.lua` | Provides a reusable counted attention badge. |
 | `src/UI/HUD/CoinsDisplay.lua` | **Archived/dormant:** reusable responsive permanent-currency display. |
 | `src/UI/HUD/RunRewardsDisplay.lua` | **Archived/dormant:** pending-reward claim and backpack-to-balance presentation. |
-| `src/UI/HUD/AbilityInterface.lua` | **Archived/dormant:** ability management and roll-discovery presentation. |
+| `src/UI/HUD/AbilityInterface.lua` | Renders the responsive lobby Ability Arsenal, unlocked counts, rarity-priced locked cards, live coin affordability, and permanent run-choice unlock requests. |
 | `src/UI/HUD/RageBar.lua` | Renders the compact centered STUD-styled Rage meter directly above the level bar, with live charge/duration progress, reactive Game-session visibility, and keyboard/touch activation. |
 | `src/UI/HUD/Notifications.lua` | Renders transient notifications from NotificationManager. |
 | `src/UI/HUD/PartyTeleporterMenu.lua` | Renders the responsive leader-only Creation Menu and collapses confirmed or member views to the lock-aware exit control. |

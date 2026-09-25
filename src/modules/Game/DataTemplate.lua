@@ -13,8 +13,15 @@ return {
 	[RollDefinitions.PresentationHiddenDataKey] = false,
 	-- All abilities must keep ownership, levels, and equipped slots in this persisted JSON-compatible snapshot.
 	[AbilityDefinitions.DataKey] = {
-		Owned = {},
-		Levels = {},
+		-- Dagger and Heart are the permanent starter unlocks; server normalization also migrates old profiles.
+		Owned = {
+			Dagger = true,
+			Heart = true,
+		},
+		Levels = {
+			Dagger = 1,
+			Heart = 1,
+		},
 		Equipped = {
 			Weapon = {},
 			Passive = {},

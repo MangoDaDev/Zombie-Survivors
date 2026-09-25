@@ -48,6 +48,11 @@ end
 
 local function normalizeData(rawData)
 	local normalized = makeEmptyData()
+	-- Seed the permanent basics during every normalization so existing empty profiles migrate safely.
+	for _, abilityId in AbilityDefinitions.StarterUnlocks do
+		normalized.Owned[abilityId] = true
+		normalized.Levels[abilityId] = 1
+	end
 	if type(rawData) ~= "table" then
 		return normalized
 	end
@@ -469,6 +474,42 @@ function AbilityController.UnequipAbility(_, player: Player, abilityId: any)
 	sendResult(player, true, definition.Name .. " unequipped.")
 end
 
+function AbilityController.UnlockAbility(_, player: Player, abilityId: any)
+	if not canRequest(player) or type(abilityId) ~= "string" then
+		return
+	end
+	if not ServerContext.IsLobbyServer() then
+		sendResult(player, false, "Unlock abilities from the lobby between runs.")
+		return
+	end
+
+	local definition = AbilityDefinitions.ById[abilityId]
+	local cost = AbilityDefinitions.GetUnlockCost(definition)
+	local data = getData(player)
+	if not definition or not cost then
+		return
+	end
+	if data.Owned[abilityId] then
+		sendResult(player, false, definition.Name .. " is already unlocked.")
+		return
+	end
+	if cost <= 0 then
+		return
+	end
+
+	local spent = CoinsController.Remove(player, cost)
+	if not spent then
+		sendResult(player, false, string.format("You need %d Coins to unlock %s.", cost, definition.Name))
+		return
+	end
+
+	-- Ownership is persisted only after the authoritative coin debit succeeds; clients never choose a price.
+	data.Owned[abilityId] = true
+	data.Levels[abilityId] = 1
+	dataService:set(player, AbilityDefinitions.DataKey, data)
+	sendResult(player, true, definition.Name .. " unlocked for future runs!")
+end
+
 function AbilityController.UpgradeAbility(_, player: Player, abilityId: any)
 	if not canRequest(player) or type(abilityId) ~= "string" then
 		return
@@ -524,9 +565,11 @@ function AbilityController.SetDataService(service)
 end
 
 function AbilityController.Init()
-	-- The archived simulator inventory/upgrade UI no longer exposes persistent loadout mutations.
-	-- Keep the implementation for a future progression flow, but do not accept these requests until that flow owns them.
-	abilityNetwork = Networker.server.new("AbilityController", AbilityController, {})
+	-- UnlockAbility is the only persistent progression mutation exposed by the current UI. Legacy equip
+	-- and permanent-level handlers stay private because live runs own their own loadouts and levels.
+	abilityNetwork = Networker.server.new("AbilityController", AbilityController, {
+		AbilityController.UnlockAbility,
+	})
 	ActiveWeapons.Init(abilityNetwork, getCombatData)
 	CrowdWeapons.Init(abilityNetwork, getCombatData)
 	OrbitingSwords.Init(abilityNetwork, getCombatData)

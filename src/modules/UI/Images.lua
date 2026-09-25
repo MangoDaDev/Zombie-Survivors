@@ -52,23 +52,22 @@ local Images = {
 	},
 
 	Abilities = {
+		-- Ability icons must use the uploaded Image asset IDs, not their Decal container IDs.
 		Dagger = "rbxassetid://74070337315898",
 		Sword = "rbxassetid://84367243209042",
 		Heart = "rbxassetid://84367243209042",
 		Boots = "rbxassetid://84367243209042",
-		Fireball = "rbxassetid://84367243209042",
-		Lightning = "rbxassetid://84367243209042",
-		Boomerang = "rbxassetid://84367243209042",
-		-- Semantic entries keep these weapons ready for unique authored icons without changing UI consumers.
-		Aura = "rbxassetid://97437550220113", -- TODO: Replace with the uploaded Aura icon.
-		Ball = "rbxassetid://117589844207603", -- TODO: Replace with the uploaded Ball icon.
-		Drill = "rbxassetid://109595730626206", -- TODO: Replace with the uploaded Drill icon.
-		Mine = "rbxassetid://86050971312005", -- TODO: Replace with the uploaded Mine icon.
-		Poison = "rbxassetid://135880301537221", -- TODO: Replace with the uploaded Poison icon.
-		-- These semantic entries keep each passive on one stable icon across rolls, inventory, slots, and upgrades.
-		Blast = "rbxassetid://86050971312005",
-		Burn = "rbxassetid://86050971312005",
-		Thorns = "rbxassetid://84367243209042",
+		Fireball = "rbxassetid://107539350715780",
+		Lightning = "rbxassetid://103421034720026",
+		Boomerang = "rbxassetid://90733680856488",
+		Aura = "rbxassetid://108597622069687",
+		Ball = "rbxassetid://120933689418972",
+		Drill = "rbxassetid://93715158975572",
+		Mine = "rbxassetid://122745392008314",
+		Poison = "rbxassetid://138815331623694",
+		Blast = "rbxassetid://100442748933829",
+		Burn = "rbxassetid://109206613200684",
+		Thorns = "rbxassetid://86137962796522",
 	},
 }
 

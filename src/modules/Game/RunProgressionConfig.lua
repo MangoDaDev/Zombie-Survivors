@@ -41,23 +41,9 @@ local RunProgressionConfig = {
 
 	Abilities = {
 		ChoiceCount = 3,
-		-- The permanent-unlock flow is dormant, so every passive must remain eligible for level-up rolls.
-		-- Keep the starter weapon pool here too; these run-only choices are never persisted as discoveries.
-		AlwaysAvailable = {
-			"Dagger",
-			"OrbitingSwords",
-			"Fireball",
-			"Aura",
-			"Ball",
-			"Drill",
-			"Mine",
-			"Poison",
-			"Heart",
-			"Boots",
-			"Blast",
-			"Burn",
-			"Thorns",
-		},
+		-- Permanent ownership is the authoritative gate for new run choices. Keep this escape hatch empty
+		-- unless a future global event deliberately makes an ability available without unlocking it.
+		AlwaysAvailable = {},
 		StartingAbilities = { "Dagger" },
 	},
 
