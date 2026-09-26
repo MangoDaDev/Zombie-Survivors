@@ -1,0 +1,14 @@
+# Verification record
+
+Verified locally on 26 September 2026 with Blender 4.5.4 LTS (`b3efe983cc58`), Windows, CPU, one render thread. These are generated PNG files, not screenshots.
+
+1. Inspected `default.project.json`, `Index.md`, the existing `tools/pinevex` wrapper, and the project's block construction helpers. Queried Studio Edit mode, asset hierarchy and Lighting through Roblox Studio MCP. Kept the tool outside the Rojo mapping.
+2. Rendered `examples/gantry-before.json` from front, perspective, top and bottom. Inspected the contact sheet. The roof visibly floated one stud above the columns; the perspective shadows also showed sampling noise.
+3. Revised the actual construction input: Upper beam Y **8 → 7**, Roof step 1 Y **8.75 → 7.75**, Roof step 2 Y **9.25 → 8.25**. Saved as `examples/gantry.json`. Increased the inspection render to 96 fixed samples at 640×640.
+4. Rendered and inspected all seven standard directions plus `high-front`, and inspected the clean perspective PNG at full size. The roof now contacts the columns, the 25-degree braces intersect the intended columns, and top/bottom/side studs, steps, translucency and shadowed surfaces remain visible. The contact-sheet world AABB is **10 × 8.5 × 7 studs**. Offline shader limitations remain as documented in the README; this does not claim Roblox engine pixel parity.
+5. Exercised PowerShell stdin/paste, saved normalized definition output, file input, and exported Luau re-import. Separate Blender processes rendering JSON versus its exported Luau produced identical angle PNG, definition, constructor and property JSON hashes with the same camera settings. A portrait transparent render was also generated.
+6. Executed the exact exported gantry constructor through Studio MCP as a temporary **unparented** model. Studio reported 12 Parts, 2 Models, Plastic/Studs surfaces, the expected CFrames and **10 × 8.5 × 7** bounds; the model was destroyed immediately. No permanent Script or ModuleScript was created, and no game assets were modified.
+7. Fixed two inspection-tool defects discovered during verification: Blender's automatically embedded PNG dates/render times broke byte identity, and single-angle contact-sheet footer text needed wrapping. Metadata is removed without re-encoding pixels; compact-sheet text now wraps.
+8. `preview.cmd test -RenderTests`: **16 tests passed**, including parsing, exact-field errors, transforms/XYZ order, nested world-space hierarchy, PrimaryPart/PivotOffset, all-direction framing, portrait/wide Blender projection agreement, face normals/UV scale, failure preservation, transparency and byte-for-byte determinism for every generated artifact.
+
+Generated review outputs (gitignored): `renders/gantry/contact-sheet.png`, `renders/gantry/perspective.png`, `renders/gantry/properties.html`, and the smaller `renders/pasted-gantry/` iteration. Reproduce using the commands in `README.md`; generated files are not source dependencies.

@@ -15,7 +15,7 @@ Quick reference for the reusable first-party Luau foundation. Generated Wally de
 | Path | Responsibility |
 | --- | --- |
 | `src/controllers/ChatCommandController.lua` | Displays server-authorized command responses in modern chat with a notification fallback. |
-| `src/controllers/CharacterController.lua` | Requests server-authorized character spawning, manages the local camera, and leaves in-run death/respawn ownership to the run session flow. |
+| `src/controllers/CharacterController.lua` | Requests server-authorized character spawning, owns the smooth fixed-heading top-down camera only while the Game map is active, restores lobby camera state, and leaves in-run death/respawn ownership to the run session flow. |
 | `src/controllers/GameReadyController.lua` | Mirrors the authoritative in-game ready phase and sends the local player's one-way ready request. |
 | `src/controllers/PartyTeleporterController.lua` | Mirrors validated party/setup/loading state, sends leader confirmation and member requests, and presents server messages through the shared notification system. |
 | `src/controllers/AbilityController.lua` | Mirrors persistent ability unlocks, sends lobby purchase requests, and dispatches validated weapon/passive presentation events; run loadouts are presented by the progression snapshot. |
@@ -23,8 +23,8 @@ Quick reference for the reusable first-party Luau foundation. Generated Wally de
 | `src/controllers/ClassChangingRoomController.lua` | Clones the Studio-authored room and player avatar into client-local Workspace 3D, frames them with the game camera, previews selected headpieces, and restores the camera on close. |
 | `src/controllers/ZombieIndexController.lua` | Mirrors persistent zombie discoveries and kill counts, coordinates the lobby index menu, and sends one-time discovery reward claims. |
 | `src/controllers/RunProgressionController.lua` | Mirrors the owning player's run-only level, XP, queued legal choices, and current run ability snapshot, and sends indexed card selections. |
-| `src/controllers/RoundController.lua` | Mirrors the party's authoritative round, current-round zombie count, and majority skip-vote state while sending only the local player's vote intent. |
-| `src/controllers/RunSessionController.lua` | Mirrors the authoritative survival-clock/game-over state and sends same-server replay requests with failure feedback. |
+| `src/controllers/RoundController.lua` | Mirrors the party's authoritative round, current-round zombie count, and cooldown-gated majority skip-vote state while sending only the local player's vote intent. |
+| `src/controllers/RunSessionController.lua` | Mirrors the authoritative survival-clock/game-over and unanimous replay-vote state with failure feedback. |
 | `src/controllers/Ability/ActiveWeaponEffects.lua` | Renders Fireball, Lightning, and latency-corrected Boomerang presentation from authoritative server packets. |
 | `src/controllers/Ability/CrowdWeaponEffects.lua` | Renders block-built Aura, Ball, Drill, Mine, and Poison presentation through the shared client render loop. |
 | `src/controllers/Ability/AdditionalWeaponEffects.lua` | Renders stud-built Shotgun, Frost Nova, Meteor, Turret, and Vortex effects, including persistent fields and cleanup, through the shared client render loop. |
@@ -52,8 +52,8 @@ Quick reference for the reusable first-party Luau foundation. Generated Wally de
 | `src/servercontrollers/AbilityController.lua` | Owns server-validated coin purchases and persistent unlocks plus transient game-run loadouts/levels, including fresh same-server replay loadouts, active/passive refreshes, ability-specific Rage behavior, and authoritative damage. |
 | `src/servercontrollers/ClassController.lua` | Owns saved class purchases/equipment, class starting abilities and combat/stat perks, and block-built character headpieces cloned from `Assets.Models.Classes`. |
 | `src/servercontrollers/RunProgressionController.lua` | Owns and resets per-player run XP/levels, queues every earned level-up, rolls three distinct legal unlocked ability choices, and validates one indexed selection at a time. |
-| `src/servercontrollers/RoundController.lua` | Owns shared party round progression, strict-majority skip voting, current-round completion, and synchronized round snapshots without removing zombies from skipped rounds. |
-| `src/servercontrollers/RunSessionController.lua` | Starts survival clocks, owns final run statistics/death cleanup, delays each lobby return independently, and validates same-server character replays that cancel the pending return. |
+| `src/servercontrollers/RoundController.lua` | Owns shared party round progression, cooldown-gated strict-majority skip voting, replay resets to round one, current-round completion, and synchronized round snapshots without removing zombies from skipped rounds. |
+| `src/servercontrollers/RunSessionController.lua` | Starts survival clocks, owns final run statistics/death cleanup, delays each lobby return independently, and performs same-server resets only after every connected party member votes to replay. |
 | `src/servercontrollers/BreakableController.lua` | Spawns weighted authored props across the active Game map, owns their health and respawns, produces hit/fragment feedback, and releases one authoritative power-up from every destroyed prop. |
 | `src/servercontrollers/Breakable/BreakableConfig.lua` | Defines server-only breakable density, spacing, durability, respawn, feedback timing, authored model weights, and sound choices. |
 | `src/servercontrollers/Ability/ActiveWeapons.lua` | Runs the shared authoritative Fireball, Lightning, and Boomerang scheduler, projectile hits, status ticks, area caps, Rage variants, and cleanup only in Game sessions. |
@@ -76,7 +76,7 @@ Quick reference for the reusable first-party Luau foundation. Generated Wally de
 | `src/servercontrollers/PlayerStatController.lua` | Applies the configured starting pace, composes named player health/speed modifiers, preserves gained health, and enforces the final movement-speed limit. |
 | `src/servercontrollers/RollController.lua` | **Archived/dormant:** owns ability rolls, luck chains, rewards, Auto Roll scheduling, and saved preferences. |
 | `src/servercontrollers/Roll/RollServerConfig.lua` | **Archived/dormant:** defines server-only luck, cooldown, and clover-chain balance values. |
-| `src/servercontrollers/ZombieController.lua` | Spawns finite round-assigned groups around players on the authored Baseplate arena, preserves skipped-round zombies, runs authoritative simulation and status effects, and provides compact replication plus centralized combat signals. |
+| `src/servercontrollers/ZombieController.lua` | Spawns finite round-assigned groups around players on the authored Baseplate arena, clears the horde for shared replays, preserves skipped-round zombies, runs authoritative simulation and status effects, and provides compact replication plus centralized combat signals. |
 | `src/servercontrollers/Zombie/Zombie.lua` | Defines authoritative targeting, immutable origin-round ownership, arena-bounded movement, temporary speed and support buffs, invulnerability-aware player damage, attacks, special-behavior dispatch, health, and knockback per zombie. |
 | `src/servercontrollers/Zombie/ZombieBehaviors.lua` | Provides definition-selected movement and attack strategies without type checks in core logic. |
 | `src/servercontrollers/Zombie/ZombieSpecialBehaviors.lua` | Implements all authoritative zombie specials, including terrain hazards, support auras, corpse growth, delayed hexes, tethers, frost cones, reward theft, brood hatching, death buffs, observation-sensitive stalking, and momentum. |
@@ -161,7 +161,7 @@ These modules provide shared game configuration, persistent player-data defaults
 | `src/UI/App.lua` | Composes the `App` ScreenGui, lobby Ability/Classes menus, party Creation Menu, reactive in-match HUD, and retained generic overlays. |
 | `src/UI/HUD/RunHUD.lua` | Renders the responsive, safe-area-aware STUD game HUD with coins, ready and round/skip-vote status, survival time, animated run XP, and compact five-active/five-passive player-specific slot grids. |
 | `src/UI/HUD/LevelUpChoices.lua` | Sequentially consumes every authoritative level-up set in a slower, higher-positioned rolling STUD reel that settles compactly with artwork/title-first cards, subdued reward-type footers, layered sound, bursts, and camera/FOV feedback. |
-| `src/UI/HUD/GameOver.lua` | Renders the STUD-styled defeated-player run summary, live lobby-return countdown, shared round state, Skip Round vote, and Play Again action while surviving teammates continue. |
+| `src/UI/HUD/GameOver.lua` | Renders the STUD-styled defeated-player run summary, live lobby-return countdown, shared round state, and unanimous Play Again vote while surviving teammates continue. |
 | `src/UI/UIOrigin.lua` | Mounts the Vide application once into LocalPlayer.PlayerGui. |
 | `src/UI/App.story.lua` | Exposes the app component for UI story previews. |
 | `src/UI/Classes/Button.lua` | Provides a reusable reactive button with configurable presentation, unified face/text press motion, interaction feedback, and sounds. |

@@ -29,7 +29,8 @@ def report(model, settings, cameras, output):
         title = html.escape(n["name"]+" ("+n["className"]+")")
         rows = "".join(f"<tr><th>{html.escape(k)}</th><td><code>{html.escape(json.dumps(v, ensure_ascii=False))}</code></td></tr>" for k, v in sorted(n["properties"].items()))
         rows += f'<tr><th>Effective pivot</th><td><code>{html.escape(json.dumps(n["effectivePivot"]))}</code></td></tr>'
-        return f'<details open><summary>{title}</summary><p>{html.escape(n["sourcePath"])}</p><table>{rows}</table>'+"".join(tree(c) for c in n["children"])+"</details>"
+        identity = html.escape(n["sourcePath"]+" | ID: "+(n["id"] or "(none)"))
+        return f'<details open><summary>{title}</summary><p>{identity}</p><table>{rows}</table>'+"".join(tree(c) for c in n["children"])+"</details>"
     document = '''<!doctype html><html lang="en"><meta charset="utf-8"><title>Model properties</title>
 <style>body{font:15px system-ui;max-width:1200px;margin:32px auto;padding:0 24px;color:#172332;background:#f5f7fa}
 details{margin:16px 0 16px 20px;padding-left:12px;border-left:2px solid #acbbcc}summary{font-weight:700;cursor:pointer}

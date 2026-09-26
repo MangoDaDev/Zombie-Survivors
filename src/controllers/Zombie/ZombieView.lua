@@ -125,7 +125,9 @@ function ZombieView.new(
 		healthBar.LightInfluence = 0
 		healthBar.MaxDistance = 90
 		healthBar.Size = UDim2.fromOffset(76, 11)
-		healthBar.StudsOffsetWorldSpace = Vector3.new(0, boundingSize.Y * 0.5 + 0.85, 0)
+		-- BillboardGui supplies the camera-facing orientation. Extra clearance keeps the bar separated
+		-- from the zombie silhouette when the gameplay camera compresses vertical depth from above.
+		healthBar.StudsOffsetWorldSpace = Vector3.new(0, boundingSize.Y * 0.5 + 1.35, 0)
 		healthBar.Parent = model
 
 		local backing = Instance.new("Frame")

@@ -27,6 +27,9 @@ local function isValidPacket(packet): boolean
 		and type(stats.levelReached) == "number"
 		and type(stats.coinsCollected) == "number"
 		and type(stats.xpCollected) == "number"
+		and type(packet.replayVoteCount) == "number"
+		and type(packet.replayRequiredVotes) == "number"
+		and type(packet.hasReplayVoted) == "boolean"
 end
 
 local function setState(packet)
@@ -80,7 +83,7 @@ function RunSessionController.GetReplayFailedSignal()
 end
 
 function RunSessionController.RequestReplay()
-	if sessionNetwork and state.active then
+	if sessionNetwork and state.active and not state.hasReplayVoted then
 		(sessionNetwork :: Networker.Client):fire("RequestReplay")
 	end
 end

@@ -19,6 +19,7 @@ from reports import dump, sha
 
 def load_input(path):
     if path == "-":
+        sys.stdin.reconfigure(encoding="utf-8")
         if sys.stdin.isatty():
             print("Paste JSON, then Ctrl+Z followed by Enter (Windows), or pipe JSON to stdin.", flush=True)
         source = sys.stdin.read(8*1024*1024+1)

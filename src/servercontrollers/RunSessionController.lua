@@ -163,7 +163,7 @@ local function endRun(player: Player)
 
 	-- Snapshot first so the result screen always receives final values before run-only systems are cleared.
 	if sessionNetwork and player.Parent == Players then
-		sessionNetwork:fire(player, "GameOver", runtime.resultPacket)
+		sessionNetwork:fire(player, "GameOver", makeSnapshot(player, runtime))
 	end
 	RunProgressionController.EndRun(player)
 	AbilityController.EndRun(player)
@@ -172,12 +172,86 @@ local function endRun(player: Player)
 
 	local token = runtime.returnToken
 	task.delay(RETURN_DELAY, returnPlayerToLobby, player, runtime, token)
+	broadcastReplayState()
 end
 
 function RunSessionController.GetSnapshot(_, player: Player)
 	initializePlayer(player)
 	local runtime = runtimes[player]
-	return runtime and (runtime.resultPacket or { active = false, startedAt = runtime.startedAt }) or { active = false }
+	return runtime and makeSnapshot(player, runtime) or { active = false }
+end
+
+local function restartParty()
+	if restartingParty then
+		return
+	end
+	local partyPlayers = getPartyPlayers()
+	if #partyPlayers == 0 or getReplayVoteCount() < #partyPlayers then
+		broadcastReplayState()
+		return
+	end
+
+	restartingParty = true
+	for _, player in partyPlayers do
+		local runtime = runtimes[player]
+		runtime.restarting = true
+		runtime.returnToken += 1
+		disconnectDeath(runtime)
+	end
+
+	local failedPlayers = {}
+	for _, player in partyPlayers do
+		if not CharacterController.ReloadCharacter(player) then
+			table.insert(failedPlayers, player)
+		end
+	end
+
+	if #failedPlayers > 0 then
+		for _, player in partyPlayers do
+			local runtime = runtimes[player]
+			runtime.restarting = false
+			if runtime.resultPacket then
+				local token = runtime.returnToken
+				task.delay(
+					math.max(runtime.resultPacket.returnAt - workspace:GetServerTimeNow(), 0),
+					returnPlayerToLobby,
+					player,
+					runtime,
+					token
+				)
+			end
+			if sessionNetwork and player.Parent == Players then
+				sessionNetwork:fire(player, "ReplayFailed", "Could not restart every player. Please try again.")
+			end
+		end
+		restartingParty = false
+		return
+	end
+
+	-- Play Again is a shared run boundary: every player and every horde system resets before round one spawns.
+	ZombieController.RestartRun()
+	table.clear(replayVotes)
+	for _, player in partyPlayers do
+		local runtime = runtimes[player]
+		runtime.startedAt = nil
+		runtime.zombiesKilled = 0
+		runtime.coinsCollected = 0
+		runtime.ended = false
+		runtime.resultPacket = nil
+		runtime.restarting = false
+
+		AbilityController.RestartRun(player)
+		RunProgressionController.RestartRun(player)
+		RageController.EndRun(player)
+		BackpackController.SetCarriedCoins(player, 0)
+		RunSessionController.OnCharacterAdded(player, player.Character)
+	end
+	-- CharacterController places freshly loaded characters on a deferred task. Start round one after those
+	-- placements so its spawn groups are measured from the authored arena spawn rather than a transient position.
+	task.defer(function()
+		RoundController.RestartRun()
+		restartingParty = false
+	end)
 end
 
 function RunSessionController.RequestReplay(_, player: Player)
@@ -186,48 +260,18 @@ function RunSessionController.RequestReplay(_, player: Player)
 		not runtime
 		or not runtime.ended
 		or runtime.restarting
+		or replayVotes[player]
 		or player.Parent ~= Players
+		or not isPartyMember(player)
 		or not ServerContext.IsGameServer()
 	then
 		return
 	end
 
-	runtime.restarting = true
-	-- Replaying is an in-server character reload. Invalidating the token guarantees the old delayed lobby
-	-- teleport cannot race the reload and move the player into a different server after they press Play Again.
+	-- A replay vote opts this player out of the automatic lobby return so they can wait for every teammate.
+	replayVotes[player] = true
 	runtime.returnToken += 1
-	disconnectDeath(runtime)
-
-	if not CharacterController.ReloadCharacter(player) then
-		runtime.restarting = false
-		local resultPacket = runtime.resultPacket
-		if resultPacket then
-			local token = runtime.returnToken
-			task.delay(math.max(resultPacket.returnAt - workspace:GetServerTimeNow(), 0), returnPlayerToLobby, player, runtime, token)
-		end
-		if sessionNetwork and player.Parent == Players then
-			sessionNetwork:fire(player, "ReplayFailed", "Could not restart the run. Please try again.")
-		end
-		return
-	end
-
-	local startedAt = workspace:GetServerTimeNow()
-	runtime.startedAt = startedAt
-	runtime.zombiesKilled = 0
-	runtime.coinsCollected = 0
-	runtime.ended = false
-	runtime.resultPacket = nil
-	runtime.restarting = false
-
-	AbilityController.RestartRun(player)
-	RunProgressionController.RestartRun(player)
-	RageController.EndRun(player)
-	BackpackController.SetCarriedCoins(player, 0)
-	RunSessionController.OnCharacterAdded(player, player.Character)
-
-	if sessionNetwork and player.Parent == Players then
-		sessionNetwork:fire(player, "RunStarted", startedAt)
-	end
+	restartParty()
 end
 
 function RunSessionController.Init()
@@ -278,6 +322,7 @@ end
 
 function RunSessionController.OnPlayerAdded(player: Player)
 	initializePlayer(player)
+	broadcastReplayState()
 end
 
 function RunSessionController.OnCharacterAdded(player: Player, character: Model)
@@ -300,7 +345,9 @@ function RunSessionController.OnPlayerRemoving(player: Player)
 		runtime.returnToken += 1
 		disconnectDeath(runtime)
 	end
+	replayVotes[player] = nil
 	runtimes[player] = nil
+	task.defer(restartParty)
 end
 
 return RunSessionController
