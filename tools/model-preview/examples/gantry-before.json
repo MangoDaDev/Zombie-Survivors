@@ -1,0 +1,455 @@
+{
+  "version": 1,
+  "root": {
+    "class": "Model",
+    "name": "Stud gantry",
+    "properties": {
+      "WorldPivot": {
+        "position": [
+          0,
+          0,
+          0
+        ]
+      }
+    },
+    "children": [
+      {
+        "name": "Foundation",
+        "class": "Part",
+        "properties": {
+          "Size": [
+            10,
+            1,
+            7
+          ],
+          "CFrame": {
+            "position": [
+              0,
+              0.5,
+              0
+            ],
+            "rotationDegrees": [
+              0,
+              0,
+              0
+            ]
+          },
+          "Color": [
+            0.36,
+            0.42,
+            0.48
+          ],
+          "Material": "Plastic",
+          "TopSurface": "Studs",
+          "BottomSurface": "Studs",
+          "FrontSurface": "Studs",
+          "BackSurface": "Studs",
+          "LeftSurface": "Studs",
+          "RightSurface": "Studs"
+        }
+      },
+      {
+        "name": "Column",
+        "class": "Part",
+        "properties": {
+          "Size": [
+            1,
+            6,
+            1
+          ],
+          "CFrame": {
+            "position": [
+              -3.5,
+              3.5,
+              -2.5
+            ],
+            "rotationDegrees": [
+              0,
+              0,
+              0
+            ]
+          },
+          "Color": [
+            0.15,
+            0.44,
+            0.72
+          ],
+          "Material": "Plastic",
+          "TopSurface": "Studs",
+          "BottomSurface": "Studs",
+          "FrontSurface": "Studs",
+          "BackSurface": "Studs",
+          "LeftSurface": "Studs",
+          "RightSurface": "Studs"
+        }
+      },
+      {
+        "name": "Column",
+        "class": "Part",
+        "properties": {
+          "Size": [
+            1,
+            6,
+            1
+          ],
+          "CFrame": {
+            "position": [
+              -3.5,
+              3.5,
+              2.5
+            ],
+            "rotationDegrees": [
+              0,
+              0,
+              0
+            ]
+          },
+          "Color": [
+            0.15,
+            0.44,
+            0.72
+          ],
+          "Material": "Plastic",
+          "TopSurface": "Studs",
+          "BottomSurface": "Studs",
+          "FrontSurface": "Studs",
+          "BackSurface": "Studs",
+          "LeftSurface": "Studs",
+          "RightSurface": "Studs"
+        }
+      },
+      {
+        "name": "Column",
+        "class": "Part",
+        "properties": {
+          "Size": [
+            1,
+            6,
+            1
+          ],
+          "CFrame": {
+            "position": [
+              3.5,
+              3.5,
+              -2.5
+            ],
+            "rotationDegrees": [
+              0,
+              0,
+              0
+            ]
+          },
+          "Color": [
+            0.15,
+            0.44,
+            0.72
+          ],
+          "Material": "Plastic",
+          "TopSurface": "Studs",
+          "BottomSurface": "Studs",
+          "FrontSurface": "Studs",
+          "BackSurface": "Studs",
+          "LeftSurface": "Studs",
+          "RightSurface": "Studs"
+        }
+      },
+      {
+        "name": "Column",
+        "class": "Part",
+        "properties": {
+          "Size": [
+            1,
+            6,
+            1
+          ],
+          "CFrame": {
+            "position": [
+              3.5,
+              3.5,
+              2.5
+            ],
+            "rotationDegrees": [
+              0,
+              0,
+              0
+            ]
+          },
+          "Color": [
+            0.15,
+            0.44,
+            0.72
+          ],
+          "Material": "Plastic",
+          "TopSurface": "Studs",
+          "BottomSurface": "Studs",
+          "FrontSurface": "Studs",
+          "BackSurface": "Studs",
+          "LeftSurface": "Studs",
+          "RightSurface": "Studs"
+        }
+      },
+      {
+        "name": "Upper beam",
+        "class": "Part",
+        "properties": {
+          "Size": [
+            10,
+            1,
+            7
+          ],
+          "CFrame": {
+            "position": [
+              0,
+              8,
+              0
+            ],
+            "rotationDegrees": [
+              0,
+              0,
+              0
+            ]
+          },
+          "Color": [
+            0.15,
+            0.44,
+            0.72
+          ],
+          "Material": "Plastic",
+          "TopSurface": "Studs",
+          "BottomSurface": "Studs",
+          "FrontSurface": "Studs",
+          "BackSurface": "Studs",
+          "LeftSurface": "Studs",
+          "RightSurface": "Studs"
+        }
+      },
+      {
+        "name": "Roof step 1",
+        "class": "Part",
+        "properties": {
+          "Size": [
+            8,
+            0.5,
+            5
+          ],
+          "CFrame": {
+            "position": [
+              0,
+              8.75,
+              0
+            ],
+            "rotationDegrees": [
+              0,
+              0,
+              0
+            ]
+          },
+          "Color": [
+            0.15,
+            0.44,
+            0.72
+          ],
+          "Material": "Plastic",
+          "TopSurface": "Studs",
+          "BottomSurface": "Studs",
+          "FrontSurface": "Studs",
+          "BackSurface": "Studs",
+          "LeftSurface": "Studs",
+          "RightSurface": "Studs"
+        }
+      },
+      {
+        "name": "Roof step 2",
+        "class": "Part",
+        "properties": {
+          "Size": [
+            6,
+            0.5,
+            3
+          ],
+          "CFrame": {
+            "position": [
+              0,
+              9.25,
+              0
+            ],
+            "rotationDegrees": [
+              0,
+              0,
+              0
+            ]
+          },
+          "Color": [
+            0.15,
+            0.44,
+            0.72
+          ],
+          "Material": "Plastic",
+          "TopSurface": "Studs",
+          "BottomSurface": "Studs",
+          "FrontSurface": "Studs",
+          "BackSurface": "Studs",
+          "LeftSurface": "Studs",
+          "RightSurface": "Studs"
+        }
+      },
+      {
+        "class": "Model",
+        "name": "Bracing",
+        "properties": {
+          "WorldPivot": {
+            "position": [
+              0,
+              4,
+              0
+            ]
+          }
+        },
+        "children": [
+          {
+            "name": "Front diagonal",
+            "class": "Part",
+            "properties": {
+              "Size": [
+                7.4,
+                0.6,
+                0.6
+              ],
+              "CFrame": {
+                "position": [
+                  0,
+                  4.2,
+                  -3
+                ],
+                "rotationDegrees": [
+                  0,
+                  0,
+                  25
+                ]
+              },
+              "Color": [
+                0.98,
+                0.68,
+                0.15
+              ],
+              "Material": "Plastic",
+              "TopSurface": "Studs",
+              "BottomSurface": "Studs",
+              "FrontSurface": "Studs",
+              "BackSurface": "Studs",
+              "LeftSurface": "Studs",
+              "RightSurface": "Studs"
+            }
+          },
+          {
+            "name": "Back diagonal",
+            "class": "Part",
+            "properties": {
+              "Size": [
+                7.4,
+                0.6,
+                0.6
+              ],
+              "CFrame": {
+                "position": [
+                  0,
+                  4.2,
+                  3
+                ],
+                "rotationDegrees": [
+                  0,
+                  0,
+                  -25
+                ]
+              },
+              "Color": [
+                0.98,
+                0.68,
+                0.15
+              ],
+              "Material": "Plastic",
+              "TopSurface": "Studs",
+              "BottomSurface": "Studs",
+              "FrontSurface": "Studs",
+              "BackSurface": "Studs",
+              "LeftSurface": "Studs",
+              "RightSurface": "Studs"
+            }
+          }
+        ]
+      },
+      {
+        "name": "Display plinth",
+        "class": "Part",
+        "properties": {
+          "Size": [
+            3,
+            1.5,
+            2
+          ],
+          "CFrame": {
+            "position": [
+              0,
+              1.75,
+              0
+            ],
+            "rotationDegrees": [
+              0,
+              0,
+              0
+            ]
+          },
+          "Color": [
+            0.65,
+            0.25,
+            0.16
+          ],
+          "Material": "Plastic",
+          "TopSurface": "Studs",
+          "BottomSurface": "Studs",
+          "FrontSurface": "Studs",
+          "BackSurface": "Studs",
+          "LeftSurface": "Studs",
+          "RightSurface": "Studs"
+        }
+      },
+      {
+        "name": "Clear Plastic panel",
+        "class": "Part",
+        "properties": {
+          "Size": [
+            2,
+            2,
+            0.4
+          ],
+          "CFrame": {
+            "position": [
+              0,
+              3.5,
+              -0.8
+            ],
+            "rotationDegrees": [
+              0,
+              0,
+              0
+            ]
+          },
+          "Color": [
+            0.4,
+            0.8,
+            0.9
+          ],
+          "Material": "Plastic",
+          "TopSurface": "Studs",
+          "BottomSurface": "Studs",
+          "FrontSurface": "Studs",
+          "BackSurface": "Studs",
+          "LeftSurface": "Studs",
+          "RightSurface": "Studs",
+          "Transparency": 0.45,
+          "Reflectance": 0.2
+        }
+      }
+    ]
+  }
+}

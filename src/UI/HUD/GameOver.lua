@@ -4,6 +4,7 @@ local Workspace = game:GetService("Workspace")
 
 local Button = require(script.Parent.Parent.Classes.Button)
 local StudTexture = require(script.Parent.Parent.Classes.StudTexture)
+local RoundController = require(ReplicatedStorage.Controllers.RoundController)
 local RunSessionController = require(ReplicatedStorage.Controllers.RunSessionController)
 local FormatNumber = require(ReplicatedStorage.Modules.Math.FormatNumber)
 local UIStyle = require(ReplicatedStorage.Modules.UI.UIStyle)
@@ -62,7 +63,9 @@ end
 
 return function()
 	local initialState = RunSessionController.GetState()
+	local initialRoundState = RoundController.GetState()
 	local state = source(initialState)
+	local roundState = source(initialRoundState)
 	local remaining = source(if initialState.active then math.max(initialState.returnAt - Workspace:GetServerTimeNow(), 0) else 0)
 	local failureMessage = source("")
 	local replayPending = source(false)
@@ -92,6 +95,9 @@ return function()
 		replayPending(false)
 		failureMessage(message)
 	end)
+	local roundConnection = RoundController.GetStateChangedSignal():Connect(function(packet)
+		roundState(packet)
+	end)
 	local elapsed = 0
 	local heartbeatConnection = RunService.Heartbeat:Connect(function(deltaTime)
 		if not state().active then
@@ -107,6 +113,7 @@ return function()
 		stateConnection:Disconnect()
 		failureConnection:Disconnect()
 		replayFailureConnection:Disconnect()
+		roundConnection:Disconnect()
 		heartbeatConnection:Disconnect()
 	end)
 
@@ -275,7 +282,10 @@ return function()
 				FontFace = UIStyle.Font,
 				Position = UDim2.fromScale(0.08, 0.705),
 				Size = UDim2.fromScale(0.84, 0.03),
-				Text = "YOUR TEAMMATES CAN KEEP FIGHTING",
+				Text = function()
+					local current = roundState()
+					return string.format("ROUND %d  -  %d THIS ROUND", current.round, current.remaining)
+				end,
 				TextColor3 = Color3.fromRGB(126, 137, 147),
 				TextScaled = true,
 				ZIndex = 405,
@@ -286,28 +296,64 @@ return function()
 				Position = UDim2.fromScale(0.08, 0.885),
 				Size = UDim2.fromScale(0.84, 0.085),
 				ZIndex = 405,
-				Button({
-					Text = function()
-						return if replayPending() then "RESTARTING..." else "PLAY AGAIN"
-					end,
-					Enabled = function()
-						return visible() and not replayPending()
-					end,
-					BackgroundColor3 = UIStyle.Colors.Green,
-					CornerRadius = UIStyle.CornerRadius,
-					FontFace = Font.new(UIStyle.Font.Family, Enum.FontWeight.Bold),
-					MaxTextSize = 22,
-					MinTextSize = 13,
-					Size = UDim2.fromScale(1, 1),
-					OnActivated = function()
-						if replayPending() or not visible() then
-							return
-						end
-						failureMessage("")
-						replayPending(true)
-						RunSessionController.RequestReplay()
-					end,
-				}),
+				create "Frame" {
+					Name = "SkipVote",
+					BackgroundTransparency = 1,
+					Size = UDim2.fromScale(0.38, 1),
+					ZIndex = 406,
+					Button({
+						Text = function()
+							local current = roundState()
+							return string.format(
+								"%s %d/%d",
+								if current.hasVoted then "VOTED" else "SKIP",
+								current.voteCount,
+								current.requiredVotes
+							)
+						end,
+						Enabled = function()
+							local current = roundState()
+							return visible() and current.active and not current.hasVoted
+						end,
+						BackgroundColor3 = Color3.fromRGB(219, 112, 45),
+						CornerRadius = UIStyle.CornerRadius,
+						FontFace = Font.new(UIStyle.Font.Family, Enum.FontWeight.Bold),
+						MaxTextSize = 18,
+						MinTextSize = 11,
+						Size = UDim2.fromScale(1, 1),
+						OnActivated = RoundController.VoteToSkip,
+					}),
+				},
+				create "Frame" {
+					Name = "Replay",
+					AnchorPoint = Vector2.new(1, 0),
+					BackgroundTransparency = 1,
+					Position = UDim2.fromScale(1, 0),
+					Size = UDim2.fromScale(0.59, 1),
+					ZIndex = 406,
+					Button({
+						Text = function()
+							return if replayPending() then "RESTARTING..." else "PLAY AGAIN"
+						end,
+						Enabled = function()
+							return visible() and not replayPending()
+						end,
+						BackgroundColor3 = UIStyle.Colors.Green,
+						CornerRadius = UIStyle.CornerRadius,
+						FontFace = Font.new(UIStyle.Font.Family, Enum.FontWeight.Bold),
+						MaxTextSize = 22,
+						MinTextSize = 13,
+						Size = UDim2.fromScale(1, 1),
+						OnActivated = function()
+							if replayPending() or not visible() then
+								return
+							end
+							failureMessage("")
+							replayPending(true)
+							RunSessionController.RequestReplay()
+						end,
+					}),
+				},
 			},
 		},
 	}

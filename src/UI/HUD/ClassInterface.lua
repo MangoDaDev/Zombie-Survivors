@@ -6,6 +6,7 @@ local StudTexture = require(script.Parent.Parent.Classes.StudTexture)
 local AbilityController = require(ReplicatedStorage.Controllers.AbilityController)
 local ClassController = require(ReplicatedStorage.Controllers.ClassController)
 local CoinsController = require(ReplicatedStorage.Controllers.CoinsController)
+local PartyTeleporterController = require(ReplicatedStorage.Controllers.PartyTeleporterController)
 local RunProgressionController = require(ReplicatedStorage.Controllers.RunProgressionController)
 local AbilityDefinitions = require(ReplicatedStorage.Modules.Game.Abilities.AbilityDefinitions)
 local ClassDefinitions = require(ReplicatedStorage.Modules.Game.Classes.ClassDefinitions)
@@ -185,6 +186,7 @@ return function()
 	local runState = source(RunProgressionController.GetState())
 	local abilityShopOpen = source(AbilityController.IsInventoryOpen())
 	local open = source(ClassController.IsOpen())
+	local partyActive = source(PartyTeleporterController.GetState() ~= nil)
 	local selectedId = source(ClassController.GetPreviewClassId())
 	local viewportSize = source(Vector2.new(1280, 720))
 	local topOffset = source(SafeArea.GetTopOffset(12))
@@ -201,6 +203,9 @@ return function()
 	local shortLandscape = derive(function()
 		local size = viewportSize()
 		return not portrait() and size.Y < 560
+	end)
+	local compactLauncher = derive(function()
+		return viewportSize().X < 700
 	end)
 	local inRun = derive(function()
 		return runState().active == true
@@ -239,6 +244,9 @@ return function()
 	end))
 	table.insert(connections, ClassController.GetOpenChangedSignal():Connect(function(isOpen)
 		open(isOpen)
+	end))
+	table.insert(connections, PartyTeleporterController.GetStateChangedSignal():Connect(function(newState)
+		partyActive(newState ~= nil)
 	end))
 	table.insert(connections, ClassController.GetPreviewChangedSignal():Connect(function(classId)
 		selectedId(classId)
@@ -299,13 +307,16 @@ return function()
 		end),
 		create "Frame" {
 			Name = "OpenButton",
+			AnchorPoint = Vector2.new(0.5, 1),
 			BackgroundTransparency = 1,
 			Position = function()
-				return UDim2.fromOffset(if portrait() then 10 else 18, topOffset() + (if portrait() then 55 else 62))
+				return UDim2.new(0.5, 0, 1, if compactLauncher() then -18 else -24)
 			end,
-			Size = UDim2.fromOffset(if portrait() then 142 else 176, if portrait() then 48 else 54),
+			Size = function()
+				return if compactLauncher() then UDim2.new(1 / 3, -12, 0, 48) else UDim2.fromOffset(176, 50)
+			end,
 			Visible = function()
-				return not inRun() and not open() and not abilityShopOpen()
+				return not inRun() and not open() and not abilityShopOpen() and not partyActive()
 			end,
 			ZIndex = 55,
 			Button({

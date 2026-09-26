@@ -160,7 +160,7 @@ local function stepSummoner(zombie, target, now)
 			for index = 1, amount do
 				local angle = math.pi * 2 * index / amount + zombie.services.Random:NextNumber(-0.35, 0.35)
 				local offset = Vector3.new(math.cos(angle), 0, math.sin(angle)) * config.SpawnRadius
-				zombie.services.QueueSpawn(config.SpawnType, zombie.cframe.Position + offset, zombie.arena)
+				zombie.services.QueueSpawn(config.SpawnType, zombie.cframe.Position + offset, zombie.arena, zombie.roundNumber)
 			end
 			runtime.phase = nil
 			runtime.nextUseAt = now + config.Cooldown
@@ -361,7 +361,7 @@ function ZombieSpecialBehaviors.Splitter.OnDeath(zombie)
 		local angle = math.pi * 2 * index / config.Count
 		local offset = Vector3.new(math.cos(angle), 0, math.sin(angle)) * config.SpawnRadius
 		-- A splitter always becomes two children beside its death position.
-		zombie.services.QueueSpawn(config.SpawnType, zombie.cframe.Position + offset, zombie.arena)
+		zombie.services.QueueSpawn(config.SpawnType, zombie.cframe.Position + offset, zombie.arena, zombie.roundNumber)
 	end
 end
 
@@ -792,7 +792,7 @@ function ZombieSpecialBehaviors.BroodPod.Step(zombie, _deltaTime, _target, now)
 		for index = 1, config.Count do
 			local angle = math.pi * 2 * index / config.Count
 			local offset = Vector3.new(math.cos(angle), 0, math.sin(angle)) * config.SpawnRadius
-			zombie.services.QueueSpawn(config.SpawnType, zombie.cframe.Position + offset, zombie.arena)
+			zombie.services.QueueSpawn(config.SpawnType, zombie.cframe.Position + offset, zombie.arena, zombie.roundNumber)
 		end
 		zombie.services.BroadcastAbility({
 			Kind = "Hatch",

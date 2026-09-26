@@ -72,10 +72,12 @@ return function()
 		BackgroundColor3 = Color3.fromRGB(31, 22, 22),
 		BorderSizePixel = 0,
 		-- Keep Rage in the same centered HUD stack, directly above the level/XP bar on every viewport.
-		Position = UDim2.new(0.5, 0, 1, -84),
-		Size = UDim2.fromOffset(220, 48),
+		Position = UDim2.new(0.5, 0, 1, -76),
+		-- Mixed scale/offset sizing preserves the control's proportions while still fitting narrow phones.
+		Size = UDim2.new(0.28, 112, 0, 48),
 		Visible = inGame,
 		ZIndex = 90,
+		create "UISizeConstraint" { MaxSize = Vector2.new(220, 48) },
 		create "UICorner" { CornerRadius = UDim.new(0, 5) },
 		StudTexture({ ZIndex = 91, ImageTransparency = 0.86 }),
 		create "UIStroke" {

@@ -5,6 +5,7 @@ local Button = require(script.Parent.Parent.Classes.Button)
 local StudTexture = require(script.Parent.Parent.Classes.StudTexture)
 local AbilityController = require(ReplicatedStorage.Controllers.AbilityController)
 local CoinsController = require(ReplicatedStorage.Controllers.CoinsController)
+local PartyTeleporterController = require(ReplicatedStorage.Controllers.PartyTeleporterController)
 local RunProgressionController = require(ReplicatedStorage.Controllers.RunProgressionController)
 local AbilityDefinitions = require(ReplicatedStorage.Modules.Game.Abilities.AbilityDefinitions)
 local FormatNumber = require(ReplicatedStorage.Modules.Math.FormatNumber)
@@ -238,6 +239,7 @@ return function()
 	local balance = source(CoinsController.Get())
 	local runState = source(RunProgressionController.GetState())
 	local open = source(AbilityController.IsInventoryOpen())
+	local partyActive = source(PartyTeleporterController.GetState() ~= nil)
 	local category = source(AbilityDefinitions.Categories.Weapon)
 	local selectedId = source(firstAbilityId(AbilityDefinitions.Categories.Weapon))
 	local viewportSize = source(Vector2.new(1280, 720))
@@ -255,6 +257,9 @@ return function()
 	local shortLandscape = derive(function()
 		local size = viewportSize()
 		return not portrait() and size.Y < 560
+	end)
+	local compactLauncher = derive(function()
+		return viewportSize().X < 700
 	end)
 	local inRun = derive(function()
 		return runState().active == true
@@ -276,6 +281,9 @@ return function()
 	end))
 	table.insert(connections, AbilityController.GetInventoryOpenChangedSignal():Connect(function(isOpen)
 		open(isOpen)
+	end))
+	table.insert(connections, PartyTeleporterController.GetStateChangedSignal():Connect(function(newState)
+		partyActive(newState ~= nil)
 	end))
 	table.insert(connections, CoinsController.GetChangedSignal():Connect(function(newBalance)
 		if type(newBalance) == "number" then
@@ -389,14 +397,38 @@ return function()
 			viewportConnection = root:GetPropertyChangedSignal("AbsoluteSize"):Connect(updateViewport)
 		end),
 		create "Frame" {
+			Name = "LauncherDock",
+			AnchorPoint = Vector2.new(0.5, 1),
+			BackgroundColor3 = Color3.fromRGB(4, 20, 30),
+			BackgroundTransparency = 0.12,
+			BorderSizePixel = 0,
+			Position = function()
+				return UDim2.new(0.5, 0, 1, if compactLauncher() then -12 else -18)
+			end,
+			Size = function()
+				return if compactLauncher() then UDim2.new(1, -20, 0, 60) else UDim2.fromOffset(556, 62)
+			end,
+			Visible = function()
+				return not inRun() and not open() and not partyActive()
+			end,
+			ZIndex = 50,
+			create "UICorner" { CornerRadius = UDim.new(0, 5) },
+			create "UIStroke" { Color = Color3.fromRGB(58, 94, 111), Thickness = 2 },
+			StudTexture({ ZIndex = 51, ImageTransparency = 0.9, TileSize = UDim2.fromOffset(56, 56) }),
+		},
+		create "Frame" {
 			Name = "OpenButton",
+			AnchorPoint = Vector2.new(0.5, 1),
 			BackgroundTransparency = 1,
 			Position = function()
-				return UDim2.fromOffset(if portrait() then 10 else 18, topOffset())
+				-- All lobby launchers share one bottom dock so they cannot collide with topbar-safe HUD content.
+				return if compactLauncher() then UDim2.new(1 / 6, 4, 1, -18) else UDim2.new(0.5, -188, 1, -24)
 			end,
-			Size = UDim2.fromOffset(if portrait() then 142 else 176, if portrait() then 48 else 54),
+			Size = function()
+				return if compactLauncher() then UDim2.new(1 / 3, -12, 0, 48) else UDim2.fromOffset(176, 50)
+			end,
 			Visible = function()
-				return not inRun() and not open()
+				return not inRun() and not open() and not partyActive()
 			end,
 			ZIndex = 55,
 			Button({

@@ -38,10 +38,11 @@ AbilityDefinitions.UnlockCostsByRarity = {
 	Mythic = 2_400,
 	Divine = 3_200,
 }
--- Ten slots per category is the requested current cap; the server remains authoritative over it.
+-- Every player owns exactly five active and five passive ability slots. All mutation paths use these
+-- server-authoritative per-category limits so one player's loadout can never affect another player's.
 AbilityDefinitions.EquipLimits = {
-	Weapon = 10,
-	Passive = 10,
+	Weapon = 5,
+	Passive = 5,
 }
 
 local function getDaggerCount(level: number): number

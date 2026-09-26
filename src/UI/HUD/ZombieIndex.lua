@@ -5,6 +5,7 @@ local Vide = require(ReplicatedStorage.Packages.vide)
 local ZombieIndexController = require(ReplicatedStorage.Controllers.ZombieIndexController)
 local AbilityController = require(ReplicatedStorage.Controllers.AbilityController)
 local ClassController = require(ReplicatedStorage.Controllers.ClassController)
+local PartyTeleporterController = require(ReplicatedStorage.Controllers.PartyTeleporterController)
 local RunProgressionController = require(ReplicatedStorage.Controllers.RunProgressionController)
 local ZombieIndexConfig = require(ReplicatedStorage.Modules.Game.Zombies.ZombieIndexConfig)
 local FormatNumber = require(ReplicatedStorage.Modules.Math.FormatNumber)
@@ -208,6 +209,7 @@ end
 return function()
 	local state = source(ZombieIndexController.GetState())
 	local open = source(ZombieIndexController.IsOpen())
+	local partyActive = source(PartyTeleporterController.GetState() ~= nil)
 	local abilityOpen = source(AbilityController.IsInventoryOpen())
 	local classOpen = source(ClassController.IsOpen())
 	local runState = source(RunProgressionController.GetState())
@@ -232,6 +234,9 @@ return function()
 		local size = viewportSize()
 		return not portrait() and size.Y < 440
 	end)
+	local compactLauncher = derive(function()
+		return viewportSize().X < 700
+	end)
 	local inRun = derive(function()
 		return runState().active == true
 	end)
@@ -254,6 +259,9 @@ return function()
 	end))
 	table.insert(connections, ZombieIndexController.GetOpenChangedSignal():Connect(function(isOpen)
 		open(isOpen)
+	end))
+	table.insert(connections, PartyTeleporterController.GetStateChangedSignal():Connect(function(newState)
+		partyActive(newState ~= nil)
 	end))
 	table.insert(connections, AbilityController.GetInventoryOpenChangedSignal():Connect(function(isOpen)
 		abilityOpen(isOpen)
@@ -311,13 +319,16 @@ return function()
 		end),
 		create "Frame" {
 			Name = "OpenButton",
+			AnchorPoint = Vector2.new(0.5, 1),
 			BackgroundTransparency = 1,
 			Position = function()
-				return UDim2.fromOffset(if portrait() then 10 else 18, topOffset() + (if portrait() then 110 else 124))
+				return if compactLauncher() then UDim2.new(5 / 6, -4, 1, -18) else UDim2.new(0.5, 188, 1, -24)
 			end,
-			Size = UDim2.fromOffset(if portrait() then 142 else 176, if portrait() then 48 else 54),
+			Size = function()
+				return if compactLauncher() then UDim2.new(1 / 3, -12, 0, 48) else UDim2.fromOffset(176, 50)
+			end,
 			Visible = function()
-				return not inRun() and not open() and not abilityOpen() and not classOpen()
+				return not inRun() and not open() and not abilityOpen() and not classOpen() and not partyActive()
 			end,
 			ZIndex = 55,
 			Button({

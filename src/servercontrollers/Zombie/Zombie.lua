@@ -12,7 +12,7 @@ local MAXIMUM_KNOCKBACK_SPEED = 28
 local Zombie = {}
 Zombie.__index = Zombie
 
-function Zombie.new(id, typeName, definition, spawnCFrame, arena, variation, boundaryRadius, services)
+function Zombie.new(id, typeName, definition, spawnCFrame, arena, variation, boundaryRadius, roundNumber, services)
 	local self = setmetatable({}, Zombie)
 
 	self.id = id
@@ -35,6 +35,8 @@ function Zombie.new(id, typeName, definition, spawnCFrame, arena, variation, bou
 	self.turnSpeedMultiplier = variation.TurnSpeed
 	self.animationSpeedMultiplier = variation.AnimationSpeed
 	self.boundaryRadius = boundaryRadius * variation.Scale
+	-- Offspring inherit this immutable origin so skipped-round zombies never block the active round.
+	self.roundNumber = roundNumber
 	self.knockbackVelocity = Vector3.zero
 	self.state = ZombieProtocol.State.Idle
 	self.target = nil

@@ -11,6 +11,7 @@ local CoinDropController = require(ServerStorage.Controllers.CoinDropController)
 local PartyTeleportService = require(ServerStorage.Controllers.PartyTeleportService)
 local RageController = require(ServerStorage.Controllers.RageController)
 local RunProgressionController = require(ServerStorage.Controllers.RunProgressionController)
+local RoundController = require(ServerStorage.Controllers.RoundController)
 local ServerContext = require(ServerStorage.Controllers.ServerContext)
 local ZombieController = require(ServerStorage.Controllers.ZombieController)
 
@@ -31,6 +32,73 @@ local RunSessionController = {}
 
 local sessionNetwork
 local runtimes: { [Player]: RunRuntime } = {}
+local replayVotes: { [Player]: boolean } = {}
+local restartingParty = false
+
+local function getPartyMemberLookup(): { [number]: boolean }?
+	local runData = ServerContext.GetRunData()
+	local memberIds = type(runData) == "table" and runData.partyMemberIds or nil
+	if type(memberIds) ~= "table" then
+		return nil
+	end
+
+	local lookup = {}
+	for _, userId in memberIds do
+		if type(userId) == "number" and userId % 1 == 0 and userId > 0 then
+			lookup[userId] = true
+		end
+	end
+	return if next(lookup) ~= nil then lookup else nil
+end
+
+local function isPartyMember(player: Player): boolean
+	local lookup = getPartyMemberLookup()
+	return player.Parent == Players and (not lookup or lookup[player.UserId] == true)
+end
+
+local function getPartyPlayers(): { Player }
+	local partyPlayers = {}
+	for _, player in Players:GetPlayers() do
+		if isPartyMember(player) and runtimes[player] then
+			table.insert(partyPlayers, player)
+		end
+	end
+	return partyPlayers
+end
+
+local function getReplayVoteCount(): number
+	local count = 0
+	for _, player in getPartyPlayers() do
+		if replayVotes[player] then
+			count += 1
+		end
+	end
+	return count
+end
+
+local function makeSnapshot(player: Player, runtime: RunRuntime)
+	if not runtime.resultPacket then
+		return { active = false, startedAt = runtime.startedAt }
+	end
+
+	local result = table.clone(runtime.resultPacket)
+	result.replayVoteCount = getReplayVoteCount()
+	result.replayRequiredVotes = #getPartyPlayers()
+	result.hasReplayVoted = replayVotes[player] == true
+	return result
+end
+
+local function broadcastReplayState()
+	if not sessionNetwork then
+		return
+	end
+	for _, player in getPartyPlayers() do
+		local runtime = runtimes[player]
+		if runtime and runtime.ended and runtime.resultPacket then
+			sessionNetwork:fire(player, "GameOver", makeSnapshot(player, runtime))
+		end
+	end
+end
 
 local function disconnectDeath(runtime: RunRuntime)
 	if runtime.deathConnection then

@@ -44,12 +44,13 @@ local pendingProjectiles = {}
 local slowHazards = {}
 local nextSlowHazardId = 0
 local playerEffectTokens = {}
-local runStartedAt = 0
 local firstZombieSpawnedAt: number? = nil
 local zombieDamaged = Signal.new()
 local zombieDied = Signal.new()
+local zombieSpawned = Signal.new()
 local playerDamagedByZombie = Signal.new()
 local firstZombieSpawned = Signal.new()
+local simulationStarted = Signal.new()
 
 type DamageContext = {
 	player: Player?,
@@ -240,12 +241,13 @@ local function releaseStolenRewards(position, coinValue, xpValue, owner, groundY
 	end
 end
 
-local function queueSpawn(typeName, position, spawnArena)
+local function queueSpawn(typeName, position, spawnArena, roundNumber)
 	if ZombieDefinitions[typeName] then
 		table.insert(pendingSpawnRequests, {
 			typeName = typeName,
 			position = Vector3.new(position.X, spawnArena.GroundY, position.Z),
 			arena = spawnArena,
+			roundNumber = roundNumber,
 		})
 	end
 end
@@ -415,7 +417,7 @@ local function getGroupedSpawnPosition(spawnArena, groupCenter, candidates)
 	return nil
 end
 
-local function createZombie(spawnArena, typeName, surfacePosition)
+local function createZombie(spawnArena, typeName, surfacePosition, roundNumber)
 	local definition = ZombieDefinitions[typeName]
 	local groundOffset = groundOffsets[typeName]
 	local boundaryRadius = boundaryRadii[typeName]
@@ -436,31 +438,20 @@ local function createZombie(spawnArena, typeName, surfacePosition)
 		spawnArena,
 		variation,
 		boundaryRadius,
+		roundNumber,
 		zombieServices
 	)
 	-- Summons and split offspring can originate beside a boundary; constrain before their first packet.
 	zombie:_constrainToArena()
 	zombies[zombie.id] = zombie
+	zombieSpawned:Fire(zombie.id, roundNumber)
 	if not firstZombieSpawnedAt then
 		-- Start survival timing on the first successful authoritative spawn, after map/character loading.
 		firstZombieSpawnedAt = workspace:GetServerTimeNow()
 		firstZombieSpawned:Fire(firstZombieSpawnedAt)
 	end
 
-	return zombie:GetSpawnPacket()
-end
-
-local function getPressure(playerCount: number, now: number)
-	local config = RunProgressionConfig.Spawning
-	-- Match the visible survival timer: pressure begins rising only after the first zombie actually spawns.
-	local pressureStartedAt = firstZombieSpawnedAt or runStartedAt
-	local difficultySteps = math.max((now - pressureStartedAt) / config.DifficultyStepSeconds, 0)
-	local elapsedMultiplier = 1 + difficultySteps * config.SpawnRateIncreasePerStep
-	local playerMultiplier = math.max(playerCount, 1) ^ config.PlayerCountExponent
-	-- The interval eventually reaches its safe floor, but unbounded group growth and threat weighting
-	-- continue increasing total difficulty forever while retaining players ^ 0.8 party scaling.
-	local rateMultiplier = elapsedMultiplier * playerMultiplier
-	return rateMultiplier, difficultySteps
+	return zombie:GetSpawnPacket(), zombie.id
 end
 
 local function chooseZombieType(elapsedSeconds: number, difficultySteps: number)
@@ -483,37 +474,66 @@ local function chooseZombieType(elapsedSeconds: number, difficultySteps: number)
 	return GetRandomFromWeightedTable(adjustedWeights, "Weight", random)
 end
 
-local function spawnGroup(spawnArena, candidates, serverTime, elapsedSeconds, difficultySteps)
-	local groupCenter = chooseGroupCenter(spawnArena, candidates)
-	if not groupCenter then
-		return
+function ZombieController.SpawnRound(roundNumber: number, zombieCount: number): { number }
+	if not simulationConnection
+		or not arena
+		or type(roundNumber) ~= "number"
+		or roundNumber % 1 ~= 0
+		or roundNumber < 1
+		or type(zombieCount) ~= "number"
+		or zombieCount % 1 ~= 0
+		or zombieCount < 1
+	then
+		return {}
 	end
 
-	-- Additive growth is intentionally unbounded: every completed difficulty step permanently raises
-	-- the possible horde size across the single combat arena.
-	local groupSizeBonus = math.floor(difficultySteps * RunProgressionConfig.Spawning.GroupSizeBonusPerStep + 0.001)
-	local baseGroupSize = RunProgressionConfig.Spawning.BaseGroupSize
-	local maximumGroupSize = math.max(baseGroupSize.Min, baseGroupSize.Max + groupSizeBonus)
-	local requestedSize = random:NextInteger(baseGroupSize.Min, maximumGroupSize)
-	local groupSize = requestedSize
-	local spawnPackets = {}
+	local candidates = getLivePlayerCandidates()
+	if #candidates == 0 then
+		return {}
+	end
 
-	for _ = 1, groupSize do
-		-- Mixed groups let support archetypes interact with the basic horde instead of producing all-support packs.
-		local weightedType = chooseZombieType(elapsedSeconds, difficultySteps)
-		local surfacePosition = weightedType and getGroupedSpawnPosition(spawnArena, groupCenter, candidates)
-		if weightedType and surfacePosition then
-			local packet = createZombie(spawnArena, weightedType.Name, surfacePosition)
-			if packet then
-				table.insert(spawnPackets, packet)
+	local rounds = RunProgressionConfig.Rounds
+	local elapsedSeconds = (roundNumber - 1) * rounds.RoundDurationEquivalent
+	local difficultySteps = (roundNumber - 1) / rounds.DifficultyRoundsPerStep
+	local spawnPackets = {}
+	local spawnedIds = {}
+	local attemptsRemaining = zombieCount * RunProgressionConfig.Spawning.AttemptsPerGroup
+
+	while #spawnPackets < zombieCount and attemptsRemaining > 0 do
+		local groupCenter = chooseGroupCenter(arena, candidates)
+		if not groupCenter then
+			attemptsRemaining -= 1
+			continue
+		end
+
+		local clusterSize = math.min(rounds.MaximumClusterSize, zombieCount - #spawnPackets)
+		for _ = 1, clusterSize do
+			attemptsRemaining -= 1
+			-- Mixed clusters let support archetypes interact with basic enemies without changing the
+			-- finite number of zombies assigned to this round.
+			local weightedType = chooseZombieType(elapsedSeconds, difficultySteps)
+			-- The validated group center is a safe fallback when a crowded cluster cannot find another
+			-- nearby point; separation spreads overlaps while preserving the round's assigned count.
+			local surfacePosition = weightedType
+				and (getGroupedSpawnPosition(arena, groupCenter, candidates) or groupCenter)
+			if weightedType and surfacePosition then
+				local packet, zombieId = createZombie(arena, weightedType.Name, surfacePosition, roundNumber)
+				if packet and zombieId then
+					table.insert(spawnPackets, packet)
+					table.insert(spawnedIds, zombieId)
+				end
+			end
+			if #spawnPackets >= zombieCount or attemptsRemaining <= 0 then
+				break
 			end
 		end
 	end
 
 	if #spawnPackets > 0 then
 		-- One timestamp per batch avoids repeating derivable interpolation metadata per zombie.
-		zombieNetwork:fireAll("SpawnZombies", spawnPackets, serverTime)
+		zombieNetwork:fireAll("SpawnZombies", spawnPackets, workspace:GetServerTimeNow())
 	end
+	return spawnedIds
 end
 
 local function removeZombies(ids)
@@ -529,6 +549,29 @@ local function removeZombies(ids)
 	if #removedIds > 0 then
 		zombieNetwork:fireAll("RemoveZombies", removedIds)
 	end
+end
+
+function ZombieController.RestartRun()
+	local ids = {}
+	for id in zombies do
+		table.insert(ids, id)
+	end
+	removeZombies(ids)
+
+	-- Replay owns a completely fresh horde; delayed attacks, summons, hazards, and their stat modifiers
+	-- must not survive after the old zombies have been despawned.
+	table.clear(pendingSpawnRequests)
+	table.clear(pendingProjectiles)
+	table.clear(slowHazards)
+	for player, bucket in playerEffectTokens do
+		for sourceId in bucket do
+			PlayerStatController.SetModifier(player, sourceId, nil)
+		end
+	end
+	table.clear(playerEffectTokens)
+	firstZombieSpawnedAt = nil
+	nextSnapshotAt = workspace:GetServerTimeNow() + ZombieProtocol.SnapshotInterval
+	separationAccumulator = 0
 end
 
 local function buildGroundOffsets()
@@ -557,24 +600,6 @@ end
 local function stepSimulation(deltaTime)
 	local now = workspace:GetServerTimeNow()
 	local candidates, candidateLookup = getLivePlayerCandidates()
-
-	local rateMultiplier, difficultySteps = getPressure(#candidates, now)
-	if #candidates > 0 and now >= arenaRuntime.nextSpawnAt then
-		local spawnConfig = RunProgressionConfig.Spawning
-		local pressureStartedAt = firstZombieSpawnedAt or runStartedAt
-		local elapsedSeconds = math.max(now - pressureStartedAt, 0)
-		local openingProgress = math.clamp(elapsedSeconds / spawnConfig.OpeningRampDuration, 0, 1)
-		-- Only soften the opening cadence; reaching the end of the ramp restores the original interval
-		-- exactly so this onboarding relief cannot flatten the intended long-run difficulty growth.
-		local openingIntervalMultiplier = spawnConfig.OpeningSpawnIntervalMultiplier
-			+ (1 - spawnConfig.OpeningSpawnIntervalMultiplier) * openingProgress
-		arenaRuntime.nextSpawnAt = now
-			+ math.max(
-				spawnConfig.BaseSpawnInterval * openingIntervalMultiplier / math.max(rateMultiplier, 1),
-				spawnConfig.MinimumSpawnInterval
-			)
-		spawnGroup(arena, candidates, now, elapsedSeconds, difficultySteps)
-	end
 
 	for index = #slowHazards, 1, -1 do
 		local hazard = slowHazards[index]
@@ -605,6 +630,7 @@ local function stepSimulation(deltaTime)
 			-- One central death event feeds pickups now and leaves a stable extension point for challenges later.
 			zombieDied:Fire({
 				id = zombie.id,
+				roundNumber = zombie.roundNumber,
 				typeName = zombie.typeName,
 				definition = zombie.definition,
 				position = zombie.cframe.Position,
@@ -646,7 +672,7 @@ local function stepSimulation(deltaTime)
 	if #pendingSpawnRequests > 0 then
 		local spawnPackets = {}
 		for _, request in pendingSpawnRequests do
-			local packet = createZombie(request.arena, request.typeName, request.position)
+			local packet = createZombie(request.arena, request.typeName, request.position, request.roundNumber)
 			if packet then
 				table.insert(spawnPackets, packet)
 			end
@@ -746,6 +772,20 @@ function ZombieController.GetZombieDiedSignal()
 	return zombieDied
 end
 
+function ZombieController.GetZombieSpawnedSignal()
+	return zombieSpawned
+end
+
+function ZombieController.GetLivingZombieCountForRound(roundNumber: number): number
+	local count = 0
+	for _, zombie in zombies do
+		if zombie.roundNumber == roundNumber and not zombie:IsDead() then
+			count += 1
+		end
+	end
+	return count
+end
+
 function ZombieController.GetPlayerDamagedByZombieSignal()
 	return playerDamagedByZombie
 end
@@ -756,6 +796,14 @@ end
 
 function ZombieController.GetFirstZombieSpawnedAt(): number?
 	return firstZombieSpawnedAt
+end
+
+function ZombieController.IsSimulationStarted(): boolean
+	return simulationConnection ~= nil
+end
+
+function ZombieController.GetSimulationStartedSignal()
+	return simulationStarted
 end
 
 function ZombieController.GetZombiesInRadius(position: Vector3, maximumDistance: number, maximumCount: number?)
@@ -882,16 +930,14 @@ local function startSimulation()
 		GroundY = floorSurface.Position.Y,
 	}
 	buildGroundOffsets()
-	runStartedAt = workspace:GetServerTimeNow()
 	arenaRuntime = {
 		-- Start in a random sector, then deterministically cover all eight directions around live players.
 		nextSurroundSector = random:NextInteger(0, RunProgressionConfig.Spawning.SurroundSectorCount - 1),
-		nextSpawnAt = workspace:GetServerTimeNow()
-			+ random:NextNumber(0.25, math.min(RunProgressionConfig.Spawning.BaseSpawnInterval, 0.8)),
 	}
 
 	nextSnapshotAt = workspace:GetServerTimeNow() + ZombieProtocol.SnapshotInterval
 	simulationConnection = RunService.Heartbeat:Connect(stepSimulation)
+	simulationStarted:Fire()
 end
 
 local function startSimulationWhenReady()

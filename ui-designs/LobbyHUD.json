@@ -1,0 +1,15 @@
+{
+  "pinevex_object": {
+    "type": "Frame", "name": "LobbyHUDDesktop", "size": [1, 0, 1, 0], "bg": [32, 50, 42],
+    "children": [
+      { "type": "Frame", "name": "Coins", "size": [0, 160, 0, 44], "position": [0, 20, 0, 24], "bg": [38, 33, 24], "strokes": [{ "thickness": 2, "color": [216, 163, 62], "applyMode": "Border" }], "children": [{ "type": "ImageLabel", "name": "Icon", "size": [0, 30, 0, 30], "position": [0, 8, 0.5, 0], "anchor": [0, 0.5], "bgTransparency": 1, "icon": "rbxassetid://117589844207603" }, { "type": "TextLabel", "name": "Balance", "size": [1, -54, 1, -10], "position": [0, 46, 0, 5], "bgTransparency": 1, "text": "1,284", "textColor": [255, 231, 158], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Bold" }] },
+      { "type": "Frame", "name": "LauncherDock", "size": [0, 556, 0, 62], "position": [0.5, 0, 1, -18], "anchor": [0.5, 1], "bg": [4, 20, 30], "bgTransparency": 0.12, "strokes": [{ "thickness": 2, "color": [58, 94, 111], "applyMode": "Border" }], "children": [
+        { "type": "TextButton", "name": "Abilities", "size": [0, 176, 0, 50], "position": [0, 6, 0, 6], "bg": [16, 155, 211], "text": "ABILITIES", "textColor": [255, 255, 255], "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy" },
+        { "type": "TextButton", "name": "Classes", "size": [0, 176, 0, 50], "position": [0, 190, 0, 6], "bg": [16, 155, 211], "text": "CLASSES", "textColor": [255, 255, 255], "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy" },
+        { "type": "TextButton", "name": "ZombieIndex", "size": [0, 176, 0, 50], "position": [0, 374, 0, 6], "bg": [100, 183, 80], "text": "ZOMBIE INDEX", "textColor": [255, 255, 255], "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy" }
+      ]}
+    ]
+  },
+  "viewport_size": [1280, 720],
+  "transparent_background": false
+}

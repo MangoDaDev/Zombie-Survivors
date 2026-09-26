@@ -1,0 +1,20 @@
+{
+  "views": ["front", "back", "left", "right", "top", "bottom", "perspective"],
+  "resolution": [640, 640],
+  "projection": "orthographic",
+  "background": [0.12, 0.15, 0.19],
+  "transparent": false,
+  "samples": 32,
+  "seed": 0,
+  "ground": false,
+  "lighting": {
+    "direction": [-3, 7, -5],
+    "energy": 3,
+    "ambient": 0.65,
+    "angle": 12,
+    "color": [1, 0.96, 0.9]
+  },
+  "customCameras": [
+    {"name": "high-front", "direction": [0.5, 1.5, -1], "projection": "perspective", "fov": 35}
+  ]
+}

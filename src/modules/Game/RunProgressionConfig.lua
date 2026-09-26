@@ -46,14 +46,20 @@ local RunProgressionConfig = {
 		AlwaysAvailable = {},
 	},
 
+	Rounds = {
+		-- A round owns one finite assigned group. Clearing that group's living zombies advances the
+		-- shared party round; skipped-round zombies remain alive but no longer block later rounds.
+		BaseZombieCount = 5,
+		ZombieCountGrowthPerRound = 2,
+		-- Keep skip votes deliberate across round boundaries, especially when one player can pass a vote alone.
+		SkipVoteCooldown = 8,
+		RoundDurationEquivalent = 30,
+		DifficultyRoundsPerStep = 10,
+		MaximumClusterSize = 8,
+	},
+
 	Spawning = {
 		-- The main combat floor is 300x300, so groups should enter from meaningfully beyond immediate attack range.
-		BaseSpawnInterval = 1.5,
-		BaseGroupSize = NumberRange.new(1, 2),
-		-- Begin at less than half the normal cadence, then restore the existing pressure curve after two
-		-- minutes so players have time to earn their first upgrades without weakening the later run.
-		OpeningRampDuration = 120,
-		OpeningSpawnIntervalMultiplier = 2.25,
 		GroupRadius = 12,
 		MinimumDistance = 45,
 		PreferredDistance = NumberRange.new(48, 72),
@@ -69,17 +75,25 @@ local RunProgressionConfig = {
 		SurroundSectorAdvance = 3,
 		SurroundSpawnJitterDegrees = 12,
 		DirectedSpawnAttemptFraction = 0.6,
-		-- Difficulty never caps: each five-minute step adds cadence pressure and larger hordes. Individual
-		-- zombie definitions also unlock and gain weight from elapsed survival time across the one arena.
-		DifficultyStepSeconds = 300,
-		SpawnRateIncreasePerStep = 2,
-		GroupSizeBonusPerStep = 3,
+		-- Round progression replaces the old continuous spawn clock while retaining the same weighted
+		-- enemy unlock curve and increasingly strong-enemy bias.
 		StrongZombieBiasPerStep = 0.65,
-		-- Total horde pressure follows the requested sublinear multiplayer curve: players ^ 0.8.
+		-- Assigned group size follows sublinear multiplayer scaling so extra party members add pressure
+		-- without multiplying the round linearly.
 		PlayerCountExponent = 0.8,
-		MinimumSpawnInterval = 0.35,
 	},
 }
+
+function RunProgressionConfig.GetRoundZombieCount(roundNumber: number, playerCount: number): number
+	local validRound = math.max(1, math.floor(roundNumber))
+	local validPlayerCount = math.max(1, math.floor(playerCount))
+	local rounds = RunProgressionConfig.Rounds
+	local singlePlayerCount = rounds.BaseZombieCount + (validRound - 1) * rounds.ZombieCountGrowthPerRound
+	return math.max(
+		1,
+		math.floor(singlePlayerCount * validPlayerCount ^ RunProgressionConfig.Spawning.PlayerCountExponent + 0.5)
+	)
+end
 
 function RunProgressionConfig.GetXPRequirement(level: number): number
 	local validLevel = math.max(1, math.floor(level))
