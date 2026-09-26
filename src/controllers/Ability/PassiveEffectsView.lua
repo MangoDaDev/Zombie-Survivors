@@ -130,6 +130,35 @@ function PassiveEffectsView.ThornsTriggered(packet)
 	end
 end
 
+function PassiveEffectsView.CriticalHit(packet)
+	if type(packet) ~= "table" or typeof(packet.position) ~= "Vector3" then
+		return
+	end
+	-- A small stud-built burst reads as a critical hit without replacing the zombie's damage feedback.
+	for index = 1, 4 do
+		local angle = index * math.pi / 2
+		local offset = Vector3.new(math.cos(angle), 0.35, math.sin(angle))
+		local block = makePart("CriticalSpark", packet.position + Vector3.yAxis * 1.4,
+			Color3.fromRGB(255, 201, 70), Enum.PartType.Block)
+		if block then
+			block.Material = Enum.Material.Plastic
+			block.Size = Vector3.new(0.28, 0.28, 0.7)
+			block.TopSurface = Enum.SurfaceType.Studs
+			block.BottomSurface = Enum.SurfaceType.Studs
+			block.FrontSurface = Enum.SurfaceType.Studs
+			block.BackSurface = Enum.SurfaceType.Studs
+			block.LeftSurface = Enum.SurfaceType.Studs
+			block.RightSurface = Enum.SurfaceType.Studs
+			block.CFrame = CFrame.lookAt(block.Position, block.Position + offset)
+			TweenService:Create(block, TweenInfo.new(0.22), {
+				Position = block.Position + offset * 1.4,
+				Transparency = 1,
+			}):Play()
+			Debris:AddItem(block, 0.25)
+		end
+	end
+end
+
 function PassiveEffectsView.Render()
 	local now = os.clock()
 	for targetId, burn in burns do

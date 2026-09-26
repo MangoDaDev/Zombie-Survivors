@@ -5,10 +5,12 @@ local ServerStorage = game:GetService("ServerStorage")
 local Workspace = game:GetService("Workspace")
 
 local AbilityDefinitions = require(ReplicatedStorage.Modules.Game.Abilities.AbilityDefinitions)
+local ClassController = require(ServerStorage.Controllers.ClassController)
 local RageController = require(ServerStorage.Controllers.RageController)
 local ServerContext = require(ServerStorage.Controllers.ServerContext)
 local ZombieController = require(ServerStorage.Controllers.ZombieController)
 local CombatTargets = require(script.Parent.CombatTargets)
+local PassiveEffects = require(script.Parent.PassiveEffects)
 
 local ACTIVE_ABILITY_IDS = { "Aura", "Ball", "Drill", "Mine", "Poison" }
 local SCHEDULER_INTERVAL = 0.08
@@ -207,12 +209,14 @@ local function spawnBall(player: Player, stats, origin: Vector3, target, ballInd
 		player = player,
 		definition = AbilityDefinitions.ById.Ball,
 		stats = stats,
+		bounceRange = AbilityDefinitions.ById.Ball.Combat.BounceRange * ClassController.GetProjectileRangeMultiplier(player),
 		position = startPosition,
 		targetPosition = target.position,
 		targetId = target.id,
 		direction = direction,
 		hitTargets = {},
 		hitCount = 0,
+		uniqueHitStreak = 0,
 		createdAt = now,
 		missExpiresAt = nil,
 	}
@@ -237,7 +241,7 @@ local function attackBall(player: Player, _runtime, stats, root: BasePart, now: 
 	local origin = root.Position
 	local candidates = CombatTargets.GetNearestHostiles(
 		origin,
-		definition.Combat.TargetRange,
+		definition.Combat.TargetRange * ClassController.GetProjectileRangeMultiplier(player),
 		math.max(stats.BallCount * 3, 8)
 	)
 	if #candidates == 0 then
@@ -321,7 +325,7 @@ local function placeMine(player: Player, stats, position: Vector3, now: number)
 		stats = stats,
 		position = position,
 		createdAt = now,
-		expiresAt = now + AbilityDefinitions.ById.Mine.Combat.Lifetime,
+		expiresAt = now + (stats.Lifetime or AbilityDefinitions.ById.Mine.Combat.Lifetime),
 		triggerAt = nil,
 	}
 	table.insert(mines, mine)
@@ -481,14 +485,16 @@ local function updateBall(projectile, deltaTime: number, now: number): boolean
 	projectile.hitCount += 1
 	local wasNewTarget = not projectile.hitTargets[projectile.targetId]
 	projectile.hitTargets[projectile.targetId] = true
+	-- A repeat target breaks Trickshot's consecutive-unique ricochet streak.
+	projectile.uniqueHitStreak = if wasNewTarget then projectile.uniqueHitStreak + 1 else 0
 	local targetPosition = ZombieController.GetZombiePosition(projectile.targetId)
 	if targetPosition then
 		local multiplier = 1
 		if wasNewTarget then
-			multiplier += math.min(
-				(projectile.hitCount - 1) * projectile.stats.PowerBouncePerHit,
-				projectile.stats.PowerBounceCap
-			)
+			multiplier += math.min((projectile.hitCount - 1) * projectile.stats.PowerBouncePerHit,
+				projectile.stats.PowerBounceCap)
+			multiplier += math.min((projectile.uniqueHitStreak - 1) * (projectile.stats.ClassUniqueRicochetDamage or 0),
+				projectile.stats.ClassUniqueRicochetCap or 0)
 		end
 		damageTarget(
 			projectile.player,
@@ -512,7 +518,7 @@ local function updateBall(projectile, deltaTime: number, now: number): boolean
 	end
 	local nextTarget = selectBallTarget(
 		projectile.position,
-		projectile.definition.Combat.BounceRange,
+		projectile.bounceRange,
 		projectile.hitTargets,
 		projectile.targetId
 	)
@@ -677,6 +683,10 @@ local function updatePuddles(now: number)
 					puddle.position,
 					puddle.definition.Combat.Knockback
 				)
+				if target.kind == "Zombie" then
+					local slowMultiplier, slowDuration = ClassController.GetAfflictionSlow(puddle.player)
+					if slowMultiplier then ZombieController.SlowZombie(target.id, slowMultiplier, slowDuration) end
+				end
 				if killed
 					and target.kind == "Zombie"
 					and not puddle.secondary
@@ -748,12 +758,16 @@ local function scheduleAttacks(now: number)
 			local level = data.Levels[abilityId] or 1
 			local rageActive = RageController.IsActive(player)
 			local stats = if rageActive then definition.GetRageStats(level) else definition.GetStats(level)
+			ClassController.ApplyWeaponStats(player, abilityId, stats)
+			stats = PassiveEffects.ModifyWeaponStats(player, abilityId, stats)
 			if abilityId == "Aura" then
 				sendAuraState(player, runtime, stats, root)
 			end
 			if root and now >= runtime.nextAttackAt[abilityId] then
 				local attacked = ATTACKERS[abilityId](player, runtime, stats, root, now)
-				runtime.nextAttackAt[abilityId] = now + (if attacked then stats.Cooldown else math.min(stats.Cooldown, 0.3))
+				runtime.nextAttackAt[abilityId] = now + (if attacked
+					then stats.Cooldown * PassiveEffects.GetCooldownMultiplier(player)
+					else math.min(stats.Cooldown, 0.3))
 			end
 		end
 	end
@@ -812,6 +826,7 @@ function CrowdWeapons.Refresh(player: Player)
 		local stats = if RageController.IsActive(player)
 			then definition.GetRageStats(data.Levels.Aura or 1)
 			else definition.GetStats(data.Levels.Aura or 1)
+		stats = PassiveEffects.ModifyWeaponStats(player, "Aura", stats)
 		sendAuraState(player, runtime, stats, getAliveRoot(player), true)
 	end
 end

@@ -3,10 +3,12 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
+local Button = require(script.Parent.Parent.Classes.Button)
 local StudTexture = require(script.Parent.Parent.Classes.StudTexture)
 local AbilityDefinitions = require(ReplicatedStorage.Modules.Game.Abilities.AbilityDefinitions)
 local CoinsController = require(ReplicatedStorage.Controllers.CoinsController)
 local FormatNumber = require(ReplicatedStorage.Modules.Math.FormatNumber)
+local GameReadyController = require(ReplicatedStorage.Controllers.GameReadyController)
 local Images = require(ReplicatedStorage.Modules.UI.Images)
 local RunProgressionController = require(ReplicatedStorage.Controllers.RunProgressionController)
 local RunSessionController = require(ReplicatedStorage.Controllers.RunSessionController)
@@ -92,7 +94,7 @@ local function abilitySlot(definition, state, tooltipId)
 		ZIndex = 102,
 		create "UICorner" { CornerRadius = UDim.new(0, 5) },
 		stroke(definition.Color:Lerp(Color3.new(0, 0, 0), 0.25), 2),
-		StudTexture({ ZIndex = 103, ImageTransparency = 0.86, TileSize = UDim2.fromOffset(18, 18) }),
+		StudTexture({ ZIndex = 103, ImageTransparency = 0.86, TileSize = UDim2.fromOffset(36, 36) }),
 		create "ImageLabel" {
 			AnchorPoint = Vector2.new(0.5, 0),
 			BackgroundTransparency = 1,
@@ -161,8 +163,15 @@ end
 return function()
 	local initialState = RunProgressionController.GetState()
 	local initialSessionState = RunSessionController.GetState()
+	local initialReadyState = GameReadyController.GetState()
 	local state = source(initialState)
 	local sessionState = source(initialSessionState)
+	local readyState = source(initialReadyState)
+	local readySeconds = source(
+		if initialReadyState.active and type(initialReadyState.deadline) == "number"
+			then math.max(initialReadyState.deadline - Workspace:GetServerTimeNow(), 0)
+			else 0
+	)
 	local survivedSeconds = source(
 		if type(initialSessionState.startedAt) == "number"
 			then math.max(Workspace:GetServerTimeNow() - initialSessionState.startedAt, 0)
@@ -179,6 +188,9 @@ return function()
 	local gameMapPresent = source(Workspace:FindFirstChild("Game") ~= nil)
 	local narrowViewport = derive(function()
 		return viewportWidth() < 700
+	end)
+	local readyScale = derive(function()
+		return math.min(1, math.max((viewportWidth() - 24) / 360, 0.1))
 	end)
 	local inGame = derive(function()
 		-- Map replication is an independent fallback for the first server snapshot, so the XP
@@ -197,15 +209,28 @@ return function()
 			survivedSeconds(math.max(Workspace:GetServerTimeNow() - newState.startedAt, 0))
 		end
 	end)
+	local readyConnection = GameReadyController.GetStateChangedSignal():Connect(function(newState)
+		readyState(newState)
+		readySeconds(
+			if newState.active and type(newState.deadline) == "number"
+				then math.max(newState.deadline - Workspace:GetServerTimeNow(), 0)
+				else 0
+		)
+	end)
 	local timerAccumulator = 0
 	local timerConnection = RunService.Heartbeat:Connect(function(deltaTime)
-		local currentSession = sessionState()
-		if currentSession.active or type(currentSession.startedAt) ~= "number" then
+		timerAccumulator += deltaTime
+		if timerAccumulator < 0.1 then
 			return
 		end
-		timerAccumulator += deltaTime
-		if timerAccumulator >= 0.1 then
-			timerAccumulator = 0
+		timerAccumulator = 0
+
+		local currentReadyState = readyState()
+		if currentReadyState.active and type(currentReadyState.deadline) == "number" then
+			readySeconds(math.max(currentReadyState.deadline - Workspace:GetServerTimeNow(), 0))
+		end
+		local currentSession = sessionState()
+		if not currentSession.active and type(currentSession.startedAt) == "number" then
 			survivedSeconds(math.max(Workspace:GetServerTimeNow() - currentSession.startedAt, 0))
 		end
 	end)
@@ -235,6 +260,7 @@ return function()
 	cleanup(function()
 		stateConnection:Disconnect()
 		sessionConnection:Disconnect()
+		readyConnection:Disconnect()
 		timerConnection:Disconnect()
 		coinConnection:Disconnect()
 		safeAreaConnection:Disconnect()
@@ -300,6 +326,85 @@ return function()
 				TextScaled = true,
 				TextXAlignment = Enum.TextXAlignment.Left,
 				ZIndex = 82,
+			},
+		},
+		create "Frame" {
+			Name = "ReadyPrompt",
+			AnchorPoint = Vector2.new(0.5, 0),
+			BackgroundColor3 = PANEL,
+			BorderSizePixel = 0,
+			Position = function()
+				return UDim2.new(0.5, 0, 0, topOffset())
+			end,
+			Size = UDim2.fromOffset(360, 78),
+			Visible = function()
+				return inGame() and readyState().active
+			end,
+			ZIndex = 85,
+			create "UIAspectRatioConstraint" {
+				AspectRatio = 360 / 78,
+				DominantAxis = Enum.DominantAxis.Width,
+			},
+			create "UIScale" { Scale = readyScale },
+			create "UICorner" { CornerRadius = UDim.new(0, 5) },
+			stroke(Color3.fromRGB(0, 183, 211), 2),
+			StudTexture({ ZIndex = 86, ImageTransparency = 0.84, TileSize = UDim2.fromOffset(30, 30) }),
+			create "TextLabel" {
+				Name = "Title",
+				BackgroundTransparency = 1,
+				FontFace = Font.new(UIStyle.Font.Family, Enum.FontWeight.Heavy),
+				Position = UDim2.fromOffset(12, 7),
+				Size = UDim2.fromOffset(208, 27),
+				Text = "READY UP",
+				TextColor3 = Color3.fromRGB(229, 240, 247),
+				TextScaled = true,
+				TextXAlignment = Enum.TextXAlignment.Left,
+				ZIndex = 87,
+				textStroke(),
+			},
+			create "TextLabel" {
+				Name = "Status",
+				BackgroundTransparency = 1,
+				FontFace = Font.new(UIStyle.Font.Family, Enum.FontWeight.Bold),
+				Position = UDim2.fromOffset(12, 42),
+				Size = UDim2.fromOffset(208, 22),
+				Text = function()
+					local current = readyState()
+					return string.format(
+						"%d / %d READY  |  STARTS IN %ds",
+						current.readyCount,
+						current.requiredCount,
+						math.max(0, math.ceil(readySeconds()))
+					)
+				end,
+				TextColor3 = Color3.fromRGB(80, 221, 247),
+				TextScaled = true,
+				TextXAlignment = Enum.TextXAlignment.Left,
+				ZIndex = 87,
+			},
+			create "Frame" {
+				Name = "ReadyButton",
+				AnchorPoint = Vector2.new(1, 0.5),
+				BackgroundTransparency = 1,
+				Position = UDim2.new(1, -11, 0.5, 0),
+				Size = UDim2.fromOffset(118, 56),
+				ZIndex = 87,
+				Button({
+					Text = function()
+						return if readyState().isReady then "READY!" else "READY"
+					end,
+					Enabled = function()
+						local current = readyState()
+						return current.active and not current.isReady
+					end,
+					BackgroundColor3 = UIStyle.Colors.Green,
+					CornerRadius = UDim.new(0, 4),
+					FontFace = Font.new(UIStyle.Font.Family, Enum.FontWeight.Heavy),
+					MaxTextSize = 32,
+					Size = UDim2.fromScale(1, 1),
+					TextBounds = UDim2.fromScale(0.82, 0.62),
+					OnActivated = GameReadyController.ReadyUp,
+				}),
 			},
 		},
 		create "Frame" {

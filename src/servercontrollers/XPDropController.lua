@@ -5,6 +5,7 @@ local ServerStorage = game:GetService("ServerStorage")
 
 local Networker = require(ReplicatedStorage.Packages.networker)
 local RunProgressionConfig = require(ReplicatedStorage.Modules.Game.RunProgressionConfig)
+local ClassController = require(ServerStorage.Controllers.ClassController)
 local RunProgressionController = require(ServerStorage.Controllers.RunProgressionController)
 local ServerContext = require(ServerStorage.Controllers.ServerContext)
 
@@ -166,7 +167,9 @@ local function stepDrops(deltaTime: number, now: number)
 					collectDrop(id, drop, collector)
 					continue
 				end
-				if not drop.forcedCollection and offset.Magnitude > config.MagnetRadius * 3 then
+				if not drop.forcedCollection
+					and offset.Magnitude > config.MagnetRadius * ClassController.GetPickupMagnetMultiplier(collector) * 3
+				then
 					releaseDrop(drop)
 				else
 					drop.magnetSpeed += config.MagnetAcceleration * deltaTime
@@ -179,11 +182,12 @@ local function stepDrops(deltaTime: number, now: number)
 			table.insert(expiredIds, id)
 		elseif now >= drop.collectibleAt then
 			local nearest
-			local nearestDistance = config.MagnetRadius
+			local nearestDistance = math.huge
 			for _, candidate in candidates do
 				if canCollect(drop, candidate.player) then
 					local distance = (candidate.root.Position - drop.position).Magnitude
-					if distance <= nearestDistance then
+					local magnetRadius = config.MagnetRadius * ClassController.GetPickupMagnetMultiplier(candidate.player)
+					if distance <= magnetRadius and distance <= nearestDistance then
 						nearest = candidate.player
 						nearestDistance = distance
 					end
@@ -200,6 +204,40 @@ local function stepDrops(deltaTime: number, now: number)
 	if #expiredIds > 0 then
 		xpNetwork:fireAll("DespawnXP", expiredIds)
 	end
+end
+
+function XPDropController.StealNearest(position: Vector3, radius: number, maximumCount: number): number
+	if typeof(position) ~= "Vector3" or type(radius) ~= "number" or type(maximumCount) ~= "number" then
+		return 0
+	end
+	local candidates = {}
+	for id, drop in drops do
+		if not drop.collectingPlayer then
+			local distance = (drop.position - position).Magnitude
+			if distance <= radius then
+				table.insert(candidates, { id = id, distance = distance })
+			end
+		end
+	end
+	table.sort(candidates, function(left, right)
+		return left.distance < right.distance
+	end)
+	local stolenValue = 0
+	local removedIds = {}
+	for index = 1, math.min(#candidates, math.max(math.floor(maximumCount), 0)) do
+		local id = candidates[index].id
+		local drop = drops[id]
+		if drop then
+			stolenValue += drop.value
+			drops[id] = nil
+			activeCount = math.max(activeCount - 1, 0)
+			table.insert(removedIds, id)
+		end
+	end
+	if #removedIds > 0 then
+		xpNetwork:fireAll("DespawnXP", removedIds)
+	end
+	return stolenValue
 end
 
 function XPDropController.CollectAll(player: Player): number

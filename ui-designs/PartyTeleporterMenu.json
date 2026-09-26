@@ -12,7 +12,7 @@
             "gradient": { "rotation": 90, "colors": [[0, "#28E8FF"], [1, "#147BFF"]], "transparency": [[0, 0], [1, 0]] },
             "strokes": [{ "thickness": 5, "color": [0, 7, 14], "applyMode": "Border" }, { "thickness": 2, "color": [121, 244, 255], "applyMode": "Border" }],
             "children": [
-              { "type": "ImageLabel", "name": "StudTexture", "size": [1, 0, 1, 0], "bgTransparency": 1, "icon": "rbxassetid://6927295847", "imageTransparency": 0.77, "scaleType": "Tile", "tileSize": [0, 48, 0, 48] },
+              { "type": "ImageLabel", "name": "StudTexture", "size": [1, 0, 1, 0], "bgTransparency": 1, "icon": "rbxassetid://6927295847", "imageTransparency": 0.77, "scaleType": "Tile", "tileSize": [0, 96, 0, 96] },
               { "type": "TextLabel", "name": "Title", "size": [1, -30, 0, 55], "position": [0, 18, 0, 6], "bgTransparency": 1, "text": "CREATE PARTY", "textColor": [255, 255, 255], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Heavy", "strokes": [{ "thickness": 5, "color": [0, 0, 0] }] },
               { "type": "TextLabel", "name": "Subtitle", "size": [1, -30, 0, 20], "position": [0, 19, 0, 66], "bgTransparency": 1, "text": "TELEPORTER 2  •  SETTINGS OPEN", "textColor": [1, 44, 78], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Bold" }
             ]
@@ -23,7 +23,7 @@
             "gradient": { "rotation": 90, "colors": [[0, "#07364F"], [1, "#031827"]], "transparency": [[0, 0], [1, 0]] },
             "strokes": [{ "thickness": 3, "color": [0, 160, 187], "applyMode": "Border" }],
             "children": [
-              { "type": "ImageLabel", "name": "StudTexture", "size": [1, 0, 1, 0], "bgTransparency": 1, "icon": "rbxassetid://6927295847", "imageTransparency": 0.88, "scaleType": "Tile", "tileSize": [0, 56, 0, 56] },
+              { "type": "ImageLabel", "name": "StudTexture", "size": [1, 0, 1, 0], "bgTransparency": 1, "icon": "rbxassetid://6927295847", "imageTransparency": 0.88, "scaleType": "Tile", "tileSize": [0, 112, 0, 112] },
               {
                 "type": "Frame", "name": "Summary", "size": [1, -28, 0, 62], "position": [0.5, 0, 0, 14], "anchor": [0.5, 0], "bg": [2, 14, 24],
                 "strokes": [{ "thickness": 3, "color": [0, 104, 132], "applyMode": "Border" }],

@@ -2,6 +2,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Images = require(ReplicatedStorage.Modules.UI.Images)
 local CrowdWeaponDefinitions = require(script.Parent.CrowdWeaponDefinitions)
+local AdditionalAbilityDefinitions = require(script.Parent.AdditionalAbilityDefinitions)
 
 local AbilityDefinitions = {}
 
@@ -1323,6 +1324,9 @@ AbilityDefinitions.List = { dagger, orbitingSwords, fireball, lightning, boomera
 for _, definition in CrowdWeaponDefinitions.List do
 	table.insert(AbilityDefinitions.List, definition)
 end
+for _, definition in AdditionalAbilityDefinitions.List do
+	table.insert(AbilityDefinitions.List, definition)
+end
 for _, definition in { heart, boots, blast, burn, thorns } do
 	table.insert(AbilityDefinitions.List, definition)
 end
@@ -1339,6 +1343,9 @@ AbilityDefinitions.ById = {
 	[thorns.Id] = thorns,
 }
 for _, definition in CrowdWeaponDefinitions.List do
+	AbilityDefinitions.ById[definition.Id] = definition
+end
+for _, definition in AdditionalAbilityDefinitions.List do
 	AbilityDefinitions.ById[definition.Id] = definition
 end
 

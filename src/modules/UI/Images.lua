@@ -68,6 +68,32 @@ local Images = {
 		Blast = "rbxassetid://100442748933829",
 		Burn = "rbxassetid://109206613200684",
 		Thorns = "rbxassetid://86137962796522",
+		-- Approved ability art: each entry uses its own uploaded Image asset, not a reused placeholder.
+		Shotgun = "rbxassetid://136656086573473",
+		FrostNova = "rbxassetid://80207696332371",
+		Meteor = "rbxassetid://86955110614000",
+		Turret = "rbxassetid://128949649605246",
+		Vortex = "rbxassetid://110093432119413",
+		Giant = "rbxassetid://75109106190883",
+		Greed = "rbxassetid://72933067458939",
+		Critical = "rbxassetid://127237893669592",
+		Adrenaline = "rbxassetid://129265581193404",
+		Impact = "rbxassetid://95046721760053",
+	},
+
+	-- Zombie portraits use the uploaded Image asset IDs; Decal container IDs do not render in ImageLabels.
+	Zombies = {
+		Walker = "rbxassetid://138149267728810", Runner = "rbxassetid://84550798854786", Brute = "rbxassetid://105624079612551",
+		Spitter = "rbxassetid://116945381993947", Charger = "rbxassetid://130455942869445", Screamer = "rbxassetid://105246434468073",
+		Tank = "rbxassetid://90063847460789", Leaper = "rbxassetid://116199380357467", Shielder = "rbxassetid://94300796030420",
+		Bomber = "rbxassetid://117887625615533", Grabber = "rbxassetid://128298909808225", Summoner = "rbxassetid://110538258607197",
+		Splitter = "rbxassetid://133513083944714", Splitling = "rbxassetid://84256249857769", Burrower = "rbxassetid://138354754179650",
+		Frenzy = "rbxassetid://118333796583654", Medic = "rbxassetid://122914293108923", Hardened = "rbxassetid://100557703031534",
+		Dodger = "rbxassetid://76527414640165", Sludger = "rbxassetid://72360871962397", Warden = "rbxassetid://102636410391388",
+		CorpseEater = "rbxassetid://114220524771207", Hexer = "rbxassetid://79491621743049", Anchor = "rbxassetid://82216613156318",
+		Frostbite = "rbxassetid://137871328795264", Rallying = "rbxassetid://105334244517742", Hoarder = "rbxassetid://103921542625931",
+		BroodPod = "rbxassetid://113683634311694", Martyr = "rbxassetid://99190229992808", Stalker = "rbxassetid://131514028415117",
+		Juggernaut = "rbxassetid://110769893485140",
 	},
 }
 

@@ -3,9 +3,11 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerStorage = game:GetService("ServerStorage")
 
 local AbilityDefinitions = require(ReplicatedStorage.Modules.Game.Abilities.AbilityDefinitions)
+local ClassController = require(ServerStorage.Controllers.ClassController)
 local RageController = require(ServerStorage.Controllers.RageController)
 local ServerContext = require(ServerStorage.Controllers.ServerContext)
 local CombatTargets = require(script.Parent.CombatTargets)
+local PassiveEffects = require(script.Parent.PassiveEffects)
 
 local TAU = math.pi * 2
 local ABILITY_ID = "OrbitingSwords"
@@ -137,6 +139,9 @@ local function applySwordDamage(
 	if not damaged then
 		return
 	end
+	if target.kind == "Zombie" then
+		ClassController.RegisterSwordHit(player)
+	end
 	if stats.Wounded then
 		-- Each successful hit consumes the prior wound bonus and refreshes it for the next Sword hit.
 		runtime.woundedUntil[target.key] = now + definition.Combat.WoundDuration
@@ -259,6 +264,8 @@ local function runOrbit(player: Player, runtime: Runtime, token: number)
 		local level = data.Levels[ABILITY_ID] or 1
 		local rageActive = RageController.IsActive(player)
 		local stats = if rageActive then definition.GetRageStats(level) else definition.GetStats(level)
+		ClassController.ApplyWeaponStats(player, ABILITY_ID, stats)
+		stats = PassiveEffects.ModifyWeaponStats(player, ABILITY_ID, stats)
 		local deltaTime = math.clamp(now - runtime.lastStepAt, 0, 0.15)
 		runtime.lastStepAt = now
 

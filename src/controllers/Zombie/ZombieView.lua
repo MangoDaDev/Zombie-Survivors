@@ -77,10 +77,9 @@ function ZombieView.new(
 	local templatePivot = model:GetPivot()
 	local boundingCFrame, boundingSize = model:GetBoundingBox()
 	local partRecords = {}
-	local tintColor = definition.TintColor
 
-	-- Requested variants always reuse the three Studio-owned templates; appearance differences stay
-	-- limited to definition-driven color and whole-model scale so no parallel model library is created.
+	-- Every appearance variant is authored in ReplicatedStorage.Assets.Models.Zombies. Runtime rendering
+	-- only clones the exact named model and never manufactures a recolored zombie variant.
 	for _, descendant in model:GetDescendants() do
 		if descendant:IsA("BasePart") then
 			-- Client zombies are anchored visuals only and can never collide, touch, or
@@ -89,10 +88,6 @@ function ZombieView.new(
 			descendant.CanCollide = false
 			descendant.CanTouch = false
 			descendant.CanQuery = false
-			if tintColor and descendant.Transparency < 1 then
-				-- Blend instead of replacing authored colors so skin and clothing remain visually distinct.
-				descendant.Color = descendant.Color:Lerp(tintColor, 0.72)
-			end
 			table.insert(partRecords, {
 				part = descendant,
 				name = descendant.Name,
@@ -367,8 +362,10 @@ function ZombieView:AppendRender(parts, cframes, camera, localNow, serverNow)
 	if showWarning then
 		local radius = 3
 		if self.specialState == SpecialState.Countdown then
-			radius = self.definition.Special.Radius
+			radius = self.definition.Special.Radius or self.definition.Special.SpawnRadius or radius
 		elseif self.typeName == "Tank" then
+			radius = self.definition.Special.Radius
+		elseif type(self.definition.Special.Radius) == "number" then
 			radius = self.definition.Special.Radius
 		elseif self.specialState == SpecialState.Warning then
 			radius = 4

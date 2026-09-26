@@ -1,6 +1,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Button = require(script.Parent.Parent.Classes.Button)
+local StudTexture = require(script.Parent.Parent.Classes.StudTexture)
 local PartyTeleporterController = require(ReplicatedStorage.Controllers.PartyTeleporterController)
 local PartyTeleporterConfig = require(ReplicatedStorage.Modules.Game.PartyTeleporterConfig)
 local UIStyle = require(ReplicatedStorage.Modules.UI.UIStyle)
@@ -36,26 +37,11 @@ type PartyState = {
 	loading: boolean,
 }
 
-type Reactive<T> = T | (() -> T)
-
 local function textStroke(thickness: number?)
 	return create "UIStroke" {
 		Color = BLACK,
 		StrokeSizingMode = Enum.StrokeSizingMode.ScaledSize,
 		Thickness = thickness or 0.055,
-	}
-end
-
-local function studTexture(tileSize: Reactive<UDim2>, transparency: number, zIndex: number)
-	return create "ImageLabel" {
-		Name = "StudTexture",
-		BackgroundTransparency = 1,
-		Image = UIStyle.StudTexture,
-		ImageTransparency = transparency,
-		ScaleType = Enum.ScaleType.Tile,
-		Size = UDim2.fromScale(1, 1),
-		TileSize = tileSize,
-		ZIndex = zIndex,
 	}
 end
 
@@ -105,10 +91,14 @@ local function createHeader(props)
 			Color = Color3.fromRGB(121, 244, 255),
 			Thickness = 2,
 		},
-		studTexture(function()
-			local tile = if props.portrait() then 44 else 48
-			return UDim2.fromOffset(tile, tile)
-		end, 0.77, 65),
+		StudTexture({
+			TileSize = function()
+				local tile = if props.portrait() then 88 else 96
+				return UDim2.fromOffset(tile, tile)
+			end,
+			ImageTransparency = 0.77,
+			ZIndex = 65,
+		}),
 		create "TextLabel" {
 			Name = "Title",
 			BackgroundTransparency = 1,
@@ -169,6 +159,7 @@ local function createSummary(props)
 			return UDim2.new(1, if props.portrait() then -22 else -28, 0, if props.short() then 54 else if props.portrait() then 66 else 62)
 		end,
 		ZIndex = 68,
+		StudTexture({ ZIndex = 68, ImageTransparency = 0.92, TileSize = UDim2.fromOffset(56, 56) }),
 		create "UIStroke" {
 			ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
 			Color = Color3.fromRGB(0, 104, 132),
@@ -241,6 +232,7 @@ local function createSettings(props)
 			return UDim2.new(1, if props.portrait() then -22 else -28, 0, if props.short() then 130 else if props.portrait() then 184 else 142)
 		end,
 		ZIndex = 68,
+		StudTexture({ ZIndex = 68, ImageTransparency = 0.92, TileSize = UDim2.fromOffset(60, 60) }),
 		create "UIStroke" {
 			ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
 			Color = Color3.fromRGB(0, 139, 168),
@@ -300,6 +292,7 @@ local function createSettings(props)
 				return UDim2.fromOffset(if props.portrait() then 70 else 68, if props.short() then 44 else 48)
 			end,
 			ZIndex = 72,
+			StudTexture({ ZIndex = 72, ImageTransparency = 0.91, TileSize = UDim2.fromOffset(40, 40) }),
 			create "UIStroke" {
 				ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
 				Color = Color3.fromRGB(0, 105, 132),
@@ -414,10 +407,14 @@ local function createBody(props)
 			Color = Color3.fromRGB(0, 160, 187),
 			Thickness = 3,
 		},
-		studTexture(function()
-			local tile = if props.portrait() then 48 else 56
-			return UDim2.fromOffset(tile, tile)
-		end, 0.88, 65),
+		StudTexture({
+			TileSize = function()
+				local tile = if props.portrait() then 96 else 112
+				return UDim2.fromOffset(tile, tile)
+			end,
+			ImageTransparency = 0.88,
+			ZIndex = 65,
+		}),
 		createSummary(props),
 		createSettings(props),
 		create "TextLabel" {
@@ -484,7 +481,6 @@ return function()
 	local exitHeight = derive(function()
 		return if short() then 50 else if portrait() then 56 else 58
 	end)
-
 	local canConfigure = derive(function()
 		local state = partyState()
 		-- Only the configuring, unlocked leader may change or confirm party settings.
@@ -512,7 +508,6 @@ return function()
 		-- Departure is irreversible once locked, so all exit affordances disable at that boundary.
 		return state ~= nil and not state.locked
 	end)
-
 	local badgeText = derive(function()
 		local state = partyState()
 		if not state then
@@ -657,6 +652,8 @@ return function()
 			end,
 			Visible = showConfiguration,
 			ZIndex = 61,
+			-- The outer shell and nested settings surfaces share one texture implementation.
+			StudTexture({ ZIndex = 62, ImageTransparency = 0.94, TileSize = UDim2.fromOffset(80, 80) }),
 			create "UIScale" {
 				-- Reserve the bottom-center exit affordance on short landscape screens without
 				-- changing the menu's internal proportions.

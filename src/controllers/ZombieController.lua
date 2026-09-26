@@ -15,6 +15,17 @@ local renderFolder
 local zombieViews = {}
 local renderParts = {}
 local renderCFrames = {}
+local STUD_EFFECT_KINDS = {
+	WardenAura = true,
+	Feast = true,
+	HexBurst = true,
+	AnchorTether = true,
+	FrostCone = true,
+	Rally = true,
+	Steal = true,
+	Hatch = true,
+	MartyrBuff = true,
+}
 
 local function addZombie(packet, serverTime)
 	if type(packet) ~= "table" then
@@ -119,6 +130,18 @@ local function makeEffectPart(name, color)
 	return part
 end
 
+local function makeStudEffectPart(name, color)
+	local part = makeEffectPart(name, color)
+	part.Material = Enum.Material.Plastic
+	part.TopSurface = Enum.SurfaceType.Studs
+	part.BottomSurface = Enum.SurfaceType.Studs
+	part.LeftSurface = Enum.SurfaceType.Studs
+	part.RightSurface = Enum.SurfaceType.Studs
+	part.FrontSurface = Enum.SurfaceType.Studs
+	part.BackSurface = Enum.SurfaceType.Studs
+	return part
+end
+
 function ZombieController.ZombieAbility(_, packet)
 	if type(packet) ~= "table" or type(packet.Kind) ~= "string" then
 		return
@@ -146,15 +169,33 @@ function ZombieController.ZombieAbility(_, packet)
 		return
 	end
 	local radius = if type(packet.Radius) == "number" then math.clamp(packet.Radius, 1, 30) else 2.5
-	local pulse = makeEffectPart(packet.Kind, packet.Color)
-	pulse.Shape = Enum.PartType.Cylinder
+	if packet.Kind == "SlowHazard" and type(packet.Duration) == "number" then
+		local hazard = makeStudEffectPart(packet.Kind, packet.Color)
+		hazard.Transparency = 0.48
+		hazard.Size = Vector3.new(radius * 2, 0.18, radius * 2)
+		hazard.CFrame = CFrame.new(packet.Position + Vector3.yAxis * 0.08)
+		TweenService:Create(
+			hazard,
+			TweenInfo.new(math.clamp(packet.Duration, 0.1, 20), Enum.EasingStyle.Linear),
+			{ Transparency = 0.82 }
+		):Play()
+		Debris:AddItem(hazard, packet.Duration)
+		return
+	end
+	local isStudEffect = STUD_EFFECT_KINDS[packet.Kind] == true
+	local pulse = if isStudEffect then makeStudEffectPart(packet.Kind, packet.Color) else makeEffectPart(packet.Kind, packet.Color)
 	pulse.Transparency = 0.15
-	pulse.Size = Vector3.new(0.16, 0.5, 0.5)
-	pulse.CFrame = CFrame.new(packet.Position + Vector3.yAxis * 0.12) * CFrame.Angles(0, 0, math.pi * 0.5)
+	pulse.Shape = if isStudEffect then Enum.PartType.Block else Enum.PartType.Cylinder
+	pulse.Size = if isStudEffect then Vector3.new(0.5, 0.16, 0.5) else Vector3.new(0.16, 0.5, 0.5)
+	pulse.CFrame = CFrame.new(packet.Position + Vector3.yAxis * 0.12)
+		* (if isStudEffect then CFrame.identity else CFrame.Angles(0, 0, math.pi * 0.5))
 	TweenService:Create(
 		pulse,
 		TweenInfo.new(0.45, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-		{ Size = Vector3.new(0.16, radius * 2, radius * 2), Transparency = 1 }
+		{
+			Size = if isStudEffect then Vector3.new(radius * 2, 0.16, radius * 2) else Vector3.new(0.16, radius * 2, radius * 2),
+			Transparency = 1,
+		}
 	):Play()
 	Debris:AddItem(pulse, 0.5)
 end

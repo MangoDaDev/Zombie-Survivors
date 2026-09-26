@@ -7,7 +7,12 @@ local ZombieBehaviors = {
 
 function ZombieBehaviors.Movement.DirectChase(zombie, direction, distance, deltaTime, facing)
 	local travelDistance = math.min(
-		zombie.definition.MoveSpeed * zombie.moveSpeedMultiplier * zombie.statusMoveSpeedMultiplier * deltaTime,
+		zombie.definition.MoveSpeed
+			* zombie.moveSpeedMultiplier
+			* zombie.statusMoveSpeedMultiplier
+			* zombie.specialMoveSpeedMultiplier
+			* zombie.buffMoveSpeedMultiplier
+			* deltaTime,
 		distance - zombie.definition.AttackRange
 	)
 	local nextPosition = zombie.cframe.Position + direction * math.max(travelDistance, 0)

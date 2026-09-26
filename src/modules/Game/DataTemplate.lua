@@ -1,6 +1,8 @@
 local CoinsConfig = require(script.Parent.CoinsConfig)
 local AbilityDefinitions = require(script.Parent.Abilities.AbilityDefinitions)
+local ClassDefinitions = require(script.Parent.Classes.ClassDefinitions)
 local RollDefinitions = require(script.Parent.Rolls.RollDefinitions)
+local ZombieIndexConfig = require(script.Parent.Zombies.ZombieIndexConfig)
 
 return {
 	-- Coins are persisted as non-negative whole numbers and are only mutated by trusted server systems.
@@ -22,4 +24,11 @@ return {
 			Passive = {},
 		},
 	},
+	-- Class ownership and selection persist separately from transient run ability levels.
+	[ClassDefinitions.DataKey] = {
+		Owned = { [ClassDefinitions.DefaultId] = true },
+		Equipped = ClassDefinitions.DefaultId,
+	},
+	-- Zombie kills and one-time discovery claims are sparse maps keyed only by known zombie IDs.
+	[ZombieIndexConfig.DataKey] = {},
 }

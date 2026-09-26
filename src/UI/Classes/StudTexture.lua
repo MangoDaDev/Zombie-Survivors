@@ -17,7 +17,8 @@ return function(properties)
 		ImageTransparency = properties.ImageTransparency or UIStyle.StudTransparency,
 		ScaleType = Enum.ScaleType.Tile,
 		Size = properties.Size or UDim2.fromScale(1, 1),
-		TileSize = properties.TileSize or UDim2.fromOffset(22, 22),
+		-- The source image is a 4x4 stud grid, so this larger tile keeps each stud readable at HUD scale.
+		TileSize = properties.TileSize or UDim2.fromOffset(44, 44),
 		ZIndex = properties.ZIndex or 1,
 	}
 end

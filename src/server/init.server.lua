@@ -19,11 +19,13 @@ data_service:init({
 
 local modules_to_init = {
 	ServerStorage.Controllers.MapController,
+	ServerStorage.Controllers.GameReadyController,
 	ServerStorage.Controllers.ChatCommandController,
 	ServerStorage.Controllers.PlayerStateController,
 	ServerStorage.Controllers.CoinsController,
 	ServerStorage.Controllers.RageController,
 	ServerStorage.Controllers.PlayerStatController,
+	ServerStorage.Controllers.ClassController,
 	ServerStorage.Controllers.BackpackController,
 	ServerStorage.Controllers.PowerupDropController,
 	ServerStorage.Controllers.BreakableController,
@@ -35,6 +37,7 @@ local modules_to_init = {
 	ServerStorage.Controllers.CharacterController,
 	ServerStorage.Controllers.PartyTeleporterController,
 	ServerStorage.Controllers.ZombieRewardsController,
+	ServerStorage.Controllers.ZombieIndexController,
 	ServerStorage.Controllers.ZombieController,
 	ServerStorage.Controllers.RunSessionController,
 }

@@ -2,12 +2,14 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local vide = require(ReplicatedStorage.Packages.vide)
 local Confirmation = require(script.Parent.Classes.Confirmation)
 local AbilityInterface = require(script.Parent.HUD.AbilityInterface)
+local ClassInterface = require(script.Parent.HUD.ClassInterface)
 local GameOver = require(script.Parent.HUD.GameOver)
 local LevelUpChoices = require(script.Parent.HUD.LevelUpChoices)
 local Notifications = require(script.Parent.HUD.Notifications)
 local PartyTeleporterMenu = require(script.Parent.HUD.PartyTeleporterMenu)
 local RageBar = require(script.Parent.HUD.RageBar)
 local RunHUD = require(script.Parent.HUD.RunHUD)
+local ZombieIndex = require(script.Parent.HUD.ZombieIndex)
 local create = vide.create
 
 return function()
@@ -23,6 +25,8 @@ return function()
 		Notifications(),
 		-- Permanent ability unlocks are managed from the lobby and feed the authoritative run choice pool.
 		AbilityInterface(),
+		ClassInterface(),
+		ZombieIndex(),
 		-- RunHUD is always mounted so Studio's promoted destination can activate reactively without remounting App.
 		RunHUD(),
 		-- Level-up presentation does not pause or intercept live combat outside the three choice cards.

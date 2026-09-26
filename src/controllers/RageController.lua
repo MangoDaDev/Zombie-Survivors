@@ -7,6 +7,7 @@ local Workspace = game:GetService("Workspace")
 
 local Networker = require(ReplicatedStorage.Packages.networker)
 local Signal = require(ReplicatedStorage.Packages.signal)
+local GameReadyController = require(ReplicatedStorage.Controllers.GameReadyController)
 local RageConfig = require(ReplicatedStorage.Modules.Game.Rage.RageConfig)
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
 
@@ -208,7 +209,13 @@ function RageController.OnCharacterAdded(_character: Model)
 end
 
 function RageController.Activate()
-	if not isGameServer or not rageNetwork or state.active or RageController.GetCurrentRage() < RageConfig.Maximum then
+	if
+		not isGameServer
+		or not GameReadyController.GetState().started
+		or not rageNetwork
+		or state.active
+		or RageController.GetCurrentRage() < RageConfig.Maximum
+	then
 		return
 	end
 	local character = localPlayer.Character
@@ -235,6 +242,9 @@ function RageController.GetState()
 end
 
 function RageController.GetCurrentRage(): number
+	if not GameReadyController.GetState().started then
+		return 0
+	end
 	if state.active then
 		return RageConfig.Maximum
 	end

@@ -17,6 +17,7 @@
 - Keep persistent HUD control rows in their own stable frame; presentation overlays must not move or own them.
 - For reel or carousel focus effects, derive every entry's scale from its live distance to the focus point so neighboring entries cannot retain stale emphasis.
 - Reuse `Classes/Button.lua` before introducing another general-purpose button.
+- For a Workspace-based UI character preview, verify the camera's `RightVector` before offsetting its aim to place the character on a particular screen side.
 - Reuse suitable Studio-owned assets when they exist instead of duplicating them, but do not make the reusable UI root depend on optional asset folders.
 - UI image assets may be searched through the Roblox Studio MCP in the Creator Store, user inventory, group inventory, or universe inventory. Search only the `Image` or `Decal` asset types; never use Creator Store models, meshes, packages, or other non-image assets for this workflow.
 - Visually inspect a candidate's returned thumbnail or source image before inserting or using it. Confirm that it looks polished, fits the requested UI, and does not contain suspicious, inappropriate, misleading, or moderation-risk content; do not use an asset merely because its name or metadata appears suitable.

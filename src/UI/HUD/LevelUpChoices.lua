@@ -79,7 +79,7 @@ local function makeStudTexture(parent: Instance, zIndex: number, transparency: n
 	texture.ImageTransparency = transparency
 	texture.ScaleType = Enum.ScaleType.Tile
 	texture.Size = UDim2.fromScale(1, 1)
-	texture.TileSize = UDim2.fromOffset(22, 22)
+	texture.TileSize = UDim2.fromOffset(44, 44)
 	texture.ZIndex = zIndex
 	texture.Parent = parent
 	return texture
@@ -120,6 +120,16 @@ local NEW_ABILITY_SUMMARIES = {
 	Blast = "KILLS CAN EXPLODE",
 	Burn = "ATTACKS CAN BURN",
 	Thorns = "REFLECTS DAMAGE",
+	Shotgun = "CONE OF PELLETS",
+	FrostNova = "EXPANDING ICE WAVE",
+	Meteor = "DELAYED AREA IMPACT",
+	Turret = "AUTOMATIC SENTRY",
+	Vortex = "PULLING GRAVITY WELL",
+	Giant = "LARGER WEAPON AREAS",
+	Greed = "BONUS COIN DROPS",
+	Critical = "CHANCE FOR BIG HITS",
+	Adrenaline = "FASTER AT LOW HEALTH",
+	Impact = "STRONGER KNOCKBACK",
 }
 
 local UPGRADE_SUMMARIES = {
@@ -138,10 +148,27 @@ local UPGRADE_SUMMARIES = {
 	Blast = "BLAST POWER INCREASED",
 	Burn = "BURN POWER INCREASED",
 	Thorns = "REFLECTION INCREASED",
+	Shotgun = "PELLET POWER INCREASED",
+	FrostNova = "ICE WAVE IMPROVED",
+	Meteor = "IMPACT POWER INCREASED",
+	Turret = "SENTRY POWER INCREASED",
+	Vortex = "GRAVITY WELL IMPROVED",
+	Giant = "WEAPON SIZE INCREASED",
+	Greed = "BONUS COIN CHANCE UP",
+	Critical = "CRITICAL POWER UP",
+	Adrenaline = "ATTACK SPEED INCREASED",
+	Impact = "KNOCKBACK INCREASED",
 }
 
 local function getChoiceSummary(definition, choice): string
 	local nextStats = definition.GetStats and definition.GetStats(math.max(choice.nextLevel, 1)) or nil
+	if choice.kind ~= "New" and definition.RageDescription and definition.Milestones then
+		for _, milestone in definition.Milestones do
+			if milestone.Level == choice.nextLevel then
+				return string.upper(milestone.Description:match("^(.-) %-") or milestone.Description)
+			end
+		end
+	end
 	-- Counts are the only numbers worth surfacing here: the card intentionally communicates the
 	-- upgrade's identity at a glance instead of reproducing the detailed tooltip stat table.
 	if definition.Id == "OrbitingSwords" and nextStats and nextStats.MainSwordCount then

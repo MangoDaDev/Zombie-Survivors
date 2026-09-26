@@ -16,6 +16,9 @@ There is no mandatory project-wide visual aesthetic. Follow the user's brief, su
 Do not assume that new UI needs rounded corners, stud textures, gradients, glow, layered depth, thick strokes, a particular palette, or any other existing treatment.
 Existing style modules and visual components are optional resources. Reuse them only when they fit the requested result; functional interaction helpers may still be reused independently of their presentation.
 Keep each screen internally coherent, readable, and appropriately polished without forcing it to match unrelated existing interfaces.
+When extending an established icon set, inspect representative source images and match their transparency, crop, silhouette, outline, color treatment, and rendering style before generating additions.
+Do not treat new icons as integrated while their image registry entries reuse other icons; after an approved upload, verify every new entry points to its own Image asset ID.
+After wiring uploaded art, validate the exact registry IDs with a Studio content preload; never assume an upload response or Decal container ID is directly usable by an ImageLabel.
 Layout Rules
 Responsive Sizing
 Use a deliberate mix of:
@@ -291,3 +294,11 @@ Also inspect good existing production UI under `src/UI/` when it is relevant to 
 
 Do not copy obsolete, unused, or visibly inconsistent UI merely because it exists in the codebase.
 Make sure to avoid unnesscecary rendering. If you arent greatly altering the visuals of something, do not render.a
+No need for seperate mobile/computer UI. Just make sure the 1 ui scales correctly on all screen sizes.
+
+Make sure the UI works well on all screen aspect ratios. Use aspectratioconstraint. 
+
+ALWAYS use IMAGE ids instead of DECAL ids. They are 2 seperate things.
+
+You dont need to create a menu for everything.
+Dont use pixels for everything.

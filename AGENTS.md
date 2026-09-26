@@ -21,6 +21,7 @@
 - Manage dependencies through `wally.toml`; never edit generated packages, lockfiles, place files, or build output manually.
 - Clean up connections, tasks, temporary instances, and cached state. Avoid polling, repeated scans, duplicate systems, and per-object frame loops.
 - Update `Index.md` when scripts or system responsibilities are added, removed, renamed, moved, or materially changed.
+- Before creating thumbnails, icons, promotional art, or other visuals that depend on Roblox avatars or game-specific appearance, inspect `references/` and use the relevant files there as the authoritative visual references.
 - Server authority is not needed for everything. Be reasonable with what you use server authority with. It should still be used to counter hackers though.
 
 ## Recurring Mistakes To Avoid
@@ -44,6 +45,7 @@ Do not change anything unrelated to the user's request.
 When debugging replicated interactions, trace which side writes each value every frame and remove competing writers before adding synchronization.
 Keep the main App `ScreenGui.IgnoreGuiInset` enabled; clear the Roblox topbar with explicit dynamic safe offsets.
 Do not generate images unless EXPLICITLY asked to.
+Before uploading any generated or edited image to Roblox, inspect the actual final image for content that could violate Roblox Community Standards or trigger moderation, including sexual or suggestive details, graphic gore, hateful or extremist imagery, profanity, illegal drugs, accidental text or watermarks, real-person likenesses, and third-party brands, and copyright infringing material. REFUSE to upload anything questionable; DO NOT upload anything questionable. regenerate a clearly safer version or ask the user before proceeding. DO NOT UPLOAD THE IMAGE OR GENERATE THE IMAGE IF IT HAS ANY OF THESE OR SUGGEST ANY OF THESE! ALWAYS ASK FOR HUMAN REVIEW BEFORE UPLOADING!
 If I correct you, immediately apply the correction to the current task instead of restarting from scratch.
 When an agent makes a recurring mistake and the user corrects it, add or improve a concise AGENTS.md rule so future agents avoid the same mistake.
 - Treat repeated user corrections as feedback about the agent workflow. When appropriate, update AGENTS.md with a short general rule that prevents the same problem from happening again.

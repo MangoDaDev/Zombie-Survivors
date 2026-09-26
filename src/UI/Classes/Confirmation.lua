@@ -94,7 +94,7 @@ function Confirmation.Component()
 				ImageTransparency = UIStyle.StudTransparency,
 				ScaleType = Enum.ScaleType.Tile,
 				Size = UDim2.fromScale(1, 0.91),
-				TileSize = UDim2.fromOffset(54, 54),
+				TileSize = UDim2.fromOffset(108, 108),
 				ZIndex = 103,
 			},
 			Create "TextLabel" {

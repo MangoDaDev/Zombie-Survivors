@@ -4,10 +4,12 @@ local RunService = game:GetService("RunService")
 local ServerStorage = game:GetService("ServerStorage")
 
 local AbilityDefinitions = require(ReplicatedStorage.Modules.Game.Abilities.AbilityDefinitions)
+local ClassController = require(ServerStorage.Controllers.ClassController)
 local RageController = require(ServerStorage.Controllers.RageController)
 local ServerContext = require(ServerStorage.Controllers.ServerContext)
 local ZombieController = require(ServerStorage.Controllers.ZombieController)
 local CombatTargets = require(script.Parent.CombatTargets)
+local PassiveEffects = require(script.Parent.PassiveEffects)
 
 local ACTIVE_ABILITY_IDS = { "Fireball", "Lightning", "Boomerang" }
 local SCHEDULER_INTERVAL = 0.08
@@ -117,6 +119,8 @@ local function applyBurn(player: Player, definition, stats, targetId: number, ta
 		duration = stats.BurnDuration,
 		rage = stats.IsRage == true,
 	})
+	local slowMultiplier, slowDuration = ClassController.GetAfflictionSlow(player)
+	if slowMultiplier then ZombieController.SlowZombie(targetId, slowMultiplier, slowDuration) end
 end
 
 local function removeGroundAt(index: number)
@@ -207,10 +211,10 @@ local function explodeFireball(projectile, now: number)
 	addBurningGround(projectile.player, definition, stats, position, now)
 end
 
-local function chooseFireballTargets(origin: Vector3, definition, stats)
+local function chooseFireballTargets(origin: Vector3, definition, stats, rangeMultiplier: number)
 	local candidates = CombatTargets.GetNearestHostiles(
 		origin,
-		definition.Combat.Range,
+		definition.Combat.Range * rangeMultiplier,
 		definition.Combat.GroupSearchCandidates
 	)
 	if #candidates == 0 then
@@ -257,7 +261,9 @@ end
 local function attackFireball(player: Player, _runtime, stats, root: BasePart): boolean
 	local definition = AbilityDefinitions.ById.Fireball
 	local origin = root.Position + Vector3.new(0, 1.8, 0)
-	local targets = chooseFireballTargets(origin, definition, stats)
+	local rangeMultiplier = ClassController.GetProjectileRangeMultiplier(player)
+		* ClassController.GetStraightRangeMultiplier(player)
+	local targets = chooseFireballTargets(origin, definition, stats, rangeMultiplier)
 	if #targets == 0 then
 		return false
 	end
@@ -276,7 +282,7 @@ local function attackFireball(player: Player, _runtime, stats, root: BasePart): 
 				+ Vector3.new(centeredIndex * 2.1, definition.Rage.MeteorHeight, -centeredIndex * 1.4)
 		end
 		local offset = targetPosition - startPosition
-		local travelDistance = math.min(offset.Magnitude, definition.Combat.Range)
+		local travelDistance = math.min(offset.Magnitude, definition.Combat.Range * rangeMultiplier)
 		local direction = if offset.Magnitude > 0.001 then offset.Unit else root.CFrame.LookVector
 		local id = nextId()
 		local projectile = {
@@ -755,8 +761,12 @@ local function scheduleAttacks(now: number)
 				local level = data.Levels[abilityId] or 1
 				local rageActive = RageController.IsActive(player)
 				local stats = if rageActive then definition.GetRageStats(level) else definition.GetStats(level)
+				ClassController.ApplyWeaponStats(player, abilityId, stats)
+				stats = PassiveEffects.ModifyWeaponStats(player, abilityId, stats)
 				local attacked = root ~= nil and ATTACKERS[abilityId](player, runtime, stats, root)
-				runtime.nextAttackAt[abilityId] = now + (if attacked then stats.Cooldown else math.min(stats.Cooldown, 0.3))
+				runtime.nextAttackAt[abilityId] = now + (if attacked
+					then stats.Cooldown * PassiveEffects.GetCooldownMultiplier(player)
+					else math.min(stats.Cooldown, 0.3))
 			end
 		end
 	end

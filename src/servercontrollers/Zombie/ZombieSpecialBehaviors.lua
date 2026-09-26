@@ -10,8 +10,8 @@ local function setSpecialState(zombie, state, now, targetPosition, value)
 	zombie.specialState = state
 	zombie.specialStartedAt = now
 	local displayTarget = targetPosition or zombie.cframe.Position
-	-- Telegraphs are rendered on the area's floor rather than at HumanoidRootPart/pivot height.
-	zombie.specialTarget = Vector3.new(displayTarget.X, zombie.area.CFrame.Position.Y, displayTarget.Z)
+	-- Telegraphs are rendered on the arena floor rather than at HumanoidRootPart/pivot height.
+	zombie.specialTarget = Vector3.new(displayTarget.X, zombie.arena.GroundY, displayTarget.Z)
 	zombie.specialValue = value or 0
 end
 
@@ -30,6 +30,8 @@ local function moveToward(zombie, direction, distance, deltaTime, facing, stopDi
 		zombie.definition.MoveSpeed
 			* zombie.moveSpeedMultiplier
 			* zombie.statusMoveSpeedMultiplier
+			* zombie.specialMoveSpeedMultiplier
+			* zombie.buffMoveSpeedMultiplier
 			* (speedMultiplier or 1)
 			* deltaTime,
 		math.max(distance - stopDistance, 0)
@@ -158,7 +160,7 @@ local function stepSummoner(zombie, target, now)
 			for index = 1, amount do
 				local angle = math.pi * 2 * index / amount + zombie.services.Random:NextNumber(-0.35, 0.35)
 				local offset = Vector3.new(math.cos(angle), 0, math.sin(angle)) * config.SpawnRadius
-				zombie.services.QueueSpawn(config.SpawnType, zombie.cframe.Position + offset, zombie.area)
+				zombie.services.QueueSpawn(config.SpawnType, zombie.cframe.Position + offset, zombie.arena)
 			end
 			runtime.phase = nil
 			runtime.nextUseAt = now + config.Cooldown
@@ -200,7 +202,7 @@ function ZombieSpecialBehaviors.Tank.Step(zombie, _deltaTime, target, now, dista
 				Kind = "Shockwave",
 				Position = zombie.cframe.Position,
 				Radius = config.Radius,
-				Color = zombie.definition.TintColor,
+				Color = zombie.definition.EffectColor,
 			})
 			runtime.phase = nil
 			runtime.nextUseAt = now + config.Cooldown
@@ -282,7 +284,7 @@ function ZombieSpecialBehaviors.Shielder.ModifyDamage(zombie, amount, hitOrigin,
 		zombie.services.BroadcastAbility({
 			Kind = "Blocked",
 			Position = zombie.cframe.Position,
-			Color = zombie.definition.TintColor,
+			Color = zombie.definition.EffectColor,
 		})
 		return 0, true
 	end
@@ -304,7 +306,7 @@ function ZombieSpecialBehaviors.Bomber.Step(zombie, _deltaTime, target, now, dis
 				Kind = "Explosion",
 				Position = zombie.cframe.Position,
 				Radius = config.Radius,
-				Color = zombie.definition.TintColor,
+				Color = zombie.definition.EffectColor,
 			})
 			zombie.health = 0
 		end
@@ -358,8 +360,8 @@ function ZombieSpecialBehaviors.Splitter.OnDeath(zombie)
 	for index = 1, config.Count do
 		local angle = math.pi * 2 * index / config.Count
 		local offset = Vector3.new(math.cos(angle), 0, math.sin(angle)) * config.SpawnRadius
-		-- A splitter always becomes two children; this transform may exceed an area's population cap by one.
-		zombie.services.QueueSpawn(config.SpawnType, zombie.cframe.Position + offset, zombie.area, true)
+		-- A splitter always becomes two children beside its death position.
+		zombie.services.QueueSpawn(config.SpawnType, zombie.cframe.Position + offset, zombie.arena)
 	end
 end
 
@@ -384,7 +386,7 @@ function ZombieSpecialBehaviors.Burrower.Step(zombie, _deltaTime, target, now)
 		zombie.state = ZombieProtocol.State.Idle
 		if now >= runtime.phaseEndsAt then
 			zombie.cframe = CFrame.new(runtime.targetPosition) * zombie.cframe.Rotation
-			zombie:_constrainToArea()
+			zombie:_constrainToArena()
 			runtime.phase = "Emerging"
 			runtime.phaseEndsAt = now + config.EmergeDuration
 			setSpecialState(zombie, SpecialState.Active, now, zombie.cframe.Position, config.EmergeDuration)
@@ -455,7 +457,7 @@ function ZombieSpecialBehaviors.Medic.Step(zombie, _deltaTime, _target, now)
 			Kind = "Heal",
 			Position = zombie.cframe.Position,
 			Radius = config.Radius,
-			Color = zombie.definition.TintColor,
+			Color = zombie.definition.EffectColor,
 		})
 	elseif zombie.specialState == SpecialState.Pulse and now - zombie.specialStartedAt >= config.PulseDuration then
 		setSpecialState(zombie, SpecialState.None, now)
@@ -485,7 +487,7 @@ function ZombieSpecialBehaviors.Hardened.ModifyDamage(zombie, amount)
 		zombie.services.BroadcastAbility({
 			Kind = "ArmorBreak",
 			Position = zombie.cframe.Position,
-			Color = zombie.definition.TintColor,
+			Color = zombie.definition.EffectColor,
 		})
 	end
 	return amount - absorbed, true
@@ -509,13 +511,13 @@ function ZombieSpecialBehaviors.Dodger.ModifyDamage(zombie, amount, hitOrigin, d
 	local side = if zombie.services.Random:NextNumber() < 0.5 then -1 else 1
 	local sidestep = Vector3.new(-horizontal.Unit.Z, 0, horizontal.Unit.X) * config.Distance * side
 	zombie.cframe += sidestep
-	zombie:_constrainToArea()
+	zombie:_constrainToArena()
 	runtime.nextUseAt = now + config.Cooldown
 	beginSpecial(zombie, SpecialState.Dodge, now, zombie.cframe.Position, config.DisplayDuration)
 	zombie.services.BroadcastAbility({
 		Kind = "Dodge",
 		Position = zombie.cframe.Position,
-		Color = zombie.definition.TintColor,
+		Color = zombie.definition.EffectColor,
 	})
 	return 0, true
 end
@@ -525,6 +527,349 @@ function ZombieSpecialBehaviors.Dodger.Step(zombie, _deltaTime, _target, now)
 		setSpecialState(zombie, SpecialState.None, now)
 	end
 	return false
+end
+
+ZombieSpecialBehaviors.Sludger = {}
+
+function ZombieSpecialBehaviors.Sludger.OnDeath(zombie)
+	local config = zombie.definition.Special
+	zombie.services.CreateSlowHazard(
+		zombie.cframe.Position,
+		config.Radius,
+		config.Duration,
+		config.SlowMultiplier,
+		zombie.definition.EffectColor
+	)
+end
+
+ZombieSpecialBehaviors.Warden = {}
+
+function ZombieSpecialBehaviors.Warden.Step(zombie, _deltaTime, _target, now)
+	local config = zombie.definition.Special
+	local runtime = zombie.specialRuntime
+	if now < runtime.nextUseAt then
+		return false
+	end
+	runtime.nextUseAt = now + config.PulseInterval
+	zombie.services.BuffZombiesInRadius(
+		zombie.id,
+		zombie.cframe.Position,
+		config.Radius,
+		config.SpeedMultiplier,
+		config.DamageMultiplier,
+		config.BuffDuration
+	)
+	zombie.services.BroadcastAbility({
+		Kind = "WardenAura",
+		Position = zombie.cframe.Position,
+		Radius = config.Radius,
+		Color = zombie.definition.EffectColor,
+	})
+	return false
+end
+
+ZombieSpecialBehaviors.CorpseEater = {}
+
+function ZombieSpecialBehaviors.CorpseEater.Initialize(zombie)
+	zombie.specialRuntime.stacks = 0
+	zombie.specialRuntime.baseMoveSpeedMultiplier = zombie.moveSpeedMultiplier
+end
+
+function ZombieSpecialBehaviors.CorpseEater.OnNearbyDeath(zombie, position)
+	local config = zombie.definition.Special
+	local runtime = zombie.specialRuntime
+	if runtime.stacks >= config.MaxStacks or (zombie.cframe.Position - position).Magnitude > config.ConsumeRadius then
+		return
+	end
+	runtime.stacks += 1
+	zombie.maximumHealth += config.MaxHealthPerStack
+	zombie.health = math.min(zombie.health + config.HealPerStack + config.MaxHealthPerStack, zombie.maximumHealth)
+	zombie.moveSpeedMultiplier = runtime.baseMoveSpeedMultiplier * (1 + runtime.stacks * config.SpeedPerStack)
+	zombie.damageGrowthMultiplier = 1 + runtime.stacks * config.DamagePerStack
+	zombie.specialValue = runtime.stacks
+	zombie.services.BroadcastAbility({
+		Kind = "Feast",
+		Position = zombie.cframe.Position,
+		Radius = 4 + runtime.stacks * 0.35,
+		Color = zombie.definition.EffectColor,
+	})
+end
+
+ZombieSpecialBehaviors.Hexer = {}
+
+function ZombieSpecialBehaviors.Hexer.Step(zombie, deltaTime, target, now, distance, direction, facing)
+	local config = zombie.definition.Special
+	local runtime = zombie.specialRuntime
+	if runtime.phase == "Windup" then
+		zombie.state = ZombieProtocol.State.Attacking
+		zombie.cframe = CFrame.new(zombie.cframe.Position) * facing
+		if now >= runtime.phaseEndsAt then
+			zombie.services.DamagePlayersInRadius(zombie, runtime.targetPosition, config.Radius, config.Damage)
+			zombie.services.BroadcastAbility({
+				Kind = "HexBurst",
+				Position = runtime.targetPosition,
+				Radius = config.Radius,
+				Color = zombie.definition.EffectColor,
+			})
+			runtime.phase = nil
+			runtime.nextUseAt = now + config.Cooldown
+			setSpecialState(zombie, SpecialState.None, now)
+		end
+		return true
+	end
+	if target and distance >= config.MinimumRange and distance <= config.Range and now >= runtime.nextUseAt then
+		local velocity = target.velocity or Vector3.zero
+		local predicted = target.position + Vector3.new(velocity.X, 0, velocity.Z) * config.PredictionTime
+		runtime.targetPosition = Vector3.new(predicted.X, zombie.arena.GroundY, predicted.Z)
+		runtime.phase = "Windup"
+		runtime.phaseEndsAt = now + config.Windup
+		beginSpecial(zombie, SpecialState.Windup, now, runtime.targetPosition, config.Radius)
+		return true
+	end
+	if target and distance > config.Range * 0.82 then
+		moveToward(zombie, direction, distance, deltaTime, facing, config.Range * 0.72)
+		return true
+	end
+	return false
+end
+
+ZombieSpecialBehaviors.Anchor = {}
+
+function ZombieSpecialBehaviors.Anchor.Step(zombie, _deltaTime, target, now, distance)
+	local config = zombie.definition.Special
+	local runtime = zombie.specialRuntime
+	if not target or distance > config.Range then
+		return false
+	end
+	if now >= (runtime.nextRefreshAt or 0) then
+		runtime.nextRefreshAt = now + config.RefreshInterval
+		zombie.services.ApplyPlayerSlow(zombie, target.player, config.SlowMultiplier, config.EffectDuration)
+	end
+	if now >= (runtime.nextPulseAt or 0) then
+		runtime.nextPulseAt = now + config.PulseInterval
+		zombie.services.BroadcastAbility({
+			Kind = "AnchorTether",
+			Position = zombie.cframe.Position,
+			Radius = config.Range,
+			Color = zombie.definition.EffectColor,
+		})
+	end
+	return false
+end
+
+function ZombieSpecialBehaviors.Anchor.OnDeath(zombie)
+	zombie.services.ClearPlayerEffect(zombie)
+end
+
+ZombieSpecialBehaviors.Frostbite = {}
+
+function ZombieSpecialBehaviors.Frostbite.Step(zombie, _deltaTime, target, now, distance, direction, facing)
+	local config = zombie.definition.Special
+	local runtime = zombie.specialRuntime
+	if runtime.phase == "Windup" then
+		zombie.state = ZombieProtocol.State.Attacking
+		zombie.cframe = CFrame.new(zombie.cframe.Position) * CFrame.lookAt(Vector3.zero, runtime.castDirection).Rotation
+		if now >= runtime.phaseEndsAt then
+			zombie.services.SlowPlayersInCone(
+				zombie,
+				zombie.cframe.Position,
+				runtime.castDirection,
+				config.Range,
+				config.ArcDot,
+				config.SlowMultiplier,
+				config.SlowDuration
+			)
+			zombie.services.BroadcastAbility({
+				Kind = "FrostCone",
+				Position = zombie.cframe.Position + runtime.castDirection * (config.Range * 0.5),
+				Radius = config.Range * 0.55,
+				Color = zombie.definition.EffectColor,
+			})
+			runtime.phase = nil
+			runtime.nextUseAt = now + config.Cooldown
+			setSpecialState(zombie, SpecialState.None, now)
+		end
+		return true
+	end
+	if target and distance >= config.MinimumRange and distance <= config.Range and now >= runtime.nextUseAt then
+		runtime.castDirection = direction
+		runtime.phase = "Windup"
+		runtime.phaseEndsAt = now + config.Windup
+		beginSpecial(zombie, SpecialState.Windup, now, target.position, config.Windup)
+		return true
+	end
+	return false
+end
+
+ZombieSpecialBehaviors.Rallying = {}
+
+function ZombieSpecialBehaviors.Rallying.Step(zombie, _deltaTime, _target, now)
+	local config = zombie.definition.Special
+	local runtime = zombie.specialRuntime
+	if now < runtime.nextUseAt then
+		return false
+	end
+	runtime.nextUseAt = now + config.Cooldown
+	zombie.services.BuffZombiesInRadius(
+		zombie.id,
+		zombie.cframe.Position,
+		config.Radius,
+		config.SpeedMultiplier,
+		1,
+		config.Duration,
+		config.Types
+	)
+	zombie.services.BroadcastAbility({
+		Kind = "Rally",
+		Position = zombie.cframe.Position,
+		Radius = config.Radius,
+		Color = zombie.definition.EffectColor,
+	})
+	return false
+end
+
+ZombieSpecialBehaviors.Hoarder = {}
+
+function ZombieSpecialBehaviors.Hoarder.Initialize(zombie)
+	zombie.specialRuntime.stolenCoins = 0
+	zombie.specialRuntime.stolenXP = 0
+end
+
+function ZombieSpecialBehaviors.Hoarder.Step(zombie, _deltaTime, _target, now)
+	local config = zombie.definition.Special
+	local runtime = zombie.specialRuntime
+	if now < runtime.nextUseAt then
+		return false
+	end
+	runtime.nextUseAt = now + config.Interval
+	local coins, xp = zombie.services.StealRewards(
+		zombie.cframe.Position,
+		config.Radius,
+		config.MaximumDropsPerPulse
+	)
+	if coins + xp > 0 then
+		runtime.stolenCoins += coins
+		runtime.stolenXP += xp
+		zombie.specialValue = runtime.stolenCoins + runtime.stolenXP
+		zombie.services.BroadcastAbility({
+			Kind = "Steal",
+			Position = zombie.cframe.Position,
+			Radius = config.Radius,
+			Color = zombie.definition.EffectColor,
+		})
+	end
+	return false
+end
+
+function ZombieSpecialBehaviors.Hoarder.OnDeath(zombie)
+	local runtime = zombie.specialRuntime
+	zombie.services.ReleaseStolenRewards(
+		zombie.cframe.Position,
+		runtime.stolenCoins or 0,
+		runtime.stolenXP or 0,
+		zombie.lastDamager,
+		zombie.arena.GroundY
+	)
+end
+
+ZombieSpecialBehaviors.BroodPod = {}
+
+function ZombieSpecialBehaviors.BroodPod.Initialize(zombie)
+	local now = workspace:GetServerTimeNow()
+	local duration = zombie.definition.Special.HatchDelay
+	zombie.specialRuntime.phase = "Incubating"
+	zombie.specialRuntime.phaseEndsAt = now + duration
+	beginSpecial(zombie, SpecialState.Countdown, now, zombie.cframe.Position, duration)
+end
+
+function ZombieSpecialBehaviors.BroodPod.Step(zombie, _deltaTime, _target, now)
+	local config = zombie.definition.Special
+	local runtime = zombie.specialRuntime
+	zombie.state = ZombieProtocol.State.Idle
+	zombie.specialValue = math.max(runtime.phaseEndsAt - now, 0)
+	if runtime.phase == "Incubating" and now >= runtime.phaseEndsAt then
+		runtime.phase = "Hatched"
+		for index = 1, config.Count do
+			local angle = math.pi * 2 * index / config.Count
+			local offset = Vector3.new(math.cos(angle), 0, math.sin(angle)) * config.SpawnRadius
+			zombie.services.QueueSpawn(config.SpawnType, zombie.cframe.Position + offset, zombie.arena)
+		end
+		zombie.services.BroadcastAbility({
+			Kind = "Hatch",
+			Position = zombie.cframe.Position,
+			Radius = config.SpawnRadius,
+			Color = zombie.definition.EffectColor,
+		})
+		zombie.health = 0
+	end
+	return true
+end
+
+ZombieSpecialBehaviors.Martyr = {}
+
+function ZombieSpecialBehaviors.Martyr.OnDeath(zombie)
+	local config = zombie.definition.Special
+	zombie.services.BuffZombiesInRadius(
+		zombie.id,
+		zombie.cframe.Position,
+		config.Radius,
+		config.SpeedMultiplier,
+		config.DamageMultiplier,
+		config.Duration
+	)
+	zombie.services.BroadcastAbility({
+		Kind = "MartyrBuff",
+		Position = zombie.cframe.Position,
+		Radius = config.Radius,
+		Color = zombie.definition.EffectColor,
+	})
+end
+
+ZombieSpecialBehaviors.Stalker = {}
+
+function ZombieSpecialBehaviors.Stalker.Step(zombie, _deltaTime, target)
+	local config = zombie.definition.Special
+	if not target then
+		zombie.specialMoveSpeedMultiplier = 1
+		return false
+	end
+	local offset = zombie.cframe.Position - target.position
+	local horizontal = Vector3.new(offset.X, 0, offset.Z)
+	if horizontal.Magnitude <= 0.001 then
+		return false
+	end
+	local watched = target.lookVector:Dot(horizontal.Unit) >= config.WatchedDotThreshold
+	zombie.specialMoveSpeedMultiplier = if watched then config.WatchedSpeedMultiplier else config.UnwatchedSpeedMultiplier
+	return false
+end
+
+ZombieSpecialBehaviors.Juggernaut = {}
+
+function ZombieSpecialBehaviors.Juggernaut.Initialize(zombie)
+	zombie.specialRuntime.momentum = 0
+	zombie.specialRuntime.lastDamagedAt = 0
+end
+
+function ZombieSpecialBehaviors.Juggernaut.Step(zombie, deltaTime, target, now)
+	local config = zombie.definition.Special
+	local runtime = zombie.specialRuntime
+	if runtime.resetPending and now > runtime.lastDamagedAt then
+		runtime.resetPending = false
+		runtime.momentum = 0
+	elseif target and now >= runtime.lastDamagedAt + config.ResetDelay then
+		runtime.momentum = math.min(runtime.momentum + deltaTime / config.BuildTime, 1)
+	end
+	zombie.specialMoveSpeedMultiplier = 1 + (config.MaximumSpeedMultiplier - 1) * runtime.momentum
+	zombie.knockbackResistance = config.MaximumKnockbackResistance * runtime.momentum
+	zombie.specialValue = runtime.momentum
+	return false
+end
+
+function ZombieSpecialBehaviors.Juggernaut.ModifyDamage(zombie, amount, _hitOrigin, _damageContext, now)
+	local runtime = zombie.specialRuntime
+	runtime.lastDamagedAt = now
+	runtime.resetPending = true
+	return amount, false
 end
 
 return ZombieSpecialBehaviors

@@ -143,7 +143,7 @@ return function()
 				MaxSize = Vector2.new(520, 520),
 			},
 			create "UICorner" { CornerRadius = UDim.new(0, 10) },
-			StudTexture({ ZIndex = 403, ImageTransparency = 0.9, TileSize = UDim2.fromOffset(28, 28) }),
+			StudTexture({ ZIndex = 403, ImageTransparency = 0.9, TileSize = UDim2.fromOffset(56, 56) }),
 			create "UIStroke" {
 				ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
 				Color = Color3.fromRGB(113, 30, 35),
@@ -156,7 +156,7 @@ return function()
 				Size = UDim2.fromScale(1, 0.2),
 				ZIndex = 403,
 				create "UICorner" { CornerRadius = UDim.new(0, 10) },
-				StudTexture({ ZIndex = 404, ImageTransparency = 0.78, TileSize = UDim2.fromOffset(34, 34) }),
+				StudTexture({ ZIndex = 404, ImageTransparency = 0.78, TileSize = UDim2.fromOffset(68, 68) }),
 				create "TextLabel" {
 					BackgroundTransparency = 1,
 					FontFace = Font.new(UIStyle.Font.Family, Enum.FontWeight.Heavy),

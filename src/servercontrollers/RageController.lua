@@ -5,6 +5,8 @@ local Networker = require(ReplicatedStorage.Packages.networker)
 local Signal = require(ReplicatedStorage.Packages.signal)
 local RageConfig = require(ReplicatedStorage.Modules.Game.Rage.RageConfig)
 local ServerContext = require(script.Parent.ServerContext)
+local ClassController = require(script.Parent.ClassController)
+local GameReadyController = require(script.Parent.GameReadyController)
 
 type PlayerRuntime = {
 	active: boolean,
@@ -48,6 +50,7 @@ local function clearRage(player: Player, runtime: PlayerRuntime, chargeStartedAt
 	runtime.endsAt = 0
 	runtime.chargeStartedAt = chargeStartedAt or workspace:GetServerTimeNow()
 	runtime.bonusRestoreChargeStartedAt = nil
+	ClassController.ClearRageKillSpeed(player)
 	sendState(player, runtime)
 end
 
@@ -71,8 +74,8 @@ end
 
 function RageController.ActivateRage(_, player: Player)
 	local runtime = runtimes[player]
-	if not runtime or ServerContext.IsLobbyServer() then
-		-- Rage is a run mechanic and must never activate from a Lobby request.
+	if not runtime or ServerContext.IsLobbyServer() or not GameReadyController.IsStarted() then
+		-- Rage is a combat mechanic and must never activate from the Lobby or the in-game ready phase.
 		return
 	end
 
@@ -93,7 +96,7 @@ function RageController.ActivateRage(_, player: Player)
 
 	runtime.activationToken += 1
 	runtime.active = true
-	runtime.endsAt = now + RageConfig.Duration
+	runtime.endsAt = now + RageConfig.Duration + ClassController.GetRageDurationBonus(player)
 	runtime.bonusRestoreChargeStartedAt = nil
 	sendState(player, runtime)
 	activated:Fire(player)
@@ -104,12 +107,19 @@ function RageController.ActivateBonusRage(player: Player, duration: number?): (b
 	local runtime = runtimes[player]
 	local character = player.Character
 	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-	if not runtime or ServerContext.IsLobbyServer() or not humanoid or humanoid.Health <= 0 then
+	if
+		not runtime
+		or ServerContext.IsLobbyServer()
+		or not GameReadyController.IsStarted()
+		or not humanoid
+		or humanoid.Health <= 0
+	then
 		return false, nil
 	end
 
 	local now = workspace:GetServerTimeNow()
-	local bonusDuration = if type(duration) == "number" and duration > 0 then duration else RageConfig.Duration
+	local bonusDuration = if type(duration) == "number" and duration > 0
+		then duration else RageConfig.Duration + ClassController.GetRageDurationBonus(player)
 	local wasActive = runtime.active and now < runtime.endsAt
 	if runtime.active and not wasActive then
 		-- Reconcile a just-expired timer before preserving charge for the canister.
@@ -127,7 +137,8 @@ function RageController.ActivateBonusRage(player: Player, duration: number?): (b
 
 	runtime.activationToken += 1
 	runtime.active = true
-	runtime.endsAt = math.min(math.max(now, runtime.endsAt) + bonusDuration, now + RageConfig.Duration * 2)
+	runtime.endsAt = math.min(math.max(now, runtime.endsAt) + bonusDuration,
+		now + (RageConfig.Duration + ClassController.GetRageDurationBonus(player)) * 2)
 	sendState(player, runtime)
 	if not wasActive then
 		activated:Fire(player)
@@ -151,6 +162,12 @@ function RageController.Init()
 	rageNetwork = Networker.server.new("RageController", RageController, {
 		RageController.ActivateRage,
 	})
+	GameReadyController.GetStartedSignal():Connect(function(startedAt)
+		for player, runtime in runtimes do
+			-- The Rage clock begins with combat, not while players are deciding whether to ready up.
+			clearRage(player, runtime, startedAt)
+		end
+	end)
 end
 
 function RageController.OnPlayerAdded(player: Player)

@@ -1,9 +1,19 @@
 local ServerStorage = game:GetService("ServerStorage")
 
 local BreakableController = require(ServerStorage.Controllers.BreakableController)
+local ClassController = require(ServerStorage.Controllers.ClassController)
 local ZombieController = require(ServerStorage.Controllers.ZombieController)
 
 local CombatTargets = {}
+local hitModifier
+local hitResolved
+
+function CombatTargets.SetHitCallbacks(modifier, resolved)
+	-- Passive hooks are installed during AbilityController initialization without making targeting
+	-- depend on PassiveEffects at require time (PassiveEffects itself uses CombatTargets).
+	hitModifier = modifier
+	hitResolved = resolved
+end
 
 local function addIdentity(candidate, kind: string)
 	candidate.kind = kind
@@ -60,13 +70,27 @@ function CombatTargets.DamageTarget(target, amount: number, hitOrigin: Vector3?,
 	if type(target) ~= "table" or type(target.id) ~= "number" then
 		return false, false
 	end
+	local critical = false
+	if hitModifier and type(damageContext) == "table" and damageContext.canApplyHitPassives == true then
+		amount, knockbackImpulse, critical = hitModifier(target, amount, knockbackImpulse or 0, damageContext)
+	end
+	local damaged, killed
 	if target.kind == "Breakable" then
-		return BreakableController.DamageBreakable(target.id, amount, hitOrigin, knockbackImpulse)
+		local owner = type(damageContext) == "table" and damageContext.player
+		if typeof(owner) == "Instance" and owner:IsA("Player") then
+			amount *= ClassController.GetWeaponDamageMultiplier(owner)
+		end
+		damaged, killed = BreakableController.DamageBreakable(target.id, amount, hitOrigin, knockbackImpulse,
+			type(damageContext) == "table" and damageContext.player or nil)
+	elseif target.kind == "Zombie" then
+		damaged, killed = ZombieController.DamageZombie(target.id, amount, hitOrigin, knockbackImpulse, damageContext)
+	else
+		return false, false
 	end
-	if target.kind == "Zombie" then
-		return ZombieController.DamageZombie(target.id, amount, hitOrigin, knockbackImpulse, damageContext)
+	if damaged and hitResolved then
+		hitResolved(target, critical, damageContext)
 	end
-	return false, false
+	return damaged, killed
 end
 
 return CombatTargets

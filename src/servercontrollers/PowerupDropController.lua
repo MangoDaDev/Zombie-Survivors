@@ -5,6 +5,7 @@ local ServerStorage = game:GetService("ServerStorage")
 
 local Networker = require(ReplicatedStorage.Packages.networker)
 local PowerupConfig = require(ReplicatedStorage.Modules.Game.PowerupConfig)
+local ClassController = require(ServerStorage.Controllers.ClassController)
 local CoinDropController = require(ServerStorage.Controllers.CoinDropController)
 local PlayerStateController = require(ServerStorage.Controllers.PlayerStateController)
 local RageController = require(ServerStorage.Controllers.RageController)
@@ -87,14 +88,19 @@ local function activatePowerup(player: Player, powerupId: string, position: Vect
 	local root = character and character:FindFirstChild("HumanoidRootPart")
 	local effectPosition = if root and root:IsA("BasePart") then root.Position else position
 	if powerupId == "CookedChicken" then
-		humanoid.Health = humanoid.MaxHealth
+		local missingHealth = humanoid.MaxHealth - humanoid.Health
+		humanoid.Health = math.min(humanoid.Health + missingHealth * ClassController.GetHealingReceivedMultiplier(player), humanoid.MaxHealth)
 		return 0
 	elseif powerupId == "RageCanister" then
 		local _, endsAt = RageController.ActivateBonusRage(player)
 		return endsAt or 0
 	elseif powerupId == "Bomb" then
 		local config = PowerupConfig.Bomb
-		for _, target in ZombieController.GetZombiesInRadius(effectPosition, config.Radius, config.MaximumTargets) do
+		for _, target in ZombieController.GetZombiesInRadius(
+			effectPosition,
+			config.Radius * ClassController.GetBombRadiusMultiplier(player),
+			config.MaximumTargets
+		) do
 			ZombieController.DamageZombie(target.id, config.Damage, effectPosition, config.Knockback, {
 				player = player,
 				source = "PowerupBomb",
@@ -193,7 +199,7 @@ local function start()
 	end
 end
 
-function PowerupDropController.Spawn(position: Vector3, landingY: number?)
+function PowerupDropController.Spawn(position: Vector3, landingY: number?, owner: Player?)
 	if not ServerContext.IsGameServer() or typeof(position) ~= "Vector3" then
 		return
 	end
@@ -229,7 +235,8 @@ function PowerupDropController.Spawn(position: Vector3, landingY: number?)
 		powerupId = choosePowerupId(),
 		position = targetPosition,
 		collectibleAt = now + duration * 0.72,
-		despawnAt = now + PowerupConfig.Lifetime,
+		-- Scavenger's extra time belongs only to powerups dropped from their own breakable kill.
+		despawnAt = now + PowerupConfig.Lifetime + (if owner then ClassController.GetPowerupLifetimeBonus(owner) else 0),
 	}
 	drops[drop.id] = drop
 	powerupNetwork:fireAll("SpawnPowerup", {

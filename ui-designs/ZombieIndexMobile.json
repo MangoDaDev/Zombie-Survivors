@@ -1,0 +1,50 @@
+{
+  "pinevex_object": {
+    "type": "Frame", "name": "Preview", "size": [1, 0, 1, 0], "bg": [12, 18, 27],
+    "children": [
+      { "type": "Frame", "name": "Dim", "size": [1, 0, 1, 0], "bg": [2, 8, 14], "bgTransparency": 0.16 },
+      { "type": "Frame", "name": "Panel", "size": [1, -16, 1, -28], "position": [0.5, 0, 0.5, 0], "anchor": [0.5, 0.5], "bg": [3, 18, 30], "strokes": [{ "thickness": 3, "color": [0, 184, 219], "applyMode": "Border" }], "children": [
+        { "type": "Frame", "name": "Header", "size": [1, -76, 0, 72], "position": [0, 12, 0, 12], "bg": [15, 164, 202], "gradient": { "rotation": 90, "colors": [[0, "#1CDDEE"], [1, "#1F6FAC"]], "transparency": [[0, 0], [1, 0]] }, "children": [
+          { "type": "TextLabel", "name": "Title", "size": [0.58, 0, 0, 34], "position": [0, 10, 0, 7], "bgTransparency": 1, "text": "ZOMBIE INDEX", "textColor": [255, 255, 255], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Heavy" },
+          { "type": "TextLabel", "name": "Progress", "size": [0, 106, 0, 34], "position": [1, -8, 0.5, 0], "anchor": [1, 0.5], "bg": [6, 53, 75], "text": "8 / 31", "textColor": [184, 242, 250], "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy" }
+        ] },
+        { "type": "TextButton", "name": "Close", "size": [0, 52, 0, 72], "position": [1, -12, 0, 12], "anchor": [1, 0], "bg": [218, 75, 75], "text": "X", "textColor": [255, 255, 255], "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy" },
+        { "type": "Frame", "name": "Catalog", "size": [1, -24, 0.54, -58], "position": [0, 12, 0, 96], "bg": [7, 32, 48], "strokes": [{ "thickness": 2, "color": [0, 120, 148], "applyMode": "Border" }], "children": [
+          { "type": "Frame", "name": "Walker", "size": [0, 170, 0, 174], "position": [0, 8, 0, 8], "bg": [27, 69, 39], "strokes": [{ "thickness": 4, "color": [255, 232, 135], "applyMode": "Border" }], "children": [
+            { "type": "Frame", "name": "Portrait", "size": [1, -14, 0, 88], "position": [0, 7, 0, 7], "bg": [25, 67, 36] },
+            { "type": "TextLabel", "name": "Name", "size": [1, -16, 0, 22], "position": [0, 8, 0, 98], "bgTransparency": 1, "text": "WALKER", "textColor": [255, 255, 255], "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy" },
+            { "type": "TextLabel", "name": "Kills", "size": [1, -16, 0, 16], "position": [0, 8, 0, 121], "bgTransparency": 1, "text": "KILLS  143", "textColor": [177, 222, 164], "textScaled": true, "font": "Ubuntu", "fontWeight": "Bold" },
+            { "type": "TextButton", "name": "Claimed", "size": [1, -14, 0, 27], "position": [0.5, 0, 1, -7], "anchor": [0.5, 1], "bg": [163, 163, 163], "text": "CLAIMED", "textColor": [255, 255, 255], "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy" }
+          ] },
+          { "type": "Frame", "name": "Spitter", "size": [0, 170, 0, 174], "position": [1, -8, 0, 8], "anchor": [1, 0], "bg": [34, 82, 28], "strokes": [{ "thickness": 2, "color": [159, 235, 110], "applyMode": "Border" }], "children": [
+            { "type": "Frame", "name": "Portrait", "size": [1, -14, 0, 88], "position": [0, 7, 0, 7], "bg": [36, 91, 27] },
+            { "type": "TextLabel", "name": "Name", "size": [1, -16, 0, 22], "position": [0, 8, 0, 98], "bgTransparency": 1, "text": "SPITTER", "textColor": [255, 255, 255], "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy" },
+            { "type": "TextLabel", "name": "Kills", "size": [1, -16, 0, 16], "position": [0, 8, 0, 121], "bgTransparency": 1, "text": "KILLS  12", "textColor": [196, 244, 164], "textScaled": true, "font": "Ubuntu", "fontWeight": "Bold" },
+            { "type": "TextButton", "name": "Claim", "size": [1, -14, 0, 27], "position": [0.5, 0, 1, -7], "anchor": [0.5, 1], "bg": [241, 180, 67], "text": "CLAIM  +35", "textColor": [255, 255, 255], "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy" }
+          ] },
+          { "type": "Frame", "name": "Unknown1", "size": [0, 170, 0, 174], "position": [0, 8, 0, 189], "bg": [25, 34, 42], "strokes": [{ "thickness": 2, "color": [78, 91, 101], "applyMode": "Border" }], "children": [
+            { "type": "ImageLabel", "name": "Lock", "size": [0, 48, 0, 64], "position": [0.5, 0, 0, 18], "anchor": [0.5, 0], "bgTransparency": 1, "icon": "rbxassetid://18209587260" },
+            { "type": "TextLabel", "name": "Name", "size": [1, -16, 0, 22], "position": [0, 8, 0, 98], "bgTransparency": 1, "text": "???", "textColor": [146, 153, 159], "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy" },
+            { "type": "TextLabel", "name": "State", "size": [1, -16, 0, 16], "position": [0, 8, 0, 121], "bgTransparency": 1, "text": "UNDISCOVERED", "textColor": [105, 114, 122], "textScaled": true, "font": "Ubuntu", "fontWeight": "Bold" }
+          ] },
+          { "type": "Frame", "name": "Unknown2", "size": [0, 170, 0, 174], "position": [1, -8, 0, 189], "anchor": [1, 0], "bg": [25, 34, 42], "strokes": [{ "thickness": 2, "color": [78, 91, 101], "applyMode": "Border" }], "children": [
+            { "type": "ImageLabel", "name": "Lock", "size": [0, 48, 0, 64], "position": [0.5, 0, 0, 18], "anchor": [0.5, 0], "bgTransparency": 1, "icon": "rbxassetid://18209587260" },
+            { "type": "TextLabel", "name": "Name", "size": [1, -16, 0, 22], "position": [0, 8, 0, 98], "bgTransparency": 1, "text": "???", "textColor": [146, 153, 159], "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy" },
+            { "type": "TextLabel", "name": "State", "size": [1, -16, 0, 16], "position": [0, 8, 0, 121], "bgTransparency": 1, "text": "UNDISCOVERED", "textColor": [105, 114, 122], "textScaled": true, "font": "Ubuntu", "fontWeight": "Bold" }
+          ] }
+        ] },
+        { "type": "Frame", "name": "Details", "size": [1, -24, 0.46, -60], "position": [0, 12, 0.54, 48], "bg": [238, 245, 248], "strokes": [{ "thickness": 2, "color": [96, 145, 171], "applyMode": "Border" }], "children": [
+          { "type": "Frame", "name": "Portrait", "size": [0, 78, 0, 78], "position": [0, 12, 0, 12], "bg": [25, 67, 36], "strokes": [{ "thickness": 2, "color": [93, 158, 65], "applyMode": "Border" }] },
+          { "type": "TextLabel", "name": "ZombieName", "size": [1, -116, 0, 26], "position": [0, 104, 0, 10], "bgTransparency": 1, "text": "WALKER", "textColor": [39, 104, 57], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Heavy" },
+          { "type": "TextLabel", "name": "Description", "size": [1, -116, 0, 50], "position": [0, 104, 0, 42], "bgTransparency": 1, "text": "A basic zombie that steadily chases the nearest survivor.", "textColor": [24, 41, 52], "textScaled": true, "textWrapped": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Regular" },
+          { "type": "Frame", "name": "Stats", "size": [1, -24, 0, 28], "position": [0, 12, 0, 101], "bg": [211, 228, 235], "children": [
+            { "type": "TextLabel", "name": "StatsText", "size": [1, -20, 1, -12], "position": [0, 10, 0, 6], "bgTransparency": 1, "text": "THREAT 1  |  100 HEALTH  |  143 KILLS", "textColor": [34, 78, 96], "textScaled": true, "textWrapped": true, "font": "Ubuntu", "fontWeight": "Bold" }
+          ] },
+          { "type": "TextButton", "name": "Action", "size": [1, -24, 0, 36], "position": [0.5, 0, 1, -8], "anchor": [0.5, 1], "bg": [163, 163, 163], "text": "REWARD CLAIMED", "textColor": [255, 255, 255], "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy" }
+        ] }
+      ] }
+    ]
+  },
+  "viewport_size": [390, 667],
+  "transparent_background": false
+}

@@ -12,23 +12,25 @@ local MAXIMUM_KNOCKBACK_SPEED = 28
 local Zombie = {}
 Zombie.__index = Zombie
 
-function Zombie.new(id, typeName, definition, spawnCFrame, area, variation, boundaryRadius, services)
+function Zombie.new(id, typeName, definition, spawnCFrame, arena, variation, boundaryRadius, services)
 	local self = setmetatable({}, Zombie)
 
 	self.id = id
 	self.typeName = typeName
 	self.definition = definition
-	self.areaId = area.Id
-	self.area = area
+	self.arena = arena
 	self.cframe = spawnCFrame
-	local healthMultiplier = if type(area.HealthMultiplier) == "number" and area.HealthMultiplier > 0
-		then area.HealthMultiplier
-		else 1
-	self.maximumHealth = math.max(1, math.floor(definition.MaxHealth * healthMultiplier + 0.5))
+	self.maximumHealth = math.max(1, math.floor(definition.MaxHealth + 0.5))
 	self.health = self.maximumHealth
 	self.scale = variation.Scale
 	self.moveSpeedMultiplier = variation.MoveSpeed
 	self.statusMoveSpeedMultiplier = 1
+	self.specialMoveSpeedMultiplier = 1
+	self.buffMoveSpeedMultiplier = 1
+	self.buffDamageMultiplier = 1
+	self.buffEndsAt = 0
+	self.damageGrowthMultiplier = 1
+	self.knockbackResistance = 0
 	self.slowEndsAt = 0
 	self.turnSpeedMultiplier = variation.TurnSpeed
 	self.animationSpeedMultiplier = variation.AnimationSpeed
@@ -78,7 +80,10 @@ function Zombie:DamagePlayer(targetCandidate, amount)
 	end
 	-- All zombie damage, including special abilities, is intentionally reduced to one third while
 	-- their much larger reach and higher speed create sustained pressure through frequent contact.
-	amount *= self.definition.DamageMultiplier or 1
+	amount *= (self.definition.DamageMultiplier or 1) * self.buffDamageMultiplier * self.damageGrowthMultiplier
+	if self.services.GetPlayerDamageMultiplier then
+		amount *= self.services.GetPlayerDamageMultiplier(targetCandidate)
+	end
 	local healthBefore = targetCandidate.humanoid.Health
 	targetCandidate.humanoid:TakeDamage(amount)
 	local actualDamage = math.max(healthBefore - targetCandidate.humanoid.Health, 0)
@@ -92,13 +97,11 @@ local function getHorizontalOffset(fromPosition, toPosition)
 	return Vector3.new(toPosition.X - fromPosition.X, 0, toPosition.Z - fromPosition.Z)
 end
 
-function Zombie:_constrainToArea()
-	local area = self.area
-	local movementCFrame = area.MovementCFrame or area.CFrame
-	local movementSize = area.MovementSize or area.Size
+function Zombie:_constrainToArena()
+	local movementCFrame = self.arena.CFrame
+	local movementSize = self.arena.Size
 	local localPosition = movementCFrame:PointToObjectSpace(self.cframe.Position)
-	-- Spawn regions may be smaller than their walkable floor. Clamp the complete rendered model to
-	-- the explicit movement bounds so progression seams never behave like invisible physical walls.
+	-- Clamp the complete rendered model to the single authored combat floor.
 	local margin = self.boundaryRadius
 	local halfSize = movementSize * 0.5
 	local clampedLocalPosition = Vector3.new(
@@ -148,6 +151,10 @@ function Zombie:Step(deltaTime, candidates, candidateLookup, now)
 		self.statusMoveSpeedMultiplier = 1
 		self.slowEndsAt = 0
 	end
+	if now >= self.buffEndsAt then
+		self.buffMoveSpeedMultiplier = 1
+		self.buffDamageMultiplier = 1
+	end
 
 	-- Damage applies an impulse to this server-owned CFrame simulation instead of relying on client
 	-- physics. The fast exponential decay produces a readable shove without permanently kiting enemies.
@@ -157,7 +164,7 @@ function Zombie:Step(deltaTime, candidates, candidateLookup, now)
 	else
 		self.knockbackVelocity = Vector3.zero
 	end
-	self:_constrainToArea()
+	self:_constrainToArena()
 
 	local targetCandidate = self.target and candidateLookup[self.target]
 	if now >= self.nextTargetRefreshAt or not targetCandidate then
@@ -177,7 +184,7 @@ function Zombie:Step(deltaTime, candidates, candidateLookup, now)
 				candidates
 			)
 			if consumed then
-				self:_constrainToArea()
+				self:_constrainToArena()
 				return
 			end
 		end
@@ -210,7 +217,7 @@ function Zombie:Step(deltaTime, candidates, candidateLookup, now)
 			candidates
 		)
 		if consumed then
-			self:_constrainToArea()
+			self:_constrainToArena()
 			return
 		end
 	end
@@ -230,7 +237,7 @@ function Zombie:Step(deltaTime, candidates, candidateLookup, now)
 
 	-- The authoritative enemy has no physics body; its complete movement state is a CFrame.
 	self.movementBehavior(self, direction, distance, deltaTime, facing)
-	self:_constrainToArea()
+	self:_constrainToArena()
 	self.state = ZombieProtocol.State.Moving
 end
 
@@ -256,7 +263,7 @@ function Zombie:TakeDamage(amount, hitOrigin, knockbackImpulse, damageContext, n
 		local offset = self.cframe.Position - hitOrigin
 		local horizontalOffset = Vector3.new(offset.X, 0, offset.Z)
 		if horizontalOffset.Magnitude > 0.001 then
-			self.knockbackVelocity += horizontalOffset.Unit * knockbackImpulse
+			self.knockbackVelocity += horizontalOffset.Unit * knockbackImpulse * (1 - self.knockbackResistance)
 			if self.knockbackVelocity.Magnitude > MAXIMUM_KNOCKBACK_SPEED then
 				self.knockbackVelocity = self.knockbackVelocity.Unit * MAXIMUM_KNOCKBACK_SPEED
 			end
@@ -289,6 +296,22 @@ function Zombie:ApplySlow(moveSpeedMultiplier: number, endsAt: number)
 	self.slowEndsAt = math.max(self.slowEndsAt, endsAt)
 end
 
+function Zombie:ApplyBuff(moveSpeedMultiplier: number, damageMultiplier: number, endsAt: number)
+	if type(moveSpeedMultiplier) ~= "number" or type(damageMultiplier) ~= "number" or type(endsAt) ~= "number" then
+		return
+	end
+	-- Refreshable aura buffs use the strongest active values without multiplying overlapping supports.
+	self.buffMoveSpeedMultiplier = math.max(self.buffMoveSpeedMultiplier, moveSpeedMultiplier)
+	self.buffDamageMultiplier = math.max(self.buffDamageMultiplier, damageMultiplier)
+	self.buffEndsAt = math.max(self.buffEndsAt, endsAt)
+end
+
+function Zombie:OnNearbyDeath(position: Vector3)
+	if self.specialBehavior and self.specialBehavior.OnNearbyDeath then
+		self.specialBehavior.OnNearbyDeath(self, position)
+	end
+end
+
 function Zombie:OnDeath()
 	if self.specialBehavior and self.specialBehavior.OnDeath then
 		self.specialBehavior.OnDeath(self)
@@ -298,7 +321,7 @@ end
 function Zombie:ApplySeparation(displacement)
 	-- Separation remains CFrame-only and never creates a physical zombie assembly.
 	self.cframe += displacement
-	self:_constrainToArea()
+	self:_constrainToArena()
 end
 
 function Zombie:GetSpawnPacket()

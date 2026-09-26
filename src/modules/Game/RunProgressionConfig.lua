@@ -44,11 +44,17 @@ local RunProgressionConfig = {
 		-- Permanent ownership is the authoritative gate for new run choices. Keep this escape hatch empty
 		-- unless a future global event deliberately makes an ability available without unlocking it.
 		AlwaysAvailable = {},
-		StartingAbilities = { "Dagger" },
 	},
 
 	Spawning = {
 		-- The main combat floor is 300x300, so groups should enter from meaningfully beyond immediate attack range.
+		BaseSpawnInterval = 1.5,
+		BaseGroupSize = NumberRange.new(1, 2),
+		-- Begin at less than half the normal cadence, then restore the existing pressure curve after two
+		-- minutes so players have time to earn their first upgrades without weakening the later run.
+		OpeningRampDuration = 120,
+		OpeningSpawnIntervalMultiplier = 2.25,
+		GroupRadius = 12,
 		MinimumDistance = 45,
 		PreferredDistance = NumberRange.new(48, 72),
 		AttemptsPerGroup = 24,
@@ -63,8 +69,8 @@ local RunProgressionConfig = {
 		SurroundSectorAdvance = 3,
 		SurroundSpawnJitterDegrees = 12,
 		DirectedSpawnAttemptFraction = 0.6,
-		-- Difficulty never caps: each five-minute step adds cadence pressure, larger hordes, and a
-		-- stronger bias toward the highest-threat zombie types available in the current area.
+		-- Difficulty never caps: each five-minute step adds cadence pressure and larger hordes. Individual
+		-- zombie definitions also unlock and gain weight from elapsed survival time across the one arena.
 		DifficultyStepSeconds = 300,
 		SpawnRateIncreasePerStep = 2,
 		GroupSizeBonusPerStep = 3,

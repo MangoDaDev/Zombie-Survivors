@@ -6,6 +6,7 @@ local ServerStorage = game:GetService("ServerStorage")
 local Networker = require(ReplicatedStorage.Packages.networker)
 local Signal = require(ReplicatedStorage.Packages.signal)
 local CoinDropConfig = require(ReplicatedStorage.Modules.Game.CoinDropConfig)
+local ClassController = require(ServerStorage.Controllers.ClassController)
 local RunProgressionConfig = require(ReplicatedStorage.Modules.Game.RunProgressionConfig)
 local BackpackController = require(ServerStorage.Controllers.BackpackController)
 local CoinsController = require(ServerStorage.Controllers.CoinsController)
@@ -289,6 +290,40 @@ local function finishCollections(now: number)
 	end
 end
 
+function CoinDropController.StealNearest(position: Vector3, radius: number, maximumCount: number): number
+	if typeof(position) ~= "Vector3" or type(radius) ~= "number" or type(maximumCount) ~= "number" then
+		return 0
+	end
+	local candidates = {}
+	for id, coin in coins do
+		if not coin.collectingPlayer then
+			local distance = (coin.position - position).Magnitude
+			if distance <= radius then
+				table.insert(candidates, { id = id, distance = distance })
+			end
+		end
+	end
+	table.sort(candidates, function(left, right)
+		return left.distance < right.distance
+	end)
+	local stolenValue = 0
+	local removedIds = {}
+	for index = 1, math.min(#candidates, math.max(math.floor(maximumCount), 0)) do
+		local id = candidates[index].id
+		local coin = coins[id]
+		if coin then
+			stolenValue += coin.value
+			coins[id] = nil
+			activeCount = math.max(activeCount - 1, 0)
+			table.insert(removedIds, id)
+		end
+	end
+	if #removedIds > 0 then
+		coinNetwork:fireAll("DespawnCoins", removedIds)
+	end
+	return stolenValue
+end
+
 function CoinDropController.GetCoinCollectedSignal()
 	return coinCollected
 end
@@ -363,7 +398,8 @@ function CoinDropController.RequestCollect(_, player: Player, ids)
 			or now < coin.collectibleAt
 			or not canCollect(coin, player)
 			or (root.Position - coin.position).Magnitude
-				> CoinDropConfig.MagnetRadius + CLIENT_CLAIM_DISTANCE_TOLERANCE
+				> CoinDropConfig.MagnetRadius * ClassController.GetCoinPickupMagnetMultiplier(player)
+					+ CLIENT_CLAIM_DISTANCE_TOLERANCE
 		then
 			-- Reconcile rejected and contested predictions instead of leaving their local animation stuck.
 			sendAuthoritativeCoinState(player, id, coin, now)
@@ -387,10 +423,11 @@ local function startCollections(now: number)
 			continue
 		end
 		local nearestPlayer
-		local nearestDistance = CoinDropConfig.MagnetRadius
+		local nearestDistance = math.huge
 		for _, candidate in candidates do
 			local distance = (candidate.position - coin.position).Magnitude
-			if canCollect(coin, candidate.player) and distance <= nearestDistance then
+			local magnetRadius = CoinDropConfig.MagnetRadius * ClassController.GetCoinPickupMagnetMultiplier(candidate.player)
+			if canCollect(coin, candidate.player) and distance <= magnetRadius and distance <= nearestDistance then
 				nearestDistance = distance
 				nearestPlayer = candidate.player
 			end

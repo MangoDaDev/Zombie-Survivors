@@ -2,6 +2,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Button = require(script.Parent.Parent.Classes.Button)
+local StudTexture = require(script.Parent.Parent.Classes.StudTexture)
 local AbilityController = require(ReplicatedStorage.Controllers.AbilityController)
 local CoinsController = require(ReplicatedStorage.Controllers.CoinsController)
 local RunProgressionController = require(ReplicatedStorage.Controllers.RunProgressionController)
@@ -36,19 +37,6 @@ local function textStroke(color: Color3?, thickness: number?)
 		Color = color or Color3.fromRGB(0, 12, 22),
 		StrokeSizingMode = Enum.StrokeSizingMode.ScaledSize,
 		Thickness = thickness or 0.055,
-	}
-end
-
-local function studTexture(zIndex: number, transparency: number?)
-	return create "ImageLabel" {
-		Name = "StudTexture",
-		BackgroundTransparency = 1,
-		Image = UIStyle.StudTexture,
-		ImageTransparency = transparency or 0.86,
-		ScaleType = Enum.ScaleType.Tile,
-		Size = UDim2.fromScale(1, 1),
-		TileSize = UDim2.fromOffset(52, 52),
-		ZIndex = zIndex,
 	}
 end
 
@@ -112,6 +100,7 @@ local function abilityCard(ability, order: number, props)
 		end,
 		ZIndex = 325,
 		create "UIScale" { Scale = scale },
+		StudTexture({ ZIndex = 325, ImageTransparency = 0.9, TileSize = UDim2.fromOffset(56, 56) }),
 		create "UIStroke" {
 			ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
 			Color = function()
@@ -176,6 +165,7 @@ local function abilityCard(ability, order: number, props)
 			Size = UDim2.fromOffset(98, 30),
 			Visible = owned,
 			ZIndex = 328,
+			StudTexture({ ZIndex = 328, ImageTransparency = 0.88, TileSize = UDim2.fromOffset(40, 40) }),
 			create "UIStroke" { Color = Color3.fromRGB(14, 70, 37), Thickness = 2 },
 			create "TextLabel" {
 				BackgroundTransparency = 1,
@@ -199,6 +189,7 @@ local function abilityCard(ability, order: number, props)
 				return not owned()
 			end,
 			ZIndex = 328,
+			StudTexture({ ZIndex = 328, ImageTransparency = 0.9, TileSize = UDim2.fromOffset(40, 40) }),
 			create "UIStroke" { Color = Color3.fromRGB(210, 157, 47), Thickness = 2 },
 			create "ImageLabel" {
 				AnchorPoint = Vector2.new(0, 0.5),
@@ -459,6 +450,8 @@ return function()
 					return UDim2.new(0.78, 40, 0.82, 30)
 				end,
 				ZIndex = 305,
+				-- Every filled menu surface uses the shared stud layer; light content panels tint it dark below.
+				StudTexture({ ZIndex = 306, ImageTransparency = 0.92, TileSize = UDim2.fromOffset(76, 76) }),
 				create "UISizeConstraint" {
 					MaxSize = function()
 						return if portrait() then Vector2.new(420, 880) else Vector2.new(980, 620)
@@ -480,7 +473,7 @@ return function()
 						Rotation = 90,
 					},
 					create "UIStroke" { ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Color = Color3.fromRGB(69, 229, 249), Thickness = 2 },
-					studTexture(311, 0.82),
+					StudTexture({ ZIndex = 311, ImageTransparency = 0.82, TileSize = UDim2.fromOffset(104, 104) }),
 					create "TextLabel" {
 						Name = "Title",
 						BackgroundTransparency = 1,
@@ -525,6 +518,7 @@ return function()
 							return if portrait() then UDim2.new(1, -20, 0, 24) else UDim2.fromOffset(174, 50)
 						end,
 						ZIndex = 313,
+						StudTexture({ ZIndex = 313, ImageTransparency = 0.9, TileSize = UDim2.fromOffset(48, 48) }),
 						create "UIStroke" { Color = Color3.fromRGB(218, 164, 55), Thickness = 2 },
 						create "ImageLabel" {
 							AnchorPoint = Vector2.new(0, 0.5),
@@ -613,6 +607,7 @@ return function()
 						return UDim2.new(0.41, -18, 1, -(contentTop() + 12))
 					end,
 					ZIndex = 320,
+					StudTexture({ ZIndex = 321, ImageTransparency = 0.93, TileSize = UDim2.fromOffset(60, 60) }),
 					create "UIStroke" { ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Color = Color3.fromRGB(0, 120, 148), Thickness = 2 },
 					create "UIPadding" {
 						PaddingBottom = UDim.new(0, 8),
@@ -640,6 +635,12 @@ return function()
 						return UDim2.new(0.59, -14, 1, -(contentTop() + 12))
 					end,
 					ZIndex = 320,
+					StudTexture({
+						ZIndex = 321,
+						ImageColor3 = INK,
+						ImageTransparency = 0.96,
+						TileSize = UDim2.fromOffset(68, 68),
+					}),
 					create "UIStroke" { ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Color = Color3.fromRGB(96, 145, 171), Thickness = 2 },
 					create "Frame" {
 						Name = "Preview",
@@ -768,6 +769,12 @@ return function()
 							)
 						end,
 						ZIndex = 325,
+						StudTexture({
+							ZIndex = 325,
+							ImageColor3 = INK,
+							ImageTransparency = 0.94,
+							TileSize = UDim2.fromOffset(56, 56),
+						}),
 						create "UIStroke" { Color = Color3.fromRGB(110, 143, 160), Thickness = 2 },
 						create "TextLabel" {
 							Name = "Title",
@@ -810,6 +817,12 @@ return function()
 						end,
 						Visible = portrait,
 						ZIndex = 325,
+						StudTexture({
+							ZIndex = 325,
+							ImageColor3 = INK,
+							ImageTransparency = 0.95,
+							TileSize = UDim2.fromOffset(52, 52),
+						}),
 						create "UIStroke" { Color = Color3.fromRGB(78, 170, 193), Thickness = 2 },
 						create "TextLabel" {
 							BackgroundTransparency = 1,

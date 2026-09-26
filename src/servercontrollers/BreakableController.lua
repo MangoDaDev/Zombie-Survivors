@@ -189,7 +189,7 @@ local function queueSpawn(delaySeconds: number)
 	end)
 end
 
-local function breakModel(breakable: Breakable, hitOrigin: Vector3?, knockbackImpulse: number?)
+local function breakModel(breakable: Breakable, hitOrigin: Vector3?, knockbackImpulse: number?, owner: Player?)
 	breakables[breakable.id] = nil
 	breakable.feedbackSequence += 1
 	local model = breakable.model
@@ -197,7 +197,7 @@ local function breakModel(breakable: Breakable, hitOrigin: Vector3?, knockbackIm
 	local boundingCFrame, boundingSize = model:GetBoundingBox()
 	-- Every destroyed prop releases exactly one collectible; use its actual lower bound so tall authored
 	-- models do not leave the reward floating above the floor.
-	PowerupDropController.Spawn(breakable.position, boundingCFrame.Position.Y - boundingSize.Y * 0.5)
+	PowerupDropController.Spawn(breakable.position, boundingCFrame.Position.Y - boundingSize.Y * 0.5, owner)
 	if primaryPart then
 		playSound(primaryPart, BreakableConfig.BreakSounds, 0.8)
 	end
@@ -307,7 +307,8 @@ function BreakableController.DamageBreakable(
 	id: number,
 	amount: number,
 	hitOrigin: Vector3?,
-	knockbackImpulse: number?
+	knockbackImpulse: number?,
+	owner: Player?
 ): (boolean, boolean)
 	local breakable = breakables[id]
 	if not breakable or type(amount) ~= "number" or amount <= 0 then
@@ -317,7 +318,7 @@ function BreakableController.DamageBreakable(
 	breakable.health -= actualDamage
 	local killed = breakable.health <= 0
 	if killed then
-		breakModel(breakable, hitOrigin, knockbackImpulse)
+		breakModel(breakable, hitOrigin, knockbackImpulse, owner)
 	else
 		playHitFeedback(breakable, hitOrigin)
 	end

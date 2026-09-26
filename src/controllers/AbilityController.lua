@@ -11,6 +11,7 @@ local NotificationManager = require(ReplicatedStorage.Modules.UI.NotificationMan
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
 local UIStyle = require(ReplicatedStorage.Modules.UI.UIStyle)
 local ActiveWeaponEffects = require(script.Parent.Ability.ActiveWeaponEffects)
+local AdditionalWeaponEffects = require(script.Parent.Ability.AdditionalWeaponEffects)
 local CrowdWeaponEffects = require(script.Parent.Ability.CrowdWeaponEffects)
 local OrbitingSwordsView = require(script.Parent.Ability.OrbitingSwordsView)
 local PassiveEffectsView = require(script.Parent.Ability.PassiveEffectsView)
@@ -197,6 +198,7 @@ local function renderProjectiles(deltaTime: number)
 		end
 	end
 	ActiveWeaponEffects.Render(now, deltaTime)
+	AdditionalWeaponEffects.Render(now)
 	CrowdWeaponEffects.Render(now, deltaTime)
 	OrbitingSwordsView.Render(now, deltaTime)
 	PassiveEffectsView.Render()
@@ -419,9 +421,66 @@ function AbilityController.PoisonRemoved(_, id)
 	CrowdWeaponEffects.PoisonRemoved(id)
 end
 
+function AbilityController.ShotgunFired(_, packet)
+	AdditionalWeaponEffects.ShotgunFired(packet)
+end
+
+function AbilityController.FrostNovaStarted(_, packet)
+	AdditionalWeaponEffects.FrostNovaStarted(packet)
+end
+
+function AbilityController.FrostShattered(_, packet)
+	AdditionalWeaponEffects.FrostShattered(packet)
+end
+
+function AbilityController.FrostGroundCreated(_, packet)
+	AdditionalWeaponEffects.FrostGroundCreated(packet)
+end
+
+function AbilityController.MeteorWarned(_, packet)
+	AdditionalWeaponEffects.MeteorWarned(packet)
+end
+
+function AbilityController.MeteorImpacted(_, packet)
+	AdditionalWeaponEffects.MeteorImpacted(packet)
+end
+
+function AbilityController.MeteorCancelled(_, id)
+	AdditionalWeaponEffects.MeteorCancelled(id)
+end
+
+function AbilityController.TurretDeployed(_, packet)
+	AdditionalWeaponEffects.TurretDeployed(packet)
+end
+
+function AbilityController.TurretFired(_, packet)
+	AdditionalWeaponEffects.TurretFired(packet)
+end
+
+function AbilityController.TurretRemoved(_, id)
+	AdditionalWeaponEffects.TurretRemoved(id)
+end
+
+function AbilityController.VortexCreated(_, packet)
+	AdditionalWeaponEffects.VortexCreated(packet)
+end
+
+function AbilityController.VortexCollapsed(_, packet)
+	AdditionalWeaponEffects.VortexCollapsed(packet)
+end
+
+function AbilityController.VortexRemoved(_, id)
+	AdditionalWeaponEffects.VortexRemoved(id)
+end
+
+function AbilityController.CriticalHit(_, packet)
+	PassiveEffectsView.CriticalHit(packet)
+end
+
 function AbilityController.AbilityEffectsCleared(_, ownerUserId, abilityId)
 	ActiveWeaponEffects.AbilityEffectsCleared(ownerUserId, abilityId)
 	CrowdWeaponEffects.AbilityEffectsCleared(ownerUserId, abilityId)
+	AdditionalWeaponEffects.AbilityEffectsCleared(ownerUserId, abilityId)
 end
 
 function AbilityController.SetDataService(service)
@@ -434,6 +493,7 @@ function AbilityController.Init()
 	effectsFolder.Name = "AbilityEffects"
 	effectsFolder.Parent = Workspace
 	ActiveWeaponEffects.Init(effectsFolder)
+	AdditionalWeaponEffects.Init(effectsFolder)
 	CrowdWeaponEffects.Init(effectsFolder)
 	OrbitingSwordsView.Init(effectsFolder)
 	PassiveEffectsView.Init(effectsFolder)

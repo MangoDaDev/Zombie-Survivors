@@ -4,6 +4,8 @@ local RunService = game:GetService("RunService")
 local ServerStorage = game:GetService("ServerStorage")
 
 local AbilityDefinitions = require(ReplicatedStorage.Modules.Game.Abilities.AbilityDefinitions)
+local RageController = require(ServerStorage.Controllers.RageController)
+local ClassController = require(ServerStorage.Controllers.ClassController)
 local PlayerStatController = require(ServerStorage.Controllers.PlayerStatController)
 local ZombieController = require(ServerStorage.Controllers.ZombieController)
 local CombatTargets = require(script.Parent.CombatTargets)
@@ -23,6 +25,12 @@ type PlayerRuntime = {
 	blastLevel: number?,
 	burnLevel: number?,
 	thornsLevel: number?,
+	giantLevel: number?,
+	greedLevel: number?,
+	criticalLevel: number?,
+	adrenalineLevel: number?,
+	impactLevel: number?,
+	lastCriticalVfxAt: number,
 	revengeUntil: number,
 	lastDamageAt: number,
 	lastHealth: number,
@@ -44,6 +52,147 @@ local runtimes: { [Player]: PlayerRuntime } = {}
 local burns = {}
 local random = Random.new()
 local nextBurnUpdateAt = 0
+
+local GIANT_FIELDS = {
+	Dagger = { ProjectileScale = "ProjectileBonus" },
+	OrbitingSwords = { SwordScale = "ProjectileBonus" },
+	Fireball = { ProjectileScale = "ProjectileBonus", ExplosionRadius = "AreaBonus" },
+	Boomerang = { ProjectileScale = "ProjectileBonus", HitRadius = "ProjectileBonus" },
+	Aura = { Radius = "AreaBonus" },
+	Ball = { Scale = "ProjectileBonus", HitRadius = "ProjectileBonus" },
+	Drill = { Width = "ProjectileBonus" },
+	Mine = { Radius = "AreaBonus" },
+	Poison = { Radius = "AreaBonus" },
+	Shotgun = { PelletRadius = "ProjectileBonus" },
+	FrostNova = { Radius = "AreaBonus" },
+	Meteor = { Radius = "AreaBonus" },
+	Turret = { BulletRadius = "ProjectileBonus" },
+	Vortex = { Radius = "AreaBonus" },
+}
+
+function PassiveEffects.ModifyWeaponStats(player: Player, abilityId: string, stats)
+	local runtime = runtimes[player]
+	local level = runtime and runtime.giantLevel
+	local fields = GIANT_FIELDS[abilityId]
+	if not level or not fields then
+		return stats
+	end
+	local giant = AbilityDefinitions.ById.Giant
+	local bonuses = if RageController.IsActive(player)
+		then giant.GetRageStats(level)
+		else giant.GetStats(level)
+	local modified = table.clone(stats)
+	-- One capped radius multiplier is applied to both the authoritative hit area and its visual packet.
+	-- Never scale damage, range, duration, projectile count, or cooldown through Giant.
+	for field, bonusField in fields do
+		if type(modified[field]) == "number" then
+			modified[field] *= 1 + bonuses[bonusField]
+		end
+	end
+	return modified
+end
+
+function PassiveEffects.GetCooldownMultiplier(player: Player): number
+	local classMultiplier = ClassController.GetCooldownMultiplier(player)
+	local runtime = runtimes[player]
+	local level = runtime and runtime.adrenalineLevel
+	if not level then
+		return classMultiplier
+	end
+	local rage = RageController.IsActive(player)
+	local definition = AbilityDefinitions.ById.Adrenaline
+	local stats = if rage then definition.GetRageStats(level) else definition.GetStats(level)
+	local humanoid = runtime.humanoid
+	if not rage and (not humanoid or humanoid.Health <= 0 or humanoid.Health / humanoid.MaxHealth >= stats.HealthThresholdPercent / 100) then
+		return classMultiplier
+	end
+	-- Attack speed is a rate bonus, so the interval is divided instead of subtracting raw seconds.
+	return classMultiplier / (1 + stats.SpeedBonusPercent / 100)
+end
+
+function PassiveEffects.GetGreedBonus(player: Player, threatLevel: number): number
+	local runtime = runtimes[player]
+	local level = runtime and runtime.greedLevel
+	if not level then
+		return 0
+	end
+	local definition = AbilityDefinitions.ById.Greed
+	local stats = if RageController.IsActive(player) then definition.GetRageStats(level) else definition.GetStats(level)
+	local bonus = if stats.StrongBonus and threatLevel >= 4 then 1 else 0
+	if random:NextNumber(0, 100) < stats.ChancePercent then
+		bonus += 1
+		if random:NextNumber(0, 100) < stats.ExtraValueChancePercent then
+			bonus += 1
+		end
+	end
+	if random:NextNumber(0, 100) < stats.JackpotChancePercent then
+		bonus += 5
+	end
+	return bonus
+end
+
+local function modifyHit(target, amount: number, knockback: number, context)
+	local player = context.player
+	local runtime = typeof(player) == "Instance" and player:IsA("Player") and runtimes[player]
+	if not runtime then
+		return amount, knockback, false
+	end
+	local critical = false
+	knockback *= ClassController.GetKnockbackMultiplier(player)
+	if runtime.criticalLevel then
+		local definition = AbilityDefinitions.ById.Critical
+		local stats = if RageController.IsActive(player)
+			then definition.GetRageStats(runtime.criticalLevel)
+			else definition.GetStats(runtime.criticalLevel)
+		if random:NextNumber(0, 100) < stats.ChancePercent then
+			amount *= stats.DamageMultiplier
+			critical = true
+		end
+	end
+	if target.kind == "Zombie" and runtime.impactLevel then
+		local definition = AbilityDefinitions.ById.Impact
+		local stats = if RageController.IsActive(player)
+			then definition.GetRageStats(runtime.impactLevel)
+			else definition.GetStats(runtime.impactLevel)
+		-- Vortex converts Impact into stronger inward pull below; outward knockback would undo its gravity.
+		if context.source ~= "Vortex" or knockback > 0 then
+			knockback = math.max(knockback * (1 + stats.KnockbackBonusPercent / 100), stats.MinimumKnockback)
+		end
+	end
+	return math.max(1, math.floor(amount + 0.5)), knockback, critical
+end
+
+function PassiveEffects.GetImpactPullMultiplier(player: Player): number
+	local runtime = runtimes[player]
+	local level = runtime and runtime.impactLevel
+	if not level then
+		return 1
+	end
+	local definition = AbilityDefinitions.ById.Impact
+	local stats = if RageController.IsActive(player) then definition.GetRageStats(level) else definition.GetStats(level)
+	return 1 + stats.KnockbackBonusPercent / 100
+end
+
+local function onHitResolved(target, critical: boolean, context)
+	local player = context and context.player
+	local runtime = typeof(player) == "Instance" and player:IsA("Player") and runtimes[player]
+	if not runtime then
+		return
+	end
+	if target.kind == "Zombie" and runtime.impactLevel and (target.threatLevel or 0) >= 4 then
+		local stats = AbilityDefinitions.ById.Impact.GetStats(runtime.impactLevel)
+		if stats.SlowResistant then
+			-- High-threat zombies keep their usual movement but gain a short slow when a huge shove
+			-- would be visually weak or capped by the zombie simulation's maximum knockback speed.
+			ZombieController.SlowZombie(target.id, 0.8, 0.5)
+		end
+	end
+	local now = workspace:GetServerTimeNow()
+	if critical and target.kind == "Zombie" and now - runtime.lastCriticalVfxAt >= 0.1 then
+		runtime.lastCriticalVfxAt = now
+		abilityNetwork:fireAll("CriticalHit", { position = target.position, ownerUserId = player.UserId })
+	end
+end
 
 local function disconnectCharacter(runtime: PlayerRuntime)
 	runtime.refreshToken += 1
@@ -145,6 +294,7 @@ local function activateSecondWind(player: Player, runtime: PlayerRuntime)
 				return
 			end
 			local healing = humanoid.MaxHealth * stats.SecondWindRegenPercentPerSecond / 100 * config.TickInterval
+			healing *= ClassController.GetHealingReceivedMultiplier(player)
 			humanoid.Health = math.min(humanoid.Health + healing, humanoid.MaxHealth)
 		end
 	end)
@@ -170,6 +320,7 @@ local function startRecoveryLoop(player: Player, runtime: PlayerRuntime, token: 
 			then
 				local stats = AbilityDefinitions.ById.Heart.GetStats(currentLevel)
 				local healing = humanoid.MaxHealth * stats.RecoveryPercentPerSecond / 100 * config.TickInterval
+				healing *= ClassController.GetHealingReceivedMultiplier(player)
 				humanoid.Health = math.min(humanoid.Health + healing, humanoid.MaxHealth)
 			end
 		end
@@ -310,10 +461,12 @@ local function applyBurn(player: Player, targetId: number, now: number)
 
 	local definition = AbilityDefinitions.ById.Burn
 	local stats = definition.GetStats(level)
+	stats.TickDamage *= ClassController.GetDamageOverTimeDamageMultiplier(player)
+	local burnDuration = stats.Duration * ClassController.GetDamageOverTimeDurationMultiplier(player)
 	local existing = burns[targetId]
 	if existing then
 		-- One burn per zombie is refreshed in place; only a stronger application takes ownership.
-		existing.expiresAt = now + stats.Duration
+		existing.expiresAt = now + burnDuration
 		if stats.TickDamage > existing.damage then
 			existing.player = player
 			existing.damage = stats.TickDamage
@@ -323,7 +476,7 @@ local function applyBurn(player: Player, targetId: number, now: number)
 			player = player,
 			damage = stats.TickDamage,
 			nextTickAt = now + definition.Config.TickInterval,
-			expiresAt = now + stats.Duration,
+			expiresAt = now + burnDuration,
 		}
 		burns[targetId] = existing
 	end
@@ -332,6 +485,8 @@ local function applyBurn(player: Player, targetId: number, now: number)
 		targetId = targetId,
 		duration = math.max(existing.expiresAt - now, 0),
 	})
+	local slowMultiplier, slowDuration = ClassController.GetAfflictionSlow(player)
+	if slowMultiplier then ZombieController.SlowZombie(targetId, slowMultiplier, slowDuration) end
 end
 
 local function applyBlastExplosion(
@@ -349,6 +504,7 @@ local function applyBlastExplosion(
 	end
 
 	local definition = AbilityDefinitions.ById.Blast
+	radius *= ClassController.GetExplosionRadiusMultiplier(player)
 	abilityNetwork:fireAll("BlastTriggered", {
 		position = position,
 		radius = radius,
@@ -543,6 +699,7 @@ local function stepBurns()
 			else
 				local definition = AbilityDefinitions.ById.Burn
 				local currentStats = definition.GetStats(runtime.burnLevel)
+				currentStats.TickDamage *= ClassController.GetDamageOverTimeDamageMultiplier(burnState.player)
 				burnState.damage = math.max(burnState.damage, currentStats.TickDamage)
 				burnState.nextTickAt = now + definition.Config.TickInterval
 				ZombieController.DamageZombie(targetId, burnState.damage, position, 0, {
@@ -558,6 +715,7 @@ end
 function PassiveEffects.Init(network, getDataCallback)
 	abilityNetwork = network
 	getAbilityData = getDataCallback
+	CombatTargets.SetHitCallbacks(modifyHit, onHitResolved)
 	ZombieController.GetZombieDamagedSignal():Connect(onZombieDamaged)
 	ZombieController.GetPlayerDamagedByZombieSignal():Connect(onPlayerDamagedByZombie)
 	RunService.Heartbeat:Connect(stepBurns)
@@ -578,6 +736,11 @@ function PassiveEffects.Refresh(player: Player)
 	runtime.blastLevel = getEquippedLevel(data, "Blast")
 	runtime.burnLevel = getEquippedLevel(data, "Burn")
 	runtime.thornsLevel = getEquippedLevel(data, "Thorns")
+	runtime.giantLevel = getEquippedLevel(data, "Giant")
+	runtime.greedLevel = getEquippedLevel(data, "Greed")
+	runtime.criticalLevel = getEquippedLevel(data, "Critical")
+	runtime.adrenalineLevel = getEquippedLevel(data, "Adrenaline")
+	runtime.impactLevel = getEquippedLevel(data, "Impact")
 	runtime.sprintActive = false
 	runtime.quickStartActive = false
 	if runtime.heartLevel and not heartWasEquipped then
@@ -626,6 +789,12 @@ function PassiveEffects.OnPlayerAdded(player: Player)
 		blastLevel = nil,
 		burnLevel = nil,
 		thornsLevel = nil,
+		giantLevel = nil,
+		greedLevel = nil,
+		criticalLevel = nil,
+		adrenalineLevel = nil,
+		impactLevel = nil,
+		lastCriticalVfxAt = -math.huge,
 		revengeUntil = -math.huge,
 		lastDamageAt = -math.huge,
 		lastHealth = 0,

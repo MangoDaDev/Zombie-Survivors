@@ -1,0 +1,54 @@
+{
+  "pinevex_object": {
+    "type": "Frame", "name": "Preview", "size": [1, 0, 1, 0], "bg": [12, 18, 27], "children": [
+      { "type": "Frame", "name": "Dim", "size": [1, 0, 1, 0], "bg": [2, 8, 14], "bgTransparency": 0.18 },
+      { "type": "Frame", "name": "Panel", "size": [1, -16, 0, 690], "position": [0.5, 0, 0.5, 0], "anchor": [0.5, 0.5], "bg": [3, 18, 30], "strokes": [{ "thickness": 3, "color": [0, 184, 219], "applyMode": "Border" }], "children": [
+        { "type": "Frame", "name": "Header", "size": [1, -76, 0, 76], "position": [0, 12, 0, 12], "bg": [16, 168, 219], "gradient": { "rotation": 90, "colors": [[0, "#22DCFA"], [1, "#126CBF"]], "transparency": [[0, 0], [1, 0]] }, "children": [
+          { "type": "TextLabel", "name": "Title", "size": [1, -20, 0, 36], "position": [0, 10, 0, 7], "bgTransparency": 1, "text": "CLASSES", "textColor": [255, 255, 255], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Heavy" },
+          { "type": "Frame", "name": "Coins", "size": [1, -20, 0, 22], "position": [0, 10, 0, 47], "bg": [37, 31, 20], "children": [
+            { "type": "ImageLabel", "name": "Coin", "size": [0, 19, 0, 19], "position": [0, 8, 0.5, 0], "anchor": [0, 0.5], "bgTransparency": 1, "icon": "rbxassetid://117589844207603" },
+            { "type": "TextLabel", "name": "Balance", "size": [1, -38, 1, -6], "position": [0, 32, 0, 3], "bgTransparency": 1, "text": "COINS  2,450", "textColor": [255, 228, 146], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Heavy" }
+          ] }
+        ] },
+        { "type": "TextButton", "name": "Close", "size": [0, 52, 0, 76], "position": [1, -12, 0, 12], "anchor": [1, 0], "bg": [221, 57, 67], "text": "X", "textColor": [255, 255, 255], "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy" },
+        { "type": "Frame", "name": "Catalog", "size": [1, -24, 0, 232], "position": [0, 12, 0, 100], "bg": [4, 29, 45], "strokes": [{ "thickness": 2, "color": [0, 120, 148], "applyMode": "Border" }], "children": [
+          { "type": "TextLabel", "name": "CatalogTitle", "size": [1, -20, 0, 24], "position": [0, 10, 0, 8], "bgTransparency": 1, "text": "YOUR CLASSES  1/3", "textColor": [160, 214, 228], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Heavy" },
+          { "type": "Frame", "name": "Survivor", "size": [1, -20, 0, 58], "position": [0, 10, 0, 39], "bg": [12, 73, 98], "strokes": [{ "thickness": 3, "color": [102, 205, 147], "applyMode": "Border" }], "children": [
+            { "type": "ImageLabel", "name": "Icon", "size": [0, 38, 0, 38], "position": [0, 8, 0.5, 0], "anchor": [0, 0.5], "bgTransparency": 1, "icon": "rbxassetid://90721390422076" },
+            { "type": "TextLabel", "name": "Name", "size": [1, -154, 0, 23], "position": [0, 54, 0, 7], "bgTransparency": 1, "text": "SURVIVOR", "textColor": [255, 255, 255], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Heavy" },
+            { "type": "TextLabel", "name": "Ability", "size": [1, -154, 0, 18], "position": [0, 54, 0, 32], "bgTransparency": 1, "text": "DAGGER", "textColor": [156, 221, 182], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Bold" },
+            { "type": "TextLabel", "name": "Badge", "size": [0, 74, 0, 25], "position": [1, -9, 0.5, 0], "anchor": [1, 0.5], "bg": [41, 155, 87], "text": "EQUIPPED", "textColor": [255, 255, 255], "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy" }
+          ] },
+          { "type": "Frame", "name": "Scout", "size": [1, -20, 0, 58], "position": [0, 10, 0, 103], "bg": [18, 46, 61], "children": [
+            { "type": "ImageLabel", "name": "Icon", "size": [0, 38, 0, 38], "position": [0, 8, 0.5, 0], "anchor": [0, 0.5], "bgTransparency": 1, "icon": "rbxassetid://90733680856488" },
+            { "type": "TextLabel", "name": "Name", "size": [1, -154, 0, 23], "position": [0, 54, 0, 7], "bgTransparency": 1, "text": "SCOUT", "textColor": [255, 255, 255], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Heavy" },
+            { "type": "TextLabel", "name": "Ability", "size": [1, -154, 0, 18], "position": [0, 54, 0, 32], "bgTransparency": 1, "text": "BOOMERANG", "textColor": [135, 205, 255], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Bold" },
+            { "type": "TextLabel", "name": "Cost", "size": [0, 74, 0, 25], "position": [1, -9, 0.5, 0], "anchor": [1, 0.5], "bg": [67, 55, 26], "text": "600", "textColor": [255, 224, 129], "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy" }
+          ] },
+          { "type": "Frame", "name": "Pyromaniac", "size": [1, -20, 0, 58], "position": [0, 10, 0, 167], "bg": [18, 46, 61], "children": [
+            { "type": "ImageLabel", "name": "Icon", "size": [0, 38, 0, 38], "position": [0, 8, 0.5, 0], "anchor": [0, 0.5], "bgTransparency": 1, "icon": "rbxassetid://107539350715780" },
+            { "type": "TextLabel", "name": "Name", "size": [1, -154, 0, 23], "position": [0, 54, 0, 7], "bgTransparency": 1, "text": "PYROMANIAC", "textColor": [255, 255, 255], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Heavy" },
+            { "type": "TextLabel", "name": "Ability", "size": [1, -154, 0, 18], "position": [0, 54, 0, 32], "bgTransparency": 1, "text": "FIREBALL", "textColor": [255, 174, 111], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Bold" },
+            { "type": "TextLabel", "name": "Cost", "size": [0, 74, 0, 25], "position": [1, -9, 0.5, 0], "anchor": [1, 0.5], "bg": [67, 55, 26], "text": "1,200", "textColor": [255, 224, 129], "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy" }
+          ] }
+        ] },
+        { "type": "Frame", "name": "Details", "size": [1, -24, 1, -354], "position": [0, 12, 0, 342], "bg": [235, 242, 247], "strokes": [{ "thickness": 2, "color": [96, 145, 171], "applyMode": "Border" }], "children": [
+          { "type": "ImageLabel", "name": "AbilityIcon", "size": [0, 74, 0, 74], "position": [0, 12, 0, 13], "bgTransparency": 1, "icon": "rbxassetid://90721390422076" },
+          { "type": "TextLabel", "name": "ClassName", "size": [1, -122, 0, 30], "position": [0, 110, 0, 12], "bgTransparency": 1, "text": "SURVIVOR", "textColor": [40, 133, 82], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Heavy" },
+          { "type": "TextLabel", "name": "Description", "size": [1, -122, 0, 54], "position": [0, 110, 0, 47], "bgTransparency": 1, "text": "A durable scavenger who keeps every pickup within reach.", "textColor": [24, 41, 52], "textScaled": true, "textWrapped": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Regular" },
+          { "type": "Frame", "name": "StartingAbility", "size": [1, -24, 0, 48], "position": [0, 12, 0, 100], "bg": [205, 220, 229], "children": [
+            { "type": "TextLabel", "name": "Label", "size": [1, -24, 0, 22], "position": [0, 12, 0, 6], "bgTransparency": 1, "text": "STARTING ABILITY", "textColor": [36, 92, 120], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Heavy" },
+            { "type": "TextLabel", "name": "Value", "size": [1, -24, 0, 23], "position": [0, 12, 0, 27], "bgTransparency": 1, "text": "DAGGER", "textColor": [24, 41, 52], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Bold" }
+          ] },
+          { "type": "Frame", "name": "Perks", "size": [1, -24, 0, 76], "position": [0, 12, 0, 158], "bg": [218, 239, 246], "children": [
+            { "type": "TextLabel", "name": "Label", "size": [1, -24, 0, 22], "position": [0, 12, 0, 7], "bgTransparency": 1, "text": "CLASS PERKS", "textColor": [17, 76, 96], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Heavy" },
+            { "type": "TextLabel", "name": "Value", "size": [1, -24, 0, 40], "position": [0, 12, 0, 31], "bgTransparency": 1, "text": "+15% max health  |  +25% pickup magnet range", "textColor": [24, 41, 52], "textScaled": true, "textWrapped": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Bold" }
+          ] },
+          { "type": "TextButton", "name": "Action", "size": [1, -24, 0, 44], "position": [0.5, 0, 1, -12], "anchor": [0.5, 1], "bg": [42, 164, 91], "text": "EQUIPPED", "textColor": [255, 255, 255], "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy" }
+        ] }
+      ] }
+    ]
+  },
+  "viewport_size": [390, 844],
+  "transparent_background": false
+}
