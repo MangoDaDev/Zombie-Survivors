@@ -26,6 +26,14 @@ local function makePart(name: string, position: Vector3, color: Color3, shape: E
 	part.CanTouch = false
 	part.CastShadow = false
 	part.Position = position
+	if shape == Enum.PartType.Block then
+		part.TopSurface = Enum.SurfaceType.Studs
+		part.BottomSurface = Enum.SurfaceType.Studs
+		part.FrontSurface = Enum.SurfaceType.Studs
+		part.BackSurface = Enum.SurfaceType.Studs
+		part.LeftSurface = Enum.SurfaceType.Studs
+		part.RightSurface = Enum.SurfaceType.Studs
+	end
 	part.Parent = effectsFolder
 	return part
 end
@@ -242,6 +250,103 @@ function PassiveEffectsView.CriticalHit(packet)
 			Debris:AddItem(block, 0.25)
 		end
 	end
+end
+
+function PassiveEffectsView.ArmorBlocked(packet)
+	if type(packet) ~= "table" or typeof(packet.position) ~= "Vector3" then return end
+	local color = if packet.heavy then Color3.fromRGB(113, 225, 255) else Color3.fromRGB(85, 158, 255)
+	local soundAnchor
+	for index = 1, 7 do
+		local angle = (index - 1) / 7 * math.pi * 2
+		local panel = makePart("ArmorPanel", packet.position, color, Enum.PartType.Block)
+		if panel then
+			soundAnchor = soundAnchor or panel
+			panel.Material = Enum.Material.Plastic
+			panel.Size = Vector3.new(0.8, if packet.heavy then 1.25 else 0.9, 0.22)
+			panel.TopSurface = Enum.SurfaceType.Studs
+			panel.BottomSurface = Enum.SurfaceType.Studs
+			panel.FrontSurface = Enum.SurfaceType.Studs
+			panel.BackSurface = Enum.SurfaceType.Studs
+			panel.LeftSurface = Enum.SurfaceType.Studs
+			panel.RightSurface = Enum.SurfaceType.Studs
+			local offset = Vector3.new(math.cos(angle), 0, math.sin(angle)) * 2
+			panel.CFrame = CFrame.lookAt(packet.position + offset, packet.position)
+			panel.Transparency = 0.18
+			TweenService:Create(panel, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+				Position = panel.Position + offset.Unit * 0.8,
+				Transparency = 1,
+			}):Play()
+			Debris:AddItem(panel, 0.3)
+		end
+	end
+	if soundAnchor then Sounds.Play("AbilityBladeImpact", soundAnchor, 80) end
+end
+
+function PassiveEffectsView.MagnetBurst(packet)
+	if type(packet) ~= "table" or typeof(packet.position) ~= "Vector3"
+		or type(packet.radius) ~= "number" or packet.radius <= 0 then return end
+	local color = Color3.fromRGB(78, 196, 255)
+	local soundAnchor
+	-- Inward-moving stud blocks make the collection direction immediately readable.
+	for index = 1, 16 do
+		local angle = (index - 1) / 16 * math.pi * 2
+		local direction = Vector3.new(math.cos(angle), 0, math.sin(angle))
+		local start = packet.position + direction * math.min(packet.radius, 22)
+		local block = makePart("MagnetPullStud", start, if index % 2 == 0 then color else Color3.fromRGB(255, 93, 93), Enum.PartType.Block)
+		if block then
+			soundAnchor = soundAnchor or block
+			block.Material = Enum.Material.Plastic
+			block.Size = Vector3.new(0.28, 0.28, 0.9)
+			block.CFrame = CFrame.lookAt(start, packet.position)
+			TweenService:Create(block, TweenInfo.new(0.42, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+				CFrame = CFrame.lookAt(packet.position + direction * 1.2, packet.position),
+				Transparency = 1,
+			}):Play()
+			Debris:AddItem(block, 0.48)
+		end
+	end
+	if soundAnchor then Sounds.Play("SlotsJackpot", soundAnchor, 90) end
+end
+
+function PassiveEffectsView.ExecutionerHit(packet)
+	if type(packet) ~= "table" or typeof(packet.position) ~= "Vector3" then return end
+	local position = packet.position + Vector3.yAxis * 1.35
+	local soundAnchor
+	for index = -1, 1 do
+		local slash = makePart("ExecutionerSlash", position, Color3.fromRGB(255, 63, 63), Enum.PartType.Block)
+		if slash then
+			soundAnchor = soundAnchor or slash
+			slash.Material = Enum.Material.Plastic
+			slash.Size = Vector3.new(0.28, 0.28, 2.8)
+			slash.CFrame = CFrame.new(position) * CFrame.Angles(0, math.rad(index * 28), math.rad(38))
+			TweenService:Create(slash, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+				Size = Vector3.new(0.1, 0.1, 4.2),
+				Transparency = 1,
+			}):Play()
+			Debris:AddItem(slash, 0.25)
+		end
+	end
+	radialStudBurst(position, Color3.fromRGB(255, 112, 81), 5, 2.2, 0.2)
+	if soundAnchor then Sounds.Play("BodyImpact", soundAnchor, 80) end
+end
+
+function PassiveEffectsView.OverchargeTriggered(packet)
+	if type(packet) ~= "table" or typeof(packet.position) ~= "Vector3" then return end
+	local color = Color3.fromRGB(230, 83, 255)
+	radialStudBurst(packet.position, color, 12, 4.5, 0.28)
+	local soundAnchor
+	for index = 1, 2 do
+		local bolt = makePart("OverchargeBolt", packet.position, color:Lerp(Color3.new(1, 1, 1), 0.45), Enum.PartType.Block)
+		if bolt then
+			soundAnchor = soundAnchor or bolt
+			bolt.Material = Enum.Material.Plastic
+			bolt.Size = Vector3.new(0.35, 0.35, 3.4)
+			bolt.CFrame = CFrame.new(packet.position) * CFrame.Angles(math.rad(18), math.rad((index - 1) * 90 + 45), math.rad(32))
+			TweenService:Create(bolt, TweenInfo.new(0.24), { Transparency = 1, Size = Vector3.new(0.1, 0.1, 5) }):Play()
+			Debris:AddItem(bolt, 0.28)
+		end
+	end
+	if soundAnchor then Sounds.Play("AbilityLightningCast", soundAnchor, 110) end
 end
 
 function PassiveEffectsView.Render()

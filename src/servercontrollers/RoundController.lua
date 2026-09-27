@@ -4,6 +4,7 @@ local ServerStorage = game:GetService("ServerStorage")
 
 local Networker = require(ReplicatedStorage.Packages.networker)
 local RunProgressionConfig = require(ReplicatedStorage.Modules.Game.RunProgressionConfig)
+local ZombieDefinitions = require(ReplicatedStorage.Modules.Game.Zombies.ZombieDefinitions)
 local Signal = require(ReplicatedStorage.Packages.signal)
 local ServerContext = require(ServerStorage.Controllers.ServerContext)
 local ZombieController = require(ServerStorage.Controllers.ZombieController)
@@ -20,6 +21,29 @@ local roundSpawnPending = false
 local completionCheckPending = false
 local runGeneration = 0
 local roundCompleted = Signal.new()
+local bossAnnouncement = {
+	active = false,
+	stage = "",
+	bossName = "",
+	message = "",
+	color = Color3.fromRGB(195, 48, 61),
+	endsAt = 0,
+	sequence = 0,
+}
+
+local function setBossAnnouncement(active: boolean, stage: string?, definition, message: string?, duration: number?)
+	bossAnnouncement = {
+		active = active,
+		stage = stage or "",
+		bossName = if definition then definition.DisplayName or "Boss" else "",
+		message = message or "",
+		color = if definition and typeof(definition.EffectColor) == "Color3"
+			then definition.EffectColor
+			else Color3.fromRGB(195, 48, 61),
+		endsAt = if active then workspace:GetServerTimeNow() + math.max(duration or 0, 0) else 0,
+		sequence = bossAnnouncement.sequence + 1,
+	}
+end
 
 local function getPartyMemberLookup(): { [number]: boolean }?
 	local runData = ServerContext.GetRunData()
@@ -81,6 +105,7 @@ local function makePacket(player: Player)
 			and votes[player.UserId] ~= true
 			and workspace:GetServerTimeNow() >= cooldownEndsAt,
 		cooldownEndsAt = cooldownEndsAt,
+		bossAnnouncement = bossAnnouncement,
 	}
 end
 
@@ -143,6 +168,19 @@ advanceRound = function()
 	local roundNumber = currentRound
 	local scheduledGeneration = runGeneration
 	local assignedCount = RunProgressionConfig.GetRoundZombieCount(currentRound, getPartyCount())
+	local bossEncounter = RunProgressionConfig.GetBossEncounter(roundNumber)
+	local bossDefinition = bossEncounter and ZombieDefinitions[bossEncounter.BossType] or nil
+	if bossEncounter and bossDefinition then
+		setBossAnnouncement(
+			true,
+			"Warning",
+			bossDefinition,
+			"A POWERFUL UNDEAD IS APPROACHING",
+			if roundNumber == 1 then RunProgressionConfig.Rounds.FirstRoundDelay else RunProgressionConfig.Rounds.IntermissionDuration
+		)
+	else
+		setBossAnnouncement(false)
+	end
 	roundSpawnPending = true
 	-- Commit the round before its breathing window. A skip never removes older zombies, while the
 	-- generation/round guards below prevent delayed reinforcements from leaking across run boundaries.
@@ -155,15 +193,42 @@ advanceRound = function()
 		local remaining = assignedCount
 		local totalSpawned = 0
 		local firstBatch = true
-		if roundNumber == rounds.BossEncounter.Round
-			and runGeneration == scheduledGeneration
-			and currentRound == roundNumber
-		then
+		if bossEncounter and runGeneration == scheduledGeneration and currentRound == roundNumber then
 			spawningRound = true
-			local spawnedIds = ZombieController.SpawnBossEncounter(roundNumber)
+			local spawnedIds = ZombieController.SpawnBossBuildup(roundNumber)
 			spawningRound = false
 			totalSpawned += #spawnedIds
+			setBossAnnouncement(
+				true,
+				"Buildup",
+				bossDefinition,
+				"SURVIVE THE GUARD — THE BOSS IS STILL BELOW",
+				bossEncounter.BuildupDuration
+			)
+			broadcastState()
+			task.wait(bossEncounter.BuildupDuration)
+			if runGeneration ~= scheduledGeneration or currentRound ~= roundNumber then
+				return
+			end
+			setBossAnnouncement(
+				true,
+				"Entrance",
+				bossDefinition,
+				"GROUND BREACH — STAY CLEAR OF THE MARKER",
+				bossEncounter.EntranceDuration
+			)
+			ZombieController.BeginBossEntrance(roundNumber)
+			broadcastState()
+			task.wait(bossEncounter.EntranceDuration)
+			if runGeneration ~= scheduledGeneration or currentRound ~= roundNumber then
+				return
+			end
+			spawningRound = true
+			local bossIds = ZombieController.SpawnBossEncounter(roundNumber)
+			spawningRound = false
+			totalSpawned += #bossIds
 			remaining = 0
+			setBossAnnouncement(false)
 			broadcastState()
 		else
 			while remaining > 0 and runGeneration == scheduledGeneration and currentRound == roundNumber do
@@ -247,6 +312,7 @@ function RoundController.RestartRun()
 	spawningRound = false
 	roundSpawnPending = false
 	completionCheckPending = false
+	setBossAnnouncement(false)
 
 	if ZombieController.IsSimulationStarted() then
 		advanceRound()

@@ -6,7 +6,9 @@ local ServerStorage = game:GetService("ServerStorage")
 local Networker = require(ReplicatedStorage.Packages.networker)
 local AbilityDefinitions = require(ReplicatedStorage.Modules.Game.Abilities.AbilityDefinitions)
 local RunProgressionConfig = require(ReplicatedStorage.Modules.Game.RunProgressionConfig)
+local RuntimeState = require(ReplicatedStorage.Modules.Game.RuntimeState)
 local AbilityController = require(ServerStorage.Controllers.AbilityController)
+local RageController = require(ServerStorage.Controllers.RageController)
 local ServerContext = require(ServerStorage.Controllers.ServerContext)
 
 type Choice = {
@@ -226,7 +228,21 @@ function RunProgressionController.AddXP(player: Player, amount: number): boolean
 		return false
 	end
 
-	local awardedXP = math.max(1, math.floor(amount))
+	local manualLevel = RuntimeState.Get(player, "TrainingManualAbilityLevel", nil)
+	local manualStats
+	if type(manualLevel) == "number" then
+		local definition = AbilityDefinitions.ById.TrainingManual
+		manualStats = if RageController.IsActive(player) then definition.GetRageStats(manualLevel) else definition.GetStats(manualLevel)
+	end
+	local xpMultiplier = 1 + (manualStats and manualStats.XPBonusPercent or 0) / 100
+	if manualStats and amount >= manualStats.LargeCrystalMinimum then
+		xpMultiplier *= 1 + manualStats.LargeCrystalBonusPercent / 100
+	end
+	if manualStats and RuntimeState.Get(player, "TrainingManualBreakthroughReady", false) then
+		xpMultiplier *= 1 + manualStats.BreakthroughBonusPercent / 100
+		RuntimeState.Set(player, "TrainingManualBreakthroughReady", false)
+	end
+	local awardedXP = math.max(1, math.floor(amount * xpMultiplier + 0.5))
 	state.xp += awardedXP
 	state.totalXP += awardedXP
 	local earnedLevels = 0
@@ -243,6 +259,9 @@ function RunProgressionController.AddXP(player: Player, amount: number): boolean
 	if earnedLevels > 0 then
 		-- One pending token always corresponds to exactly one server-validated card selection.
 		state.pendingChoices += earnedLevels
+		if manualStats and manualStats.BreakthroughBonusPercent > 0 then
+			RuntimeState.Set(player, "TrainingManualBreakthroughReady", true)
+		end
 	end
 	if state.pendingChoices > 0 then
 		-- Retry unresolved tokens on every XP update. This closes the brief startup window where progression

@@ -4,8 +4,11 @@ local RunService = game:GetService("RunService")
 local ServerStorage = game:GetService("ServerStorage")
 
 local Networker = require(ReplicatedStorage.Packages.networker)
+local AbilityDefinitions = require(ReplicatedStorage.Modules.Game.Abilities.AbilityDefinitions)
 local RunProgressionConfig = require(ReplicatedStorage.Modules.Game.RunProgressionConfig)
+local RuntimeState = require(ReplicatedStorage.Modules.Game.RuntimeState)
 local ClassController = require(ServerStorage.Controllers.ClassController)
+local RageController = require(ServerStorage.Controllers.RageController)
 local RunProgressionController = require(ServerStorage.Controllers.RunProgressionController)
 local ServerContext = require(ServerStorage.Controllers.ServerContext)
 
@@ -38,6 +41,25 @@ local nextDropId = 0
 local activeCount = 0
 local accumulator = 0
 local drops: { [number]: XPDropState } = {}
+
+local function getMagnetStats(player: Player)
+	local level = RuntimeState.Get(player, "MagnetAbilityLevel", nil)
+	if type(level) ~= "number" then
+		return nil
+	end
+	local definition = AbilityDefinitions.ById.Magnet
+	return if RageController.IsActive(player) then definition.GetRageStats(level) else definition.GetStats(level)
+end
+
+local function getMagnetRadiusMultiplier(player: Player): number
+	local stats = getMagnetStats(player)
+	return ClassController.GetPickupMagnetMultiplier(player) * (1 + (stats and stats.RadiusBonusPercent or 0) / 100)
+end
+
+local function getMagnetSpeedMultiplier(player: Player): number
+	local stats = getMagnetStats(player)
+	return 1 + (stats and stats.PullSpeedBonusPercent or 0) / 100
+end
 
 local function getLiveRoot(player: Player): BasePart?
 	local character = player.Character
@@ -237,11 +259,11 @@ local function stepDrops(deltaTime: number, now: number)
 				if offset.Magnitude <= config.PickupRadius then
 					collectDrop(id, drop, collector)
 				elseif not collection.forcedCollection
-					and offset.Magnitude > config.MagnetRadius * ClassController.GetPickupMagnetMultiplier(collector) * 3
+					and offset.Magnitude > config.MagnetRadius * getMagnetRadiusMultiplier(collector) * 3
 				then
 					releaseDrop(drop, collector)
 				else
-					collection.magnetSpeed += config.MagnetAcceleration * deltaTime
+					collection.magnetSpeed += config.MagnetAcceleration * getMagnetSpeedMultiplier(collector) * deltaTime
 					collection.position += offset.Unit * math.min(collection.magnetSpeed * deltaTime, offset.Magnitude)
 				end
 			end
@@ -258,11 +280,11 @@ local function stepDrops(deltaTime: number, now: number)
 					continue
 				end
 				local distance = (candidate.root.Position - drop.position).Magnitude
-				local magnetRadius = config.MagnetRadius * ClassController.GetPickupMagnetMultiplier(candidate.player)
+				local magnetRadius = config.MagnetRadius * getMagnetRadiusMultiplier(candidate.player)
 				if distance <= magnetRadius then
 					drop.collections[candidate.player] = {
 						position = drop.position,
-						magnetSpeed = config.MagnetInitialSpeed,
+						magnetSpeed = config.MagnetInitialSpeed * getMagnetSpeedMultiplier(candidate.player),
 						forcedCollection = false,
 					}
 					xpNetwork:fire(candidate.player, "MagnetXP", id, candidate.player.UserId, drop.position, now)
@@ -320,6 +342,28 @@ function XPDropController.CollectAll(player: Player): number
 			drop.collections[player] = {
 				position = drop.position,
 				magnetSpeed = math.max(RunProgressionConfig.Pickups.XP.MagnetInitialSpeed * 5, 80),
+				forcedCollection = true,
+			}
+			xpNetwork:fire(player, "MagnetXP", drop.id, player.UserId, drop.position, now)
+			collectedCount += 1
+		end
+	end
+	return collectedCount
+end
+
+function XPDropController.CollectInRadius(player: Player, position: Vector3, radius: number): number
+	if player.Parent ~= Players or not getLiveRoot(player)
+		or typeof(position) ~= "Vector3" or type(radius) ~= "number" or radius <= 0
+	then
+		return 0
+	end
+	local collectedCount = 0
+	local now = workspace:GetServerTimeNow()
+	for _, drop in drops do
+		if canCollect(drop, player) and (drop.position - position).Magnitude <= radius then
+			drop.collections[player] = {
+				position = drop.position,
+				magnetSpeed = RunProgressionConfig.Pickups.XP.MagnetInitialSpeed * getMagnetSpeedMultiplier(player),
 				forcedCollection = true,
 			}
 			xpNetwork:fire(player, "MagnetXP", drop.id, player.UserId, drop.position, now)

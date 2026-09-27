@@ -13,6 +13,7 @@ local UIStyle = require(ReplicatedStorage.Modules.UI.UIStyle)
 local ActiveWeaponEffects = require(script.Parent.Ability.ActiveWeaponEffects)
 local AdditionalWeaponEffects = require(script.Parent.Ability.AdditionalWeaponEffects)
 local CrowdWeaponEffects = require(script.Parent.Ability.CrowdWeaponEffects)
+local ExpandedWeaponEffects = require(script.Parent.Ability.ExpandedWeaponEffects)
 local OrbitingSwordsView = require(script.Parent.Ability.OrbitingSwordsView)
 local PassiveEffectsView = require(script.Parent.Ability.PassiveEffectsView)
 
@@ -197,6 +198,7 @@ local function renderProjectiles(deltaTime: number)
 	ActiveWeaponEffects.Render(now, deltaTime)
 	AdditionalWeaponEffects.Render(now)
 	CrowdWeaponEffects.Render(now, deltaTime)
+	ExpandedWeaponEffects.Render(now, deltaTime)
 	OrbitingSwordsView.Render(now, deltaTime)
 	PassiveEffectsView.Render()
 end
@@ -470,14 +472,67 @@ function AbilityController.VortexRemoved(_, id)
 	AdditionalWeaponEffects.VortexRemoved(id)
 end
 
+function AbilityController.CrowbarSwung(_, packet)
+	ExpandedWeaponEffects.CrowbarSwung(packet)
+end
+
+function AbilityController.CrossfireFired(_, packet)
+	ExpandedWeaponEffects.CrossfireFired(packet)
+end
+
+function AbilityController.BuzzsawCreated(_, packet)
+	ExpandedWeaponEffects.BuzzsawCreated(packet)
+end
+
+function AbilityController.BuzzsawRemoved(_, id)
+	ExpandedWeaponEffects.BuzzsawRemoved(id)
+end
+
+function AbilityController.CrusherWarned(_, packet)
+	ExpandedWeaponEffects.CrusherWarned(packet)
+end
+
+function AbilityController.CrusherImpacted(_, packet)
+	ExpandedWeaponEffects.CrusherImpacted(packet)
+end
+
+function AbilityController.CrusherCancelled(_, id)
+	ExpandedWeaponEffects.CrusherCancelled(id)
+end
+
+function AbilityController.LaserSweepStarted(_, packet)
+	ExpandedWeaponEffects.LaserSweepStarted(packet)
+end
+
+function AbilityController.LaserSweepEnded(_, id)
+	ExpandedWeaponEffects.LaserSweepEnded(id)
+end
+
 function AbilityController.CriticalHit(_, packet)
 	PassiveEffectsView.CriticalHit(packet)
+end
+
+function AbilityController.ArmorBlocked(_, packet)
+	PassiveEffectsView.ArmorBlocked(packet)
+end
+
+function AbilityController.MagnetBurst(_, packet)
+	PassiveEffectsView.MagnetBurst(packet)
+end
+
+function AbilityController.ExecutionerHit(_, packet)
+	PassiveEffectsView.ExecutionerHit(packet)
+end
+
+function AbilityController.OverchargeTriggered(_, packet)
+	PassiveEffectsView.OverchargeTriggered(packet)
 end
 
 function AbilityController.AbilityEffectsCleared(_, ownerUserId, abilityId)
 	ActiveWeaponEffects.AbilityEffectsCleared(ownerUserId, abilityId)
 	CrowdWeaponEffects.AbilityEffectsCleared(ownerUserId, abilityId)
 	AdditionalWeaponEffects.AbilityEffectsCleared(ownerUserId, abilityId)
+	ExpandedWeaponEffects.AbilityEffectsCleared(ownerUserId, abilityId)
 end
 
 function AbilityController.SetDataService(service)
@@ -492,6 +547,7 @@ function AbilityController.Init()
 	ActiveWeaponEffects.Init(effectsFolder)
 	AdditionalWeaponEffects.Init(effectsFolder)
 	CrowdWeaponEffects.Init(effectsFolder)
+	ExpandedWeaponEffects.Init(effectsFolder)
 	OrbitingSwordsView.Init(effectsFolder)
 	PassiveEffectsView.Init(effectsFolder)
 	renderConnection = RunService.RenderStepped:Connect(renderProjectiles)

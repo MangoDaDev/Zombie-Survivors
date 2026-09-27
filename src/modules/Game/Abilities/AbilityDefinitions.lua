@@ -3,6 +3,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Images = require(ReplicatedStorage.Modules.UI.Images)
 local CrowdWeaponDefinitions = require(script.Parent.CrowdWeaponDefinitions)
 local AdditionalAbilityDefinitions = require(script.Parent.AdditionalAbilityDefinitions)
+local ExpandedAbilityDefinitions = require(script.Parent.ExpandedAbilityDefinitions)
 
 local AbilityDefinitions = {}
 
@@ -101,8 +102,8 @@ local function getBoomerangCount(level: number): number
 	return 1
 end
 
--- Roll BaseOdds are reciprocal weights whose full catalog intentionally totals almost exactly 1.
--- Preserve the broad 1/4-to-1/400 spread so displayed odds stay honest and chase abilities remain rare.
+-- Roll BaseOdds are reciprocal selection weights, not percentages. Preserve the broad rarity spread
+-- as the catalog expands so common choices remain frequent and chase abilities remain meaningfully rare.
 local dagger = {
 	Id = "Dagger",
 	Name = "Dagger",
@@ -1329,6 +1330,9 @@ end
 for _, definition in AdditionalAbilityDefinitions.List do
 	table.insert(AbilityDefinitions.List, definition)
 end
+for _, definition in ExpandedAbilityDefinitions.List do
+	table.insert(AbilityDefinitions.List, definition)
+end
 for _, definition in { heart, boots, blast, burn, thorns } do
 	table.insert(AbilityDefinitions.List, definition)
 end
@@ -1348,6 +1352,9 @@ for _, definition in CrowdWeaponDefinitions.List do
 	AbilityDefinitions.ById[definition.Id] = definition
 end
 for _, definition in AdditionalAbilityDefinitions.List do
+	AbilityDefinitions.ById[definition.Id] = definition
+end
+for _, definition in ExpandedAbilityDefinitions.List do
 	AbilityDefinitions.ById[definition.Id] = definition
 end
 

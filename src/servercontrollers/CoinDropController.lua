@@ -5,8 +5,11 @@ local ServerStorage = game:GetService("ServerStorage")
 
 local Networker = require(ReplicatedStorage.Packages.networker)
 local Signal = require(ReplicatedStorage.Packages.signal)
+local AbilityDefinitions = require(ReplicatedStorage.Modules.Game.Abilities.AbilityDefinitions)
 local CoinDropConfig = require(ReplicatedStorage.Modules.Game.CoinDropConfig)
+local RuntimeState = require(ReplicatedStorage.Modules.Game.RuntimeState)
 local ClassController = require(ServerStorage.Controllers.ClassController)
+local RageController = require(ServerStorage.Controllers.RageController)
 local RunProgressionConfig = require(ReplicatedStorage.Modules.Game.RunProgressionConfig)
 local BackpackController = require(ServerStorage.Controllers.BackpackController)
 local CoinsController = require(ServerStorage.Controllers.CoinsController)
@@ -47,6 +50,17 @@ local mergeAccumulator = 0
 local coins: { [number]: CoinState } = {}
 local lastClientClaimAt: { [Player]: number } = {}
 local coinCollected = Signal.new()
+
+local function getCoinMagnetMultiplier(player: Player): number
+	local level = RuntimeState.Get(player, "MagnetAbilityLevel", nil)
+	if type(level) ~= "number" then
+		return ClassController.GetCoinPickupMagnetMultiplier(player)
+	end
+	local definition = AbilityDefinitions.ById.Magnet
+	local stats = if RageController.IsActive(player) then definition.GetRageStats(level) else definition.GetStats(level)
+	return ClassController.GetCoinPickupMagnetMultiplier(player)
+		* (1 + (stats.RadiusBonusPercent + stats.CoinRadiusBonusPercent) / 100)
+end
 
 local function getLiveRoot(player: Player): BasePart?
 	local character = player.Character
@@ -441,6 +455,23 @@ function CoinDropController.CollectAll(player: Player): number
 	return collectedCount
 end
 
+function CoinDropController.CollectInRadius(player: Player, position: Vector3, radius: number): number
+	if player.Parent ~= Players or not getLiveRoot(player)
+		or typeof(position) ~= "Vector3" or type(radius) ~= "number" or radius <= 0
+	then
+		return 0
+	end
+	local now = workspace:GetServerTimeNow()
+	local collectedCount = 0
+	for _, coin in coins do
+		if canCollect(coin, player) and (coin.position - position).Magnitude <= radius then
+			beginCollection(coin, player, now)
+			collectedCount += 1
+		end
+	end
+	return collectedCount
+end
+
 function CoinDropController.ClearAll()
 	local ids = {}
 	for id in coins do
@@ -502,7 +533,7 @@ function CoinDropController.RequestCollect(_, player: Player, ids)
 			or now < coin.collectibleAt
 			or not canCollect(coin, player)
 			or (root.Position - coin.position).Magnitude
-				> CoinDropConfig.MagnetRadius * ClassController.GetCoinPickupMagnetMultiplier(player)
+				> CoinDropConfig.MagnetRadius * getCoinMagnetMultiplier(player)
 					+ CLIENT_CLAIM_DISTANCE_TOLERANCE
 		then
 			-- Reconcile rejected and contested predictions instead of leaving their local animation stuck.
@@ -531,7 +562,7 @@ local function startCollections(now: number)
 				continue
 			end
 			local distance = (candidate.position - coin.position).Magnitude
-			local magnetRadius = CoinDropConfig.MagnetRadius * ClassController.GetCoinPickupMagnetMultiplier(candidate.player)
+			local magnetRadius = CoinDropConfig.MagnetRadius * getCoinMagnetMultiplier(candidate.player)
 			if distance <= magnetRadius then
 				beginCollection(coin, candidate.player, now)
 			end

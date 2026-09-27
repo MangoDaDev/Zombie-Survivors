@@ -662,7 +662,10 @@ return function()
 						Button({
 							Text = function()
 								if selectedEquipped() then return "EQUIPPED" end
-								if not prerequisiteMet() then return "UNLOCK SWORDS FIRST" end
+								if not prerequisiteMet() then
+									local requiredAbility = AbilityDefinitions.ById[selectedDefinition().RequiredAbilityId]
+									return "UNLOCK " .. string.upper(requiredAbility.Name) .. " FIRST"
+								end
 								if selectedOwned() then return "EQUIP CLASS" end
 								local cost = FormatNumber(selectedDefinition().UnlockCost) or tostring(selectedDefinition().UnlockCost)
 								return if canAfford() then "UNLOCK FOR " .. cost .. " COINS" else "NEED " .. cost .. " COINS"

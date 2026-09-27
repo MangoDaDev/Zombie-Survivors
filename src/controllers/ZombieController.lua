@@ -20,6 +20,10 @@ local TAU = math.pi * 2
 local bossState = {
 	active = false,
 	id = nil,
+	typeName = nil,
+	displayName = "",
+	hint = "",
+	color = Color3.fromRGB(195, 48, 61),
 	health = 0,
 	maximumHealth = 0,
 }
@@ -27,6 +31,8 @@ local bossStateChanged = Signal.new()
 local STUD_EFFECT_KINDS = {
 	BossSummon = true,
 	BossEnrage = true,
+	BossEruption = true,
+	PlagueBurst = true,
 	WardenAura = true,
 	Feast = true,
 	HexBurst = true,
@@ -38,11 +44,13 @@ local STUD_EFFECT_KINDS = {
 	MartyrBuff = true,
 }
 
-local function setBossState(active: boolean, id: number?, health: number?, maximumHealth: number?)
+local function setBossState(active: boolean, id: number?, typeName: string?, health: number?, maximumHealth: number?)
+	local definition = typeName and ZombieDefinitions[typeName] or nil
 	local nextMaximumHealth = if type(maximumHealth) == "number" then math.max(maximumHealth, 0) else 0
 	local nextHealth = if type(health) == "number" then math.clamp(health, 0, nextMaximumHealth) else 0
 	if bossState.active == active
 		and bossState.id == id
+		and bossState.typeName == typeName
 		and bossState.health == nextHealth
 		and bossState.maximumHealth == nextMaximumHealth
 	then
@@ -51,6 +59,12 @@ local function setBossState(active: boolean, id: number?, health: number?, maxim
 	bossState = {
 		active = active,
 		id = id,
+		typeName = typeName,
+		displayName = if definition then definition.DisplayName or "Boss" else "",
+		hint = if definition then definition.BossHint or "" else "",
+		color = if definition and typeof(definition.EffectColor) == "Color3"
+			then definition.EffectColor
+			else Color3.fromRGB(195, 48, 61),
 		health = nextHealth,
 		maximumHealth = nextMaximumHealth,
 	}
@@ -75,8 +89,8 @@ local function addZombie(packet, serverTime)
 		warn(string.format("Cannot render unknown zombie type %s", tostring(typeName)))
 		return
 	end
-	if typeName == "Boss" then
-		setBossState(true, id, health or definition.MaxHealth, maximumHealth or definition.MaxHealth)
+	if definition.IsBoss then
+		setBossState(true, id, typeName, health or definition.MaxHealth, maximumHealth or definition.MaxHealth)
 	end
 
 	local existing = zombieViews[id]
@@ -146,8 +160,8 @@ local function updateZombie(packet, serverTime, receivedAt)
 			serverTime,
 			receivedAt
 		)
-		if view.typeName == "Boss" then
-			setBossState(true, id, health, maximumHealth)
+		if view.definition.IsBoss then
+			setBossState(true, id, view.typeName, health, maximumHealth)
 		end
 	end
 end
@@ -250,6 +264,128 @@ local function playBossDeathShockwave(packet)
 	end
 end
 
+local function playBossEntrance(packet)
+	local center = packet.Position + Vector3.yAxis * 0.08
+	local color = if typeof(packet.Color) == "Color3" then packet.Color else Color3.fromRGB(195, 48, 61)
+	local radius = if type(packet.Radius) == "number" then math.clamp(packet.Radius, 7, 18) else 9
+	local duration = if type(packet.Duration) == "number" then math.clamp(packet.Duration, 1.5, 4) else 2.6
+	local marker = makeStudEffectPart("BossEntranceMarker", color)
+	marker.CFrame = CFrame.new(center)
+	marker.Size = Vector3.new(radius * 2, 0.16, radius * 2)
+	marker.Transparency = 0.62
+	playEffectSound("Alert", marker, 0.72)
+	TweenService:Create(
+		marker,
+		TweenInfo.new(duration, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+		{ Size = Vector3.new(radius * 2.35, 0.28, radius * 2.35), Transparency = 0.18 }
+	):Play()
+	Debris:AddItem(marker, duration + 0.25)
+	for layer = 1, 3 do
+		task.delay((layer - 1) * duration * 0.24, function()
+			if not renderFolder or not renderFolder.Parent then
+				return
+			end
+			local dust = makeStudEffectPart("BossEntranceDust", Color3.fromRGB(116, 84, 53))
+			dust.CFrame = CFrame.new(center + Vector3.yAxis * (0.04 + layer * 0.02))
+			dust.Size = Vector3.new(radius * 0.45, 0.08, radius * 0.45)
+			dust.Transparency = 0.42
+			TweenService:Create(
+				dust,
+				TweenInfo.new(0.75, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+				{ Size = Vector3.new(radius * (1.25 + layer * 0.25), 0.04, radius * (1.25 + layer * 0.25)), Transparency = 1 }
+			):Play()
+			Debris:AddItem(dust, 0.8)
+		end)
+	end
+
+	-- Short, increasingly dense block bursts communicate digging without freezing player movement or
+	-- creating physical debris. Every piece is local, non-colliding, and cleaned immediately after landing.
+	task.spawn(function()
+		local startedAt = os.clock()
+		local burstIndex = 0
+		while marker.Parent and os.clock() - startedAt < duration do
+			burstIndex += 1
+			local progress = math.clamp((os.clock() - startedAt) / duration, 0, 1)
+			local shake = 0.08 + progress * 0.2
+			marker.CFrame = CFrame.new(
+				center + Vector3.new(math.sin(burstIndex * 2.17), 0, math.cos(burstIndex * 1.73)) * shake
+			)
+			local pieces = 2 + math.floor(progress * 4)
+			for pieceIndex = 1, pieces do
+				local angle = TAU * (pieceIndex / pieces) + burstIndex * 1.37
+				local distance = radius * (0.25 + ((pieceIndex * 0.37 + progress) % 1) * 0.65)
+				local startPosition = center + Vector3.new(math.cos(angle), 0.15, math.sin(angle)) * distance
+				local debrisPart = makeStudEffectPart(
+					"BossEntranceDebris",
+					Color3.fromRGB(104, 72, 43):Lerp(color, progress * 0.2)
+				)
+				local size = 0.65 + progress * 0.75
+				debrisPart.Size = Vector3.new(size, size, size)
+				debrisPart.CFrame = CFrame.new(startPosition)
+					* CFrame.Angles(angle, angle * 0.6, -angle * 0.35)
+				TweenService:Create(
+					debrisPart,
+					TweenInfo.new(0.42, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+					{
+						CFrame = CFrame.new(startPosition + Vector3.yAxis * (4 + progress * 5))
+							* CFrame.Angles(angle + 1.2, angle * 1.5, angle),
+						Transparency = 1,
+					}
+				):Play()
+				Debris:AddItem(debrisPart, 0.48)
+			end
+			task.wait(math.max(0.12, 0.3 - progress * 0.16))
+		end
+	end)
+
+	task.delay(math.max(duration - 0.18, 0), function()
+		if not renderFolder or not renderFolder.Parent then
+			return
+		end
+		local burst = makeStudEffectPart("BossEntranceBurst", color:Lerp(Color3.new(1, 1, 1), 0.2))
+		burst.CFrame = CFrame.new(center)
+		burst.Size = Vector3.new(3, 0.45, 3)
+		playEffectSound("FlameBurst", burst, 0.68)
+		TweenService:Create(
+			burst,
+			TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+			{ Size = Vector3.new(radius * 2.6, 0.08, radius * 2.6), Transparency = 1 }
+		):Play()
+		Debris:AddItem(burst, 0.55)
+	end)
+end
+
+local function playBossChargeTelegraph(packet)
+	if typeof(packet.Target) ~= "Vector3" then
+		return
+	end
+	local origin = packet.Position + Vector3.yAxis * 0.09
+	local target = Vector3.new(packet.Target.X, origin.Y, packet.Target.Z)
+	local offset = target - origin
+	local length = offset.Magnitude
+	if length < 1 then
+		return
+	end
+	local color = if typeof(packet.Color) == "Color3" then packet.Color else Color3.fromRGB(255, 205, 120)
+	local width = if type(packet.Width) == "number" then math.clamp(packet.Width * 2, 4, 18) else 10
+	local duration = if type(packet.Duration) == "number" then math.clamp(packet.Duration, 0.5, 3) else 1.5
+	local segmentCount = math.clamp(math.ceil(length / 5), 4, 14)
+	for index = 1, segmentCount do
+		local alpha = (index - 0.5) / segmentCount
+		local segment = makeStudEffectPart("BossChargeLane", color)
+		segment.CFrame = CFrame.lookAt(origin:Lerp(target, alpha), target)
+		segment.Size = Vector3.new(width, 0.12, length / segmentCount * 0.82)
+		segment.Transparency = 0.35
+		TweenService:Create(
+			segment,
+			TweenInfo.new(duration, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+			{ Transparency = 0.08 }
+		):Play()
+		Debris:AddItem(segment, duration + 0.08)
+	end
+	playEffectSound("SlowSwoosh", renderFolder, 0.62)
+end
+
 function ZombieController.ZombieAbility(_, packet)
 	if type(packet) ~= "table" or type(packet.Kind) ~= "string" then
 		return
@@ -278,6 +414,14 @@ function ZombieController.ZombieAbility(_, packet)
 	end
 	if packet.Kind == "BossDeathShockwave" then
 		playBossDeathShockwave(packet)
+		return
+	end
+	if packet.Kind == "BossEntrance" then
+		playBossEntrance(packet)
+		return
+	end
+	if packet.Kind == "BossChargeTelegraph" then
+		playBossChargeTelegraph(packet)
 		return
 	end
 	local radius = if type(packet.Radius) == "number" then math.clamp(packet.Radius, 1, 30) else 2.5
@@ -316,8 +460,8 @@ function ZombieController.ZombieDamaged(_, id, health, maximumHealth, knockbackD
 	local view = type(id) == "number" and zombieViews[id]
 	if view then
 		view:ApplyDamage(health, maximumHealth, knockbackDirection, knockbackImpulse)
-		if view.typeName == "Boss" then
-			setBossState(true, id, health, maximumHealth)
+		if view.definition.IsBoss then
+			setBossState(true, id, view.typeName, health, maximumHealth)
 		end
 	end
 end
@@ -351,8 +495,8 @@ function ZombieController.RemoveZombies(_, ids)
 	for _, id in ids do
 		local view = zombieViews[id]
 		if view then
-			if view.typeName == "Boss" and bossState.id == id then
-				setBossState(false, nil, 0, 0)
+			if view.definition.IsBoss and bossState.id == id then
+				setBossState(false, nil, nil, 0, 0)
 			end
 			if view.health <= 0 then
 				view:Ragdoll()

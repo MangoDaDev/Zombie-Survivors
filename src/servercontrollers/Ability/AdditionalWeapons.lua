@@ -569,7 +569,12 @@ end
 
 local function attackVortex(player: Player, _runtime, stats, root: BasePart, now: number): boolean
 	local definition = AbilityDefinitions.ById.Vortex
-	local targets = chooseGroupTargets(root.Position, definition.Combat.Range, stats.Radius, stats.Count)
+	local targets = chooseGroupTargets(
+		root.Position,
+		definition.Combat.Range * ClassController.GetGlobalRangeMultiplier(player),
+		stats.Radius,
+		stats.Count
+	)
 	local created = false
 	for _, target in targets do
 		local ground = getGroundPosition(player, target.position)
@@ -688,6 +693,21 @@ local function scheduleAttacks(now: number)
 				ClassController.ApplyWeaponStats(player, abilityId, stats)
 				stats = PassiveEffects.ModifyWeaponStats(player, abilityId, stats)
 				local attacked = ATTACKERS[abilityId](player, runtime, stats, root, now)
+				if attacked then
+					local repeatConfig = PassiveEffects.ConsumeWeaponActivation(player, abilityId)
+					if repeatConfig then
+						task.delay(repeatConfig.Delay, function()
+							if runtimes[player] == runtime and runtime.equipped[abilityId] then
+								local repeatRoot = getAliveRoot(player)
+								if repeatRoot then
+									ATTACKERS[abilityId](player, runtime,
+										PassiveEffects.MakeOverchargeStats(stats, repeatConfig.DamageMultiplier), repeatRoot,
+										Workspace:GetServerTimeNow())
+								end
+							end
+						end)
+					end
+				end
 				runtime.nextAttackAt[abilityId] = now + (if attacked
 					then stats.Cooldown * PassiveEffects.GetCooldownMultiplier(player)
 					else math.min(stats.Cooldown, 0.3))

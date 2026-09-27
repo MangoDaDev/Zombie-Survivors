@@ -334,7 +334,8 @@ end
 local function buildLightningChain(candidates, origin: Vector3, definition, stats, excluded)
 	local used = {}
 	local targets = {}
-	local current = findNearestUnused(candidates, origin, definition.Combat.FirstTargetRange, used, excluded)
+	local firstTargetRange = definition.Combat.FirstTargetRange * (stats.ClassGlobalRangeMultiplier or 1)
+	local current = findNearestUnused(candidates, origin, firstTargetRange, used, excluded)
 	while current and #targets < stats.MaximumTargets do
 		table.insert(targets, current)
 		used[current.key] = true
@@ -346,7 +347,9 @@ end
 local function attackLightning(player: Player, runtime, stats, root: BasePart): boolean
 	local definition = AbilityDefinitions.ById.Lightning
 	local origin = root.Position + Vector3.new(0, 2.2, 0)
-	local poolRadius = definition.Combat.FirstTargetRange + stats.ChainRange * math.min(stats.MaximumTargets - 1, 4)
+	stats.ClassGlobalRangeMultiplier = ClassController.GetGlobalRangeMultiplier(player)
+	local poolRadius = definition.Combat.FirstTargetRange * stats.ClassGlobalRangeMultiplier
+		+ stats.ChainRange * math.min(stats.MaximumTargets - 1, 4)
 	local candidates = CombatTargets.GetHostilesInRadius(origin, poolRadius, definition.Combat.MaximumCandidatePool)
 	if #candidates == 0 then
 		return false
@@ -764,6 +767,20 @@ local function scheduleAttacks(now: number)
 				ClassController.ApplyWeaponStats(player, abilityId, stats)
 				stats = PassiveEffects.ModifyWeaponStats(player, abilityId, stats)
 				local attacked = root ~= nil and ATTACKERS[abilityId](player, runtime, stats, root)
+				if attacked then
+					local repeatConfig = PassiveEffects.ConsumeWeaponActivation(player, abilityId)
+					if repeatConfig then
+						task.delay(repeatConfig.Delay, function()
+							if runtimes[player] == runtime and runtime.equipped[abilityId] then
+								local repeatRoot = getAliveRoot(player)
+								if repeatRoot then
+									ATTACKERS[abilityId](player, runtime,
+										PassiveEffects.MakeOverchargeStats(stats, repeatConfig.DamageMultiplier), repeatRoot)
+								end
+							end
+						end)
+					end
+				end
 				runtime.nextAttackAt[abilityId] = now + (if attacked
 					then stats.Cooldown * PassiveEffects.GetCooldownMultiplier(player)
 					else math.min(stats.Cooldown, 0.3))

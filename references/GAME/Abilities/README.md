@@ -10,3 +10,8 @@ This is a representative selection, not the full ability icon catalog. Use it to
 - `Greed.png` — reward passive.
 
 Production icon files remain in `assets/ability-icons/`.
+
+Human-approved expansion icons uploaded to Roblox and registered in `Modules.UI.Images.Abilities`:
+
+- `Crowbar.png`, `Crossfire.png`, `Buzzsaw.png`, `Crusher.png`, `LaserSweep.png`
+- `Armor.png`, `Magnet.png`, `Executioner.png`, `TrainingManual.png`, `Overcharge.png`

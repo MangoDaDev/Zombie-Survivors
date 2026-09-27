@@ -8,6 +8,7 @@ local NotificationManager = require(ReplicatedStorage.Modules.UI.NotificationMan
 local UIStyle = require(ReplicatedStorage.Modules.UI.UIStyle)
 local AbilityController = require(script.Parent.AbilityController)
 local RunProgressionController = require(script.Parent.RunProgressionController)
+local AdditionalWeaponEffects = require(script.Parent.Ability.AdditionalWeaponEffects)
 
 local ClassController = {}
 
@@ -53,6 +54,28 @@ function ClassController.ActionResult(_, success, message)
 	end
 	actionResult:Fire(success, message)
 	NotificationManager.Notify(message, 2.5, if success then UIStyle.Colors.Green else UIStyle.Colors.Red)
+end
+
+function ClassController.KillEffect(_, kind, position, radius)
+	if (kind ~= "Star" and kind ~= "Void")
+		or typeof(position) ~= "Vector3"
+		or type(radius) ~= "number"
+		or radius <= 0
+		or radius > 35
+	then
+		return
+	end
+	if kind == "Star" then
+		AdditionalWeaponEffects.MeteorImpacted({
+			id = 0,
+			position = position,
+			radius = radius,
+			shockwave = true,
+			fragments = true,
+		})
+	else
+		AdditionalWeaponEffects.VortexCollapsed({ position = position, radius = radius })
+	end
 end
 
 function ClassController.SetDataService(service)

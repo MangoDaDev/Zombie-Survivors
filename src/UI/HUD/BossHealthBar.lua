@@ -2,7 +2,6 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local ZombieController = require(ReplicatedStorage.Controllers.ZombieController)
 local FormatNumber = require(ReplicatedStorage.Modules.Math.FormatNumber)
-local ZombieDefinitions = require(ReplicatedStorage.Modules.Game.Zombies.ZombieDefinitions)
 local SafeArea = require(ReplicatedStorage.Modules.UI.SafeArea)
 local UIStyle = require(ReplicatedStorage.Modules.UI.UIStyle)
 local Vide = require(ReplicatedStorage.Packages.vide)
@@ -11,9 +10,6 @@ local cleanup = Vide.cleanup
 local create = Vide.create
 local source = Vide.source
 local spring = Vide.spring
-
-local BOSS_RED = Color3.fromRGB(195, 48, 61)
-local BOSS_NAME = string.upper(ZombieDefinitions.Boss.DisplayName or "Grave Titan")
 
 return function()
 	local initialState = ZombieController.GetBossState()
@@ -41,7 +37,9 @@ return function()
 	return create "Frame" {
 		Name = "BossHealthBar",
 		AnchorPoint = Vector2.new(0.5, 0),
-		BackgroundColor3 = Color3.fromRGB(31, 16, 20),
+		BackgroundColor3 = function()
+			return Color3.fromRGB(18, 16, 20):Lerp(state().color, 0.12)
+		end,
 		BorderSizePixel = 0,
 		Position = function()
 			-- The round panel owns the first top-center row; the boss bar stays directly below it.
@@ -63,7 +61,9 @@ return function()
 		create "UICorner" { CornerRadius = UDim.new(0, 4) },
 		create "UIStroke" {
 			ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-			Color = Color3.fromRGB(154, 47, 58),
+			Color = function()
+				return state().color:Lerp(Color3.new(0, 0, 0), 0.28)
+			end,
 			Thickness = 3,
 		},
 		create "TextLabel" {
@@ -72,8 +72,12 @@ return function()
 			FontFace = Font.new(UIStyle.Font.Family, Enum.FontWeight.Heavy),
 			Position = UDim2.new(0, 12, 0, 7),
 			Size = UDim2.new(0.35, -12, 0.34, 0),
-			Text = BOSS_NAME,
-			TextColor3 = Color3.fromRGB(255, 226, 211),
+			Text = function()
+				return string.upper(state().displayName)
+			end,
+			TextColor3 = function()
+				return state().color:Lerp(Color3.new(1, 1, 1), 0.72)
+			end,
 			TextScaled = true,
 			TextXAlignment = Enum.TextXAlignment.Left,
 			ZIndex = 97,
@@ -85,7 +89,9 @@ return function()
 			FontFace = Font.new(UIStyle.Font.Family, Enum.FontWeight.Bold),
 			Position = UDim2.new(0.5, 0, 0, 11),
 			Size = UDim2.new(0.3, -8, 0.22, 0),
-			Text = "ENRAGES AT 50%",
+			Text = function()
+				return state().hint
+			end,
 			TextColor3 = Color3.fromRGB(255, 211, 137),
 			TextScaled = true,
 			ZIndex = 97,
@@ -122,7 +128,9 @@ return function()
 			create "UICorner" { CornerRadius = UDim.new(0, 3) },
 			create "Frame" {
 				Name = "Fill",
-				BackgroundColor3 = BOSS_RED,
+				BackgroundColor3 = function()
+					return state().color
+				end,
 				BorderSizePixel = 0,
 				ClipsDescendants = true,
 				Size = function()
@@ -131,7 +139,10 @@ return function()
 				ZIndex = 97,
 				create "UICorner" { CornerRadius = UDim.new(0, 3) },
 				create "UIGradient" {
-					Color = ColorSequence.new(Color3.fromRGB(222, 61, 72), Color3.fromRGB(145, 30, 46)),
+					Color = function()
+						local color = state().color
+						return ColorSequence.new(color:Lerp(Color3.new(1, 1, 1), 0.18), color:Lerp(Color3.new(0, 0, 0), 0.25))
+					end,
 				},
 			},
 			create "Frame" {
@@ -141,6 +152,9 @@ return function()
 				BorderSizePixel = 0,
 				Position = UDim2.fromScale(0.5, 0.5),
 				Size = UDim2.new(0, 3, 1, 4),
+				Visible = function()
+					return state().typeName == "Boss"
+				end,
 				ZIndex = 98,
 			},
 		},

@@ -67,18 +67,61 @@ local RunProgressionConfig = {
 		RoundDurationEquivalent = 22,
 		DifficultyRoundsPerStep = 14,
 		MaximumClusterSize = 4,
-		BossEncounter = {
-			-- Round 15 is a bespoke encounter instead of a weighted wave: one boss approaches while
-			-- slow Walkers form a readable arena ring around the living party.
-			Round = 15,
-			BossType = "Boss",
-			BossDistance = 48,
-			RingType = "Walker",
-			RingRadius = 30,
-			BaseRingCount = 12,
-			RingCountPerAdditionalPlayer = 4,
-			MaximumRingCount = 24,
-			RingMoveSpeedMultiplier = 0.45,
+		-- Bosses are deliberately fifteen rounds apart. Each milestone gets a short warning, a
+		-- manageable ring wave, and a telegraphed entrance instead of revealing the full roster early.
+		BossEncounters = {
+			[15] = {
+				Round = 15,
+				BossType = "Boss",
+				BossDistance = 48,
+				RingType = "Walker",
+				RingRadius = 30,
+				BaseRingCount = 12,
+				RingCountPerAdditionalPlayer = 4,
+				MaximumRingCount = 24,
+				RingMoveSpeedMultiplier = 0.45,
+				BuildupDuration = 4.5,
+				EntranceDuration = 2.6,
+			},
+			[30] = {
+				Round = 30,
+				BossType = "PlagueMatron",
+				BossDistance = 50,
+				RingType = "Walker",
+				RingRadius = 32,
+				BaseRingCount = 15,
+				RingCountPerAdditionalPlayer = 4,
+				MaximumRingCount = 27,
+				RingMoveSpeedMultiplier = 0.52,
+				BuildupDuration = 5,
+				EntranceDuration = 2.8,
+			},
+			[45] = {
+				Round = 45,
+				BossType = "RiftStalker",
+				BossDistance = 52,
+				RingType = "Walker",
+				RingRadius = 34,
+				BaseRingCount = 18,
+				RingCountPerAdditionalPlayer = 4,
+				MaximumRingCount = 30,
+				RingMoveSpeedMultiplier = 0.58,
+				BuildupDuration = 5.25,
+				EntranceDuration = 2.8,
+			},
+			[60] = {
+				Round = 60,
+				BossType = "BoneColossus",
+				BossDistance = 54,
+				RingType = "Walker",
+				RingRadius = 36,
+				BaseRingCount = 21,
+				RingCountPerAdditionalPlayer = 4,
+				MaximumRingCount = 33,
+				RingMoveSpeedMultiplier = 0.64,
+				BuildupDuration = 5.5,
+				EntranceDuration = 3,
+			},
 		},
 	},
 
@@ -107,6 +150,13 @@ local RunProgressionConfig = {
 		PlayerCountExponent = 0.8,
 	},
 }
+
+function RunProgressionConfig.GetBossEncounter(roundNumber: number)
+	if type(roundNumber) ~= "number" or roundNumber % 1 ~= 0 then
+		return nil
+	end
+	return RunProgressionConfig.Rounds.BossEncounters[roundNumber]
+end
 
 function RunProgressionConfig.GetRoundZombieCount(roundNumber: number, playerCount: number): number
 	local validRound = math.max(1, math.floor(roundNumber))

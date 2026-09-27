@@ -431,7 +431,11 @@ end
 
 local function attackPoison(player: Player, _runtime, stats, root: BasePart, now: number): boolean
 	local definition = AbilityDefinitions.ById.Poison
-	local targets = choosePoisonTargets(root.Position, stats, definition.Combat.TargetRange)
+	local targets = choosePoisonTargets(
+		root.Position,
+		stats,
+		definition.Combat.TargetRange * ClassController.GetGlobalRangeMultiplier(player)
+	)
 	if #targets == 0 then
 		return false
 	end
@@ -765,6 +769,21 @@ local function scheduleAttacks(now: number)
 			end
 			if root and now >= runtime.nextAttackAt[abilityId] then
 				local attacked = ATTACKERS[abilityId](player, runtime, stats, root, now)
+				if attacked then
+					local repeatConfig = PassiveEffects.ConsumeWeaponActivation(player, abilityId)
+					if repeatConfig then
+						task.delay(repeatConfig.Delay, function()
+							if runtimes[player] == runtime and runtime.equipped[abilityId] then
+								local repeatRoot = getAliveRoot(player)
+								if repeatRoot then
+									ATTACKERS[abilityId](player, runtime,
+										PassiveEffects.MakeOverchargeStats(stats, repeatConfig.DamageMultiplier), repeatRoot,
+										Workspace:GetServerTimeNow())
+								end
+							end
+						end)
+					end
+				end
 				runtime.nextAttackAt[abilityId] = now + (if attacked
 					then stats.Cooldown * PassiveEffects.GetCooldownMultiplier(player)
 					else math.min(stats.Cooldown, 0.3))

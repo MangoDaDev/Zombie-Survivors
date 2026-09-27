@@ -26,6 +26,31 @@ local function onZombieDied(death)
 	local rewardMultiplier = 1
 	if killer then
 		ClassController.RegisterRageKill(killer, RageController.IsActive(killer))
+		if death.damageSource ~= "ClassKillExplosion" then
+			local effect = ClassController.RegisterKill(killer)
+			if effect then
+				local targets = ZombieController.GetZombiesInRadius(
+					death.position,
+					effect.pullRadius or effect.radius,
+					effect.maximumTargets
+				)
+				for _, target in targets do
+					if effect.pullDistance then
+						ZombieController.PullZombie(target.id, death.position, effect.pullDistance)
+					end
+					local targetPosition = ZombieController.GetZombiePosition(target.id)
+					if targetPosition and (targetPosition - death.position).Magnitude <= effect.radius then
+						ZombieController.DamageZombie(target.id, effect.damage, death.position, 0, {
+							player = killer,
+							source = "ClassKillExplosion",
+							canApplyHitPassives = false,
+						})
+					end
+				end
+				-- Existing stud-built Meteor and Vortex collapse effects keep class procs visually consistent.
+				ClassController.BroadcastKillEffect(effect.kind, death.position, effect.radius)
+			end
+		end
 		local luckyEndsAt = RuntimeState.Get(killer, "LuckySkullEndsAt", 0)
 		if type(luckyEndsAt) == "number" and workspace:GetServerTimeNow() < luckyEndsAt then
 			-- Lucky Skull doubles only rewards from kills credited to its owner; it never changes zombie health.
@@ -75,7 +100,7 @@ local function onZombieDied(death)
 			end
 		end
 	end
-	if death.typeName == "Boss" then
+	if death.definition.IsBoss then
 		local special = death.definition.Special
 		local dropId = type(special) == "table" and special.DeathDropId or nil
 		if type(dropId) == "string" then
