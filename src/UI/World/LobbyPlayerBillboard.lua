@@ -29,7 +29,8 @@ return function(props)
 		AlwaysOnTop = true,
 		LightInfluence = 0,
 		MaxDistance = 80,
-		Size = UDim2.fromOffset(128, 96),
+		-- BillboardGui scale components are world studs, so the overhead card keeps a physical 4:3 size in the lobby.
+		Size = UDim2.fromScale(4, 3),
 		StudsOffsetWorldSpace = Vector3.new(0, 3.25, 0),
 		create "Frame" {
 			Name = "Content",

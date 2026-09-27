@@ -12,6 +12,7 @@ local RunProgressionConfig = {
 	},
 
 	Pickups = {
+		-- FreeForAll gives every present player a private claim on each coin/XP drop; another player's claim cannot consume it.
 		Ownership = "FreeForAll", -- Change to "Killer" to reserve both reward types for the killing player.
 		XP = {
 			PickupRadius = 2.4,

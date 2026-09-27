@@ -33,8 +33,8 @@ Quick reference for the reusable first-party Luau foundation. Generated Wally de
 | `src/controllers/Ability/PassiveEffectsView.lua` | Renders lightweight Blast, Burn, Thorns, and Critical feedback from authoritative server packets. |
 | `src/controllers/CoinsController.lua` | Exposes the replicated, read-only local coin balance and its change signal. |
 | `src/controllers/RunRewardsController.lua` | **Archived/dormant:** mirrors server-held run earnings and safe-area membership, and requests an authoritative return-to-base claim. |
-| `src/controllers/CoinDropController.lua` | Renders server-authored world coin drops, scatter/merge/magnet presentation, and latency-hidden proximity claims without awarding currency locally. |
-| `src/controllers/XPDropController.lua` | Clones the authored XP crystal for server-authored world drops and renders large blue/green/pink-purple tier styling, glow/highlight, scatter, idle, magnet, collection, and cleanup states. |
+| `src/controllers/CoinDropController.lua` | Renders each player's private view of server-authored world coin drops, scatter/merge/magnet presentation, and latency-hidden proximity claims without awarding currency locally. |
+| `src/controllers/XPDropController.lua` | Clones each player's private view of server-authored XP drops and renders large blue/green/pink-purple tier styling, glow/highlight, scatter, idle, magnet, collection, and cleanup states. |
 | `src/controllers/PowerupDropController.lua` | Renders authored breakable power-ups, colored reveal/activation bursts, collection movement, local activation notifications/sounds, and visible timed Stopwatch, Guardian Halo, and Lucky Skull auras. |
 | `src/controllers/RageController.lua` | Validates authoritative Rage snapshots and owns run-only activation input and character Rage VFX, including Studio session promotion; Lobby presentation stays dormant. |
 | `src/controllers/PlayerStateController.lua` | Receives generic server runtime-state snapshots and updates. |
@@ -68,8 +68,8 @@ Quick reference for the reusable first-party Luau foundation. Generated Wally de
 | `src/servercontrollers/CoinsController.lua` | Validates and owns persistent server-authoritative coin balance operations. |
 | `src/servercontrollers/BackpackController.lua` | Equips authored physical backpack stages and advances their fullness from authoritative run coin collections. |
 | `src/servercontrollers/RunRewardsController.lua` | **Archived/dormant:** holds unbanked run earnings, safe-area membership, return-to-base, and claim behavior. |
-| `src/servercontrollers/CoinDropController.lua` | Owns game-only coin spread, run-boundary clearing, merging, ownership-aware proximity claims, Hoarder stealing/release support, Scrap Magnet collection, direct persistent awards, and carried-backpack progression events. |
-| `src/servercontrollers/XPDropController.lua` | Owns XP crystal values, run-boundary clearing, tier-aware visual scale/height, lifetime, ownership, Hoarder stealing/release support, normal/forced magnet movement, single-collector arbitration, and run-XP grants. |
+| `src/servercontrollers/CoinDropController.lua` | Owns game-only coin spread, run-boundary clearing, safe pre-claim merging, independent per-player proximity claims, Hoarder stealing/release support, Scrap Magnet collection, direct persistent awards, and carried-backpack progression events. |
+| `src/servercontrollers/XPDropController.lua` | Owns XP crystal values, run-boundary clearing, tier-aware visual scale/height, lifetime, independent per-player collection state, Hoarder stealing/release support, normal/forced magnet movement, and run-XP grants. |
 | `src/servercontrollers/PowerupDropController.lua` | Owns weighted and explicitly selected power-up drops, run-boundary clearing, proximity collection, full healing, bonus Rage, bomb damage, global reward magnetism, zombie slowing, invulnerability, timed reward multipliers, and effect replication. |
 | `src/servercontrollers/ZombieRewardsController.lua` | Centralizes confirmed zombie-death rewards, applies authoritative Lucky Skull doubling, splits configured boss XP into multi-crystal bursts, creates permanent-coin drops from killer attribution, and guarantees the Boss's special drop. |
 | `src/servercontrollers/ZombieIndexController.lua` | Records killer-attributed zombie discoveries and kill counts in persistent data and validates each fixed one-time coin reward claim. |
@@ -108,7 +108,7 @@ These modules provide shared game configuration, persistent player-data defaults
 | `src/modules/Game/GameReadyConfig.lua` | Defines the shared in-game ready-phase fallback duration. |
 | `src/modules/Game/BackpackConfig.lua` | Maps authoritative carried coin totals to authored physical backpack stages and mount offsets. |
 | `src/modules/Game/CoinDropConfig.lua` | Defines permanent-coin magnet/pickup timing and client-prediction batching limits from shared run balance. |
-| `src/modules/Game/RunProgressionConfig.lua` | Centralizes the run XP curve, pickup tuning, upgrade-focused ability-choice rules, paced finite-round batches, the round-15 boss-ring setup, gentler threat growth, and sublinear `playerCount ^ 0.8` party scaling. |
+| `src/modules/Game/RunProgressionConfig.lua` | Centralizes the run XP curve, private per-player pickup ownership, pickup tuning, upgrade-focused ability-choice rules, paced finite-round batches, the round-15 boss-ring setup, gentler threat growth, and sublinear `playerCount ^ 0.8` party scaling. |
 | `src/modules/Game/SurvivalStatsConfig.lua` | Defines the persistent lifetime rounds-survived data key and default. |
 | `src/modules/Game/Abilities/AbilityDefinitions.lua` | Defines the starter unlock pool (including Orbiting Swords), rarity-priced permanent purchases, five active/five passive per-player limits, expandable ability metadata, upgrade costs, per-level stats, milestones, and Rage tuning. |
 | `src/modules/Game/Abilities/AdditionalAbilityDefinitions.lua` | Defines Shotgun, Frost Nova, Meteor, Turret, Vortex, Giant, Greed, Critical, Adrenaline, and Impact level stats, milestone perks, and Rage tuning. |

@@ -302,3 +302,4 @@ ALWAYS use IMAGE ids instead of DECAL ids. They are 2 seperate things.
 
 You dont need to create a menu for everything.
 Dont use pixels for everything.
+For `BillboardGui.Size`, the `UDim2` scale components are measured in world studs and the offset components are measured in screen pixels. When the user asks for a billboard to be "stud-based," size it primarily with scale, such as `UDim2.fromScale(4, 3)`; use offsets only for minor pixel adjustments. This describes physical sizing, not stud-textured artwork.
