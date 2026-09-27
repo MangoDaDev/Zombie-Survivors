@@ -313,13 +313,19 @@ return function()
 					ZIndex = 406,
 					Button({
 						Text = function()
-							if state().hasReplayVoted then
-								return string.format("VOTED  %d / %d", state().replayVoteCount, state().replayRequiredVotes)
+							local current = state()
+							-- Inactive session snapshots omit replay totals, but Vide still evaluates hidden UI properties.
+							local replayVoteCount = if type(current.replayVoteCount) == "number" then current.replayVoteCount else 0
+							local replayRequiredVotes = if type(current.replayRequiredVotes) == "number"
+								then current.replayRequiredVotes
+								else 0
+							if current.hasReplayVoted then
+								return string.format("VOTED  %d / %d", replayVoteCount, replayRequiredVotes)
 							end
 							return if replayPending() then "VOTING..." else string.format(
 								"PLAY AGAIN  %d / %d",
-								state().replayVoteCount,
-								state().replayRequiredVotes
+								replayVoteCount,
+								replayRequiredVotes
 							)
 						end,
 						Enabled = function()

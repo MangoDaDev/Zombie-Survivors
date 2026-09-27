@@ -160,6 +160,7 @@ These modules provide shared game configuration, persistent player-data defaults
 | --- | --- |
 | `src/UI/App.lua` | Composes the `App` ScreenGui, lobby Ability/Classes menus, party Creation Menu, reactive in-match HUD, and retained generic overlays. |
 | `src/UI/HUD/RunHUD.lua` | Renders the responsive, safe-area-aware STUD game HUD with coins, ready and round/skip-vote status, survival time, animated run XP, and compact five-active/five-passive player-specific slot grids. |
+| `src/UI/HUD/HealthBar.lua` | Renders the responsive in-run player health HUD with live current/maximum Humanoid health, animated progress, low-health color states, safe-area positioning, and respawn-safe event cleanup. |
 | `src/UI/HUD/LevelUpChoices.lua` | Sequentially consumes every authoritative level-up set in a slower, higher-positioned rolling STUD reel that settles compactly with artwork/title-first cards, subdued reward-type footers, layered sound, bursts, and camera/FOV feedback. |
 | `src/UI/HUD/GameOver.lua` | Renders the STUD-styled defeated-player run summary, live lobby-return countdown, shared round state, and unanimous Play Again vote while surviving teammates continue. |
 | `src/UI/UIOrigin.lua` | Mounts the Vide application once into LocalPlayer.PlayerGui. |

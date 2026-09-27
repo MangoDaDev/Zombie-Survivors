@@ -15,8 +15,10 @@ local currentCameraConnection: RBXScriptConnection?
 
 local GAMEPLAY_CAMERA_BINDING = "GameplayTopDownCamera"
 local GAMEPLAY_FIELD_OF_VIEW = 46
-local CAMERA_HEIGHT = 32
-local CAMERA_BEHIND_DISTANCE = 15
+-- Keep the gameplay camera substantially zoomed out so players can read incoming hordes and hazards
+-- well before they reach melee range. These offsets preserve the established viewing angle.
+local CAMERA_HEIGHT = 64
+local CAMERA_BEHIND_DISTANCE = 30
 local CAMERA_FOCUS_HEIGHT = 2.5
 local CAMERA_FOLLOW_RESPONSIVENESS = 9
 local CAMERA_RENDER_PRIORITY = Enum.RenderPriority.Camera.Value - 1
