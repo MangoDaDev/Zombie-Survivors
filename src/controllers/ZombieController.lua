@@ -5,6 +5,7 @@ local Debris = game:GetService "Debris"
 local Workspace = game:GetService "Workspace"
 
 local Networker = require(ReplicatedStorage.Packages.networker)
+local Signal = require(ReplicatedStorage.Packages.signal)
 local ZombieDefinitions = require(ReplicatedStorage.Modules.Game.Zombies.ZombieDefinitions)
 local ZombieView = require(script.Parent.Zombie.ZombieView)
 
@@ -15,7 +16,16 @@ local renderFolder
 local zombieViews = {}
 local renderParts = {}
 local renderCFrames = {}
+local bossState = {
+	active = false,
+	id = nil,
+	health = 0,
+	maximumHealth = 0,
+}
+local bossStateChanged = Signal.new()
 local STUD_EFFECT_KINDS = {
+	BossSummon = true,
+	BossEnrage = true,
 	WardenAura = true,
 	Feast = true,
 	HexBurst = true,
@@ -26,6 +36,25 @@ local STUD_EFFECT_KINDS = {
 	Hatch = true,
 	MartyrBuff = true,
 }
+
+local function setBossState(active: boolean, id: number?, health: number?, maximumHealth: number?)
+	local nextMaximumHealth = if type(maximumHealth) == "number" then math.max(maximumHealth, 0) else 0
+	local nextHealth = if type(health) == "number" then math.clamp(health, 0, nextMaximumHealth) else 0
+	if bossState.active == active
+		and bossState.id == id
+		and bossState.health == nextHealth
+		and bossState.maximumHealth == nextMaximumHealth
+	then
+		return
+	end
+	bossState = {
+		active = active,
+		id = id,
+		health = nextHealth,
+		maximumHealth = nextMaximumHealth,
+	}
+	bossStateChanged:Fire(bossState)
+end
 
 local function addZombie(packet, serverTime)
 	if type(packet) ~= "table" then
@@ -44,6 +73,9 @@ local function addZombie(packet, serverTime)
 	if not definition or not template or not template:IsA "Model" then
 		warn(string.format("Cannot render unknown zombie type %s", tostring(typeName)))
 		return
+	end
+	if typeName == "Boss" then
+		setBossState(true, id, health or definition.MaxHealth, maximumHealth or definition.MaxHealth)
 	end
 
 	local existing = zombieViews[id]
@@ -113,6 +145,9 @@ local function updateZombie(packet, serverTime, receivedAt)
 			serverTime,
 			receivedAt
 		)
+		if view.typeName == "Boss" then
+			setBossState(true, id, health, maximumHealth)
+		end
 	end
 end
 
@@ -204,6 +239,9 @@ function ZombieController.ZombieDamaged(_, id, health, maximumHealth, knockbackD
 	local view = type(id) == "number" and zombieViews[id]
 	if view then
 		view:ApplyDamage(health, maximumHealth, knockbackDirection, knockbackImpulse)
+		if view.typeName == "Boss" then
+			setBossState(true, id, health, maximumHealth)
+		end
 	end
 end
 
@@ -236,6 +274,9 @@ function ZombieController.RemoveZombies(_, ids)
 	for _, id in ids do
 		local view = zombieViews[id]
 		if view then
+			if view.typeName == "Boss" and bossState.id == id then
+				setBossState(false, nil, 0, 0)
+			end
 			if view.health <= 0 then
 				view:Ragdoll()
 			else
@@ -269,6 +310,14 @@ end
 function ZombieController.GetZombieWorldPosition(id: number): Vector3?
 	local view = zombieViews[id]
 	return if view then view:GetRenderCFrame(os.clock()).Position else nil
+end
+
+function ZombieController.GetBossState()
+	return bossState
+end
+
+function ZombieController.GetBossStateChangedSignal()
+	return bossStateChanged
 end
 
 function ZombieController.Init()

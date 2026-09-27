@@ -12,7 +12,7 @@ local function define(name, overrides)
 		AssetName = name,
 		MaxHealth = 100,
 		XPValue = 5,
-		CoinValue = 4,
+		CoinValue = 1,
 		ThreatLevel = 1,
 		MoveSpeed = 8,
 		TurnSpeed = 8,
@@ -41,10 +41,12 @@ local function define(name, overrides)
 	end
 	local threatLevel = definition.ThreatLevel
 	if type(threatLevel) == "number" and threatLevel >= 1 then
-		-- Threat is the authoritative reward floor: dangerous archetypes always pay more coins, while
-		-- XP remains the larger reward so run progression stays ahead of permanent currency income.
-		definition.CoinValue = math.max(math.floor(definition.CoinValue), threatLevel * (threatLevel + 1))
-		definition.XPValue = math.max(math.floor(definition.XPValue), definition.CoinValue + threatLevel * XP_ADVANTAGE_PER_THREAT_LEVEL)
+		-- Squaring threat keeps dangerous archetypes valuable while cutting the weakest tiers most sharply;
+		-- keep XP on its existing independent curve so this coin rebalance does not slow run progression.
+		local coinRewardFloor = threatLevel * threatLevel
+		local xpRewardFloor = threatLevel * (threatLevel + 1) + threatLevel * XP_ADVANTAGE_PER_THREAT_LEVEL
+		definition.CoinValue = math.max(math.floor(definition.CoinValue), coinRewardFloor)
+		definition.XPValue = math.max(math.floor(definition.XPValue), xpRewardFloor)
 	end
 	definition.MoveSpeed *= ZOMBIE_MOVE_SPEED_MULTIPLIER
 	definition.AttackRange *= ZOMBIE_ATTACK_RANGE_MULTIPLIER
@@ -239,6 +241,30 @@ local ZombieDefinitions = {
 		EffectColor = Color3.fromRGB(154, 104, 64), SpecialBehavior = "Juggernaut", AnimationStyle = "Brute",
 		SpawnWeight = 2, SpawnUnlockTime = 240, SpawnGrowthPerMinute = 0.13,
 		Special = { BuildTime = 5, MaximumSpeedMultiplier = 2.1, MaximumKnockbackResistance = 0.8, ResetDelay = 0.8 },
+	}),
+	Boss = define("Boss", {
+		-- This first boss pass is deliberately excluded from normal wave rolls until a dedicated boss-round
+		-- schedule is approved; it remains spawnable by authoritative code for focused iteration.
+		MaxHealth = 6000, XPValue = 180, CoinValue = 120, ThreatLevel = 10, MoveSpeed = 4.5, TurnSpeed = 4,
+		AttackDamage = 24, AttackRange = 8, AttackCooldown = 1.8, ModelScale = 1.65, SeparationRadius = 3,
+		EffectColor = Color3.fromRGB(181, 52, 61), SpecialBehavior = "Boss", AnimationStyle = "Brute",
+		SpawnWeight = 0, SummonedOnly = true,
+		Special = {
+			InitialDelay = 4,
+			Cooldown = 8,
+			Radius = 17,
+			SlamTriggerRange = 19,
+			SlamWindup = 1.4,
+			SlamDamage = 45,
+			SummonWindup = 1.8,
+			SummonCount = 5,
+			SummonRadius = 8,
+			SummonTypes = { "Walker", "Runner" },
+			EnrageHealthThreshold = 0.5,
+			EnrageSpeedMultiplier = 1.45,
+			EnrageDamageMultiplier = 1.5,
+			KnockbackResistance = 0.7,
+		},
 	}),
 }
 

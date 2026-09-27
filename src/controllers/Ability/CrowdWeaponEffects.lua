@@ -312,8 +312,27 @@ function CrowdWeaponEffects.AuraState(packet)
 	local color = if packet.rage then Color3.fromRGB(255, 188, 48) else Color3.fromRGB(92, 220, 255)
 	local model = createRing("Aura", packet.radius, color, if packet.rage then 0.18 else 0.42, 28)
 	if model then
+		local motes = {}
+		-- A small fixed mote budget gives the field continuous internal motion without particle emitters
+		-- or enemy-count-dependent work. The server pulse remains the authoritative damage cue.
+		for index = 1, 8 do
+			local mote = makeBlock(
+				"EnergyMote",
+				Vector3.new(0.16, 0.12, 0.65 + (index % 3) * 0.12),
+				color,
+				if packet.rage then 0.2 else 0.34
+			)
+			mote.Parent = model
+			table.insert(motes, {
+				part = mote,
+				phase = (index - 1) / 8 * math.pi * 2,
+				radiusScale = 0.24 + (index % 4) * 0.14,
+				speed = 0.55 + (index % 3) * 0.16,
+			})
+		end
 		auras[packet.ownerUserId] = {
 			model = model,
+			motes = motes,
 			radius = packet.radius,
 			rage = packet.rage,
 		}
@@ -660,9 +679,18 @@ function CrowdWeaponEffects.Render(now: number, deltaTime: number)
 		local player = Players:GetPlayerByUserId(ownerUserId)
 		local root = player and player.Character and player.Character:FindFirstChild("HumanoidRootPart")
 		if root and root:IsA("BasePart") then
-			aura.model:PivotTo(CFrame.new(root.Position - Vector3.yAxis * 2.75))
+			local center = root.Position - Vector3.yAxis * 2.75
+			local rotation = localNow * (if aura.rage then 0.85 else 0.42)
+			aura.model:PivotTo(CFrame.new(center) * CFrame.Angles(0, rotation, 0))
 			local pulse = 1 + math.sin(localNow * (if aura.rage then 6 else 3)) * 0.025
 			aura.model:ScaleTo(pulse)
+			for index, mote in aura.motes do
+				local angle = mote.phase + localNow * mote.speed * (if index % 2 == 0 then -1 else 1)
+				local distance = aura.radius * mote.radiusScale
+				local height = 0.12 + math.sin(localNow * 2.2 + mote.phase) * 0.12
+				mote.part.CFrame = CFrame.new(center + Vector3.new(math.cos(angle) * distance, height, math.sin(angle) * distance))
+					* CFrame.Angles(0, -angle, 0)
+			end
 		else
 			aura.model:Destroy()
 			auras[ownerUserId] = nil

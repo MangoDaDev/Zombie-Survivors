@@ -350,10 +350,12 @@ function AbilityController.RestartRun(player: Player): boolean
 	runtime.nextDaggerAt = workspace:GetServerTimeNow() + 0.2
 	initializeRunData(player)
 	refreshAttacks(player)
-	ActiveWeapons.Refresh(player)
-	AdditionalWeapons.Refresh(player)
-	CrowdWeapons.Refresh(player)
-	OrbitingSwords.Refresh(player)
+	-- A replay is a hard effect boundary even when the new starting loadout contains the same ability.
+	-- Restart every weapon family so old projectiles, mines, fields, turrets, and orbiting blades cannot survive.
+	ActiveWeapons.Restart(player)
+	AdditionalWeapons.Restart(player)
+	CrowdWeapons.Restart(player)
+	OrbitingSwords.Restart(player)
 	PassiveEffects.Refresh(player)
 	return true
 end

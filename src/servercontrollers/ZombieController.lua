@@ -311,7 +311,7 @@ local function isInsideArena(spawnArena, position: Vector3): boolean
 		and math.abs(localPosition.Y) <= 20
 end
 
-local function findGroundPosition(spawnArena, worldPosition: Vector3, candidates)
+local function findSurfacePosition(spawnArena, worldPosition: Vector3)
 	local activeMap = MapController.GetActiveMap()
 	if not activeMap then
 		return nil
@@ -328,7 +328,15 @@ local function findGroundPosition(spawnArena, worldPosition: Vector3, candidates
 		return nil
 	end
 	local surfacePosition = result.Position
-	if not isInsideArena(spawnArena, surfacePosition)
+	if not isInsideArena(spawnArena, surfacePosition) then
+		return nil
+	end
+	return surfacePosition
+end
+
+local function findGroundPosition(spawnArena, worldPosition: Vector3, candidates)
+	local surfacePosition = findSurfacePosition(spawnArena, worldPosition)
+	if not surfacePosition
 		or not isAwayFromPlayers(surfacePosition, candidates, RunProgressionConfig.Spawning.MinimumDistance)
 	then
 		return nil
@@ -532,6 +540,102 @@ function ZombieController.SpawnRound(roundNumber: number, zombieCount: number): 
 	if #spawnPackets > 0 then
 		-- One timestamp per batch avoids repeating derivable interpolation metadata per zombie.
 		zombieNetwork:fireAll("SpawnZombies", spawnPackets, workspace:GetServerTimeNow())
+	end
+	return spawnedIds
+end
+
+local function getEncounterCenter(spawnArena, candidates, outerRadius: number): Vector3
+	local sum = Vector3.zero
+	for _, candidate in candidates do
+		sum += candidate.position
+	end
+	local average = sum / #candidates
+	local localAverage = spawnArena.CFrame:PointToObjectSpace(average)
+	local halfSize = spawnArena.Size * 0.5
+	local margin = math.max(outerRadius + maximumBoundaryRadius * VARIATION_MAXIMUM, 0)
+	local maximumX = math.max(halfSize.X - margin, 0)
+	local maximumZ = math.max(halfSize.Y - margin, 0)
+	local clampedLocal = Vector3.new(
+		math.clamp(localAverage.X, -maximumX, maximumX),
+		0,
+		math.clamp(localAverage.Z, -maximumZ, maximumZ)
+	)
+	local center = spawnArena.CFrame:PointToWorldSpace(clampedLocal)
+	return Vector3.new(center.X, spawnArena.GroundY, center.Z)
+end
+
+function ZombieController.SpawnBossEncounter(roundNumber: number): { number }
+	local config = RunProgressionConfig.Rounds.BossEncounter
+	if not simulationConnection
+		or not arena
+		or type(roundNumber) ~= "number"
+		or roundNumber ~= config.Round
+	then
+		return {}
+	end
+
+	local candidates = getLivePlayerCandidates()
+	if #candidates == 0 then
+		return {}
+	end
+
+	local center = getEncounterCenter(arena, candidates, math.max(config.BossDistance, config.RingRadius))
+	local packets = {}
+	local spawnedIds = {}
+	local ringCount = math.min(
+		config.BaseRingCount + math.max(#candidates - 1, 0) * config.RingCountPerAdditionalPlayer,
+		config.MaximumRingCount
+	)
+	local rotation = random:NextNumber(0, TAU)
+
+	for index = 1, ringCount do
+		local angle = rotation + TAU * (index - 1) / ringCount
+		local desired = center + Vector3.new(math.cos(angle), 0, math.sin(angle)) * config.RingRadius
+		local surfacePosition = findSurfacePosition(arena, desired)
+		if surfacePosition then
+			local packet, zombieId = createZombie(arena, config.RingType, surfacePosition, roundNumber)
+			if packet and zombieId then
+				-- This multiplier belongs only to the round-15 ring; the shared Walker definition stays unchanged.
+				zombies[zombieId].moveSpeedMultiplier *= config.RingMoveSpeedMultiplier
+				table.insert(packets, packet)
+				table.insert(spawnedIds, zombieId)
+			end
+		end
+	end
+
+	local bossSpawned = false
+	-- Try several directions so authored obstacles cannot suppress the encounter's required boss spawn.
+	for attempt = 1, 12 do
+		local angle = rotation + TAU * (attempt - 1) / 12
+		local desired = center + Vector3.new(math.cos(angle), 0, math.sin(angle)) * config.BossDistance
+		local surfacePosition = findSurfacePosition(arena, desired)
+		if surfacePosition then
+			local packet, zombieId = createZombie(arena, config.BossType, surfacePosition, roundNumber)
+			if packet and zombieId then
+				table.insert(packets, packet)
+				table.insert(spawnedIds, zombieId)
+				bossSpawned = true
+				break
+			end
+		end
+	end
+	if not bossSpawned then
+		local fallbackPosition = chooseGroupCenter(arena, candidates)
+		local packet
+		local zombieId
+		if fallbackPosition then
+			packet, zombieId = createZombie(arena, config.BossType, fallbackPosition, roundNumber)
+		end
+		if packet and zombieId then
+			table.insert(packets, packet)
+			table.insert(spawnedIds, zombieId)
+		else
+			warn(string.format("Round %d could not place its required boss", roundNumber))
+		end
+	end
+
+	if #packets > 0 then
+		zombieNetwork:fireAll("SpawnZombies", packets, workspace:GetServerTimeNow())
 	end
 	return spawnedIds
 end

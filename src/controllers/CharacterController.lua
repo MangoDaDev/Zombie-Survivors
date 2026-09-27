@@ -5,6 +5,7 @@ local Workspace = game:GetService("Workspace")
 
 local Networker = require(ReplicatedStorage.Packages.networker)
 local Signal = require(ReplicatedStorage.Packages.signal)
+local RunProgressionController = require(ReplicatedStorage.Controllers.RunProgressionController)
 
 local localPlayer = Players.LocalPlayer
 local readySignal = Signal.new()
@@ -12,6 +13,7 @@ local deathConnection: RBXScriptConnection?
 local workspaceChildAddedConnection: RBXScriptConnection?
 local workspaceChildRemovedConnection: RBXScriptConnection?
 local currentCameraConnection: RBXScriptConnection?
+local progressionStateConnection: RBXScriptConnection?
 
 local GAMEPLAY_CAMERA_BINDING = "GameplayTopDownCamera"
 local GAMEPLAY_FIELD_OF_VIEW = 46
@@ -20,6 +22,7 @@ local GAMEPLAY_FIELD_OF_VIEW = 46
 local CAMERA_HEIGHT = 64
 local CAMERA_BEHIND_DISTANCE = 30
 local CAMERA_FOCUS_HEIGHT = 2.5
+local CAMERA_CHOICE_FORWARD_OFFSET = 4.5
 local CAMERA_FOLLOW_RESPONSIVENESS = 9
 local CAMERA_RENDER_PRIORITY = Enum.RenderPriority.Camera.Value - 1
 
@@ -37,6 +40,11 @@ local IsReady = false
 local gameplayCameraEnabled = false
 local savedCameraState: CameraState? = nil
 local smoothedFocus: Vector3? = nil
+local choiceAvailable = false
+
+local function updateChoiceAvailability(runState)
+	choiceAvailable = runState.active == true and type(runState.choices) == "table" and #runState.choices > 0
+end
 
 local function getLiveRoot(): BasePart?
 	local character = localPlayer.Character
@@ -104,7 +112,10 @@ local function renderGameplayCamera(deltaTime: number)
 	if not root then
 		return
 	end
-	local desiredFocus = root.Position + Vector3.yAxis * CAMERA_FOCUS_HEIGHT
+	-- A live choice reel occupies the upper screen, so frame a little farther ahead along the fixed
+	-- camera heading. This keeps the character slightly lower without moving gameplay geometry.
+	local choiceOffset = if choiceAvailable then Vector3.new(0, 0, -CAMERA_CHOICE_FORWARD_OFFSET) else Vector3.zero
+	local desiredFocus = root.Position + Vector3.yAxis * CAMERA_FOCUS_HEIGHT + choiceOffset
 	-- Exponential smoothing is frame-rate independent and follows translation only. The fixed world
 	-- heading deliberately avoids rotating the whole battlefield whenever the character turns.
 	local followAlpha = 1 - math.exp(-CAMERA_FOLLOW_RESPONSIVENESS * math.max(deltaTime, 0))
@@ -149,6 +160,9 @@ function CharacterController.Init()
 	if currentCameraConnection then
 		currentCameraConnection:Disconnect()
 	end
+	if progressionStateConnection then
+		progressionStateConnection:Disconnect()
+	end
 	workspaceChildAddedConnection = Workspace.ChildAdded:Connect(function(child)
 		if child.Name == "Game" then
 			updateGameplayCameraState()
@@ -164,6 +178,8 @@ function CharacterController.Init()
 			claimCurrentCamera()
 		end
 	end)
+	updateChoiceAvailability(RunProgressionController.GetState())
+	progressionStateConnection = RunProgressionController.GetStateChangedSignal():Connect(updateChoiceAvailability)
 	updateGameplayCameraState()
 	IsReady = true
 	readySignal:Fire()

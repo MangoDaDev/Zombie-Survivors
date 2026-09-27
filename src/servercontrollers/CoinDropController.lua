@@ -350,6 +350,20 @@ function CoinDropController.CollectAll(player: Player): number
 	return collectedCount
 end
 
+function CoinDropController.ClearAll()
+	local ids = {}
+	for id in coins do
+		table.insert(ids, id)
+	end
+	table.clear(coins)
+	activeCount = 0
+	accumulator = 0
+	mergeAccumulator = 0
+	if coinNetwork and #ids > 0 then
+		coinNetwork:fireAll("DespawnCoins", ids)
+	end
+end
+
 local function sendAuthoritativeCoinState(player: Player, id: number, coin: CoinState?, now: number)
 	if not coin then
 		coinNetwork:fire(player, "DespawnCoins", { id })

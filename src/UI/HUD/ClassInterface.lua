@@ -491,27 +491,36 @@ return function()
 					ZIndex = 360,
 					StudTexture({ ZIndex = 361, ImageTransparency = 0.93, TileSize = UDim2.fromOffset(60, 60) }),
 					create "UIStroke" { ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Color = Color3.fromRGB(0, 120, 148), Thickness = 2 },
-					create "UIPadding" { PaddingLeft = UDim.new(0, 8), PaddingRight = UDim.new(0, 8), PaddingTop = UDim.new(0, 8), PaddingBottom = UDim.new(0, 8) },
-					create "UIListLayout" { Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder },
-					create "TextLabel" {
-						Name = "CatalogTitle",
+					create "Frame" {
+						Name = "Content",
+						AutomaticSize = Enum.AutomaticSize.Y,
 						BackgroundTransparency = 1,
-						FontFace = HEAVY_FONT,
-						LayoutOrder = 0,
-						Size = function() return UDim2.new(1, -4, 0, if compactPortrait() or shortLandscape() then 22 else 24) end,
-						Text = function()
-							local count = 0
-							for _, definition in ClassDefinitions.List do
-								if isOwned(state(), definition.Id) then count += 1 end
-							end
-							return string.format(if portrait() then "CLASSES  %d/%d" else "YOUR CLASSES  %d/%d", count, #ClassDefinitions.List)
-						end,
-						TextColor3 = Color3.fromRGB(160, 214, 228),
-						TextScaled = true,
-						TextXAlignment = Enum.TextXAlignment.Left,
+						Size = UDim2.new(1, 0, 0, 0),
 						ZIndex = 361,
+						-- Isolate list entries from the scrolling panel's decorative texture so it cannot
+						-- be measured as a class row and introduce a large blank buffer.
+						create "UIPadding" { PaddingLeft = UDim.new(0, 8), PaddingRight = UDim.new(0, 8), PaddingTop = UDim.new(0, 8), PaddingBottom = UDim.new(0, 8) },
+						create "UIListLayout" { Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder },
+						create "TextLabel" {
+							Name = "CatalogTitle",
+							BackgroundTransparency = 1,
+							FontFace = HEAVY_FONT,
+							LayoutOrder = 0,
+							Size = function() return UDim2.new(1, -4, 0, if compactPortrait() or shortLandscape() then 22 else 24) end,
+							Text = function()
+								local count = 0
+								for _, definition in ClassDefinitions.List do
+									if isOwned(state(), definition.Id) then count += 1 end
+								end
+								return string.format(if portrait() then "CLASSES  %d/%d" else "YOUR CLASSES  %d/%d", count, #ClassDefinitions.List)
+							end,
+							TextColor3 = Color3.fromRGB(160, 214, 228),
+							TextScaled = true,
+							TextXAlignment = Enum.TextXAlignment.Left,
+							ZIndex = 361,
+						},
+						cards,
 					},
-					cards,
 				},
 				create "ScrollingFrame" {
 					Name = "Details",

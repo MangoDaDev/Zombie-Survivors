@@ -641,14 +641,23 @@ return function()
 					ZIndex = 320,
 					StudTexture({ ZIndex = 321, ImageTransparency = 0.93, TileSize = UDim2.fromOffset(60, 60) }),
 					create "UIStroke" { ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Color = Color3.fromRGB(0, 120, 148), Thickness = 2 },
-					create "UIPadding" {
-						PaddingBottom = UDim.new(0, 8),
-						PaddingLeft = UDim.new(0, 7),
-						PaddingRight = UDim.new(0, 7),
-						PaddingTop = UDim.new(0, 7),
+					create "Frame" {
+						Name = "Content",
+						AutomaticSize = Enum.AutomaticSize.Y,
+						BackgroundTransparency = 1,
+						Size = UDim2.new(1, 0, 0, 0),
+						ZIndex = 322,
+						-- Keep layout-managed entries in their own container so the catalog's decorative
+						-- texture never consumes a list slot and creates a viewport-sized blank buffer.
+						create "UIPadding" {
+							PaddingBottom = UDim.new(0, 8),
+							PaddingLeft = UDim.new(0, 7),
+							PaddingRight = UDim.new(0, 7),
+							PaddingTop = UDim.new(0, 7),
+						},
+						create "UIListLayout" { Padding = UDim.new(0, 9), SortOrder = Enum.SortOrder.LayoutOrder },
+						cards,
 					},
-					create "UIListLayout" { Padding = UDim.new(0, 9), SortOrder = Enum.SortOrder.LayoutOrder },
-					cards,
 				},
 				create "Frame" {
 					Name = "Details",

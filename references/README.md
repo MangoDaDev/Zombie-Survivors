@@ -7,3 +7,5 @@ Agents must inspect this folder before creating visuals that depend on Roblox av
 Use descriptive filenames where possible, such as `survivor-avatar-front.png`, `pyromaniac-outfit.png`, or `thumbnail-style-reference.jpg`.
 
 The `thumbnails/` subfolder contains examples from popular Roblox experiences for composition and marketing-reference study. Treat them as third-party references only; do not copy or redistribute their artwork as this game's own assets.
+
+The `Zombies/` subfolder contains first-party zombie appearance references for future game artwork.

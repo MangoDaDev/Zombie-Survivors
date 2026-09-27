@@ -12,8 +12,10 @@ local PartyTeleportService = require(ServerStorage.Controllers.PartyTeleportServ
 local RageController = require(ServerStorage.Controllers.RageController)
 local RunProgressionController = require(ServerStorage.Controllers.RunProgressionController)
 local RoundController = require(ServerStorage.Controllers.RoundController)
+local PowerupDropController = require(ServerStorage.Controllers.PowerupDropController)
 local ServerContext = require(ServerStorage.Controllers.ServerContext)
 local ZombieController = require(ServerStorage.Controllers.ZombieController)
+local XPDropController = require(ServerStorage.Controllers.XPDropController)
 
 local RETURN_DELAY = 15
 
@@ -228,7 +230,11 @@ local function restartParty()
 		return
 	end
 
-	-- Play Again is a shared run boundary: every player and every horde system resets before round one spawns.
+	-- Play Again is a hard shared run boundary. Clear authoritative drop state before any new-run
+	-- scheduler can create objects, so late collection or stale snapshots cannot cross between runs.
+	XPDropController.ClearAll()
+	CoinDropController.ClearAll()
+	PowerupDropController.ClearAll()
 	ZombieController.RestartRun()
 	table.clear(replayVotes)
 	for _, player in partyPlayers do

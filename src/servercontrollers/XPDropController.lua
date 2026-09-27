@@ -258,6 +258,19 @@ function XPDropController.CollectAll(player: Player): number
 	return collectedCount
 end
 
+function XPDropController.ClearAll()
+	local ids = {}
+	for id in drops do
+		table.insert(ids, id)
+	end
+	table.clear(drops)
+	activeCount = 0
+	accumulator = 0
+	if xpNetwork and #ids > 0 then
+		xpNetwork:fireAll("DespawnXP", ids)
+	end
+end
+
 local function onHeartbeat(deltaTime: number)
 	accumulator += deltaTime
 	if accumulator < UPDATE_INTERVAL then

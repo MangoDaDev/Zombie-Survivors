@@ -2,6 +2,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local vide = require(ReplicatedStorage.Packages.vide)
 local Confirmation = require(script.Parent.Classes.Confirmation)
 local AbilityInterface = require(script.Parent.HUD.AbilityInterface)
+local BossHealthBar = require(script.Parent.HUD.BossHealthBar)
 local ClassInterface = require(script.Parent.HUD.ClassInterface)
 local GameOver = require(script.Parent.HUD.GameOver)
 local HealthBar = require(script.Parent.HUD.HealthBar)
@@ -32,6 +33,8 @@ return function()
 		RunHUD(),
 		-- Local Humanoid health is presentation-only here; damage and maximum-health changes remain authoritative.
 		HealthBar(),
+		-- Boss health mirrors authoritative zombie snapshots and exists only while the encounter boss is alive.
+		BossHealthBar(),
 		-- Level-up presentation does not pause or intercept live combat outside the three choice cards.
 		LevelUpChoices(),
 		-- The Creation Menu is presentation-only; party membership, settings, and departure stay authoritative.

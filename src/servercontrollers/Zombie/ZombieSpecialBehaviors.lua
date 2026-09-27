@@ -872,4 +872,101 @@ function ZombieSpecialBehaviors.Juggernaut.ModifyDamage(zombie, amount, _hitOrig
 	return amount, false
 end
 
+ZombieSpecialBehaviors.Boss = {}
+
+function ZombieSpecialBehaviors.Boss.Initialize(zombie)
+	local config = zombie.definition.Special
+	local runtime = zombie.specialRuntime
+	runtime.nextUseAt = workspace:GetServerTimeNow() + config.InitialDelay
+	runtime.nextAbility = "Slam"
+	runtime.enraged = false
+	-- Boss mass is represented in the authoritative CFrame simulation through strong impulse resistance.
+	zombie.knockbackResistance = config.KnockbackResistance
+end
+
+local function finishBossAbility(zombie, now)
+	local runtime = zombie.specialRuntime
+	runtime.phase = nil
+	runtime.nextUseAt = now + zombie.definition.Special.Cooldown
+	runtime.nextAbility = if runtime.nextAbility == "Slam" then "Summon" else "Slam"
+	setSpecialState(zombie, SpecialState.None, now)
+end
+
+function ZombieSpecialBehaviors.Boss.Step(zombie, _deltaTime, target, now, distance, _direction, facing)
+	local config = zombie.definition.Special
+	local runtime = zombie.specialRuntime
+
+	if runtime.phase == "SlamWindup" then
+		zombie.state = ZombieProtocol.State.Attacking
+		zombie.cframe = CFrame.new(zombie.cframe.Position) * facing
+		if now >= runtime.phaseEndsAt then
+			zombie.services.DamagePlayersInRadius(zombie, zombie.cframe.Position, config.Radius, config.SlamDamage)
+			zombie.services.BroadcastAbility({
+				Kind = "Shockwave",
+				Position = zombie.cframe.Position,
+				Radius = config.Radius,
+				Color = zombie.definition.EffectColor,
+			})
+			finishBossAbility(zombie, now)
+		end
+		return true
+	elseif runtime.phase == "SummonWindup" then
+		zombie.state = ZombieProtocol.State.Attacking
+		zombie.cframe = CFrame.new(zombie.cframe.Position) * facing
+		if now >= runtime.phaseEndsAt then
+			for index = 1, config.SummonCount do
+				local angle = math.pi * 2 * index / config.SummonCount
+				local offset = Vector3.new(math.cos(angle), 0, math.sin(angle)) * config.SummonRadius
+				local spawnType = config.SummonTypes[(index - 1) % #config.SummonTypes + 1]
+				zombie.services.QueueSpawn(spawnType, zombie.cframe.Position + offset, zombie.arena, zombie.roundNumber)
+			end
+			zombie.services.BroadcastAbility({
+				Kind = "BossSummon",
+				Position = zombie.cframe.Position,
+				Radius = config.SummonRadius,
+				Color = zombie.definition.EffectColor,
+			})
+			finishBossAbility(zombie, now)
+		end
+		return true
+	end
+
+	if not target or now < runtime.nextUseAt then
+		return false
+	end
+	if runtime.nextAbility == "Slam" then
+		if distance > config.SlamTriggerRange then
+			-- Chase until the circular warning can truthfully cover the intended victim.
+			return false
+		end
+		runtime.phase = "SlamWindup"
+		runtime.phaseEndsAt = now + config.SlamWindup
+		beginSpecial(zombie, SpecialState.Windup, now, zombie.cframe.Position, config.Radius)
+	else
+		runtime.phase = "SummonWindup"
+		runtime.phaseEndsAt = now + config.SummonWindup
+		beginSpecial(zombie, SpecialState.Windup, now, zombie.cframe.Position, config.SummonRadius)
+	end
+	return true
+end
+
+function ZombieSpecialBehaviors.Boss.OnDamaged(zombie, _amount, _now)
+	local config = zombie.definition.Special
+	local runtime = zombie.specialRuntime
+	if runtime.enraged or zombie.health > zombie.maximumHealth * config.EnrageHealthThreshold then
+		return
+	end
+	runtime.enraged = true
+	-- The half-health phase is permanent so the fight escalates instead of periodically resetting.
+	zombie.specialMoveSpeedMultiplier *= config.EnrageSpeedMultiplier
+	zombie.damageGrowthMultiplier *= config.EnrageDamageMultiplier
+	zombie.specialSequence += 1
+	zombie.services.BroadcastAbility({
+		Kind = "BossEnrage",
+		Position = zombie.cframe.Position,
+		Radius = config.Radius,
+		Color = zombie.definition.EffectColor,
+	})
+end
+
 return ZombieSpecialBehaviors

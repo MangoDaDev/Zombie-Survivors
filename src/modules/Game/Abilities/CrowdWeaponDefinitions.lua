@@ -52,6 +52,8 @@ local aura = {
 		MinimumTickInterval = 0.42,
 		MaximumTargetsPerTick = 45,
 		Knockback = 0,
+		-- Every Aura visibly pulses from level one so its damage cadence is readable. Level 20 empowers
+		-- that existing pulse instead of introducing the field's only active-looking moment.
 		Pulse = { Level = 20, Interval = 4, RadiusMultiplier = 1.25, DamageMultiplier = 2 },
 	},
 	Rage = {
@@ -66,7 +68,7 @@ local aura = {
 	Milestones = {
 		{ Level = 5, Description = "Larger Aura - noticeably increases Aura radius" },
 		{ Level = 10, Description = "Faster Aura - damages enemies more frequently" },
-		{ Level = 20, Description = "Pulse - periodically releases a larger, stronger ring" },
+		{ Level = 20, Description = "Empowered Pulse - the energy wave becomes larger and deals double damage" },
 		{ Level = 30, Description = "Strong Aura - significantly increases normal damage" },
 		{ Level = 40, Description = "Double Pulse - pulses happen faster and hit harder" },
 		{ Level = 50, Description = "Super Aura - improves radius, damage, tick speed, and Pulse" },
@@ -82,8 +84,9 @@ function aura.GetStats(level: number)
 	if validLevel >= 5 then radius *= 1.2 end
 	if validLevel >= 10 then tickInterval *= 0.88 end
 	if validLevel >= 30 then damage *= 1.4 end
-	local pulseInterval = if validLevel >= combat.Pulse.Level then combat.Pulse.Interval else nil
-	local pulseDamageMultiplier = combat.Pulse.DamageMultiplier
+	local pulseInterval = combat.Pulse.Interval
+	local pulseDamageMultiplier = if validLevel >= combat.Pulse.Level then combat.Pulse.DamageMultiplier else 1
+	local pulseRadiusMultiplier = if validLevel >= combat.Pulse.Level then combat.Pulse.RadiusMultiplier else 1
 	if validLevel >= 40 then
 		pulseInterval *= 0.7
 		pulseDamageMultiplier *= 1.35
@@ -99,7 +102,7 @@ function aura.GetStats(level: number)
 		Radius = math.min(radius, combat.MaximumRadius),
 		TickInterval = math.max(tickInterval, combat.MinimumTickInterval),
 		PulseInterval = pulseInterval,
-		PulseRadiusMultiplier = combat.Pulse.RadiusMultiplier,
+		PulseRadiusMultiplier = pulseRadiusMultiplier,
 		PulseDamageMultiplier = pulseDamageMultiplier,
 		Cooldown = math.max(tickInterval, combat.MinimumTickInterval),
 	}

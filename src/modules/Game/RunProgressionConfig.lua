@@ -41,21 +41,44 @@ local RunProgressionConfig = {
 
 	Abilities = {
 		ChoiceCount = 3,
+		-- Once a build has at least three upgradeable abilities, at most one card may introduce
+		-- something new. This chance falls as the ten run slots fill so established builds develop.
+		NewOfferChanceAtEmpty = 0.4,
+		NewOfferChanceAtFull = 0.08,
 		-- Permanent ownership is the authoritative gate for new run choices. Keep this escape hatch empty
 		-- unless a future global event deliberately makes an ability available without unlocking it.
 		AlwaysAvailable = {},
 	},
 
 	Rounds = {
-		-- A round owns one finite assigned group. Clearing that group's living zombies advances the
-		-- shared party round; skipped-round zombies remain alive but no longer block later rounds.
-		BaseZombieCount = 5,
-		ZombieCountGrowthPerRound = 2,
+		-- A round owns one finite assigned group, delivered in paced reinforcements rather than one spike.
+		-- Skipped-round zombies remain alive but no longer block later rounds.
+		BaseZombieCount = 4,
+		ZombieCountGrowthPerRound = 1,
+		FirstRoundDelay = 1.5,
+		IntermissionDuration = 3,
+		InitialBatchSize = 4,
+		ReinforcementBatchSize = 3,
+		ReinforcementInterval = 2.25,
 		-- Keep skip votes deliberate across round boundaries, especially when one player can pass a vote alone.
 		SkipVoteCooldown = 8,
-		RoundDurationEquivalent = 30,
-		DifficultyRoundsPerStep = 10,
-		MaximumClusterSize = 8,
+		-- These values govern threat unlocks and strength bias, not player movement or responsiveness.
+		RoundDurationEquivalent = 22,
+		DifficultyRoundsPerStep = 14,
+		MaximumClusterSize = 4,
+		BossEncounter = {
+			-- Round 15 is a bespoke encounter instead of a weighted wave: one boss approaches while
+			-- slow Walkers form a readable arena ring around the living party.
+			Round = 15,
+			BossType = "Boss",
+			BossDistance = 48,
+			RingType = "Walker",
+			RingRadius = 30,
+			BaseRingCount = 12,
+			RingCountPerAdditionalPlayer = 4,
+			MaximumRingCount = 24,
+			RingMoveSpeedMultiplier = 0.45,
+		},
 	},
 
 	Spawning = {
@@ -77,7 +100,7 @@ local RunProgressionConfig = {
 		DirectedSpawnAttemptFraction = 0.6,
 		-- Round progression replaces the old continuous spawn clock while retaining the same weighted
 		-- enemy unlock curve and increasingly strong-enemy bias.
-		StrongZombieBiasPerStep = 0.65,
+		StrongZombieBiasPerStep = 0.4,
 		-- Assigned group size follows sublinear multiplayer scaling so extra party members add pressure
 		-- without multiplying the round linearly.
 		PlayerCountExponent = 0.8,

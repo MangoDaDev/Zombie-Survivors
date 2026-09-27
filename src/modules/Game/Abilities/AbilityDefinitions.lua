@@ -11,10 +11,11 @@ AbilityDefinitions.Categories = {
 	Weapon = "Weapon",
 	Passive = "Passive",
 }
--- For the current balance pass, every existing ability except the Divine Orbiting Swords is a
--- permanent starter unlock. Normalization seeds this list on every load so existing profiles migrate too.
+-- Starter unlocks are seeded during every normalization so existing profiles migrate safely. Orbiting
+-- Swords is intentionally included by default even though its rarity remains Divine for display/balance.
 AbilityDefinitions.StarterUnlocks = {
 	"Dagger",
+	"OrbitingSwords",
 	"Fireball",
 	"Lightning",
 	"Boomerang",

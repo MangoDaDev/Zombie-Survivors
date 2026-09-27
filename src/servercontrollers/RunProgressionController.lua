@@ -116,23 +116,50 @@ local function buildCandidates(player: Player)
 	return candidates
 end
 
-local function chooseWithoutReplacement(candidates, count: number): { Choice }
+local function takeWeighted(candidates)
+	local totalWeight = 0
+	for _, candidate in candidates do
+		totalWeight += candidate.weight
+	end
+	local roll = random:NextNumber() * totalWeight
+	local selectedIndex = #candidates
+	for index, candidate in candidates do
+		roll -= candidate.weight
+		if roll <= 0 then
+			selectedIndex = index
+			break
+		end
+	end
+	return table.remove(candidates, selectedIndex)
+end
+
+local function chooseWithoutReplacement(candidates, count: number, slotFillRatio: number): { Choice }
 	local choices = {}
-	while #candidates > 0 and #choices < count do
-		local totalWeight = 0
-		for _, candidate in candidates do
-			totalWeight += candidate.weight
+	local upgrades = {}
+	local newAbilities = {}
+	for _, candidate in candidates do
+		table.insert(if candidate.kind == "Upgrade" then upgrades else newAbilities, candidate)
+	end
+	local newOfferChance = RunProgressionConfig.Abilities.NewOfferChanceAtEmpty
+		+ (RunProgressionConfig.Abilities.NewOfferChanceAtFull
+			- RunProgressionConfig.Abilities.NewOfferChanceAtEmpty) * math.clamp(slotFillRatio, 0, 1)
+	local offeredNew = false
+	local guaranteedUpgradeCount = math.min(2, #upgrades)
+	while #choices < count and (#upgrades > 0 or #newAbilities > 0) do
+		-- Lead with up to two distinct usable upgrades. With three or more owned abilities, the final
+		-- card only expands the build occasionally, and never more than once in the same choice set.
+		local selected
+		if #upgrades > 0 and (#choices < guaranteedUpgradeCount or #newAbilities == 0) then
+			selected = takeWeighted(upgrades)
+		elseif not offeredNew and #newAbilities > 0 and (#upgrades == 0 or random:NextNumber() < newOfferChance) then
+			selected = takeWeighted(newAbilities)
+			offeredNew = true
+		elseif #upgrades > 0 then
+			selected = takeWeighted(upgrades)
+		else
+			selected = takeWeighted(newAbilities)
+			offeredNew = true
 		end
-		local roll = random:NextNumber() * totalWeight
-		local selectedIndex = #candidates
-		for index, candidate in candidates do
-			roll -= candidate.weight
-			if roll <= 0 then
-				selectedIndex = index
-				break
-			end
-		end
-		local selected = table.remove(candidates, selectedIndex)
 		table.insert(choices, {
 			abilityId = selected.abilityId,
 			kind = selected.kind,
@@ -152,7 +179,14 @@ local function offerNextChoice(player: Player, state: PlayerRunState)
 		-- ability run state is ready instead of incorrectly treating the temporary empty pool as final.
 		return
 	end
-	local choices = chooseWithoutReplacement(buildCandidates(player), RunProgressionConfig.Abilities.ChoiceCount)
+	local runData = AbilityController.GetRunData(player)
+	local equippedCount = #runData.Equipped.Weapon + #runData.Equipped.Passive
+	local totalSlots = AbilityDefinitions.EquipLimits.Weapon + AbilityDefinitions.EquipLimits.Passive
+	local choices = chooseWithoutReplacement(
+		buildCandidates(player),
+		RunProgressionConfig.Abilities.ChoiceCount,
+		equippedCount / totalSlots
+	)
 	if #choices == 0 then
 		-- This only occurs after every legal run ability reaches its configured maximum.
 		state.pendingChoices = 0

@@ -264,6 +264,18 @@ function PowerupDropController.GetSnapshot(_, _player)
 	return snapshot
 end
 
+function PowerupDropController.ClearAll()
+	local ids = {}
+	for id in drops do
+		table.insert(ids, id)
+	end
+	table.clear(drops)
+	accumulator = 0
+	if powerupNetwork and #ids > 0 then
+		powerupNetwork:fireAll("DespawnPowerups", ids)
+	end
+end
+
 function PowerupDropController.Init()
 	-- Resolve XP after this module has finished loading; XP progression reaches Ability -> Breakable,
 	-- which intentionally depends back on this controller to create rewards.
