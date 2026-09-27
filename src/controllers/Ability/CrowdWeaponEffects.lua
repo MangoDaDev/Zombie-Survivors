@@ -83,6 +83,20 @@ local function createRing(name: string, radius: number, color: Color3, transpare
 	return model
 end
 
+local function createFilledCircle(name: string, radius: number, color: Color3, transparency: number): Model?
+	if not effectsFolder then
+		return nil
+	end
+	local model = Instance.new("Model")
+	model.Name = name
+	local circle = makeBlock("FilledCircle", Vector3.new(0.12, radius * 2, radius * 2), color, transparency)
+	circle.Shape = Enum.PartType.Cylinder
+	circle.Parent = model
+	model.PrimaryPart = circle
+	model.Parent = effectsFolder
+	return model
+end
+
 local function addBurst(position: Vector3, radius: number, color: Color3, duration: number, soundName: string?)
 	local ring = createRing("AbilityBurst", 1, color, 0.16, 20)
 	if not ring then
@@ -310,29 +324,12 @@ function CrowdWeaponEffects.AuraState(packet)
 		existing.model:Destroy()
 	end
 	local color = if packet.rage then Color3.fromRGB(255, 188, 48) else Color3.fromRGB(92, 220, 255)
-	local model = createRing("Aura", packet.radius, color, if packet.rage then 0.18 else 0.42, 28)
+	-- Keep Aura's range readable with one filled, translucent circle. Do not restore the segmented ring
+	-- or moving decorative motes: those multiply the part count for every equipped Aura.
+	local model = createFilledCircle("Aura", packet.radius, color, if packet.rage then 0.58 else 0.72)
 	if model then
-		local motes = {}
-		-- A small fixed mote budget gives the field continuous internal motion without particle emitters
-		-- or enemy-count-dependent work. The server pulse remains the authoritative damage cue.
-		for index = 1, 8 do
-			local mote = makeBlock(
-				"EnergyMote",
-				Vector3.new(0.16, 0.12, 0.65 + (index % 3) * 0.12),
-				color,
-				if packet.rage then 0.2 else 0.34
-			)
-			mote.Parent = model
-			table.insert(motes, {
-				part = mote,
-				phase = (index - 1) / 8 * math.pi * 2,
-				radiusScale = 0.24 + (index % 4) * 0.14,
-				speed = 0.55 + (index % 3) * 0.16,
-			})
-		end
 		auras[packet.ownerUserId] = {
 			model = model,
-			motes = motes,
 			radius = packet.radius,
 			rage = packet.rage,
 		}
@@ -493,7 +490,8 @@ function CrowdWeaponEffects.DrillSpawned(packet)
 		launchAt = packet.launchAt,
 		rage = packet.rage,
 	}
-	Sounds.Play("FreezeRayShoot", model.PrimaryPart, 95)
+	-- Drill launch uses a mechanical burst; do not restore the unrelated freeze-ray cue.
+	Sounds.Play("AbilityDrillStart", model.PrimaryPart, 95)
 end
 
 function CrowdWeaponEffects.DrillHit(packet)
@@ -680,17 +678,10 @@ function CrowdWeaponEffects.Render(now: number, deltaTime: number)
 		local root = player and player.Character and player.Character:FindFirstChild("HumanoidRootPart")
 		if root and root:IsA("BasePart") then
 			local center = root.Position - Vector3.yAxis * 2.75
-			local rotation = localNow * (if aura.rage then 0.85 else 0.42)
-			aura.model:PivotTo(CFrame.new(center) * CFrame.Angles(0, rotation, 0))
+			-- Cylinder parts extend along X, so rotate the single Aura circle flat against the ground.
+			aura.model:PivotTo(CFrame.new(center) * CFrame.Angles(0, 0, math.pi * 0.5))
 			local pulse = 1 + math.sin(localNow * (if aura.rage then 6 else 3)) * 0.025
 			aura.model:ScaleTo(pulse)
-			for index, mote in aura.motes do
-				local angle = mote.phase + localNow * mote.speed * (if index % 2 == 0 then -1 else 1)
-				local distance = aura.radius * mote.radiusScale
-				local height = 0.12 + math.sin(localNow * 2.2 + mote.phase) * 0.12
-				mote.part.CFrame = CFrame.new(center + Vector3.new(math.cos(angle) * distance, height, math.sin(angle) * distance))
-					* CFrame.Angles(0, -angle, 0)
-			end
 		else
 			aura.model:Destroy()
 			auras[ownerUserId] = nil

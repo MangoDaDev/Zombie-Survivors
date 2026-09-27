@@ -2,6 +2,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local ZombieController = require(ReplicatedStorage.Controllers.ZombieController)
 local FormatNumber = require(ReplicatedStorage.Modules.Math.FormatNumber)
+local ZombieDefinitions = require(ReplicatedStorage.Modules.Game.Zombies.ZombieDefinitions)
 local SafeArea = require(ReplicatedStorage.Modules.UI.SafeArea)
 local UIStyle = require(ReplicatedStorage.Modules.UI.UIStyle)
 local Vide = require(ReplicatedStorage.Packages.vide)
@@ -12,6 +13,7 @@ local source = Vide.source
 local spring = Vide.spring
 
 local BOSS_RED = Color3.fromRGB(195, 48, 61)
+local BOSS_NAME = string.upper(ZombieDefinitions.Boss.DisplayName or "Grave Titan")
 
 return function()
 	local initialState = ZombieController.GetBossState()
@@ -70,7 +72,7 @@ return function()
 			FontFace = Font.new(UIStyle.Font.Family, Enum.FontWeight.Heavy),
 			Position = UDim2.new(0, 12, 0, 7),
 			Size = UDim2.new(0.35, -12, 0.34, 0),
-			Text = "BOSS ZOMBIE",
+			Text = BOSS_NAME,
 			TextColor3 = Color3.fromRGB(255, 226, 211),
 			TextScaled = true,
 			TextXAlignment = Enum.TextXAlignment.Left,

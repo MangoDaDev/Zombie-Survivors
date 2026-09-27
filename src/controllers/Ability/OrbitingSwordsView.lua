@@ -170,7 +170,8 @@ local function emitReleaseImpact(position: Vector3, rage: boolean)
 			emitter:Emit(if child.Name == "Flash" then 1 else if rage then 10 else 8)
 		end
 	end
-	Sounds.Play("BulletHit", holder, 110)
+	-- Released blades keep a dedicated metallic impact rather than sounding like gunfire.
+	Sounds.Play("AbilityBladeImpact", holder, 110)
 	Debris:AddItem(holder, 2)
 end
 

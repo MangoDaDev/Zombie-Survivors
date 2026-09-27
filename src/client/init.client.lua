@@ -16,6 +16,7 @@ local modules_to_init = {
 	ReplicatedStorage.Controllers.RunProgressionController,
 	ReplicatedStorage.Controllers.ClassController,
 	ReplicatedStorage.Controllers.ClassChangingRoomController,
+	ReplicatedStorage.Controllers.LobbyPlayerBillboardController,
 	ReplicatedStorage.Controllers.ZombieIndexController,
 	ReplicatedStorage.Controllers.RunSessionController,
 	ReplicatedStorage.Controllers.RoundController,

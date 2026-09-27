@@ -73,13 +73,11 @@ local function emitAt(position: Vector3, flashCount: number, sparkCount: number,
 			emitter:Emit(if child.Name == "Flash" then flashCount else sparkCount)
 		end
 	end
-	if rage then
-		local light = Instance.new("PointLight")
-		light.Color = Color3.fromRGB(255, 101, 42)
-		light.Brightness = 1.6
-		light.Range = 6.5
-		light.Parent = holder
-	end
+	local light = Instance.new("PointLight")
+	light.Color = if rage then Color3.fromRGB(255, 101, 42) else Color3.fromRGB(132, 205, 255)
+	light.Brightness = if rage then 1.6 else 0.8
+	light.Range = if rage then 6.5 else 4.5
+	light.Parent = holder
 	Debris:AddItem(holder, 2)
 	return holder
 end
@@ -144,17 +142,15 @@ local function spawnDagger(packet)
 	end
 	model:ScaleTo(packet.scale)
 	addTrail(model, packet.rage)
-	if packet.rage then
-		local highlight = Instance.new("Highlight")
-		highlight.Name = "RageDaggerGlow"
-		highlight.Adornee = model
-		highlight.DepthMode = Enum.HighlightDepthMode.Occluded
-		highlight.FillColor = Color3.fromRGB(255, 91, 35)
-		highlight.FillTransparency = 0.7
-		highlight.OutlineColor = Color3.fromRGB(255, 231, 117)
-		highlight.OutlineTransparency = 0.25
-		highlight.Parent = model
-	end
+	local highlight = Instance.new("Highlight")
+	highlight.Name = if packet.rage then "RageDaggerGlow" else "DaggerGlint"
+	highlight.Adornee = model
+	highlight.DepthMode = Enum.HighlightDepthMode.Occluded
+	highlight.FillColor = if packet.rage then Color3.fromRGB(255, 91, 35) else Color3.fromRGB(105, 185, 255)
+	highlight.FillTransparency = if packet.rage then 0.7 else 0.84
+	highlight.OutlineColor = if packet.rage then Color3.fromRGB(255, 231, 117) else Color3.fromRGB(218, 243, 255)
+	highlight.OutlineTransparency = 0.25
+	highlight.Parent = model
 	model:PivotTo(getFlightCFrame(packet.startPosition, packet.targetPosition, 0))
 	model.Parent = effectsFolder
 
@@ -191,7 +187,8 @@ local function renderProjectiles(deltaTime: number)
 				projectile.rage
 			)
 			if impactEffect and projectile.daggerIndex == 1 then
-				Sounds.Play("BulletHit", impactEffect, 120)
+			-- Daggers share the blade-family impact cue instead of the generic bullet hit.
+			Sounds.Play("AbilityBladeImpact", impactEffect, 120)
 			end
 			projectile.model:Destroy()
 			table.remove(projectiles, index)

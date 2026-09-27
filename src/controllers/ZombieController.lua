@@ -16,6 +16,7 @@ local renderFolder
 local zombieViews = {}
 local renderParts = {}
 local renderCFrames = {}
+local TAU = math.pi * 2
 local bossState = {
 	active = false,
 	id = nil,
@@ -177,6 +178,78 @@ local function makeStudEffectPart(name, color)
 	return part
 end
 
+local function playEffectSound(soundName: string, parent: Instance, playbackSpeed: number?)
+	local template = ReplicatedStorage.Assets.Sounds:FindFirstChild(soundName)
+	if not template or not template:IsA("Sound") then
+		return
+	end
+	local sound = template:Clone()
+	sound.PlaybackSpeed *= playbackSpeed or 1
+	sound.Parent = parent
+	sound:Play()
+	Debris:AddItem(sound, 4)
+end
+
+local function playBossDeathShockwave(packet)
+	local center = packet.Position + Vector3.yAxis * 0.2
+	local color = if typeof(packet.Color) == "Color3" then packet.Color else Color3.fromRGB(195, 48, 61)
+	local radius = if type(packet.Radius) == "number" then math.clamp(packet.Radius, 20, 180) else 150
+	local duration = if type(packet.Duration) == "number" then math.clamp(packet.Duration, 0.6, 2) else 1.15
+	local segmentCount = 24
+
+	local burst = makeStudEffectPart("BossDeathBurst", color:Lerp(Color3.new(1, 1, 1), 0.25))
+	burst.CFrame = CFrame.new(center)
+	burst.Size = Vector3.new(4, 0.5, 4)
+	burst.Transparency = 0.05
+	TweenService:Create(
+		burst,
+		TweenInfo.new(duration * 0.65, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+		{ Size = Vector3.new(22, 0.12, 22), Transparency = 1 }
+	):Play()
+	playEffectSound("FlameBurst", burst, 0.72)
+	playEffectSound("Reward5", burst, 0.9)
+	Debris:AddItem(burst, duration + 2)
+
+	for index = 1, segmentCount do
+		local angle = TAU * (index - 1) / segmentCount
+		local direction = Vector3.new(math.cos(angle), 0, math.sin(angle))
+		local startPosition = center + direction * 3
+		local endPosition = center + direction * radius
+		local segment = makeStudEffectPart("BossDeathShockwave", color)
+		segment.CFrame = CFrame.lookAt(startPosition, center)
+		segment.Size = Vector3.new(2.5, 0.32, 2)
+		segment.Transparency = 0.08
+		TweenService:Create(
+			segment,
+			TweenInfo.new(duration, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+			{
+				CFrame = CFrame.lookAt(endPosition, center),
+				Size = Vector3.new(math.max(radius * TAU / segmentCount * 0.78, 4), 0.12, 3.5),
+				Transparency = 1,
+			}
+		):Play()
+		Debris:AddItem(segment, duration + 0.15)
+	end
+
+	for index = 1, 12 do
+		local angle = TAU * (index - 1) / 12 + math.pi / 12
+		local direction = Vector3.new(math.cos(angle), 0, math.sin(angle))
+		local spark = makeStudEffectPart("BossDeathSpark", color:Lerp(Color3.new(1, 1, 1), 0.35))
+		spark.CFrame = CFrame.new(center + Vector3.yAxis * 1.5)
+		spark.Size = Vector3.new(1.4, 1.4, 1.4)
+		TweenService:Create(
+			spark,
+			TweenInfo.new(duration * 0.8, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+			{
+				CFrame = CFrame.new(center + direction * 24 + Vector3.yAxis * 8)
+					* CFrame.Angles(angle, angle * 0.5, -angle),
+				Transparency = 1,
+			}
+		):Play()
+		Debris:AddItem(spark, duration)
+	end
+end
+
 function ZombieController.ZombieAbility(_, packet)
 	if type(packet) ~= "table" or type(packet.Kind) ~= "string" then
 		return
@@ -201,6 +274,10 @@ function ZombieController.ZombieAbility(_, packet)
 	end
 
 	if typeof(packet.Position) ~= "Vector3" then
+		return
+	end
+	if packet.Kind == "BossDeathShockwave" then
+		playBossDeathShockwave(packet)
 		return
 	end
 	local radius = if type(packet.Radius) == "number" then math.clamp(packet.Radius, 1, 30) else 2.5

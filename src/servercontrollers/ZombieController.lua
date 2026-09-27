@@ -44,6 +44,7 @@ local pendingProjectiles = {}
 local slowHazards = {}
 local nextSlowHazardId = 0
 local playerEffectTokens = {}
+local arenaClearInProgress = false
 local firstZombieSpawnedAt: number? = nil
 local zombieDamaged = Signal.new()
 local zombieDied = Signal.new()
@@ -241,8 +242,30 @@ local function releaseStolenRewards(position, coinValue, xpValue, owner, groundY
 	end
 end
 
+local function killAllZombies(excludedId, origin, killer)
+	arenaClearInProgress = true
+	-- The victory clear owns the arena completely: no cast, hazard, or already-queued summon may
+	-- survive beyond the boss that created the encounter.
+	table.clear(pendingSpawnRequests)
+	table.clear(pendingProjectiles)
+	table.clear(slowHazards)
+	local creditedKiller = if typeof(killer) == "Instance" and killer:IsA("Player") then killer else nil
+	for id, target in zombies do
+		if id ~= excludedId and not target:IsDead() then
+			target.health = 0
+			target.lastDamager = creditedKiller
+			target.lastDamageSource = "BossDeathShockwave"
+			local offset = target.cframe.Position - origin
+			local horizontal = Vector3.new(offset.X, 0, offset.Z)
+			local direction = if horizontal.Magnitude > 0.001 then horizontal.Unit else Vector3.zAxis
+			-- Immediate zero-health packets make every client ragdoll outward with the expanding wave.
+			zombieNetwork:fireAll("ZombieDamaged", id, 0, target.maximumHealth, direction, 26)
+		end
+	end
+end
+
 local function queueSpawn(typeName, position, spawnArena, roundNumber)
-	if ZombieDefinitions[typeName] then
+	if not arenaClearInProgress and ZombieDefinitions[typeName] then
 		table.insert(pendingSpawnRequests, {
 			typeName = typeName,
 			position = Vector3.new(position.X, spawnArena.GroundY, position.Z),
@@ -288,6 +311,7 @@ local zombieServices = {
 	CreateSlowHazard = createSlowHazard,
 	StealRewards = stealRewards,
 	ReleaseStolenRewards = releaseStolenRewards,
+	KillAllZombies = killAllZombies,
 	QueueSpawn = queueSpawn,
 	LaunchProjectile = launchProjectile,
 }
@@ -587,11 +611,15 @@ function ZombieController.SpawnBossEncounter(roundNumber: number): { number }
 		config.MaximumRingCount
 	)
 	local rotation = random:NextNumber(0, TAU)
+	local ringSpawned = 0
 
 	for index = 1, ringCount do
 		local angle = rotation + TAU * (index - 1) / ringCount
 		local desired = center + Vector3.new(math.cos(angle), 0, math.sin(angle)) * config.RingRadius
+		-- The round-15 arena is authored on the Baseplate. If an exact ring ray misses decorative map
+		-- geometry, use the known combat-floor height so every surrounding slot is still guaranteed.
 		local surfacePosition = findSurfacePosition(arena, desired)
+			or Vector3.new(desired.X, arena.GroundY, desired.Z)
 		if surfacePosition then
 			local packet, zombieId = createZombie(arena, config.RingType, surfacePosition, roundNumber)
 			if packet and zombieId then
@@ -599,8 +627,12 @@ function ZombieController.SpawnBossEncounter(roundNumber: number): { number }
 				zombies[zombieId].moveSpeedMultiplier *= config.RingMoveSpeedMultiplier
 				table.insert(packets, packet)
 				table.insert(spawnedIds, zombieId)
+				ringSpawned += 1
 			end
 		end
+	end
+	if ringSpawned < ringCount then
+		warn(string.format("Round %d placed %d/%d surrounding zombies", roundNumber, ringSpawned, ringCount))
 	end
 
 	local bossSpawned = false
@@ -673,6 +705,7 @@ function ZombieController.RestartRun()
 		end
 	end
 	table.clear(playerEffectTokens)
+	arenaClearInProgress = false
 	firstZombieSpawnedAt = nil
 	nextSnapshotAt = workspace:GetServerTimeNow() + ZombieProtocol.SnapshotInterval
 	separationAccumulator = 0
@@ -772,6 +805,9 @@ local function stepSimulation(deltaTime)
 	end
 
 	removeZombies(deadIds)
+	if arenaClearInProgress and next(zombies) == nil then
+		arenaClearInProgress = false
+	end
 
 	if #pendingSpawnRequests > 0 then
 		local spawnPackets = {}

@@ -102,6 +102,12 @@ local function createFireballModel(scale: number, rage: boolean): Model?
 	highlight.OutlineColor = Color3.fromRGB(255, 239, 126)
 	highlight.OutlineTransparency = if rage then 0.22 else 0.2
 	highlight.Parent = model
+	local light = Instance.new("PointLight")
+	light.Name = "FireballLight"
+	light.Color = if rage then Color3.fromRGB(255, 74, 20) else Color3.fromRGB(255, 143, 47)
+	light.Brightness = if rage then 2.2 else 1.35
+	light.Range = math.clamp(5 * scale, 4, 10)
+	light.Parent = primaryPart
 	model.Parent = effectsFolder
 	return model
 end
@@ -155,13 +161,20 @@ local function createBoomerangModel(scale: number, rage: boolean): Model?
 		return nil
 	end
 	addTrail(primaryPart, rage, false)
-	if rage then
-		local light = Instance.new("PointLight")
-		light.Color = Color3.fromRGB(255, 126, 35)
-		light.Brightness = 1.2
-		light.Range = 5.5
-		light.Parent = primaryPart
-	end
+	local highlight = Instance.new("Highlight")
+	highlight.Name = "BoomerangGlint"
+	highlight.Adornee = model
+	highlight.DepthMode = Enum.HighlightDepthMode.Occluded
+	highlight.FillColor = if rage then Color3.fromRGB(255, 98, 30) else Color3.fromRGB(255, 177, 61)
+	highlight.FillTransparency = if rage then 0.72 else 0.82
+	highlight.OutlineColor = Color3.fromRGB(255, 238, 151)
+	highlight.OutlineTransparency = 0.28
+	highlight.Parent = model
+	local light = Instance.new("PointLight")
+	light.Color = if rage then Color3.fromRGB(255, 126, 35) else Color3.fromRGB(255, 193, 87)
+	light.Brightness = if rage then 1.2 else 0.65
+	light.Range = if rage then 5.5 else 4
+	light.Parent = primaryPart
 	model.Parent = effectsFolder
 	return model
 end
@@ -185,6 +198,32 @@ local function makeSphere(name: string, position: Vector3, color: Color3, size: 
 	part.Position = position
 	part.Parent = effectsFolder
 	return part
+end
+
+local function emitImpactParticles(position: Vector3, startColor: Color3, endColor: Color3, sparkCount: number)
+	if not effectsFolder then
+		return
+	end
+	local holder = Instance.new("Part")
+	holder.Name = "AbilityImpactParticles"
+	holder.Size = Vector3.one * 0.1
+	holder.Transparency = 1
+	holder.Anchored = true
+	holder.CanCollide = false
+	holder.CanQuery = false
+	holder.CanTouch = false
+	holder.Position = position
+	holder.Parent = effectsFolder
+	-- Recolor clones of the established impact asset so weapon families feel related without mutating its template.
+	for _, child in ReplicatedStorage.Assets.VFX.CriticalHit.Impact:GetChildren() do
+		if child:IsA("ParticleEmitter") then
+			local emitter = child:Clone()
+			emitter.Color = ColorSequence.new(startColor, endColor)
+			emitter.Parent = holder
+			emitter:Emit(if child.Name == "Flash" then 1 else sparkCount)
+		end
+	end
+	Debris:AddItem(holder, 2)
 end
 
 local function pulseScreen()
@@ -232,6 +271,12 @@ local function playExplosion(position: Vector3, radius: number, rage: boolean, e
 	if radius >= 10 or rage or empowered then
 		pulseScreen()
 	end
+	emitImpactParticles(
+		position,
+		Color3.fromRGB(255, 245, 151),
+		if rage then Color3.fromRGB(255, 55, 18) else Color3.fromRGB(255, 119, 28),
+		if rage or empowered then 14 else 9
+	)
 end
 
 local function createLightningPiece(
@@ -585,6 +630,7 @@ function ActiveWeaponEffects.FireballGroundCreated(packet)
 	grounds[packet.id] = {
 		part = area,
 		ownerUserId = packet.ownerUserId,
+		baseTransparency = area.Transparency,
 		expiresAt = os.clock() + packet.duration,
 	}
 end
@@ -646,7 +692,8 @@ function ActiveWeaponEffects.LightningCast(packet)
 		end
 	end
 	if soundParent then
-		Sounds.Play(if packet.powerful then "MagicSpell" else "FreezeRayShoot", soundParent, 140)
+		-- Lightning keeps its own electric crack instead of borrowing the freeze-ray or generic magic cues.
+		Sounds.Play("AbilityLightningCast", soundParent, 140)
 		Debris:AddItem(soundParent, 1)
 	end
 end
@@ -767,6 +814,12 @@ function ActiveWeaponEffects.BoomerangHit(packet)
 		Sounds.Play("BulletHit", flash, 90)
 		Debris:AddItem(flash, 0.18)
 	end
+	emitImpactParticles(
+		packet.position,
+		Color3.fromRGB(255, 242, 157),
+		if packet.rage then Color3.fromRGB(255, 86, 27) else Color3.fromRGB(255, 159, 44),
+		if packet.rage then 8 else 5
+	)
 end
 
 function ActiveWeaponEffects.BoomerangEnded(id)
@@ -851,8 +904,10 @@ function ActiveWeaponEffects.Render(now: number, deltaTime: number)
 	end
 	for id, ground in grounds do
 		if localNow >= ground.expiresAt then
-			ground.part:Destroy()
-			grounds[id] = nil
+			ActiveWeaponEffects.FireballGroundRemoved(id)
+		else
+			-- The shallow opacity pulse keeps the hazard alive while preserving a clear, stable damage footprint.
+			ground.part.Transparency = ground.baseTransparency + math.sin(localNow * 5) * 0.05
 		end
 	end
 end

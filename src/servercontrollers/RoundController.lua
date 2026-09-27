@@ -4,6 +4,7 @@ local ServerStorage = game:GetService("ServerStorage")
 
 local Networker = require(ReplicatedStorage.Packages.networker)
 local RunProgressionConfig = require(ReplicatedStorage.Modules.Game.RunProgressionConfig)
+local Signal = require(ReplicatedStorage.Packages.signal)
 local ServerContext = require(ServerStorage.Controllers.ServerContext)
 local ZombieController = require(ServerStorage.Controllers.ZombieController)
 
@@ -18,6 +19,7 @@ local spawningRound = false
 local roundSpawnPending = false
 local completionCheckPending = false
 local runGeneration = 0
+local roundCompleted = Signal.new()
 
 local function getPartyMemberLookup(): { [number]: boolean }?
 	local runData = ServerContext.GetRunData()
@@ -124,6 +126,17 @@ advanceRound = function()
 		return
 	end
 	advancing = true
+	if currentRound > 0 then
+		local playersWhoSurvived = {}
+		for _, player in Players:GetPlayers() do
+			local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+			if isPartyMember(player) and humanoid and humanoid.Health > 0 then
+				table.insert(playersWhoSurvived, player)
+			end
+		end
+		-- Completing or majority-skipping the active round credits only party members alive at this boundary.
+		roundCompleted:Fire(currentRound, playersWhoSurvived)
+	end
 	currentRound += 1
 	table.clear(votes)
 
@@ -195,6 +208,10 @@ end
 
 function RoundController.GetState(_, player: Player)
 	return makePacket(player)
+end
+
+function RoundController.GetRoundCompletedSignal()
+	return roundCompleted
 end
 
 function RoundController.VoteToSkip(_, player: Player)

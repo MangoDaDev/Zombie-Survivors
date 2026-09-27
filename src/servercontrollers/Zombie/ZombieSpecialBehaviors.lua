@@ -969,4 +969,18 @@ function ZombieSpecialBehaviors.Boss.OnDamaged(zombie, _amount, _now)
 	})
 end
 
+function ZombieSpecialBehaviors.Boss.OnDeath(zombie)
+	local config = zombie.definition.Special
+	-- The boss clear is authoritative and also cancels queued offspring, so the victory wave cannot
+	-- leave Splitlings or delayed attacks behind after the visible arena-wide wipe.
+	zombie.services.KillAllZombies(zombie.id, zombie.cframe.Position, zombie.lastDamager)
+	zombie.services.BroadcastAbility({
+		Kind = "BossDeathShockwave",
+		Position = zombie.cframe.Position,
+		Radius = config.DeathShockwaveRadius,
+		Duration = config.DeathShockwaveDuration,
+		Color = zombie.definition.EffectColor,
+	})
+end
+
 return ZombieSpecialBehaviors

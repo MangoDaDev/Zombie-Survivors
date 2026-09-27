@@ -243,10 +243,11 @@ local ZombieDefinitions = {
 		Special = { BuildTime = 5, MaximumSpeedMultiplier = 2.1, MaximumKnockbackResistance = 0.8, ResetDelay = 0.8 },
 	}),
 	Boss = define("Boss", {
-		-- This first boss pass is deliberately excluded from normal wave rolls until a dedicated boss-round
-		-- schedule is approved; it remains spawnable by authoritative code for focused iteration.
+		-- The Grave Titan belongs only to the scripted round-15 encounter and must never enter weighted waves.
+		DisplayName = "Grave Titan",
 		MaxHealth = 6000, XPValue = 180, CoinValue = 120, ThreatLevel = 10, MoveSpeed = 4.5, TurnSpeed = 4,
-		AttackDamage = 24, AttackRange = 8, AttackCooldown = 1.8, ModelScale = 1.65, SeparationRadius = 3,
+		-- The encounter boss must read as several times larger than a normal zombie at gameplay distance.
+		AttackDamage = 24, AttackRange = 10, AttackCooldown = 1.8, ModelScale = 3, SeparationRadius = 4.5,
 		EffectColor = Color3.fromRGB(181, 52, 61), SpecialBehavior = "Boss", AnimationStyle = "Brute",
 		SpawnWeight = 0, SummonedOnly = true,
 		Special = {
@@ -264,6 +265,10 @@ local ZombieDefinitions = {
 			EnrageSpeedMultiplier = 1.45,
 			EnrageDamageMultiplier = 1.5,
 			KnockbackResistance = 0.7,
+			DeathShockwaveRadius = 160,
+			DeathShockwaveDuration = 1.15,
+			DeathDropId = "LuckySkull",
+			XPDropCount = 6,
 		},
 	}),
 }
