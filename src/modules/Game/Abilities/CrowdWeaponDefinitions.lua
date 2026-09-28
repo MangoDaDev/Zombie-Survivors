@@ -8,7 +8,11 @@ local CrowdWeaponDefinitions = {}
 local MAX_LEVEL = 50
 
 local function upgradeProgress(level: number): number
+<<<<<<< HEAD
 	return AbilityLevelScaling.GetWeaponProgress(level, MAX_LEVEL)
+=======
+	return AbilityLevelScaling.GetProgress(level, MAX_LEVEL)
+>>>>>>> 68678be8aad91d85f9c550f7e9bdad4477f0f6b3
 end
 
 local function clampLevel(level: number): number

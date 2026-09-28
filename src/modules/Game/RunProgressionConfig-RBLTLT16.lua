@@ -49,12 +49,15 @@ local RunProgressionConfig = {
 		-- something new. This chance falls as the ten run slots fill so established builds develop.
 		NewOfferChanceAtEmpty = 0.4,
 		NewOfferChanceAtFull = 0.08,
+<<<<<<< HEAD
 		-- Upgrades keep their normal rarity weight until they lead the player's other owned abilities
 		-- by more than this many levels. Each further level compounds the penalty, but the floor keeps
 		-- a highly developed ability possible instead of silently removing it from the choice pool.
 		UpgradeLevelLeadGrace = 3,
 		UpgradeLevelLeadDecay = 0.65,
 		MinimumUpgradeWeightMultiplier = 0.1,
+=======
+>>>>>>> 68678be8aad91d85f9c550f7e9bdad4477f0f6b3
 		-- Permanent ownership is the authoritative gate for new run choices. Keep this escape hatch empty
 		-- unless a future global event deliberately makes an ability available without unlocking it.
 		AlwaysAvailable = {},
@@ -62,6 +65,7 @@ local RunProgressionConfig = {
 
 	Rounds = {
 		-- A round owns one finite assigned group, delivered in paced reinforcements rather than one spike.
+<<<<<<< HEAD
 		-- Skipped-round zombies remain alive but no longer block later rounds. Population is the main
 		-- difficulty driver: the bounded early density curve stays smooth, then a second linear slope
 		-- starts after the first boss so late-round pressure does not flatten out.
@@ -76,16 +80,25 @@ local RunProgressionConfig = {
 		FirstRoundDelay = 1.5,
 		IntermissionDuration = 3,
 		-- Late-round batch growth and a shrinking interval put the increased assignment on the field
-		-- together. Keep the hard 1.1-second floor so even maximum-size batches remain readable and
-		-- do not turn into a nearly continuous spawn stream.
+		-- together. The caps and interval floor preserve pacing without creating one giant spawn spike.
 		InitialBatchSize = 6,
 		ReinforcementBatchSize = 5,
 		ReinforcementBatchGrowthRounds = 3,
 		MaximumInitialBatchSize = 18,
 		MaximumReinforcementBatchSize = 16,
 		ReinforcementInterval = 1.75,
-		ReinforcementIntervalReductionPerRound = 0.03,
-		MinimumReinforcementInterval = 1.1,
+		ReinforcementIntervalReductionPerRound = 0.06,
+		MinimumReinforcementInterval = 0.45,
+=======
+		-- Skipped-round zombies remain alive but no longer block later rounds.
+		BaseZombieCount = 4,
+		ZombieCountGrowthPerRound = 1,
+		FirstRoundDelay = 1.5,
+		IntermissionDuration = 3,
+		InitialBatchSize = 4,
+		ReinforcementBatchSize = 3,
+		ReinforcementInterval = 2.25,
+>>>>>>> 68678be8aad91d85f9c550f7e9bdad4477f0f6b3
 		-- Keep skip votes deliberate across round boundaries, especially when one player can pass a vote alone.
 		SkipVoteCooldown = 8,
 		-- These values govern threat unlocks and strength bias, not player movement or responsiveness.
@@ -167,9 +180,15 @@ local RunProgressionConfig = {
 		SurroundSectorAdvance = 3,
 		SurroundSpawnJitterDegrees = 12,
 		DirectedSpawnAttemptFraction = 0.6,
+<<<<<<< HEAD
 		-- Strong archetypes still become more common, but this stays secondary to the accelerating horde
 		-- size so later rounds feel denser rather than being dominated by stat-heavy enemies.
 		StrongZombieBiasPerStep = 0.2,
+=======
+		-- Round progression replaces the old continuous spawn clock while retaining the same weighted
+		-- enemy unlock curve and increasingly strong-enemy bias.
+		StrongZombieBiasPerStep = 0.4,
+>>>>>>> 68678be8aad91d85f9c550f7e9bdad4477f0f6b3
 		-- Assigned group size follows sublinear multiplayer scaling so extra party members add pressure
 		-- without multiplying the round linearly.
 		PlayerCountExponent = 0.8,

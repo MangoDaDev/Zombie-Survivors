@@ -14,6 +14,10 @@ local effectsFolder: Folder?
 local buzzsaws = {}
 local crushers = {}
 local lasers = {}
+<<<<<<< HEAD
+=======
+local random = Random.new()
+>>>>>>> 68678be8aad91d85f9c550f7e9bdad4477f0f6b3
 
 local function finite(value): boolean
 	return type(value) == "number" and value == value and math.abs(value) < math.huge

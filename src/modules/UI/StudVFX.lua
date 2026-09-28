@@ -16,7 +16,10 @@ local function setStudSurfaces(part: Part)
 end
 
 function StudVFX.PreparePart(part: Part): Part
+<<<<<<< HEAD
 	-- Runtime-built VFX keep this classic stud finish; callers may layer color/transparency but not physical gameplay.
+=======
+>>>>>>> 68678be8aad91d85f9c550f7e9bdad4477f0f6b3
 	part.Material = Enum.Material.Plastic
 	part.Anchored = true
 	part.CanCollide = false
@@ -108,7 +111,10 @@ function StudVFX.Burst(
 		return
 	end
 
+<<<<<<< HEAD
 	-- Bound burst density because several enemies or weapons may trigger this helper in the same frame.
+=======
+>>>>>>> 68678be8aad91d85f9c550f7e9bdad4477f0f6b3
 	local pieceCount = math.clamp(math.floor(count), 1, 24)
 	local highlightColor = accentColor or color:Lerp(Color3.new(1, 1, 1), 0.42)
 	for index = 1, pieceCount do

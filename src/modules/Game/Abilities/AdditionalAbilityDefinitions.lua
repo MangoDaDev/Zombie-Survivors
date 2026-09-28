@@ -10,10 +10,13 @@ local function upgradeProgress(level: number): number
 	return AbilityLevelScaling.GetProgress(level, MAX_LEVEL)
 end
 
+<<<<<<< HEAD
 local function weaponUpgradeProgress(level: number): number
 	return AbilityLevelScaling.GetWeaponProgress(level, MAX_LEVEL)
 end
 
+=======
+>>>>>>> 68678be8aad91d85f9c550f7e9bdad4477f0f6b3
 local function levelOf(level: number): number
 	return math.clamp(math.floor(level), 1, MAX_LEVEL)
 end
@@ -65,12 +68,21 @@ local shotgun = {
 function shotgun.GetStats(level: number)
 	local valid = levelOf(level)
 	return {
+<<<<<<< HEAD
 		Damage = math.floor(11 * (1 + weaponUpgradeProgress(valid) * 0.045) + 0.5),
 		Pellets = 6 + (if valid >= 5 then 2 else 0) + (if valid >= 25 then 2 else 0),
 		SpreadDegrees = if valid >= 2 then 30 else 38,
 		Range = shotgun.Combat.Range * (1 + weaponUpgradeProgress(valid) * 0.003) * (if valid >= 2 then 1.15 else 1),
 		PelletRadius = 0.62 * (1 + weaponUpgradeProgress(valid) * 0.003),
 		Cooldown = math.max(1.18, 2.15 - weaponUpgradeProgress(valid) * 0.014),
+=======
+		Damage = math.floor(11 * (1 + upgradeProgress(valid) * 0.045) + 0.5),
+		Pellets = 6 + (if valid >= 5 then 2 else 0) + (if valid >= 25 then 2 else 0),
+		SpreadDegrees = if valid >= 2 then 30 else 38,
+		Range = shotgun.Combat.Range * (1 + upgradeProgress(valid) * 0.003) * (if valid >= 2 then 1.15 else 1),
+		PelletRadius = 0.62 * (1 + upgradeProgress(valid) * 0.003),
+		Cooldown = math.max(1.18, 2.15 - upgradeProgress(valid) * 0.014),
+>>>>>>> 68678be8aad91d85f9c550f7e9bdad4477f0f6b3
 		SecondBlast = valid >= 10,
 		SecondDamageMultiplier = if valid >= 25 then 1 else 0.62,
 		Stagger = valid >= 15,
@@ -119,11 +131,19 @@ local frostNova = {
 function frostNova.GetStats(level: number)
 	local valid = levelOf(level)
 	return {
+<<<<<<< HEAD
 		Damage = math.floor(19 * (1 + weaponUpgradeProgress(valid) * 0.052) + 0.5),
 		Radius = math.min(19, 10 * (1 + weaponUpgradeProgress(valid) * 0.006) * (if valid >= 2 then 1.18 else 1)),
 		Cooldown = math.max(2.1, 3.4 - weaponUpgradeProgress(valid) * 0.018),
 		ChillMultiplier = math.max(0.44, 0.75 - weaponUpgradeProgress(valid) * 0.003 - (if valid >= 5 then 0.08 else 0)),
 		ChillDuration = frostNova.Combat.ChillDuration + weaponUpgradeProgress(valid) * 0.013 + (if valid >= 5 then 0.6 else 0),
+=======
+		Damage = math.floor(19 * (1 + upgradeProgress(valid) * 0.052) + 0.5),
+		Radius = math.min(19, 10 * (1 + upgradeProgress(valid) * 0.006) * (if valid >= 2 then 1.18 else 1)),
+		Cooldown = math.max(2.1, 3.4 - upgradeProgress(valid) * 0.018),
+		ChillMultiplier = math.max(0.44, 0.75 - upgradeProgress(valid) * 0.003 - (if valid >= 5 then 0.08 else 0)),
+		ChillDuration = frostNova.Combat.ChillDuration + upgradeProgress(valid) * 0.013 + (if valid >= 5 then 0.6 else 0),
+>>>>>>> 68678be8aad91d85f9c550f7e9bdad4477f0f6b3
 		Shatter = valid >= 10,
 		Aftershock = valid >= 15,
 		FrozenGround = valid >= 20,
@@ -172,11 +192,19 @@ local meteor = {
 function meteor.GetStats(level: number)
 	local valid = levelOf(level)
 	return {
+<<<<<<< HEAD
 		Damage = math.floor(62 * (1 + weaponUpgradeProgress(valid) * 0.06) * (if valid >= 25 then 1.2 else 1) + 0.5),
 		Radius = math.min(14, 7.5 * (1 + weaponUpgradeProgress(valid) * 0.006) * (if valid >= 25 then 1.12 else 1)),
 		Range = 72 * (1 + weaponUpgradeProgress(valid) * 0.005),
 		Cooldown = math.max(3.3, 5.4 - weaponUpgradeProgress(valid) * 0.025),
 		FallDelay = math.max(0.55, 1.1 - weaponUpgradeProgress(valid) * 0.004 - (if valid >= 2 then 0.18 else 0)),
+=======
+		Damage = math.floor(62 * (1 + upgradeProgress(valid) * 0.06) * (if valid >= 25 then 1.2 else 1) + 0.5),
+		Radius = math.min(14, 7.5 * (1 + upgradeProgress(valid) * 0.006) * (if valid >= 25 then 1.12 else 1)),
+		Range = 72 * (1 + upgradeProgress(valid) * 0.005),
+		Cooldown = math.max(3.3, 5.4 - upgradeProgress(valid) * 0.025),
+		FallDelay = math.max(0.55, 1.1 - upgradeProgress(valid) * 0.004 - (if valid >= 2 then 0.18 else 0)),
+>>>>>>> 68678be8aad91d85f9c550f7e9bdad4477f0f6b3
 		Count = if valid >= 25 then 3 elseif valid >= 10 then 2 else 1,
 		Shockwave = valid >= 5,
 		Fragments = valid >= 15,
@@ -224,11 +252,19 @@ local turret = {
 function turret.GetStats(level: number)
 	local valid = levelOf(level)
 	return {
+<<<<<<< HEAD
 		Damage = math.floor(14 * (1 + weaponUpgradeProgress(valid) * 0.05) + 0.5),
 		FireInterval = math.max(0.36, 0.8 - weaponUpgradeProgress(valid) * 0.005) * (if valid >= 25 then 0.85 else 1),
 		Range = 31 * (1 + weaponUpgradeProgress(valid) * 0.005) * (if valid >= 2 then 1.18 else 1),
 		Duration = 8 * (1 + weaponUpgradeProgress(valid) * 0.004) * (if valid >= 25 then 1.2 else 1),
 		Cooldown = math.max(6.5, 11 - weaponUpgradeProgress(valid) * 0.05),
+=======
+		Damage = math.floor(14 * (1 + upgradeProgress(valid) * 0.05) + 0.5),
+		FireInterval = math.max(0.36, 0.8 - upgradeProgress(valid) * 0.005) * (if valid >= 25 then 0.85 else 1),
+		Range = 31 * (1 + upgradeProgress(valid) * 0.005) * (if valid >= 2 then 1.18 else 1),
+		Duration = 8 * (1 + upgradeProgress(valid) * 0.004) * (if valid >= 25 then 1.2 else 1),
+		Cooldown = math.max(6.5, 11 - upgradeProgress(valid) * 0.05),
+>>>>>>> 68678be8aad91d85f9c550f7e9bdad4477f0f6b3
 		BulletRadius = 0.5,
 		Barrels = if valid >= 5 then 2 else 1,
 		MaximumActive = if valid >= 25 then 3 elseif valid >= 10 then 2 else 1,
@@ -264,7 +300,9 @@ local vortex = {
 	Icon = Images.Abilities.Vortex, Color = Color3.fromRGB(133, 116, 255),
 	MaxLevel = MAX_LEVEL, BaseUpgradeCost = 145, UpgradeCostGrowth = 1.15,
 	Roll = { BaseOdds = 35, Rarity = "Legendary", RarityRank = 5 },
-	Combat = { Range = 62, TickInterval = 0.45, MaximumActive = 6, MaximumTargets = 45, Knockback = 0 },
+	-- Vortex is deliberately a little stronger than a generic damage field: its tighter ticks and pull are the
+	-- weapon's crowd-control identity, while the existing active cap keeps overlapping wells bounded.
+	Combat = { Range = 62, TickInterval = 0.42, MaximumActive = 6, MaximumTargets = 45, Knockback = 0 },
 	Milestones = {
 		{ Level = 2, Description = "Wide Vortex - larger gravity area" },
 		{ Level = 5, Description = "Strong Gravity - faster inward pull" },
@@ -278,11 +316,19 @@ local vortex = {
 function vortex.GetStats(level: number)
 	local valid = levelOf(level)
 	return {
-		Damage = math.floor(8 * (1 + weaponUpgradeProgress(valid) * 0.05) + 0.5),
-		Radius = math.min(15, 7.5 * (1 + weaponUpgradeProgress(valid) * 0.006) * (if valid >= 2 then 1.2 else 1) * (if valid >= 25 then 1.1 else 1)),
-		PullSpeed = 3.5 * (1 + weaponUpgradeProgress(valid) * 0.01) * (if valid >= 5 then 1.25 else 1) * (if valid >= 25 then 1.2 else 1),
+<<<<<<< HEAD
+		Damage = math.floor(9 * (1 + weaponUpgradeProgress(valid) * 0.05) + 0.5),
+		Radius = math.min(15, 8 * (1 + weaponUpgradeProgress(valid) * 0.006) * (if valid >= 2 then 1.2 else 1) * (if valid >= 25 then 1.1 else 1)),
+		PullSpeed = 4 * (1 + weaponUpgradeProgress(valid) * 0.01) * (if valid >= 5 then 1.25 else 1) * (if valid >= 25 then 1.2 else 1),
 		Duration = math.min(7, 4 * (1 + weaponUpgradeProgress(valid) * 0.005) * (if valid >= 25 then 1.2 else 1)),
 		Cooldown = math.max(2.8, 4.4 - weaponUpgradeProgress(valid) * 0.018),
+=======
+		Damage = math.floor(9 * (1 + upgradeProgress(valid) * 0.05) + 0.5),
+		Radius = math.min(15, 8 * (1 + upgradeProgress(valid) * 0.006) * (if valid >= 2 then 1.2 else 1) * (if valid >= 25 then 1.1 else 1)),
+		PullSpeed = 4 * (1 + upgradeProgress(valid) * 0.01) * (if valid >= 5 then 1.25 else 1) * (if valid >= 25 then 1.2 else 1),
+		Duration = math.min(7, 4 * (1 + upgradeProgress(valid) * 0.005) * (if valid >= 25 then 1.2 else 1)),
+		Cooldown = math.max(2.8, 4.4 - upgradeProgress(valid) * 0.018),
+>>>>>>> 68678be8aad91d85f9c550f7e9bdad4477f0f6b3
 		Count = if valid >= 25 then 3 elseif valid >= 10 then 2 else 1,
 		Compression = valid >= 15,
 		Collapse = valid >= 20,

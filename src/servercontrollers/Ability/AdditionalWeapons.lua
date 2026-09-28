@@ -527,7 +527,8 @@ local function removeVortexAt(index: number, collapse: boolean)
 		local definition = AbilityDefinitions.ById.Vortex
 		for _, target in CombatTargets.GetDamageablesInRadius(vortex.position,
 			vortex.stats.Radius * 1.15, definition.Combat.MaximumTargets) do
-			damageTarget(vortex.player, "Vortex", vortex.stats, target, vortex.stats.Damage * 2.2,
+			-- Collapse should feel like the well cashing out its setup without eclipsing its sustained damage.
+			damageTarget(vortex.player, "Vortex", vortex.stats, target, vortex.stats.Damage * 2.4,
 				vortex.position, 8)
 		end
 		abilityNetwork:fireAll("VortexCollapsed", {

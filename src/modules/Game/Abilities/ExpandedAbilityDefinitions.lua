@@ -10,10 +10,13 @@ local function upgradeProgress(level: number): number
 	return AbilityLevelScaling.GetProgress(level, MAX_LEVEL)
 end
 
+<<<<<<< HEAD
 local function weaponUpgradeProgress(level: number): number
 	return AbilityLevelScaling.GetWeaponProgress(level, MAX_LEVEL)
 end
 
+=======
+>>>>>>> 68678be8aad91d85f9c550f7e9bdad4477f0f6b3
 local function levelOf(level: number): number
 	return math.clamp(math.floor(level), 1, MAX_LEVEL)
 end
@@ -65,10 +68,17 @@ local crowbar = {
 function crowbar.GetStats(level: number)
 	local valid = levelOf(level)
 	return {
+<<<<<<< HEAD
 		Damage = math.floor(27 * (1 + weaponUpgradeProgress(valid) * 0.052) * (if valid >= 25 then 1.15 else 1) + 0.5),
 		Reach = math.min(13, 8 * (1 + weaponUpgradeProgress(valid) * 0.006) * (if valid >= 2 then 1.12 else 1)),
 		ArcDegrees = if valid >= 25 then 190 elseif valid >= 2 then 150 else 118,
 		Cooldown = math.max(0.82, (1.65 - weaponUpgradeProgress(valid) * 0.011) * (if valid >= 20 then 0.82 else 1)),
+=======
+		Damage = math.floor(27 * (1 + upgradeProgress(valid) * 0.052) * (if valid >= 25 then 1.15 else 1) + 0.5),
+		Reach = math.min(13, 8 * (1 + upgradeProgress(valid) * 0.006) * (if valid >= 2 then 1.12 else 1)),
+		ArcDegrees = if valid >= 25 then 190 elseif valid >= 2 then 150 else 118,
+		Cooldown = math.max(0.82, (1.65 - upgradeProgress(valid) * 0.011) * (if valid >= 20 then 0.82 else 1)),
+>>>>>>> 68678be8aad91d85f9c550f7e9bdad4477f0f6b3
 		SwingCount = if valid >= 25 then 3 elseif valid >= 10 then 2 else 1,
 		HeavySlow = valid >= 5,
 		CrowdBonus = valid >= 15,
@@ -116,10 +126,17 @@ local crossfire = {
 function crossfire.GetStats(level: number)
 	local valid = levelOf(level)
 	return {
+<<<<<<< HEAD
 		Damage = math.floor(22 * (1 + weaponUpgradeProgress(valid) * 0.05) + 0.5),
 		Range = math.min(72, 43 * (1 + weaponUpgradeProgress(valid) * 0.007) * (if valid >= 2 then 1.18 else 1)),
 		Width = 1.3 * (1 + weaponUpgradeProgress(valid) * 0.004) * (if valid >= 10 then 1.28 else 1),
 		Cooldown = math.max(1.15, 2.25 - weaponUpgradeProgress(valid) * 0.016),
+=======
+		Damage = math.floor(22 * (1 + upgradeProgress(valid) * 0.05) + 0.5),
+		Range = math.min(72, 43 * (1 + upgradeProgress(valid) * 0.007) * (if valid >= 2 then 1.18 else 1)),
+		Width = 1.3 * (1 + upgradeProgress(valid) * 0.004) * (if valid >= 10 then 1.28 else 1),
+		Cooldown = math.max(1.15, 2.25 - upgradeProgress(valid) * 0.016),
+>>>>>>> 68678be8aad91d85f9c550f7e9bdad4477f0f6b3
 		DirectionCount = if valid >= 5 then 8 else 4,
 		FollowUp = valid >= 15,
 		FollowUpDamageMultiplier = if valid >= 25 then 1 else 0.62,
@@ -169,10 +186,17 @@ local buzzsaw = {
 function buzzsaw.GetStats(level: number)
 	local valid = levelOf(level)
 	return {
+<<<<<<< HEAD
 		Damage = math.floor(9 * (1 + weaponUpgradeProgress(valid) * 0.052) + 0.5),
 		Radius = math.min(9.5, 5 * (1 + weaponUpgradeProgress(valid) * 0.006) * (if valid >= 2 then 1.22 else 1) * (if valid >= 25 then 1.12 else 1)),
 		Duration = math.min(7, 3.6 * (1 + weaponUpgradeProgress(valid) * 0.006) * (if valid >= 5 then 1.2 else 1) * (if valid >= 25 then 1.15 else 1)),
 		Cooldown = math.max(2, 3.55 - weaponUpgradeProgress(valid) * 0.018),
+=======
+		Damage = math.floor(9 * (1 + upgradeProgress(valid) * 0.052) + 0.5),
+		Radius = math.min(9.5, 5 * (1 + upgradeProgress(valid) * 0.006) * (if valid >= 2 then 1.22 else 1) * (if valid >= 25 then 1.12 else 1)),
+		Duration = math.min(7, 3.6 * (1 + upgradeProgress(valid) * 0.006) * (if valid >= 5 then 1.2 else 1) * (if valid >= 25 then 1.15 else 1)),
+		Cooldown = math.max(2, 3.55 - upgradeProgress(valid) * 0.018),
+>>>>>>> 68678be8aad91d85f9c550f7e9bdad4477f0f6b3
 		TickInterval = buzzsaw.Combat.TickInterval * (if valid >= 25 then 0.72 else 1),
 		Count = if valid >= 25 then 3 elseif valid >= 10 then 2 else 1,
 		Ricochet = valid >= 15,
@@ -222,11 +246,19 @@ local crusher = {
 function crusher.GetStats(level: number)
 	local valid = levelOf(level)
 	return {
+<<<<<<< HEAD
 		Damage = math.floor(55 * (1 + weaponUpgradeProgress(valid) * 0.058) * (if valid >= 25 then 1.18 else 1) + 0.5),
 		Length = math.min(28, 16 * (1 + weaponUpgradeProgress(valid) * 0.008) * (if valid >= 2 then 1.15 else 1) * (if valid >= 25 then 1.1 else 1)),
 		Width = math.min(15, 8 * (1 + weaponUpgradeProgress(valid) * 0.006) * (if valid >= 15 then 1.22 else 1)),
 		Cooldown = math.max(3.4, 6 - weaponUpgradeProgress(valid) * 0.035),
 		WarningDuration = math.max(0.48, 0.95 - weaponUpgradeProgress(valid) * 0.003 - (if valid >= 5 then 0.18 else 0)),
+=======
+		Damage = math.floor(55 * (1 + upgradeProgress(valid) * 0.058) * (if valid >= 25 then 1.18 else 1) + 0.5),
+		Length = math.min(28, 16 * (1 + upgradeProgress(valid) * 0.008) * (if valid >= 2 then 1.15 else 1) * (if valid >= 25 then 1.1 else 1)),
+		Width = math.min(15, 8 * (1 + upgradeProgress(valid) * 0.006) * (if valid >= 15 then 1.22 else 1)),
+		Cooldown = math.max(3.4, 6 - upgradeProgress(valid) * 0.035),
+		WarningDuration = math.max(0.48, 0.95 - upgradeProgress(valid) * 0.003 - (if valid >= 5 then 0.18 else 0)),
+>>>>>>> 68678be8aad91d85f9c550f7e9bdad4477f0f6b3
 		Stun = valid >= 10,
 		Aftershock = valid >= 20,
 		AftershockDamageMultiplier = if valid >= 25 then 1 else 0.65,
@@ -276,11 +308,19 @@ local laserSweep = {
 function laserSweep.GetStats(level: number)
 	local valid = levelOf(level)
 	return {
+<<<<<<< HEAD
 		Damage = math.floor(24 * (1 + weaponUpgradeProgress(valid) * 0.055) * (if valid >= 25 then 1.15 else 1) + 0.5),
 		Range = math.min(62, 36 * (1 + weaponUpgradeProgress(valid) * 0.008) * (if valid >= 2 then 1.16 else 1)),
 		Width = 1.4 * (1 + weaponUpgradeProgress(valid) * 0.005) * (if valid >= 5 then 1.3 else 1) * (if valid >= 25 then 1.12 else 1),
 		Cooldown = math.max(4, 7 - weaponUpgradeProgress(valid) * 0.035),
 		Duration = math.max(0.85, 1.35 - weaponUpgradeProgress(valid) * 0.004) * (if valid >= 20 then 2 else 1) * (if valid >= 25 then 1.5 else 1),
+=======
+		Damage = math.floor(24 * (1 + upgradeProgress(valid) * 0.055) * (if valid >= 25 then 1.15 else 1) + 0.5),
+		Range = math.min(62, 36 * (1 + upgradeProgress(valid) * 0.008) * (if valid >= 2 then 1.16 else 1)),
+		Width = 1.4 * (1 + upgradeProgress(valid) * 0.005) * (if valid >= 5 then 1.3 else 1) * (if valid >= 25 then 1.12 else 1),
+		Cooldown = math.max(4, 7 - upgradeProgress(valid) * 0.035),
+		Duration = math.max(0.85, 1.35 - upgradeProgress(valid) * 0.004) * (if valid >= 20 then 2 else 1) * (if valid >= 25 then 1.5 else 1),
+>>>>>>> 68678be8aad91d85f9c550f7e9bdad4477f0f6b3
 		Rotations = if valid >= 25 then 3 elseif valid >= 20 then 2 else 1,
 		BeamCount = if valid >= 10 then 2 else 1,
 		SearingGrowth = if valid >= 15 then 0.12 else 0,

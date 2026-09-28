@@ -12,11 +12,64 @@ type PlayerRuntime = {
 	baseWalkSpeed: number,
 	humanoid: Humanoid?,
 	modifiers: { [string]: StatModifier },
+	naturalRegenConnection: RBXScriptConnection?,
+	naturalRegenGeneration: number,
 }
 
 local PlayerStatController = {}
 
 local runtimes: { [Player]: PlayerRuntime } = {}
+
+local function disconnectNaturalRegen(runtime: PlayerRuntime)
+	runtime.naturalRegenGeneration += 1
+	if runtime.naturalRegenConnection then
+		runtime.naturalRegenConnection:Disconnect()
+		runtime.naturalRegenConnection = nil
+	end
+end
+
+local function bindNaturalRegen(runtime: PlayerRuntime)
+	disconnectNaturalRegen(runtime)
+	local humanoid = runtime.humanoid
+	if not humanoid then
+		return
+	end
+
+	local generation = runtime.naturalRegenGeneration
+	local regenerating = false
+	local function startRegenerating()
+		if regenerating or humanoid.Health <= 0 or humanoid.Health >= humanoid.MaxHealth then
+			return
+		end
+
+		regenerating = true
+		task.spawn(function()
+			while runtime.naturalRegenGeneration == generation
+				and runtime.humanoid == humanoid
+				and humanoid.Parent
+				and humanoid.Health > 0
+				and humanoid.Health < humanoid.MaxHealth
+			do
+				local elapsed = task.wait(PlayerStatConfig.NaturalRegenStepSeconds)
+				if runtime.naturalRegenGeneration ~= generation
+					or runtime.humanoid ~= humanoid
+					or not humanoid.Parent
+					or humanoid.Health <= 0
+				then
+					break
+				end
+
+				-- This is the only baseline health writer. Heart, pickups, and other authored healing remain separate.
+				local healing = humanoid.MaxHealth * (PlayerStatConfig.NaturalRegenPercentPerSecond / 100) * elapsed
+				humanoid.Health = math.min(humanoid.Health + healing, humanoid.MaxHealth)
+			end
+			regenerating = false
+		end)
+	end
+
+	runtime.naturalRegenConnection = humanoid.HealthChanged:Connect(startRegenerating)
+	startRegenerating()
+end
 
 local function isFiniteNumber(value: any): boolean
 	return type(value) == "number" and value == value and math.abs(value) < math.huge
@@ -102,6 +155,8 @@ function PlayerStatController.OnPlayerAdded(player: Player)
 		baseWalkSpeed = PlayerStatConfig.DefaultBaseWalkSpeed,
 		humanoid = nil,
 		modifiers = {},
+		naturalRegenConnection = nil,
+		naturalRegenGeneration = 0,
 	}
 end
 
@@ -122,9 +177,14 @@ function PlayerStatController.OnCharacterAdded(player: Player, character: Model)
 	runtime.baseWalkSpeed = math.min(humanoid.WalkSpeed, PlayerStatConfig.DefaultBaseWalkSpeed)
 	runtime.humanoid = humanoid
 	applyStats(runtime)
+	bindNaturalRegen(runtime)
 end
 
 function PlayerStatController.OnPlayerRemoving(player: Player)
+	local runtime = runtimes[player]
+	if runtime then
+		disconnectNaturalRegen(runtime)
+	end
 	runtimes[player] = nil
 end
 

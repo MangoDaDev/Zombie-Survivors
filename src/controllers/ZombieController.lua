@@ -8,7 +8,10 @@ local Networker = require(ReplicatedStorage.Packages.networker)
 local Signal = require(ReplicatedStorage.Packages.signal)
 local ZombieDefinitions = require(ReplicatedStorage.Modules.Game.Zombies.ZombieDefinitions)
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
+<<<<<<< HEAD
 local StudVFX = require(ReplicatedStorage.Modules.UI.StudVFX)
+=======
+>>>>>>> 68678be8aad91d85f9c550f7e9bdad4477f0f6b3
 local ZombieView = require(script.Parent.Zombie.ZombieView)
 
 local ZombieController = {}
@@ -209,6 +212,7 @@ local function playBossDeathShockwave(packet)
 	local radius = if type(packet.Radius) == "number" then math.clamp(packet.Radius, 20, 180) else 150
 	local duration = if type(packet.Duration) == "number" then math.clamp(packet.Duration, 0.6, 2) else 1.15
 	local segmentCount = 24
+<<<<<<< HEAD
 	StudVFX.Flash(renderFolder, center + Vector3.yAxis * 1.2, color, 12, duration * 0.55)
 	StudVFX.Ring(renderFolder, center, color, radius, duration, segmentCount)
 	StudVFX.Burst(
@@ -220,6 +224,8 @@ local function playBossDeathShockwave(packet)
 		duration * 0.8,
 		color:Lerp(Color3.new(1, 1, 1), 0.48)
 	)
+=======
+>>>>>>> 68678be8aad91d85f9c550f7e9bdad4477f0f6b3
 
 	local burst = makeStudEffectPart("BossDeathBurst", color:Lerp(Color3.new(1, 1, 1), 0.25))
 	burst.CFrame = CFrame.new(center)
@@ -283,7 +289,10 @@ local function playBossEntrance(packet)
 	marker.CFrame = CFrame.new(center)
 	marker.Size = Vector3.new(radius * 2, 0.16, radius * 2)
 	marker.Transparency = 0.62
+<<<<<<< HEAD
 	StudVFX.Ring(renderFolder, center + Vector3.yAxis * 0.04, color, radius, math.min(duration * 0.42, 0.9), 18)
+=======
+>>>>>>> 68678be8aad91d85f9c550f7e9bdad4477f0f6b3
 	playEffectSound("Alert", marker, 0.72)
 	TweenService:Create(
 		marker,

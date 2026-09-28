@@ -16,6 +16,7 @@ local bursts = {}
 local meteors = {}
 local turrets = {}
 local vortexes = {}
+local random = Random.new()
 
 local function finite(value): boolean
 	return type(value) == "number" and value == value and math.abs(value) < math.huge
@@ -373,22 +374,53 @@ function AdditionalWeaponEffects.VortexCreated(packet)
 		or type(packet.mobile) ~= "boolean" or type(packet.rage) ~= "boolean" then
 		return
 	end
-	local model = makeRing("Vortex", packet.radius,
-		if packet.rage then Color3.fromRGB(206, 143, 255) else Color3.fromRGB(120, 132, 255), 16)
-	if not model then return end
-	local vortexColor = if packet.rage then Color3.fromRGB(238, 188, 255) else Color3.fromRGB(158, 187, 255)
-	for index = 1, 8 do
-		local angle = (index - 1) / 8 * math.pi * 2
-		local spoke = makeBlock("VortexSpoke", Vector3.new(0.2, 0.14, packet.radius * 0.62), vortexColor, 0.42)
-		spoke.CFrame = CFrame.new(math.cos(angle) * packet.radius * 0.48, 0.08, math.sin(angle) * packet.radius * 0.48)
-			* CFrame.Angles(0, -angle, 0)
-		spoke.Parent = model
+	local outerColor = if packet.rage then Color3.fromRGB(190, 104, 255) else Color3.fromRGB(91, 103, 238)
+	local innerColor = if packet.rage then Color3.fromRGB(255, 204, 255) else Color3.fromRGB(145, 210, 255)
+	local outerRing = makeRing("VortexOuterRing", packet.radius, outerColor, 10)
+	local innerRing = makeRing("VortexInnerRing", packet.radius * 0.56, innerColor, 6)
+	if not outerRing or not innerRing then
+		if outerRing then outerRing:Destroy() end
+		if innerRing then innerRing:Destroy() end
+		return
 	end
+
+	local model = Instance.new("Model")
+	model.Name = "Vortex"
+	local pivot = makeBlock("Pivot", Vector3.one * 0.1, outerColor, 1)
+	pivot.Parent = model
+	model.PrimaryPart = pivot
+	outerRing.Parent = model
+	innerRing.Parent = model
+
+	-- Angled inner vanes and counter-rotating rings create an inward spiral within the old effect's part budget.
+	for index = 1, 5 do
+		local angle = (index - 1) / 5 * math.pi * 2
+		local vane = makeBlock("VortexVane", Vector3.new(0.26, 0.16, packet.radius * 0.48), innerColor, 0.34)
+		vane.CFrame = CFrame.new(math.cos(angle) * packet.radius * 0.3, 0, math.sin(angle) * packet.radius * 0.3)
+			* CFrame.Angles(0, -angle - math.rad(24), 0)
+		vane.Parent = innerRing
+	end
+
+	local coreSize = math.clamp(packet.radius * 0.14, 0.9, 1.8)
+	local core = makeBlock("VortexCore", Vector3.new(coreSize, 0.32, coreSize),
+		innerColor:Lerp(Color3.new(1, 1, 1), 0.42), 0.08)
+	core.Parent = model
+	local coreLight = Instance.new("PointLight")
+	coreLight.Name = "GravityGlow"
+	coreLight.Color = innerColor
+	coreLight.Brightness = if packet.rage then 2.4 else 1.6
+	coreLight.Range = math.clamp(packet.radius * 1.15, 7, 18)
+	coreLight.Parent = core
+
+	model.Parent = effectsFolder
 	model:PivotTo(CFrame.new(packet.position + Vector3.yAxis * 0.12))
 	vortexes[packet.id] = {
 		model = model, position = packet.position, ownerUserId = packet.ownerUserId,
 		mobile = packet.mobile, radius = packet.radius, createdAt = os.clock(),
+		outerRing = outerRing, innerRing = innerRing, core = core,
+		coreLight = coreLight, coreSize = coreSize, coreBrightness = coreLight.Brightness,
 	}
+	flash(packet.position + Vector3.yAxis * 0.25, innerColor, math.min(packet.radius * 0.34, 3.5), 0.22)
 	Sounds.Play("AbilityVortexCast", model.PrimaryPart, 80)
 end
 
@@ -396,6 +428,8 @@ function AdditionalWeaponEffects.VortexCollapsed(packet)
 	if type(packet) == "table" and typeof(packet.position) == "Vector3"
 		and finite(packet.radius) and packet.radius > 0 and packet.radius <= 35 then
 		pulse(packet.position, packet.radius, Color3.fromRGB(189, 114, 255), 0.35, "BodyImpact")
+		pulse(packet.position + Vector3.yAxis * 0.08, packet.radius * 0.62,
+			Color3.fromRGB(185, 222, 255), 0.25, nil)
 	end
 end
 
@@ -483,8 +517,17 @@ function AdditionalWeaponEffects.Render(now: number)
 				vortex.position = root.Position
 			end
 		end
-		vortex.model:PivotTo(CFrame.new(vortex.position + Vector3.yAxis * 0.12)
-			* CFrame.Angles(0, (os.clock() - vortex.createdAt) * 1.2, 0))
+		local age = clock - vortex.createdAt
+		local center = CFrame.new(vortex.position + Vector3.yAxis * 0.12)
+		-- Separate rotational speeds keep the well visibly turbulent while one pulsing core marks its damage center.
+		vortex.model:PivotTo(center)
+		vortex.outerRing:PivotTo(center * CFrame.Angles(0, -age * 0.72, 0))
+		vortex.innerRing:PivotTo(center * CFrame.new(0, 0.08, 0) * CFrame.Angles(0, age * 1.85, 0))
+		local corePulse = 0.9 + (math.sin(age * 7) + 1) * 0.08
+		vortex.core.Size = Vector3.new(vortex.coreSize * corePulse, 0.32, vortex.coreSize * corePulse)
+		if vortex.coreLight.Parent then
+			vortex.coreLight.Brightness = vortex.coreBrightness * (0.82 + corePulse * 0.16)
+		end
 	end
 end
 

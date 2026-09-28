@@ -581,6 +581,7 @@ function ZombieController.SpawnRound(roundNumber: number, zombieCount: number): 
 	return spawnedIds
 end
 
+<<<<<<< HEAD
 function ZombieController.SpawnSpecific(typeName: string, zombieCount: number, roundNumber: number): { number }
 	if not simulationConnection
 		or not arena
@@ -634,6 +635,8 @@ function ZombieController.SpawnSpecific(typeName: string, zombieCount: number, r
 	return spawnedIds
 end
 
+=======
+>>>>>>> 68678be8aad91d85f9c550f7e9bdad4477f0f6b3
 local function getEncounterCenter(spawnArena, candidates, outerRadius: number): Vector3
 	local sum = Vector3.zero
 	for _, candidate in candidates do
@@ -810,9 +813,13 @@ local function clearZombieWorld(resetFirstSpawn: boolean): number
 	end
 	table.clear(playerEffectTokens)
 	arenaClearInProgress = false
+<<<<<<< HEAD
 	if resetFirstSpawn then
 		firstZombieSpawnedAt = nil
 	end
+=======
+	firstZombieSpawnedAt = nil
+>>>>>>> 68678be8aad91d85f9c550f7e9bdad4477f0f6b3
 	nextSnapshotAt = workspace:GetServerTimeNow() + ZombieProtocol.SnapshotInterval
 	separationAccumulator = 0
 	return #ids

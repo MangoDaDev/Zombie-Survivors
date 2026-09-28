@@ -60,6 +60,15 @@
       "$properties": {
         "CharacterWalkSpeed": 20
       },
+      "StarterCharacterScripts": {
+        "$className": "StarterCharacterScripts",
+        "Health": {
+          "$className": "Script",
+          "$properties": {
+            "Disabled": true
+          }
+        }
+      },
       "StarterPlayerScripts": {
         "$className": "StarterPlayerScripts",
         "Client": {
