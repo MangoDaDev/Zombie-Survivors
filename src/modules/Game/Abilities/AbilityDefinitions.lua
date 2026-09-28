@@ -12,13 +12,10 @@ local function upgradeProgress(level: number): number
 	return AbilityLevelScaling.GetProgress(level, 50)
 end
 
-<<<<<<< HEAD
 local function weaponUpgradeProgress(level: number): number
 	return AbilityLevelScaling.GetWeaponProgress(level, 50)
 end
 
-=======
->>>>>>> 68678be8aad91d85f9c550f7e9bdad4477f0f6b3
 AbilityDefinitions.DataKey = "Abilities"
 AbilityDefinitions.Categories = {
 	Weapon = "Weapon",
@@ -167,15 +164,9 @@ local dagger = {
 function dagger.GetStats(level: number)
 	local clampedLevel = math.clamp(math.floor(level), 1, dagger.MaxLevel)
 	return {
-<<<<<<< HEAD
 		Damage = math.floor(22 + weaponUpgradeProgress(clampedLevel) * 3.1 + 0.5),
 		ProjectileScale = dagger.Combat.BaseProjectileScale
 			+ weaponUpgradeProgress(clampedLevel) * dagger.Combat.ProjectileScalePerLevel,
-=======
-		Damage = math.floor(22 + upgradeProgress(clampedLevel) * 3.1 + 0.5),
-		ProjectileScale = dagger.Combat.BaseProjectileScale
-			+ upgradeProgress(clampedLevel) * dagger.Combat.ProjectileScalePerLevel,
->>>>>>> 68678be8aad91d85f9c550f7e9bdad4477f0f6b3
 		DaggerCount = getDaggerCount(clampedLevel),
 	}
 end
@@ -280,11 +271,7 @@ local orbitingSwords = {
 
 function orbitingSwords.GetStats(level: number)
 	local clampedLevel = math.clamp(math.floor(level), 1, orbitingSwords.MaxLevel)
-<<<<<<< HEAD
 	local levelOffset = weaponUpgradeProgress(clampedLevel)
-=======
-	local levelOffset = upgradeProgress(clampedLevel)
->>>>>>> 68678be8aad91d85f9c550f7e9bdad4477f0f6b3
 	local radius = orbitingSwords.Combat.BaseRadius
 	if clampedLevel >= 5 then
 		radius += 1.8
@@ -433,11 +420,7 @@ local fireball = {
 
 function fireball.GetStats(level: number)
 	local clampedLevel = math.clamp(math.floor(level), 1, fireball.MaxLevel)
-<<<<<<< HEAD
 	local levelOffset = weaponUpgradeProgress(clampedLevel)
-=======
-	local levelOffset = upgradeProgress(clampedLevel)
->>>>>>> 68678be8aad91d85f9c550f7e9bdad4477f0f6b3
 	local combat = fireball.Combat
 	local explosionRadius = combat.BaseExplosionRadius * (1 + levelOffset * combat.ExplosionRadiusPerLevel)
 	if clampedLevel >= combat.EmpoweredExplosion.Level then
@@ -580,11 +563,7 @@ local lightning = {
 
 function lightning.GetStats(level: number)
 	local clampedLevel = math.clamp(math.floor(level), 1, lightning.MaxLevel)
-<<<<<<< HEAD
 	local levelOffset = weaponUpgradeProgress(clampedLevel)
-=======
-	local levelOffset = upgradeProgress(clampedLevel)
->>>>>>> 68678be8aad91d85f9c550f7e9bdad4477f0f6b3
 	local combat = lightning.Combat
 	local chainRange = combat.BaseChainRange * (1 + levelOffset * combat.ChainRangePerLevel)
 	if clampedLevel >= combat.ExtendedRangeLevel then
@@ -716,11 +695,7 @@ local boomerang = {
 
 function boomerang.GetStats(level: number)
 	local clampedLevel = math.clamp(math.floor(level), 1, boomerang.MaxLevel)
-<<<<<<< HEAD
 	local levelOffset = weaponUpgradeProgress(clampedLevel)
-=======
-	local levelOffset = upgradeProgress(clampedLevel)
->>>>>>> 68678be8aad91d85f9c550f7e9bdad4477f0f6b3
 	local combat = boomerang.Combat
 	local scale = combat.BaseScale * (1 + levelOffset * combat.ScalePerLevel)
 	local range = combat.BaseRange * (1 + levelOffset * combat.RangePerLevel)

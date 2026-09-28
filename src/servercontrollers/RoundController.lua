@@ -232,13 +232,9 @@ advanceRound = function()
 			broadcastState()
 		else
 			while remaining > 0 and runGeneration == scheduledGeneration and currentRound == roundNumber do
-<<<<<<< HEAD
 				-- Later rounds deploy larger reinforcements with shorter gaps so their increased population
 				-- becomes simultaneous combat pressure instead of merely extending the round's duration.
 				local batchLimit = RunProgressionConfig.GetRoundSpawnBatchSize(roundNumber, firstBatch)
-=======
-				local batchLimit = if firstBatch then rounds.InitialBatchSize else rounds.ReinforcementBatchSize
->>>>>>> 68678be8aad91d85f9c550f7e9bdad4477f0f6b3
 				local batchCount = math.min(remaining, batchLimit)
 				spawningRound = true
 				local spawnedIds = ZombieController.SpawnRound(roundNumber, batchCount)
@@ -248,11 +244,7 @@ advanceRound = function()
 				firstBatch = false
 				broadcastState()
 				if remaining > 0 then
-<<<<<<< HEAD
 					task.wait(RunProgressionConfig.GetRoundReinforcementInterval(roundNumber))
-=======
-					task.wait(rounds.ReinforcementInterval)
->>>>>>> 68678be8aad91d85f9c550f7e9bdad4477f0f6b3
 				end
 			end
 		end
@@ -289,7 +281,6 @@ function RoundController.GetRoundCompletedSignal()
 	return roundCompleted
 end
 
-<<<<<<< HEAD
 function RoundController.GetCurrentRound(): number
 	return currentRound
 end
@@ -327,8 +318,6 @@ function RoundController.SetRoundForAdmin(roundNumber: number): (boolean, number
 	return currentRound == roundNumber, currentRound
 end
 
-=======
->>>>>>> 68678be8aad91d85f9c550f7e9bdad4477f0f6b3
 function RoundController.VoteToSkip(_, player: Player)
 	local now = workspace:GetServerTimeNow()
 	if currentRound <= 0

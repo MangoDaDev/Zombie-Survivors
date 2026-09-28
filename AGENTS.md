@@ -43,6 +43,7 @@
 * When implementing a user-requested invariant, leave a short code comment beside its authoritative logic or configuration so future agents preserve it. Update the comment if the requirement changes.
 * **DO NOT use screen capture, screenshots, or similar visual inspection tools. They do not work for this project.**
 Do not change anything unrelated to the user's request.
+Before handing off source changes, search mapped runtime files for unresolved merge markers; never leave conflict markers in Luau because Studio parses them as syntax.
 When debugging replicated interactions, trace which side writes each value every frame and remove competing writers before adding synchronization.
 Keep the main App `ScreenGui.IgnoreGuiInset` enabled; clear the Roblox topbar with explicit dynamic safe offsets.
 Do not generate images unless EXPLICITLY asked to.

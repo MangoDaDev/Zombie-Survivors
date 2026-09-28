@@ -33,11 +33,8 @@ return function()
 		ZombieIndex(),
 		-- RunHUD is always mounted so Studio's promoted destination can activate reactively without remounting App.
 		RunHUD(),
-<<<<<<< HEAD
 		-- Offscreen teammates remain findable without adding replicated state or changing character ownership.
 		OffscreenPlayerIndicators(),
-=======
->>>>>>> 68678be8aad91d85f9c550f7e9bdad4477f0f6b3
 		-- Local Humanoid health is presentation-only here; damage and maximum-health changes remain authoritative.
 		HealthBar(),
 		-- Boss health mirrors authoritative zombie snapshots and exists only while the encounter boss is alive.
