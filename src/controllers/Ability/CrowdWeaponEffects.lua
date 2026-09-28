@@ -3,6 +3,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
+local StudVFX = require(ReplicatedStorage.Modules.UI.StudVFX)
 
 local CrowdWeaponEffects = {}
 
@@ -47,14 +48,7 @@ local function getFirstPart(model: Model): BasePart?
 end
 
 local function makeBlock(name: string, size: Vector3, color: Color3, transparency: number): Part
-	local part = Instance.new("Part")
-	part.Name = name
-	part.Size = size
-	part.Color = color
-	part.Material = Enum.Material.Neon
-	part.Transparency = transparency
-	preparePart(part)
-	return part
+	return StudVFX.CreateBlock(nil, name, size, color, transparency)
 end
 
 local function createRing(name: string, radius: number, color: Color3, transparency: number, segmentCount: number): Model?
@@ -83,6 +77,20 @@ local function createRing(name: string, radius: number, color: Color3, transpare
 	return model
 end
 
+local function createFilledCircle(name: string, radius: number, color: Color3, transparency: number): Model?
+	if not effectsFolder then
+		return nil
+	end
+	local model = Instance.new("Model")
+	model.Name = name
+	local circle = makeBlock("FilledCircle", Vector3.new(0.12, radius * 2, radius * 2), color, transparency)
+	circle.Shape = Enum.PartType.Cylinder
+	circle.Parent = model
+	model.PrimaryPart = circle
+	model.Parent = effectsFolder
+	return model
+end
+
 local function addBurst(position: Vector3, radius: number, color: Color3, duration: number, soundName: string?)
 	local ring = createRing("AbilityBurst", 1, color, 0.16, 20)
 	if not ring then
@@ -96,6 +104,17 @@ local function addBurst(position: Vector3, radius: number, color: Color3, durati
 		duration = duration,
 		maximumScale = radius,
 	})
+	-- The range ring remains the gameplay read; a short layered core and two-tone chips add a clear impact frame.
+	StudVFX.Flash(effectsFolder, position + Vector3.yAxis * 0.3, color, math.min(radius * 0.42, 4.5), duration * 0.68)
+	StudVFX.Burst(
+		effectsFolder,
+		position + Vector3.yAxis * 0.22,
+		color,
+		math.clamp(math.floor(radius * 0.65), 5, 12),
+		math.min(radius * 0.55, 6),
+		duration,
+		color:Lerp(Color3.new(1, 1, 1), 0.48)
+	)
 	if soundName and ring.PrimaryPart then
 		Sounds.Play(soundName, ring.PrimaryPart, 105)
 	end
@@ -125,6 +144,7 @@ local function addImpact(position: Vector3, color: Color3, rage: boolean, soundN
 	end
 	model.Parent = effectsFolder
 	model:PivotTo(model:GetPivot())
+	StudVFX.Flash(effectsFolder, position + Vector3.yAxis * 0.45, color, if rage then 2.1 else 1.5, 0.18)
 	table.insert(bursts, {
 		model = model,
 		startedAt = os.clock(),
@@ -310,7 +330,9 @@ function CrowdWeaponEffects.AuraState(packet)
 		existing.model:Destroy()
 	end
 	local color = if packet.rage then Color3.fromRGB(255, 188, 48) else Color3.fromRGB(92, 220, 255)
-	local model = createRing("Aura", packet.radius, color, if packet.rage then 0.18 else 0.42, 28)
+	-- Keep Aura's range readable with one filled, translucent circle. Do not restore the segmented ring
+	-- or moving decorative motes: those multiply the part count for every equipped Aura.
+	local model = createFilledCircle("Aura", packet.radius, color, if packet.rage then 0.58 else 0.72)
 	if model then
 		auras[packet.ownerUserId] = {
 			model = model,
@@ -474,7 +496,8 @@ function CrowdWeaponEffects.DrillSpawned(packet)
 		launchAt = packet.launchAt,
 		rage = packet.rage,
 	}
-	Sounds.Play("FreezeRayShoot", model.PrimaryPart, 95)
+	-- Drill launch uses a mechanical burst; do not restore the unrelated freeze-ray cue.
+	Sounds.Play("AbilityDrillStart", model.PrimaryPart, 95)
 end
 
 function CrowdWeaponEffects.DrillHit(packet)
@@ -660,7 +683,9 @@ function CrowdWeaponEffects.Render(now: number, deltaTime: number)
 		local player = Players:GetPlayerByUserId(ownerUserId)
 		local root = player and player.Character and player.Character:FindFirstChild("HumanoidRootPart")
 		if root and root:IsA("BasePart") then
-			aura.model:PivotTo(CFrame.new(root.Position - Vector3.yAxis * 2.75))
+			local center = root.Position - Vector3.yAxis * 2.75
+			-- Cylinder parts extend along X, so rotate the single Aura circle flat against the ground.
+			aura.model:PivotTo(CFrame.new(center) * CFrame.Angles(0, 0, math.pi * 0.5))
 			local pulse = 1 + math.sin(localNow * (if aura.rage then 6 else 3)) * 0.025
 			aura.model:ScaleTo(pulse)
 		else

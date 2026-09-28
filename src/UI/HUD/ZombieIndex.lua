@@ -479,20 +479,29 @@ return function()
 					ZIndex = 414,
 					StudTexture({ ZIndex = 415, ImageTransparency = 0.93, TileSize = UDim2.fromOffset(60, 60) }),
 					create "UIStroke" { ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Color = Color3.fromRGB(0, 120, 148), Thickness = 2 },
-					create "UIPadding" { PaddingLeft = UDim.new(0, 8), PaddingRight = UDim.new(0, 8), PaddingTop = UDim.new(0, 8), PaddingBottom = UDim.new(0, 8) },
-					create "UIGridLayout" {
-						CellPadding = function()
-							return UDim2.fromOffset(if portrait() then 7 else 9, if portrait() then 7 else 9)
-						end,
-						CellSize = function()
-							return if portrait() then UDim2.new(0.5, -4, 0, 174) else UDim2.new(1 / 3, -6, 0, 184)
-						end,
-						FillDirectionMaxCells = function()
-							return if portrait() then 2 else 3
-						end,
-						SortOrder = Enum.SortOrder.LayoutOrder,
+					create "Frame" {
+						Name = "Content",
+						AutomaticSize = Enum.AutomaticSize.Y,
+						BackgroundTransparency = 1,
+						Size = UDim2.new(1, 0, 0, 0),
+						ZIndex = 416,
+						-- Only collection cards belong to this grid. Decorative siblings would otherwise
+						-- occupy cells and leave apparently random holes at the start of the catalog.
+						create "UIPadding" { PaddingLeft = UDim.new(0, 8), PaddingRight = UDim.new(0, 8), PaddingTop = UDim.new(0, 8), PaddingBottom = UDim.new(0, 8) },
+						create "UIGridLayout" {
+							CellPadding = function()
+								return UDim2.fromOffset(if portrait() then 7 else 9, if portrait() then 7 else 9)
+							end,
+							CellSize = function()
+								return if portrait() then UDim2.new(0.5, -4, 0, 174) else UDim2.new(1 / 3, -6, 0, 184)
+							end,
+							FillDirectionMaxCells = function()
+								return if portrait() then 2 else 3
+							end,
+							SortOrder = Enum.SortOrder.LayoutOrder,
+						},
+						cards,
 					},
-					cards,
 				},
 				create "Frame" {
 					Name = "Details",
@@ -736,6 +745,10 @@ return function()
 								return if selectedClaimed()
 									then if portrait() then "REWARD CLAIMED" else "DISCOVERY REWARD CLAIMED"
 									else string.format("CLAIM  +%d COINS", selectedDefinition().DiscoveryReward)
+							end,
+							LeftIcon = Images.Coin,
+							LeftIconVisible = function()
+								return not selectedClaimed()
 							end,
 							Enabled = function()
 								return not selectedClaimed()

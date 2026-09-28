@@ -1,0 +1,89 @@
+{
+  "pinevex_object": {
+    "type": "Frame",
+    "name": "BossHealthBarPreview",
+    "size": [1, 0, 1, 0],
+    "bg": [20, 25, 31],
+    "children": [
+      {
+        "type": "Frame",
+        "name": "BossHealthBar",
+        "size": [0, 620, 0, 72],
+        "position": [0.5, 0, 0, 82],
+        "anchor": [0.5, 0],
+        "bg": [31, 16, 20],
+        "strokes": [
+          { "thickness": 3, "color": [154, 47, 58], "applyMode": "Border" }
+        ],
+        "children": [
+          {
+            "type": "TextLabel",
+            "name": "Title",
+            "size": [0.35, -12, 0, 24],
+            "position": [0, 12, 0, 7],
+            "bgTransparency": 1,
+            "text": "GRAVE TITAN",
+            "textColor": [255, 226, 211],
+            "textScaled": true,
+            "textXAlignment": "Left",
+            "font": "Ubuntu",
+            "fontWeight": "Heavy"
+          },
+          {
+            "type": "TextLabel",
+            "name": "PhaseLabel",
+            "size": [0.3, -8, 0, 16],
+            "position": [0.5, 0, 0, 11],
+            "anchor": [0.5, 0],
+            "bgTransparency": 1,
+            "text": "ENRAGES AT 50%",
+            "textColor": [255, 211, 137],
+            "textScaled": true,
+            "font": "Ubuntu",
+            "fontWeight": "Bold"
+          },
+          {
+            "type": "TextLabel",
+            "name": "Value",
+            "size": [0.35, -12, 0, 22],
+            "position": [1, -12, 0, 8],
+            "anchor": [1, 0],
+            "bgTransparency": 1,
+            "text": "3.65K / 6K",
+            "textColor": [222, 178, 173],
+            "textScaled": true,
+            "textXAlignment": "Right",
+            "font": "Ubuntu",
+            "fontWeight": "Bold"
+          },
+          {
+            "type": "Frame",
+            "name": "Track",
+            "size": [1, -24, 0, 24],
+            "position": [0.5, 0, 1, -10],
+            "anchor": [0.5, 1],
+            "bg": [58, 37, 41],
+            "children": [
+              {
+                "type": "Frame",
+                "name": "Fill",
+                "size": [0.61, 0, 1, 0],
+                "bg": [195, 48, 61]
+              },
+              {
+                "type": "Frame",
+                "name": "EnrageMarker",
+                "size": [0, 3, 1, 4],
+                "position": [0.5, 0, 0.5, 0],
+                "anchor": [0.5, 0.5],
+                "bg": [255, 222, 158]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "viewport_size": [1280, 720],
+  "transparent_background": false
+}

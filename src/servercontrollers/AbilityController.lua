@@ -14,6 +14,7 @@ local ServerContext = require(ServerStorage.Controllers.ServerContext)
 local ActiveWeapons = require(script.Parent.Ability.ActiveWeapons)
 local AdditionalWeapons = require(script.Parent.Ability.AdditionalWeapons)
 local CrowdWeapons = require(script.Parent.Ability.CrowdWeapons)
+local ExpandedWeapons = require(script.Parent.Ability.ExpandedWeapons)
 local CombatTargets = require(script.Parent.Ability.CombatTargets)
 local OrbitingSwords = require(script.Parent.Ability.OrbitingSwords)
 local PassiveEffects = require(script.Parent.Ability.PassiveEffects)
@@ -187,7 +188,7 @@ local function damageTarget(player: Player, definition, target, damage: number, 
 	})
 end
 
-local function fireDaggerVolley(player: Player, definition, level: number): boolean
+local function fireDaggerVolley(player: Player, definition, level: number, damageMultiplier: number?): boolean
 	local character = player.Character
 	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 	local root = character and character:FindFirstChild("HumanoidRootPart")
@@ -238,7 +239,7 @@ local function fireDaggerVolley(player: Player, definition, level: number): bool
 
 		task.delay(launchDelay + duration, function()
 			if player.Parent == Players then
-				damageTarget(player, definition, target, stats.Damage, startPosition, stats.IsRage == true)
+			damageTarget(player, definition, target, stats.Damage * (damageMultiplier or 1), startPosition, stats.IsRage == true)
 			end
 		end)
 	end
@@ -279,7 +280,17 @@ local function refreshAttacks(player: Player)
 			local rageActive = RageController.IsActive(player)
 			local rageStats = if rageActive and definition.GetRageStats then definition.GetRageStats(level) else nil
 			local cooldown = rageStats and rageStats.Cooldown or definition.Combat.Cooldown
-			local attacked = fireDaggerVolley(player, definition, level)
+			local attacked = fireDaggerVolley(player, definition, level, nil)
+			if attacked then
+				local repeatConfig = PassiveEffects.ConsumeWeaponActivation(player, "Dagger")
+				if repeatConfig then
+					task.delay(repeatConfig.Delay, function()
+						if runtimes[player] == runtime and runtime.attackToken == token then
+							fireDaggerVolley(player, definition, level, repeatConfig.DamageMultiplier)
+						end
+					end)
+				end
+			end
 			local retryDelay = if attacked
 				then cooldown * PassiveEffects.GetCooldownMultiplier(player)
 				else math.min(cooldown, 0.35)
@@ -334,6 +345,7 @@ function AbilityController.EndRun(player: Player)
 	ActiveWeapons.Refresh(player)
 	AdditionalWeapons.Refresh(player)
 	CrowdWeapons.Refresh(player)
+	ExpandedWeapons.Refresh(player)
 	OrbitingSwords.Refresh(player)
 	PassiveEffects.Refresh(player)
 end
@@ -350,10 +362,13 @@ function AbilityController.RestartRun(player: Player): boolean
 	runtime.nextDaggerAt = workspace:GetServerTimeNow() + 0.2
 	initializeRunData(player)
 	refreshAttacks(player)
-	ActiveWeapons.Refresh(player)
-	AdditionalWeapons.Refresh(player)
-	CrowdWeapons.Refresh(player)
-	OrbitingSwords.Refresh(player)
+	-- A replay is a hard effect boundary even when the new starting loadout contains the same ability.
+	-- Restart every weapon family so old projectiles, mines, fields, turrets, and orbiting blades cannot survive.
+	ActiveWeapons.Restart(player)
+	AdditionalWeapons.Restart(player)
+	CrowdWeapons.Restart(player)
+	ExpandedWeapons.Restart(player)
+	OrbitingSwords.Restart(player)
 	PassiveEffects.Refresh(player)
 	return true
 end
@@ -391,6 +406,7 @@ function AbilityController.AddRunAbility(player: Player, abilityId: string): boo
 	ActiveWeapons.Refresh(player)
 	AdditionalWeapons.Refresh(player)
 	CrowdWeapons.Refresh(player)
+	ExpandedWeapons.Refresh(player)
 	OrbitingSwords.Refresh(player)
 	if definition.Category == AbilityDefinitions.Categories.Passive then
 		PassiveEffects.Refresh(player)
@@ -451,6 +467,7 @@ function AbilityController.EquipAbility(_, player: Player, abilityId: any)
 	ActiveWeapons.Refresh(player)
 	AdditionalWeapons.Refresh(player)
 	CrowdWeapons.Refresh(player)
+	ExpandedWeapons.Refresh(player)
 	OrbitingSwords.Refresh(player)
 	if definition.Category == AbilityDefinitions.Categories.Passive then
 		PassiveEffects.Refresh(player)
@@ -479,6 +496,7 @@ function AbilityController.UnequipAbility(_, player: Player, abilityId: any)
 	ActiveWeapons.Refresh(player)
 	AdditionalWeapons.Refresh(player)
 	CrowdWeapons.Refresh(player)
+	ExpandedWeapons.Refresh(player)
 	OrbitingSwords.Refresh(player)
 	if definition.Category == AbilityDefinitions.Categories.Passive then
 		PassiveEffects.Refresh(player)
@@ -585,6 +603,7 @@ function AbilityController.Init()
 	ActiveWeapons.Init(abilityNetwork, getCombatData)
 	AdditionalWeapons.Init(abilityNetwork, getCombatData)
 	CrowdWeapons.Init(abilityNetwork, getCombatData)
+	ExpandedWeapons.Init(abilityNetwork, getCombatData)
 	OrbitingSwords.Init(abilityNetwork, getCombatData)
 	PassiveEffects.Init(abilityNetwork, getCombatData)
 	RageController.GetActivatedSignal():Connect(function(player: Player)
@@ -596,7 +615,9 @@ function AbilityController.Init()
 			ActiveWeapons.ForceImmediate(player)
 			AdditionalWeapons.ForceImmediate(player)
 			CrowdWeapons.ForceImmediate(player)
+			ExpandedWeapons.ForceImmediate(player)
 			OrbitingSwords.ForceSync(player)
+			PassiveEffects.OnRageActivated(player)
 		end
 	end)
 	if RunService:IsStudio() then
@@ -608,6 +629,7 @@ function AbilityController.Init()
 					ActiveWeapons.Refresh(player)
 					AdditionalWeapons.Refresh(player)
 					CrowdWeapons.Refresh(player)
+					ExpandedWeapons.Refresh(player)
 					OrbitingSwords.Refresh(player)
 					PassiveEffects.Refresh(player)
 				end
@@ -636,6 +658,7 @@ function AbilityController.OnPlayerAdded(player: Player)
 	ActiveWeapons.OnPlayerAdded(player)
 	AdditionalWeapons.OnPlayerAdded(player)
 	CrowdWeapons.OnPlayerAdded(player)
+	ExpandedWeapons.OnPlayerAdded(player)
 	OrbitingSwords.OnPlayerAdded(player)
 	PassiveEffects.OnPlayerAdded(player)
 	refreshAttacks(player)
@@ -646,6 +669,7 @@ function AbilityController.OnCharacterAdded(player: Player, character: Model)
 	ActiveWeapons.Restart(player)
 	AdditionalWeapons.Restart(player)
 	CrowdWeapons.Restart(player)
+	ExpandedWeapons.Restart(player)
 	OrbitingSwords.Restart(player)
 	PassiveEffects.OnCharacterAdded(player, character)
 end
@@ -658,6 +682,7 @@ function AbilityController.OnPlayerRemoving(player: Player)
 	ActiveWeapons.OnPlayerRemoving(player)
 	AdditionalWeapons.OnPlayerRemoving(player)
 	CrowdWeapons.OnPlayerRemoving(player)
+	ExpandedWeapons.OnPlayerRemoving(player)
 	OrbitingSwords.OnPlayerRemoving(player)
 	PassiveEffects.OnPlayerRemoving(player)
 	runtimes[player] = nil

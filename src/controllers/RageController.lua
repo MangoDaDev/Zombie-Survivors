@@ -10,6 +10,7 @@ local Signal = require(ReplicatedStorage.Packages.signal)
 local GameReadyController = require(ReplicatedStorage.Controllers.GameReadyController)
 local RageConfig = require(ReplicatedStorage.Modules.Game.Rage.RageConfig)
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
+local StudVFX = require(ReplicatedStorage.Modules.UI.StudVFX)
 
 local RageController = {}
 
@@ -41,6 +42,7 @@ local function clearCharacterEffect(playEndingEffect: boolean)
 	local character = localPlayer.Character
 	local root = character and character:FindFirstChild("HumanoidRootPart")
 	if playEndingEffect and root and root:IsA("BasePart") then
+		StudVFX.Ring(Workspace, root.Position - Vector3.yAxis * 2.35, Color3.fromRGB(255, 136, 54), 4.2, 0.42, 12)
 		local ending = Instance.new("Highlight")
 		ending.Name = "RageEndingEmphasis"
 		ending.Adornee = character
@@ -78,6 +80,18 @@ local function addCharacterEffect()
 	if not character or not root or not root:IsA("BasePart") then
 		return
 	end
+	-- Rage begins with a short stud-built shock ring and debris kick; the persistent highlight remains restrained.
+	StudVFX.Flash(Workspace, root.Position, Color3.fromRGB(255, 91, 39), 4.8, 0.28)
+	StudVFX.Ring(Workspace, root.Position - Vector3.yAxis * 2.35, Color3.fromRGB(255, 132, 42), 6.2, 0.4, 16)
+	StudVFX.Burst(
+		Workspace,
+		root.Position - Vector3.yAxis * 1.4,
+		Color3.fromRGB(255, 83, 31),
+		12,
+		4.8,
+		0.38,
+		Color3.fromRGB(255, 225, 94)
+	)
 
 	local highlight = Instance.new("Highlight")
 	highlight.Name = "RageEmphasis"

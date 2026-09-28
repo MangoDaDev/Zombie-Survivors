@@ -6,7 +6,9 @@ local ServerStorage = game:GetService("ServerStorage")
 local Networker = require(ReplicatedStorage.Packages.networker)
 local AbilityDefinitions = require(ReplicatedStorage.Modules.Game.Abilities.AbilityDefinitions)
 local RunProgressionConfig = require(ReplicatedStorage.Modules.Game.RunProgressionConfig)
+local RuntimeState = require(ReplicatedStorage.Modules.Game.RuntimeState)
 local AbilityController = require(ServerStorage.Controllers.AbilityController)
+local RageController = require(ServerStorage.Controllers.RageController)
 local ServerContext = require(ServerStorage.Controllers.ServerContext)
 
 type Choice = {
@@ -116,23 +118,50 @@ local function buildCandidates(player: Player)
 	return candidates
 end
 
-local function chooseWithoutReplacement(candidates, count: number): { Choice }
+local function takeWeighted(candidates)
+	local totalWeight = 0
+	for _, candidate in candidates do
+		totalWeight += candidate.weight
+	end
+	local roll = random:NextNumber() * totalWeight
+	local selectedIndex = #candidates
+	for index, candidate in candidates do
+		roll -= candidate.weight
+		if roll <= 0 then
+			selectedIndex = index
+			break
+		end
+	end
+	return table.remove(candidates, selectedIndex)
+end
+
+local function chooseWithoutReplacement(candidates, count: number, slotFillRatio: number): { Choice }
 	local choices = {}
-	while #candidates > 0 and #choices < count do
-		local totalWeight = 0
-		for _, candidate in candidates do
-			totalWeight += candidate.weight
+	local upgrades = {}
+	local newAbilities = {}
+	for _, candidate in candidates do
+		table.insert(if candidate.kind == "Upgrade" then upgrades else newAbilities, candidate)
+	end
+	local newOfferChance = RunProgressionConfig.Abilities.NewOfferChanceAtEmpty
+		+ (RunProgressionConfig.Abilities.NewOfferChanceAtFull
+			- RunProgressionConfig.Abilities.NewOfferChanceAtEmpty) * math.clamp(slotFillRatio, 0, 1)
+	local offeredNew = false
+	local guaranteedUpgradeCount = math.min(2, #upgrades)
+	while #choices < count and (#upgrades > 0 or #newAbilities > 0) do
+		-- Lead with up to two distinct usable upgrades. With three or more owned abilities, the final
+		-- card only expands the build occasionally, and never more than once in the same choice set.
+		local selected
+		if #upgrades > 0 and (#choices < guaranteedUpgradeCount or #newAbilities == 0) then
+			selected = takeWeighted(upgrades)
+		elseif not offeredNew and #newAbilities > 0 and (#upgrades == 0 or random:NextNumber() < newOfferChance) then
+			selected = takeWeighted(newAbilities)
+			offeredNew = true
+		elseif #upgrades > 0 then
+			selected = takeWeighted(upgrades)
+		else
+			selected = takeWeighted(newAbilities)
+			offeredNew = true
 		end
-		local roll = random:NextNumber() * totalWeight
-		local selectedIndex = #candidates
-		for index, candidate in candidates do
-			roll -= candidate.weight
-			if roll <= 0 then
-				selectedIndex = index
-				break
-			end
-		end
-		local selected = table.remove(candidates, selectedIndex)
 		table.insert(choices, {
 			abilityId = selected.abilityId,
 			kind = selected.kind,
@@ -152,7 +181,14 @@ local function offerNextChoice(player: Player, state: PlayerRunState)
 		-- ability run state is ready instead of incorrectly treating the temporary empty pool as final.
 		return
 	end
-	local choices = chooseWithoutReplacement(buildCandidates(player), RunProgressionConfig.Abilities.ChoiceCount)
+	local runData = AbilityController.GetRunData(player)
+	local equippedCount = #runData.Equipped.Weapon + #runData.Equipped.Passive
+	local totalSlots = AbilityDefinitions.EquipLimits.Weapon + AbilityDefinitions.EquipLimits.Passive
+	local choices = chooseWithoutReplacement(
+		buildCandidates(player),
+		RunProgressionConfig.Abilities.ChoiceCount,
+		equippedCount / totalSlots
+	)
 	if #choices == 0 then
 		-- This only occurs after every legal run ability reaches its configured maximum.
 		state.pendingChoices = 0
@@ -192,7 +228,21 @@ function RunProgressionController.AddXP(player: Player, amount: number): boolean
 		return false
 	end
 
-	local awardedXP = math.max(1, math.floor(amount))
+	local manualLevel = RuntimeState.Get(player, "TrainingManualAbilityLevel", nil)
+	local manualStats
+	if type(manualLevel) == "number" then
+		local definition = AbilityDefinitions.ById.TrainingManual
+		manualStats = if RageController.IsActive(player) then definition.GetRageStats(manualLevel) else definition.GetStats(manualLevel)
+	end
+	local xpMultiplier = 1 + (manualStats and manualStats.XPBonusPercent or 0) / 100
+	if manualStats and amount >= manualStats.LargeCrystalMinimum then
+		xpMultiplier *= 1 + manualStats.LargeCrystalBonusPercent / 100
+	end
+	if manualStats and RuntimeState.Get(player, "TrainingManualBreakthroughReady", false) then
+		xpMultiplier *= 1 + manualStats.BreakthroughBonusPercent / 100
+		RuntimeState.Set(player, "TrainingManualBreakthroughReady", false)
+	end
+	local awardedXP = math.max(1, math.floor(amount * xpMultiplier + 0.5))
 	state.xp += awardedXP
 	state.totalXP += awardedXP
 	local earnedLevels = 0
@@ -209,6 +259,9 @@ function RunProgressionController.AddXP(player: Player, amount: number): boolean
 	if earnedLevels > 0 then
 		-- One pending token always corresponds to exactly one server-validated card selection.
 		state.pendingChoices += earnedLevels
+		if manualStats and manualStats.BreakthroughBonusPercent > 0 then
+			RuntimeState.Set(player, "TrainingManualBreakthroughReady", true)
+		end
 	end
 	if state.pendingChoices > 0 then
 		-- Retry unresolved tokens on every XP update. This closes the brief startup window where progression

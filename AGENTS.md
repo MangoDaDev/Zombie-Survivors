@@ -4,6 +4,7 @@
 
 - Do not create permanent scripts inside of studio.
 - `default.project.json` defines the source-to-DataModel mapping; `Index.md` is the concise first-party code map.
+- Review `PROJECT_NOTES.md` before changes and keep its project-specific decisions concise and current.
 
 ## Requirements / Rules
 
@@ -82,3 +83,20 @@ Use a classic Roblox Stud Building Style: construct assets entirely from simple 
 If vfx does not exist and the player has prompted you to create it yourself:
 
 Create it out of stud parts that are animated on the client. Should feel satisfying and well put together. Generate on runtime.
+
+Do not repeat any previous mistakes, and do not violate any standards or conventions I have already established.
+
+Create a persistent place to track this information so it is carried forward throughout development. This can be a dedicated project notes file/folder or clearly structured notes within the codebase.
+
+Record:
+- Standards and conventions I specify.
+- Mistakes you have made and how they were corrected.
+- Important implementation decisions.
+- Things that must not be changed or reintroduced.
+- Project-specific patterns that should be followed consistently.
+
+Before making future changes, review these notes and use them as constraints. If you discover a new mistake or I correct something, update the notes so the same issue is not repeated later.
+
+Keep the notes concise, organized, and useful rather than filling them with unnecessary information.
+
+Do not mix game specific stuff with general stuff.

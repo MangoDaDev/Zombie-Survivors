@@ -40,6 +40,15 @@ local function getAbility(definition)
 	return AbilityDefinitions.ById[definition.AbilityId]
 end
 
+local function hasRequiredAbility(abilityState, definition): boolean
+	local requiredAbilityId = definition.RequiredAbilityId
+	return requiredAbilityId == nil
+		or (AbilityDefinitions.ById[requiredAbilityId] ~= nil
+			and type(abilityState) == "table"
+			and type(abilityState.Owned) == "table"
+			and abilityState.Owned[requiredAbilityId] == true)
+end
+
 local function classCard(definition, order: number, props)
 	local hovered = source(false)
 	local owned = derive(function()
@@ -50,6 +59,9 @@ local function classCard(definition, order: number, props)
 	end)
 	local equipped = derive(function()
 		return props.state().Equipped == definition.Id
+	end)
+	local prerequisiteMet = derive(function()
+		return hasRequiredAbility(props.abilityState(), definition)
 	end)
 	local scale = spring(function()
 		return if hovered() then 1.015 else 1
@@ -132,7 +144,9 @@ local function classCard(definition, order: number, props)
 			Name = "StateBadge",
 			AnchorPoint = function() return if props.portrait() then Vector2.new(1, 0) else Vector2.new(1, 0.5) end,
 			BackgroundColor3 = function()
-				return if equipped() then UIStyle.Colors.Green elseif owned() then Color3.fromRGB(28, 110, 143) else Color3.fromRGB(67, 55, 26)
+				if equipped() then return UIStyle.Colors.Green end
+				if not prerequisiteMet() then return UIStyle.Colors.Muted end
+				return if owned() then Color3.fromRGB(28, 110, 143) else Color3.fromRGB(67, 55, 26)
 			end,
 			BorderSizePixel = 0,
 			Position = function() return if props.portrait() then UDim2.new(1, -8, 0, 9) else UDim2.new(1, -9, 0.5, 0) end,
@@ -141,17 +155,44 @@ local function classCard(definition, order: number, props)
 			end,
 			ZIndex = 367,
 			StudTexture({ ZIndex = 367, ImageTransparency = 0.89, TileSize = UDim2.fromOffset(36, 36) }),
+			create "ImageLabel" {
+				Name = "Coin",
+				AnchorPoint = Vector2.new(0, 0.5),
+				BackgroundTransparency = 1,
+				Image = Images.Coin,
+				Position = UDim2.new(0, 6, 0.5, 0),
+				Size = function()
+					local size = if props.portrait() then 14 elseif props.shortLandscape() then 17 else 20
+					return UDim2.fromOffset(size, size)
+				end,
+				Visible = function()
+					return not owned() and prerequisiteMet()
+				end,
+				ZIndex = 368,
+			},
 			create "TextLabel" {
 				BackgroundTransparency = 1,
 				FontFace = HEAVY_FONT,
-				Size = UDim2.fromScale(1, 1),
+				Position = function()
+					return if owned() or not prerequisiteMet()
+						then UDim2.fromScale(0, 0)
+						else UDim2.new(0, if props.portrait() then 22 else 29, 0, 0)
+				end,
+				Size = function()
+					return if owned() or not prerequisiteMet()
+						then UDim2.fromScale(1, 1)
+						else UDim2.new(1, if props.portrait() then -25 else -33, 1, 0)
+				end,
 				Text = function()
 					if equipped() then return "EQUIPPED" end
+					-- The scrolling list replaces the coin cost with the prerequisite state so a blocked
+					-- class never looks purchasable before its starting ability has been unlocked.
+					if not prerequisiteMet() then return "ABILITY LOCKED" end
 					if owned() then return "OWNED" end
 					return FormatNumber(definition.UnlockCost) or tostring(definition.UnlockCost)
 				end,
 				TextColor3 = function()
-					return if owned() then PAPER else Color3.fromRGB(255, 224, 129)
+					return if owned() or not prerequisiteMet() then PAPER else Color3.fromRGB(255, 224, 129)
 				end,
 				TextScaled = true,
 				ZIndex = 368,
@@ -228,12 +269,15 @@ return function()
 	local selectedEquipped = derive(function()
 		return state().Equipped == selectedDefinition().Id
 	end)
+	local requiredAbility = derive(function()
+		local requiredAbilityId = selectedDefinition().RequiredAbilityId
+		return if type(requiredAbilityId) == "string" then AbilityDefinitions.ById[requiredAbilityId] else nil
+	end)
 	local canAfford = derive(function()
 		return balance() >= selectedDefinition().UnlockCost
 	end)
 	local prerequisiteMet = derive(function()
-		local requiredAbilityId = selectedDefinition().RequiredAbilityId
-		return requiredAbilityId == nil or (type(abilityState().Owned) == "table" and abilityState().Owned[requiredAbilityId] == true)
+		return hasRequiredAbility(abilityState(), selectedDefinition())
 	end)
 
 	table.insert(connections, ClassController.GetStateChangedSignal():Connect(function(newState)
@@ -275,6 +319,7 @@ return function()
 	for order, definition in ClassDefinitions.List do
 		table.insert(cards, classCard(definition, order, {
 			state = state,
+			abilityState = abilityState,
 			selectedId = selectedId,
 			portrait = portrait,
 			compactPortrait = compactPortrait,
@@ -491,27 +536,36 @@ return function()
 					ZIndex = 360,
 					StudTexture({ ZIndex = 361, ImageTransparency = 0.93, TileSize = UDim2.fromOffset(60, 60) }),
 					create "UIStroke" { ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Color = Color3.fromRGB(0, 120, 148), Thickness = 2 },
-					create "UIPadding" { PaddingLeft = UDim.new(0, 8), PaddingRight = UDim.new(0, 8), PaddingTop = UDim.new(0, 8), PaddingBottom = UDim.new(0, 8) },
-					create "UIListLayout" { Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder },
-					create "TextLabel" {
-						Name = "CatalogTitle",
+					create "Frame" {
+						Name = "Content",
+						AutomaticSize = Enum.AutomaticSize.Y,
 						BackgroundTransparency = 1,
-						FontFace = HEAVY_FONT,
-						LayoutOrder = 0,
-						Size = function() return UDim2.new(1, -4, 0, if compactPortrait() or shortLandscape() then 22 else 24) end,
-						Text = function()
-							local count = 0
-							for _, definition in ClassDefinitions.List do
-								if isOwned(state(), definition.Id) then count += 1 end
-							end
-							return string.format(if portrait() then "CLASSES  %d/%d" else "YOUR CLASSES  %d/%d", count, #ClassDefinitions.List)
-						end,
-						TextColor3 = Color3.fromRGB(160, 214, 228),
-						TextScaled = true,
-						TextXAlignment = Enum.TextXAlignment.Left,
+						Size = UDim2.new(1, 0, 0, 0),
 						ZIndex = 361,
+						-- Isolate list entries from the scrolling panel's decorative texture so it cannot
+						-- be measured as a class row and introduce a large blank buffer.
+						create "UIPadding" { PaddingLeft = UDim.new(0, 8), PaddingRight = UDim.new(0, 8), PaddingTop = UDim.new(0, 8), PaddingBottom = UDim.new(0, 8) },
+						create "UIListLayout" { Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder },
+						create "TextLabel" {
+							Name = "CatalogTitle",
+							BackgroundTransparency = 1,
+							FontFace = HEAVY_FONT,
+							LayoutOrder = 0,
+							Size = function() return UDim2.new(1, -4, 0, if compactPortrait() or shortLandscape() then 22 else 24) end,
+							Text = function()
+								local count = 0
+								for _, definition in ClassDefinitions.List do
+									if isOwned(state(), definition.Id) then count += 1 end
+								end
+								return string.format(if portrait() then "CLASSES  %d/%d" else "YOUR CLASSES  %d/%d", count, #ClassDefinitions.List)
+							end,
+							TextColor3 = Color3.fromRGB(160, 214, 228),
+							TextScaled = true,
+							TextXAlignment = Enum.TextXAlignment.Left,
+							ZIndex = 361,
+						},
+						cards,
 					},
-					cards,
 				},
 				create "ScrollingFrame" {
 					Name = "Details",
@@ -653,10 +707,18 @@ return function()
 						Button({
 							Text = function()
 								if selectedEquipped() then return "EQUIPPED" end
-								if not prerequisiteMet() then return "UNLOCK SWORDS FIRST" end
+								if not prerequisiteMet() then
+									local ability = requiredAbility()
+									-- Missing prerequisite definitions must disable the class without breaking the entire Vide effect.
+									return if ability then "UNLOCK " .. string.upper(ability.Name) .. " FIRST" else "REQUIRED ABILITY UNAVAILABLE"
+								end
 								if selectedOwned() then return "EQUIP CLASS" end
 								local cost = FormatNumber(selectedDefinition().UnlockCost) or tostring(selectedDefinition().UnlockCost)
 								return if canAfford() then "UNLOCK FOR " .. cost .. " COINS" else "NEED " .. cost .. " COINS"
+							end,
+							LeftIcon = Images.Coin,
+							LeftIconVisible = function()
+								return prerequisiteMet() and not selectedOwned() and not selectedEquipped()
 							end,
 							Enabled = function() return prerequisiteMet() and not selectedEquipped() and (selectedOwned() or canAfford()) end,
 							BackgroundColor3 = function()

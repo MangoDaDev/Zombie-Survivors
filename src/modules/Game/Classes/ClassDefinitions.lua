@@ -3,8 +3,8 @@ local ClassDefinitions = {}
 ClassDefinitions.DataKey = "Classes"
 ClassDefinitions.DefaultId = "Survivor"
 
--- One definition drives the menu, permanent price, starting weapon, server perks, and authored headpiece.
--- Add future classes here and place a same-named block-built model in Assets.Models.Classes.
+-- One definition drives the menu, permanent price, starting weapon, server perks, and native class accessory.
+-- Keep one sanitized, same-named native Accessory or Hat in Assets.Models.Classes; never rebuild its Handle hierarchy.
 ClassDefinitions.List = {
 	{
 		Id = "Survivor",
@@ -15,6 +15,20 @@ ClassDefinitions.List = {
 		UnlockCost = 0,
 		Color = Color3.fromRGB(102, 205, 147),
 		Bonuses = { MaxHealth = 0.15, PickupMagnet = 0.25 },
+	},
+	{
+		Id = "BladeDancer",
+		Name = "Blade Dancer",
+		Description = "Orbits blades faster and earns a brief shield through sustained sword hits.",
+		AbilityId = "OrbitingSwords",
+		RequiredAbilityId = "OrbitingSwords",
+		PerkText = "+12% sword orbit speed and radius  |  every 10th hit grants a brief shield",
+		-- Blade Dancer is deliberately the cheapest purchasable class so the automatically unlocked
+		-- Orbiting Swords ability has an accessible matching class at the start of progression.
+		UnlockCost = 300,
+		Color = Color3.fromRGB(180, 161, 255),
+		-- The shield cuts incoming zombie damage by 25% for 2s after every tenth sword hit.
+		Bonuses = { OrbitSpeed = 0.12, OrbitRadius = 0.12, SwordShieldEveryHits = 10, SwordShieldDuration = 2, SwordShieldDamageReduction = 0.25 },
 	},
 	{
 		Id = "Scout",
@@ -119,16 +133,62 @@ ClassDefinitions.List = {
 		Bonuses = { CoinReward = 0.15, CoinPickupRadius = 0.20, PowerupLifetime = 5, WeaponDamage = -0.08 },
 	},
 	{
-		Id = "BladeDancer",
-		Name = "Blade Dancer",
-		Description = "Orbits blades faster and earns a brief shield through sustained sword hits.",
-		AbilityId = "OrbitingSwords",
-		RequiredAbilityId = "OrbitingSwords",
-		PerkText = "+12% sword orbit speed and radius  |  every 10th hit grants a brief shield",
-		UnlockCost = 7200,
-		Color = Color3.fromRGB(180, 161, 255),
-		-- The shield cuts incoming zombie damage by 25% for 2s after every tenth sword hit.
-		Bonuses = { OrbitSpeed = 0.12, OrbitRadius = 0.12, SwordShieldEveryHits = 10, SwordShieldDuration = 2, SwordShieldDamageReduction = 0.25 },
+		Id = "Gunslinger",
+		Name = "Gunslinger",
+		Description = "A fast-moving weapons expert who overwhelms the horde with relentless attacks.",
+		AbilityId = "Shotgun",
+		RequiredAbilityId = "Shotgun",
+		PerkText = "+15% weapon damage  |  +10% attack speed  |  +10% move speed",
+		UnlockCost = 12_500,
+		Color = Color3.fromRGB(255, 198, 82),
+		Bonuses = { WeaponDamage = 0.15, AttackSpeed = 0.10, WalkSpeed = 0.10 },
+	},
+	{
+		Id = "Cryomancer",
+		Name = "Cryomancer",
+		Description = "Freezes the advance while making every weapon larger and more destructive.",
+		AbilityId = "FrostNova",
+		RequiredAbilityId = "FrostNova",
+		PerkText = "+25% weapon damage  |  +20% weapon area and size  |  attacks Chill by 15% for 2s",
+		UnlockCost = 35_000,
+		Color = Color3.fromRGB(123, 224, 255),
+		-- Every player-owned damage source can refresh this mild slow, so the perk improves the whole loadout.
+		Bonuses = { WeaponDamage = 0.25, GlobalArea = 0.20, GlobalSize = 0.20, OnHitSlow = 0.15, OnHitSlowDuration = 2 },
+	},
+	{
+		Id = "Starcaller",
+		Name = "Starcaller",
+		Description = "Commands enormous attacks and periodically turns a kill into a falling-star blast.",
+		AbilityId = "Meteor",
+		RequiredAbilityId = "Meteor",
+		PerkText = "+40% weapon damage  |  +25% attack speed, range and area  |  every 15th kill explodes",
+		UnlockCost = 100_000,
+		Color = Color3.fromRGB(255, 132, 91),
+		-- Class-triggered explosion kills do not advance this counter, preventing one proc from recursively chaining.
+		Bonuses = { WeaponDamage = 0.40, AttackSpeed = 0.25, GlobalRange = 0.25, GlobalArea = 0.25, KillExplosionEvery = 15, KillExplosionDamage = 50, KillExplosionRadius = 8 },
+	},
+	{
+		Id = "Titan",
+		Name = "Titan",
+		Description = "A towering late-game powerhouse with exceptional damage, reach, and durability.",
+		AbilityId = "Turret",
+		RequiredAbilityId = "Turret",
+		PerkText = "+70% damage  |  +50% health  |  +35% attack speed  |  +30% range, area and knockback  |  -20% damage taken",
+		UnlockCost = 400_000,
+		Color = Color3.fromRGB(255, 211, 90),
+		Bonuses = { WeaponDamage = 0.70, MaxHealth = 0.50, AttackSpeed = 0.35, GlobalRange = 0.30, GlobalArea = 0.30, Knockback = 0.30, IncomingDamageReduction = 0.20 },
+	},
+	{
+		Id = "VoidEmperor",
+		Name = "Void Emperor",
+		Description = "The ultimate class, crushing whole crowds with overwhelming stats and collapsing kills.",
+		AbilityId = "Vortex",
+		RequiredAbilityId = "Vortex",
+		PerkText = "+125% damage  |  +75% health  |  +50% attack speed, range, area and size  |  +25% move speed  |  kills collapse",
+		UnlockCost = 1_500_000,
+		Color = Color3.fromRGB(177, 114, 255),
+		-- Each direct kill creates one bounded pull-and-blast; resulting kills cannot create further collapses.
+		Bonuses = { WeaponDamage = 1.25, MaxHealth = 0.75, AttackSpeed = 0.50, GlobalRange = 0.50, GlobalArea = 0.50, GlobalSize = 0.50, WalkSpeed = 0.25, KillExplosionDamage = 100, KillExplosionRadius = 10, KillPullRadius = 15, KillPullDistance = 4, KillEffectMaximumTargets = 50 },
 	},
 }
 

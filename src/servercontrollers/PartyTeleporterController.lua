@@ -1,4 +1,3 @@
-local Debris = game:GetService("Debris")
 local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -8,6 +7,7 @@ local Workspace = game:GetService("Workspace")
 
 local Networker = require(ReplicatedStorage.Packages.networker)
 local PartyTeleporterConfig = require(ReplicatedStorage.Modules.Game.PartyTeleporterConfig)
+local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
 local PartyTeleportService = require(script.Parent.PartyTeleportService)
 
 local FONT = Font.fromName("ComicNeueAngular")
@@ -184,15 +184,7 @@ local function updateWorldView(state: TeleporterState, now: number)
 end
 
 local function playSound(state: TeleporterState, soundName: string)
-	local sounds = ReplicatedStorage:FindFirstChild("Assets") and ReplicatedStorage.Assets:FindFirstChild("Sounds")
-	local template = sounds and sounds:FindFirstChild(soundName)
-	if not template or not template:IsA("Sound") then
-		return
-	end
-	local sound = template:Clone()
-	sound.Parent = state.view.billboard.Adornee
-	sound:Play()
-	Debris:AddItem(sound, math.max(sound.TimeLength, 1) + 1)
+	Sounds.Play(soundName, state.view.billboard.Adornee)
 end
 
 local function makePacket(state: TeleporterState, player: Player)

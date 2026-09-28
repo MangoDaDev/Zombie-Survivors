@@ -79,6 +79,17 @@ local Images = {
 		Critical = "rbxassetid://127237893669592",
 		Adrenaline = "rbxassetid://129265581193404",
 		Impact = "rbxassetid://95046721760053",
+		-- These are the uploaded Image asset IDs from the human-approved expansion icon set.
+		Crowbar = "rbxassetid://127310751543635",
+		Crossfire = "rbxassetid://133979767470563",
+		Buzzsaw = "rbxassetid://93869753806726",
+		Crusher = "rbxassetid://134728841688061",
+		LaserSweep = "rbxassetid://114569943945677",
+		Armor = "rbxassetid://116141314933500",
+		Magnet = "rbxassetid://81493486480619",
+		Executioner = "rbxassetid://130222493601262",
+		TrainingManual = "rbxassetid://99620239239804",
+		Overcharge = "rbxassetid://123731377806318",
 	},
 
 	-- Zombie portraits use the uploaded Image asset IDs; Decal container IDs do not render in ImageLabels.

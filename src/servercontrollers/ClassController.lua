@@ -3,7 +3,6 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Networker = require(ReplicatedStorage.Packages.networker)
 local ClassDefinitions = require(ReplicatedStorage.Modules.Game.Classes.ClassDefinitions)
-local ClassAccessoryFit = require(ReplicatedStorage.Modules.Game.Classes.ClassAccessoryFit)
 local AbilityDefinitions = require(ReplicatedStorage.Modules.Game.Abilities.AbilityDefinitions)
 local CoinsController = require(script.Parent.CoinsController)
 local PlayerStatController = require(script.Parent.PlayerStatController)
@@ -14,6 +13,40 @@ local MOVEMENT_THRESHOLD = 0.5
 local STAT_MODIFIER_ID = "Class"
 local RAGE_SPEED_MODIFIER_ID = "ClassRageKills"
 local ACCESSORY_NAME = "ClassAccessory"
+
+-- These fields cover the authoritative hit geometry and matching visual scale snapshots for every
+-- supported weapon. Broad high-tier class bonuses belong here instead of being hardcoded per class.
+local AREA_FIELDS = {
+	Fireball = { "ExplosionRadius" },
+	OrbitingSwords = { "OrbitRadius" },
+	Aura = { "Radius" },
+	Mine = { "Radius" },
+	Poison = { "Radius" },
+	FrostNova = { "Radius" },
+	Meteor = { "Radius" },
+	Vortex = { "Radius" },
+	Crowbar = { "Reach" },
+	Buzzsaw = { "Radius" },
+	Crusher = { "Length", "Width" },
+}
+local SIZE_FIELDS = {
+	Dagger = { "ProjectileScale" },
+	OrbitingSwords = { "SwordScale" },
+	Fireball = { "ProjectileScale" },
+	Boomerang = { "ProjectileScale", "HitRadius" },
+	Ball = { "Scale", "HitRadius" },
+	Drill = { "Width" },
+	Shotgun = { "PelletRadius" },
+	Turret = { "BulletRadius" },
+	Crossfire = { "Width" },
+	LaserSweep = { "Width" },
+}
+local DIRECT_RANGE_FIELDS = {
+	Meteor = { "Range" },
+	Turret = { "Range" },
+	Crossfire = { "Range" },
+	LaserSweep = { "Range" },
+}
 
 local ClassController = {}
 
@@ -54,7 +87,8 @@ local function meetsPrerequisite(player: Player, definition): boolean
 	local requiredAbilityId = definition.RequiredAbilityId
 	if not requiredAbilityId then return true end
 	local abilities = dataService:get(player, AbilityDefinitions.DataKey)
-	return type(abilities) == "table" and type(abilities.Owned) == "table"
+	return AbilityDefinitions.ById[requiredAbilityId] ~= nil
+		and type(abilities) == "table" and type(abilities.Owned) == "table"
 		and abilities.Owned[requiredAbilityId] == true
 end
 
@@ -69,15 +103,16 @@ local function clearCharacter(player: Player, runtime)
 		runtime.movementConnection:Disconnect()
 		runtime.movementConnection = nil
 	end
-	if runtime.headSizeConnection then
-		runtime.headSizeConnection:Disconnect()
-		runtime.headSizeConnection = nil
+	if runtime.accessoryConnection then
+		runtime.accessoryConnection:Disconnect()
+		runtime.accessoryConnection = nil
 	end
 	runtime.movementRevision += 1
 	runtime.moving = false
 	runtime.movingRangeBonus = false
 	runtime.swordHitCount = 0
 	runtime.shieldEndsAt = 0
+	runtime.killCount = 0
 	clearRageKillSpeed(player, runtime)
 	if runtime.accessory then
 		runtime.accessory:Destroy()
@@ -93,9 +128,23 @@ local function applyStats(player: Player)
 	})
 end
 
-local function applyAccessory(player: Player, runtime, character: Model, head: BasePart)
+local function getAccessoryType(instance: Instance): Enum.AccessoryType?
+	if instance:IsA("Accessory") then
+		return instance.AccessoryType
+	end
+	if instance:IsA("Hat") then
+		return Enum.AccessoryType.Hat
+	end
+	return nil
+end
+
+local function applyAccessory(player: Player, runtime, character: Model, humanoid: Humanoid)
 	if player.Character ~= character or runtimes[player] ~= runtime then
 		return
+	end
+	if runtime.accessoryConnection then
+		runtime.accessoryConnection:Disconnect()
+		runtime.accessoryConnection = nil
 	end
 	if runtime.accessory then
 		runtime.accessory:Destroy()
@@ -103,14 +152,19 @@ local function applyAccessory(player: Player, runtime, character: Model, head: B
 	end
 	local assets = ReplicatedStorage.Assets.Models:FindFirstChild("Classes")
 	local template = assets and assets:FindFirstChild(runtime.classId)
-	if not template or not template:IsA("Model") or not template.PrimaryPart then
+	if not template or not template:IsA("Accoutrement") or not template:FindFirstChild("Handle") then
 		warn("Missing authored class accessory: " .. runtime.classId)
 		return
 	end
 	local accessory = template:Clone()
 	accessory.Name = ACCESSORY_NAME
-	-- The fit is shared with the 3D menu preview so both R6 and scaled MeshPart heads wear the same model.
-	ClassAccessoryFit.FitToHead(accessory, head)
+	local accessoryType = getAccessoryType(accessory)
+	-- Class gear must be unobscured: remove only avatar accessories in the same Roblox accessory category.
+	for _, child in character:GetChildren() do
+		if accessoryType and getAccessoryType(child) == accessoryType then
+			child:Destroy()
+		end
+	end
 	for _, descendant in accessory:GetDescendants() do
 		if descendant:IsA("BasePart") then
 			descendant.Anchored = false
@@ -120,13 +174,15 @@ local function applyAccessory(player: Player, runtime, character: Model, head: B
 			descendant.Massless = true
 		end
 	end
-	local headWeld = Instance.new("WeldConstraint")
-	headWeld.Name = "HeadWeld"
-	headWeld.Part0 = head
-	headWeld.Part1 = accessory.PrimaryPart
-	headWeld.Parent = accessory.PrimaryPart
-	accessory.Parent = character
 	runtime.accessory = accessory
+	-- AddAccessory accepts native legacy Hats at runtime; pass the intact object instead of rebuilding its Handle.
+	humanoid:AddAccessory(accessory :: any)
+	-- Appearance can finish loading after CharacterAdded, so enforce the same-type rule for late accessories too.
+	runtime.accessoryConnection = character.ChildAdded:Connect(function(child)
+		if accessoryType and child ~= runtime.accessory and getAccessoryType(child) == accessoryType then
+			child:Destroy()
+		end
+	end)
 end
 
 local function bindMovement(player: Player, runtime, humanoid: Humanoid)
@@ -212,7 +268,10 @@ function ClassController.GetKnockbackMultiplier(player: Player): number
 end
 
 function ClassController.GetCooldownMultiplier(player: Player): number
-	return 1 - (getBonuses(player).CooldownReduction or 0)
+	local bonuses = getBonuses(player)
+	-- AttackSpeed is a rate increase (10% faster means interval / 1.1); legacy cooldown reduction
+	-- remains subtractive so existing class balance is unchanged.
+	return (1 - (bonuses.CooldownReduction or 0)) / (1 + (bonuses.AttackSpeed or 0))
 end
 
 function ClassController.GetHealingReceivedMultiplier(player: Player): number
@@ -238,6 +297,9 @@ function ClassController.GetIncomingDamageMultiplier(player: Player, nearbyZombi
 	if bonuses.NearbyDamageReduction and nearbyZombieCount >= bonuses.NearbyZombieCount then
 		multiplier *= 1 - bonuses.NearbyDamageReduction
 	end
+	if bonuses.IncomingDamageReduction then
+		multiplier *= 1 - bonuses.IncomingDamageReduction
+	end
 	local runtime = runtimes[player]
 	if runtime and workspace:GetServerTimeNow() < runtime.shieldEndsAt then
 		multiplier *= 1 - (bonuses.SwordShieldDamageReduction or 0)
@@ -249,6 +311,12 @@ function ClassController.GetAfflictionSlow(player: Player): (number?, number?)
 	local bonuses = getBonuses(player)
 	if not bonuses.AfflictedSlow then return nil, nil end
 	return 1 - bonuses.AfflictedSlow, bonuses.AfflictedSlowDuration
+end
+
+function ClassController.GetOnHitSlow(player: Player): (number?, number?)
+	local bonuses = getBonuses(player)
+	if not bonuses.OnHitSlow then return nil, nil end
+	return 1 - bonuses.OnHitSlow, bonuses.OnHitSlowDuration
 end
 
 function ClassController.RegisterSwordHit(player: Player)
@@ -286,7 +354,13 @@ end
 
 function ClassController.GetProjectileRangeMultiplier(player: Player): number
 	local runtime = runtimes[player]
-	return 1 + (if runtime and runtime.movingRangeBonus then getDefinition(player).Bonuses.MovingProjectileRange or 0 else 0)
+	local bonuses = getBonuses(player)
+	local movingBonus = if runtime and runtime.movingRangeBonus then bonuses.MovingProjectileRange or 0 else 0
+	return (1 + movingBonus) * (1 + (bonuses.GlobalRange or 0))
+end
+
+function ClassController.GetGlobalRangeMultiplier(player: Player): number
+	return 1 + (getBonuses(player).GlobalRange or 0)
 end
 
 function ClassController.GetStraightRangeMultiplier(player: Player): number
@@ -341,6 +415,9 @@ function ClassController.ApplyWeaponStats(player: Player, abilityId: string, sta
 			stats.Range *= 1 + bonuses.StraightRange
 		elseif abilityId == "Fireball" then
 			stats.ProjectileScale *= 1 + bonuses.StraightWidth
+		elseif abilityId == "Crossfire" or abilityId == "LaserSweep" then
+			stats.Width *= 1 + bonuses.StraightWidth
+			stats.Range *= 1 + bonuses.StraightRange
 		end
 	end
 	if bonuses.DeployableDuration then
@@ -353,17 +430,57 @@ function ClassController.ApplyWeaponStats(player: Player, abilityId: string, sta
 		elseif abilityId == "Vortex" then
 			stats.MaximumActive = AbilityDefinitions.ById.Vortex.Combat.MaximumActive + bonuses.AdditionalDeployables
 			stats.Duration *= 1 + bonuses.DeployableDuration
+		elseif abilityId == "Buzzsaw" then
+			stats.Duration *= 1 + bonuses.DeployableDuration
 		end
 	end
 	if bonuses.DamageOverTimeDamage then
 		if abilityId == "Fireball" then
 			stats.BurnDamage *= 1 + bonuses.DamageOverTimeDamage
 			stats.GroundDamage *= 1 + bonuses.DamageOverTimeDamage
-		elseif abilityId == "Poison" or abilityId == "Aura" or abilityId == "Vortex" then
+		elseif abilityId == "Poison" or abilityId == "Aura" or abilityId == "Vortex" or abilityId == "Buzzsaw" then
 			stats.Damage *= 1 + bonuses.DamageOverTimeDamage
 		end
 	end
+	-- Expensive simulator-style classes scale every compatible weapon, including hit geometry and
+	-- the values sent to clients, so their broad bonuses never secretly apply to only the starter item.
+	for _, field in AREA_FIELDS[abilityId] or {} do
+		if type(stats[field]) == "number" then stats[field] *= 1 + (bonuses.GlobalArea or 0) end
+	end
+	for _, field in SIZE_FIELDS[abilityId] or {} do
+		if type(stats[field]) == "number" then stats[field] *= 1 + (bonuses.GlobalSize or 0) end
+	end
+	for _, field in DIRECT_RANGE_FIELDS[abilityId] or {} do
+		if type(stats[field]) == "number" then stats[field] *= 1 + (bonuses.GlobalRange or 0) end
+	end
+	if abilityId == "Lightning" and type(stats.ChainRange) == "number" then
+		stats.ChainRange *= 1 + (bonuses.GlobalRange or 0)
+	end
 	return stats
+end
+
+function ClassController.RegisterKill(player: Player)
+	local runtime = runtimes[player]
+	local bonuses = getBonuses(player)
+	if not runtime or not bonuses.KillExplosionDamage then return nil end
+	if bonuses.KillExplosionEvery then
+		runtime.killCount += 1
+		if runtime.killCount % bonuses.KillExplosionEvery ~= 0 then return nil end
+	end
+	return {
+		damage = bonuses.KillExplosionDamage,
+		radius = bonuses.KillExplosionRadius,
+		pullRadius = bonuses.KillPullRadius,
+		pullDistance = bonuses.KillPullDistance,
+		maximumTargets = bonuses.KillEffectMaximumTargets or 40,
+		kind = if bonuses.KillPullRadius then "Void" else "Star",
+	}
+end
+
+function ClassController.BroadcastKillEffect(kind: string, position: Vector3, radius: number)
+	if classNetwork then
+		classNetwork:fireAll("KillEffect", kind, position, radius)
+	end
 end
 
 function ClassController.UnlockClass(_, player: Player, classId: any)
@@ -375,7 +492,9 @@ function ClassController.UnlockClass(_, player: Player, classId: any)
 		return
 	end
 	if not meetsPrerequisite(player, definition) then
-		sendResult(player, false, "Unlock " .. AbilityDefinitions.ById[definition.RequiredAbilityId].Name .. " first.")
+		local requiredAbility = AbilityDefinitions.ById[definition.RequiredAbilityId]
+		-- Configuration mismatches remain locked and return a safe message instead of crashing the request handler.
+		sendResult(player, false, if requiredAbility then "Unlock " .. requiredAbility.Name .. " first." else "This class is temporarily unavailable.")
 		return
 	end
 	local data = getData(player)
@@ -414,17 +533,15 @@ function ClassController.EquipClass(_, player: Player, classId: any)
 	runtime.moving = false
 	runtime.swordHitCount = 0
 	runtime.shieldEndsAt = 0
+	runtime.killCount = 0
 	clearRageKillSpeed(player, runtime)
 	applyStats(player)
 	local character = player.Character
-	local head = character and character:FindFirstChild("Head")
 	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 	if humanoid then
 		if runtime.movementConnection then runtime.movementConnection:Disconnect() end
 		bindMovement(player, runtime, humanoid)
-	end
-	if character and head and head:IsA("BasePart") then
-		applyAccessory(player, runtime, character, head)
+		applyAccessory(player, runtime, character, humanoid)
 	end
 	sendResult(player, true, definition.Name .. " equipped!")
 end
@@ -460,10 +577,11 @@ function ClassController.OnPlayerAdded(player: Player)
 		moving = false,
 		movingRangeBonus = false,
 		movementConnection = nil,
-		headSizeConnection = nil,
+		accessoryConnection = nil,
 		accessory = nil,
 		swordHitCount = 0,
 		shieldEndsAt = 0,
+		killCount = 0,
 		rageSpeedStacks = 0,
 		rageSpeedRevision = 0,
 	}
@@ -477,20 +595,11 @@ function ClassController.OnCharacterAdded(player: Player, character: Model)
 	end
 	clearCharacter(player, runtime)
 	local humanoid = character:FindFirstChildOfClass("Humanoid") or character:WaitForChild("Humanoid", 10)
-	local head = character:FindFirstChild("Head") or character:WaitForChild("Head", 10)
-	if player.Character ~= character or not humanoid or not humanoid:IsA("Humanoid")
-		or not head or not head:IsA("BasePart")
-	then
+	if player.Character ~= character or not humanoid or not humanoid:IsA("Humanoid") then
 		return
 	end
 	bindMovement(player, runtime, humanoid)
-	applyAccessory(player, runtime, character, head)
-	-- Avatar appearance can resize the head after CharacterAdded; refit without polling.
-	runtime.headSizeConnection = head:GetPropertyChangedSignal("Size"):Connect(function()
-		if player.Character == character and runtimes[player] == runtime then
-			applyAccessory(player, runtime, character, head)
-		end
-	end)
+	applyAccessory(player, runtime, character, humanoid)
 end
 
 function ClassController.OnPlayerRemoving(player: Player)

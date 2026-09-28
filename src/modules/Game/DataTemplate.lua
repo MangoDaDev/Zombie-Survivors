@@ -2,6 +2,7 @@ local CoinsConfig = require(script.Parent.CoinsConfig)
 local AbilityDefinitions = require(script.Parent.Abilities.AbilityDefinitions)
 local ClassDefinitions = require(script.Parent.Classes.ClassDefinitions)
 local RollDefinitions = require(script.Parent.Rolls.RollDefinitions)
+local SurvivalStatsConfig = require(script.Parent.SurvivalStatsConfig)
 local ZombieIndexConfig = require(script.Parent.Zombies.ZombieIndexConfig)
 
 return {
@@ -29,6 +30,8 @@ return {
 		Owned = { [ClassDefinitions.DefaultId] = true },
 		Equipped = ClassDefinitions.DefaultId,
 	},
+	-- Lifetime cleared-round credit is server-awarded at each round boundary and shown above players in the lobby.
+	[SurvivalStatsConfig.DataKey] = SurvivalStatsConfig.DefaultRoundsSurvived,
 	-- Zombie kills and one-time discovery claims are sparse maps keyed only by known zombie IDs.
 	[ZombieIndexConfig.DataKey] = {},
 }

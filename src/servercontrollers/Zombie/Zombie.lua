@@ -84,7 +84,7 @@ function Zombie:DamagePlayer(targetCandidate, amount)
 	-- their much larger reach and higher speed create sustained pressure through frequent contact.
 	amount *= (self.definition.DamageMultiplier or 1) * self.buffDamageMultiplier * self.damageGrowthMultiplier
 	if self.services.GetPlayerDamageMultiplier then
-		amount *= self.services.GetPlayerDamageMultiplier(targetCandidate)
+		amount *= self.services.GetPlayerDamageMultiplier(targetCandidate, amount)
 	end
 	local healthBefore = targetCandidate.humanoid.Health
 	targetCandidate.humanoid:TakeDamage(amount)

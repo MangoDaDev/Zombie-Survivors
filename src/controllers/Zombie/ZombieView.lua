@@ -73,7 +73,9 @@ function ZombieView.new(
 	scale = if type(scale) == "number" then scale else 1
 	animationSpeedMultiplier = if type(animationSpeedMultiplier) == "number" then animationSpeedMultiplier else 1
 	-- Model:ScaleTo preserves the entire rig's proportions; individual parts are never distorted.
-	model:ScaleTo(math.clamp(scale, 0.5, 2))
+	-- Milestone bosses intentionally exceed ordinary zombie scale; the authored upper bound keeps
+	-- their silhouettes imposing without allowing arbitrary network data to create extreme models.
+	model:ScaleTo(math.clamp(scale, 0.5, 4))
 	local templatePivot = model:GetPivot()
 	local boundingCFrame, boundingSize = model:GetBoundingBox()
 	local partRecords = {}
@@ -99,13 +101,19 @@ function ZombieView.new(
 
 	local warningMarker = Instance.new("Part")
 	warningMarker.Name = "AbilityWarning"
-	warningMarker.Shape = Enum.PartType.Cylinder
+	warningMarker.Shape = Enum.PartType.Block
 	warningMarker.Anchored = true
 	warningMarker.CanCollide = false
 	warningMarker.CanTouch = false
 	warningMarker.CanQuery = false
-	warningMarker.Material = Enum.Material.Neon
-	warningMarker.Color = tintColor or Color3.fromRGB(255, 90, 70)
+	warningMarker.Material = Enum.Material.Plastic
+	warningMarker.TopSurface = Enum.SurfaceType.Studs
+	warningMarker.BottomSurface = Enum.SurfaceType.Studs
+	warningMarker.LeftSurface = Enum.SurfaceType.Studs
+	warningMarker.RightSurface = Enum.SurfaceType.Studs
+	warningMarker.FrontSurface = Enum.SurfaceType.Studs
+	warningMarker.BackSurface = Enum.SurfaceType.Studs
+	warningMarker.Color = definition.EffectColor or Color3.fromRGB(255, 90, 70)
 	warningMarker.Transparency = 1
 	warningMarker.Size = Vector3.new(0.12, 2, 2)
 	warningMarker.Parent = model
@@ -125,7 +133,9 @@ function ZombieView.new(
 		healthBar.LightInfluence = 0
 		healthBar.MaxDistance = 90
 		healthBar.Size = UDim2.fromOffset(76, 11)
-		healthBar.StudsOffsetWorldSpace = Vector3.new(0, boundingSize.Y * 0.5 + 0.85, 0)
+		-- BillboardGui supplies the camera-facing orientation. Extra clearance keeps the bar separated
+		-- from the zombie silhouette when the gameplay camera compresses vertical depth from above.
+		healthBar.StudsOffsetWorldSpace = Vector3.new(0, boundingSize.Y * 0.5 + 1.35, 0)
 		healthBar.Parent = model
 
 		local backing = Instance.new("Frame")
@@ -345,6 +355,13 @@ function ZombieView:AppendRender(parts, cframes, camera, localNow, serverNow)
 	local isHidden = self.specialState == SpecialState.Burrowed or self.specialState == SpecialState.Warning
 	if isHidden then
 		renderCFrame *= CFrame.new(0, -self.boundingSize.Y, 0)
+	elseif self.specialState == SpecialState.Entrance then
+		-- The authoritative boss already exists, but its first brief locked pose rises through the marked
+		-- ground instead of popping into view. Other Active specials never reuse this vertical offset.
+		local duration = math.max(self.specialValue, 0.05)
+		local progress = math.clamp((serverNow - self.specialStartedAt) / duration, 0, 1)
+		local easedProgress = 1 - (1 - progress) ^ 3
+		renderCFrame *= CFrame.new(0, -self.boundingSize.Y * (1 - easedProgress), 0)
 	end
 	for _, record in self.partRecords do
 		local animationOffset = ProceduralAnimator.GetPartOffset(

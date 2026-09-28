@@ -20,6 +20,7 @@ local ZombieProtocol = {
 		Pulse = 8,
 		Armored = 9,
 		Dodge = 10,
+		Entrance = 11,
 	},
 }
 

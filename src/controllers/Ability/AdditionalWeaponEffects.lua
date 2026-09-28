@@ -5,6 +5,7 @@ local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
+local StudVFX = require(ReplicatedStorage.Modules.UI.StudVFX)
 
 local AdditionalWeaponEffects = {}
 
@@ -21,24 +22,7 @@ local function finite(value): boolean
 end
 
 local function makeBlock(name: string, size: Vector3, color: Color3, transparency: number?): Part
-	local part = Instance.new("Part")
-	part.Name = name
-	part.Size = size
-	part.Color = color
-	part.Material = Enum.Material.Plastic
-	part.Transparency = transparency or 0
-	part.Anchored = true
-	part.CanCollide = false
-	part.CanQuery = false
-	part.CanTouch = false
-	part.CastShadow = false
-	part.TopSurface = Enum.SurfaceType.Studs
-	part.BottomSurface = Enum.SurfaceType.Studs
-	part.FrontSurface = Enum.SurfaceType.Studs
-	part.BackSurface = Enum.SurfaceType.Studs
-	part.LeftSurface = Enum.SurfaceType.Studs
-	part.RightSurface = Enum.SurfaceType.Studs
-	return part
+	return StudVFX.CreateBlock(nil, name, size, color, transparency)
 end
 
 local function makeRing(name: string, radius: number, color: Color3, segmentCount: number): Model?
@@ -62,6 +46,14 @@ local function makeRing(name: string, radius: number, color: Color3, segmentCoun
 	return model
 end
 
+local function burstStuds(position: Vector3, color: Color3, count: number, distance: number, duration: number)
+	StudVFX.Burst(effectsFolder, position, color, count, distance, duration)
+end
+
+local function flash(position: Vector3, color: Color3, radius: number, duration: number)
+	StudVFX.Flash(effectsFolder, position, color, radius, duration)
+end
+
 local function pulse(position: Vector3, radius: number, color: Color3, duration: number, soundName: string?)
 	local ring = makeRing("AbilityPulse", 1, color, 12)
 	if not ring then
@@ -70,6 +62,9 @@ local function pulse(position: Vector3, radius: number, color: Color3, duration:
 	ring:PivotTo(CFrame.new(position + Vector3.yAxis * 0.2))
 	ring:ScaleTo(0.2)
 	table.insert(bursts, { model = ring, startedAt = os.clock(), duration = duration, radius = radius })
+	-- The restrained flash and outward studs give every impact a readable hit frame while the ring communicates range.
+	flash(position + Vector3.yAxis * 0.35, color, math.min(radius * 0.55, 4.5), duration * 0.72)
+	burstStuds(position + Vector3.yAxis * 0.25, color, math.clamp(math.floor(radius * 0.7), 4, 10), math.min(radius * 0.6, 5), duration)
 	if soundName and ring.PrimaryPart then
 		Sounds.Play(soundName, ring.PrimaryPart, 90)
 	end
@@ -83,11 +78,25 @@ local function tracer(origin: Vector3, destination: Vector3, color: Color3, widt
 	if offset.Magnitude < 0.1 then
 		return
 	end
-	local part = makeBlock("WeaponTracer", Vector3.new(width, width, offset.Magnitude), color, 0.08)
-	part.CFrame = CFrame.lookAt(origin:Lerp(destination, 0.5), destination)
-	part.Parent = effectsFolder
-	TweenService:Create(part, TweenInfo.new(duration), { Transparency = 1, Size = Vector3.new(width * 0.35, width * 0.35, offset.Magnitude) }):Play()
-	Debris:AddItem(part, duration + 0.05)
+	local center = origin:Lerp(destination, 0.5)
+	-- A soft outer streak plus a bright narrow core makes rapid shots legible without lengthening their lifetime.
+	for layer = 1, 2 do
+		local layerWidth = if layer == 1 then width * 2.35 else width
+		local layerColor = if layer == 1 then color else color:Lerp(Color3.new(1, 1, 1), 0.5)
+		local part = makeBlock(
+			if layer == 1 then "WeaponTracerGlow" else "WeaponTracerCore",
+			Vector3.new(layerWidth, layerWidth, offset.Magnitude),
+			layerColor,
+			if layer == 1 then 0.65 else 0.04
+		)
+		part.CFrame = CFrame.lookAt(center, destination)
+		part.Parent = effectsFolder
+		TweenService:Create(part, TweenInfo.new(duration, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+			Transparency = 1,
+			Size = Vector3.new(layerWidth * 0.25, layerWidth * 0.25, offset.Magnitude),
+		}):Play()
+		Debris:AddItem(part, duration + 0.05)
+	end
 end
 
 local function makeMeteorModel(rage: boolean): Model?
@@ -106,6 +115,16 @@ local function makeMeteorModel(rage: boolean): Model?
 			if index % 2 == 0 then Color3.fromRGB(255, 100, 38) else Color3.fromRGB(186, 77, 49))
 		brick.CFrame = CFrame.new(math.cos(angle) * 1.8, 0.3, math.sin(angle) * 1.8)
 		brick.Parent = model
+	end
+	for index = 1, 3 do
+		local trail = makeBlock(
+			"MeteorTail",
+			Vector3.new(1.7 - index * 0.28, 1.7 - index * 0.28, 1.7 - index * 0.28),
+			if index == 1 then Color3.fromRGB(255, 214, 83) else Color3.fromRGB(255, 93, 35),
+			0.12 + index * 0.18
+		)
+		trail.CFrame = CFrame.new(0, 1.5 + index * 1.05, 0)
+		trail.Parent = model
 	end
 	model.Parent = effectsFolder
 	return model
@@ -197,6 +216,7 @@ function AdditionalWeaponEffects.ShotgunFired(packet)
 			tracer(packet.origin, endpoint, color, width, 0.14)
 		end
 	end
+	flash(packet.origin, color, if packet.rage then 2.2 else 1.55, 0.11)
 	pulse(packet.origin, 2.2, color, 0.16, "Shoot")
 end
 
@@ -213,17 +233,19 @@ function AdditionalWeaponEffects.FrostNovaStarted(packet)
 	end
 	model:PivotTo(CFrame.new(packet.position - Vector3.yAxis * 1.8))
 	model:ScaleTo(0.1)
+	burstStuds(packet.position - Vector3.yAxis * 1.45, Color3.fromRGB(205, 249, 255), if packet.rage then 12 else 8, 3.2, 0.32)
 	novaWaves[packet.id] = {
 		model = model, ownerUserId = packet.ownerUserId,
 		startedAt = packet.startedAt or Workspace:GetServerTimeNow(),
 		duration = packet.duration, radius = packet.radius,
 	}
-	Sounds.Play("FreezeRayShoot", model.PrimaryPart, 90)
+	-- These ability-specific cues preserve the action's identity instead of reusing unrelated weapon sounds.
+	Sounds.Play("AbilityFrostNova", model.PrimaryPart, 90)
 end
 
 function AdditionalWeaponEffects.FrostShattered(packet)
 	if type(packet) == "table" and typeof(packet.position) == "Vector3" then
-		pulse(packet.position, 2.5, Color3.fromRGB(190, 244, 255), 0.18, "MetalHitSoft")
+		pulse(packet.position, 2.5, Color3.fromRGB(190, 244, 255), 0.18, "AbilityFrostShatter")
 	end
 end
 
@@ -238,6 +260,7 @@ function AdditionalWeaponEffects.FrostGroundCreated(packet)
 	model:PivotTo(CFrame.new(packet.position - Vector3.yAxis * 1.7))
 	table.insert(groundRings, {
 		model = model, ownerUserId = packet.ownerUserId,
+		startedAt = os.clock(),
 		expiresAt = os.clock() + packet.duration,
 	})
 end
@@ -256,6 +279,7 @@ function AdditionalWeaponEffects.MeteorWarned(packet)
 		return
 	end
 	ring:PivotTo(CFrame.new(packet.position + Vector3.yAxis * 0.15))
+	flash(packet.position + Vector3.yAxis * 0.25, Color3.fromRGB(255, 112, 42), math.min(packet.radius * 0.22, 3), 0.3)
 	meteors[packet.id] = {
 		ring = ring, model = model, position = packet.position, radius = packet.radius,
 		ownerUserId = packet.ownerUserId, impactAt = packet.impactAt,
@@ -271,6 +295,7 @@ function AdditionalWeaponEffects.MeteorImpacted(packet)
 	end
 	AdditionalWeaponEffects.MeteorCancelled(packet.id)
 	pulse(packet.position, packet.radius, Color3.fromRGB(255, 135, 56), 0.35, "FlameBurst")
+	burstStuds(packet.position + Vector3.yAxis * 0.35, Color3.fromRGB(255, 221, 110), 12, math.min(packet.radius * 0.78, 8), 0.42)
 	if packet.shockwave then
 		pulse(packet.position, packet.radius * 1.38, Color3.fromRGB(255, 211, 106), 0.48, nil)
 	end
@@ -303,7 +328,7 @@ function AdditionalWeaponEffects.TurretDeployed(packet)
 	if not model then return end
 	model:PivotTo(CFrame.new(packet.position))
 	turrets[packet.id] = { model = model, position = packet.position, ownerUserId = packet.ownerUserId }
-	Sounds.Play("MetalHitSoft", model.PrimaryPart, 75)
+	Sounds.Play("AbilityTurretDeploy", model.PrimaryPart, 75)
 end
 
 function AdditionalWeaponEffects.TurretFired(packet)
@@ -329,6 +354,7 @@ function AdditionalWeaponEffects.TurretFired(packet)
 				if packet.rail then 0.24 elseif packet.fast then 0.08 else 0.12)
 		end
 	end
+	flash(packet.origin, color, if packet.rail then 2.4 else 1.25, if packet.rail then 0.16 else 0.1)
 	Sounds.Play(if packet.rail then "FreezeRayShoot" else "Shoot", turret.model.PrimaryPart, 75)
 end
 
@@ -350,12 +376,20 @@ function AdditionalWeaponEffects.VortexCreated(packet)
 	local model = makeRing("Vortex", packet.radius,
 		if packet.rage then Color3.fromRGB(206, 143, 255) else Color3.fromRGB(120, 132, 255), 16)
 	if not model then return end
+	local vortexColor = if packet.rage then Color3.fromRGB(238, 188, 255) else Color3.fromRGB(158, 187, 255)
+	for index = 1, 8 do
+		local angle = (index - 1) / 8 * math.pi * 2
+		local spoke = makeBlock("VortexSpoke", Vector3.new(0.2, 0.14, packet.radius * 0.62), vortexColor, 0.42)
+		spoke.CFrame = CFrame.new(math.cos(angle) * packet.radius * 0.48, 0.08, math.sin(angle) * packet.radius * 0.48)
+			* CFrame.Angles(0, -angle, 0)
+		spoke.Parent = model
+	end
 	model:PivotTo(CFrame.new(packet.position + Vector3.yAxis * 0.12))
 	vortexes[packet.id] = {
 		model = model, position = packet.position, ownerUserId = packet.ownerUserId,
 		mobile = packet.mobile, radius = packet.radius, createdAt = os.clock(),
 	}
-	Sounds.Play("MagicSpell", model.PrimaryPart, 80)
+	Sounds.Play("AbilityVortexCast", model.PrimaryPart, 80)
 end
 
 function AdditionalWeaponEffects.VortexCollapsed(packet)
@@ -402,6 +436,15 @@ function AdditionalWeaponEffects.Render(now: number)
 		if clock >= ground.expiresAt or not ground.model.Parent then
 			ground.model:Destroy()
 			table.remove(groundRings, index)
+		else
+			local remaining = ground.expiresAt - clock
+			local entranceAlpha = math.clamp((clock - ground.startedAt) / 0.2, 0, 1)
+			local fadeAlpha = math.clamp(remaining / 0.4, 0, 1)
+			for _, part in ground.model:GetChildren() do
+				if part:IsA("BasePart") and part.Name ~= "Pivot" then
+					part.Transparency = 1 - math.min(entranceAlpha, fadeAlpha) * 0.72
+				end
+			end
 		end
 	end
 	for id, wave in novaWaves do
@@ -418,6 +461,12 @@ function AdditionalWeaponEffects.Render(now: number)
 		local alpha = math.clamp((now - strike.startedAt) / duration, 0, 1)
 		strike.model:PivotTo(CFrame.new(strike.position + Vector3.yAxis * (22 * (1 - alpha) + 1.7))
 			* CFrame.Angles(alpha * 3, alpha * 1.4, 0))
+		local warningPulse = 0.16 + math.max(0, math.sin(clock * 11)) * 0.34
+		for _, part in strike.ring:GetChildren() do
+			if part:IsA("BasePart") and part.Name ~= "Pivot" then
+				part.Transparency = warningPulse
+			end
+		end
 		if now > strike.impactAt + 1 then
 			AdditionalWeaponEffects.MeteorCancelled(id)
 		end

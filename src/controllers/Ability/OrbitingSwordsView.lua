@@ -4,6 +4,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
+local StudVFX = require(ReplicatedStorage.Modules.UI.StudVFX)
 
 local TAU = math.pi * 2
 local ORBIT_CORRECTION_SPEED = 18
@@ -160,6 +161,22 @@ local function emitReleaseImpact(position: Vector3, rage: boolean)
 	holder.Transparency = 1
 	holder.Position = position
 	holder.Parent = effectsFolder
+	StudVFX.Flash(
+		effectsFolder,
+		position,
+		if rage then Color3.fromRGB(255, 75, 32) else Color3.fromRGB(125, 105, 255),
+		if rage then 2.4 else 1.8,
+		0.18
+	)
+	StudVFX.Burst(
+		effectsFolder,
+		position,
+		if rage then Color3.fromRGB(255, 88, 36) else Color3.fromRGB(130, 111, 255),
+		if rage then 9 else 7,
+		if rage then 3.1 else 2.3,
+		0.23,
+		Color3.fromRGB(226, 238, 255)
+	)
 	for _, child in ReplicatedStorage.Assets.VFX.CriticalHit.Impact:GetChildren() do
 		if child:IsA("ParticleEmitter") then
 			local emitter = child:Clone()
@@ -170,7 +187,8 @@ local function emitReleaseImpact(position: Vector3, rage: boolean)
 			emitter:Emit(if child.Name == "Flash" then 1 else if rage then 10 else 8)
 		end
 	end
-	Sounds.Play("BulletHit", holder, 110)
+	-- Released blades keep a dedicated metallic impact rather than sounding like gunfire.
+	Sounds.Play("AbilityBladeImpact", holder, 110)
 	Debris:AddItem(holder, 2)
 end
 

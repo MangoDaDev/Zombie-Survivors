@@ -1,0 +1,48 @@
+{
+  "views": [
+    "front",
+    "back",
+    "left",
+    "right",
+    "top",
+    "perspective"
+  ],
+  "resolution": [
+    720,
+    720
+  ],
+  "samples": 48,
+  "margin": 1.1,
+  "background": [
+    0.82,
+    0.86,
+    0.87
+  ],
+  "lighting": {
+    "direction": [
+      -5,
+      8,
+      -6
+    ],
+    "energy": 2.3,
+    "ambient": 0.65,
+    "angle": 15,
+    "color": [
+      1,
+      0.96,
+      0.89
+    ]
+  },
+  "customCameras": [
+    {
+      "name": "front-garden",
+      "direction": [
+        -1,
+        0.6,
+        -1.35
+      ],
+      "projection": "perspective",
+      "fov": 35
+    }
+  ]
+}

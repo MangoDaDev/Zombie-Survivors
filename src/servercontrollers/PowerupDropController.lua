@@ -199,9 +199,12 @@ local function start()
 	end
 end
 
-function PowerupDropController.Spawn(position: Vector3, landingY: number?, owner: Player?)
-	if not ServerContext.IsGameServer() or typeof(position) ~= "Vector3" then
-		return
+local function spawnPowerup(powerupId: string, position: Vector3, landingY: number?, owner: Player?): boolean
+	if not ServerContext.IsGameServer()
+		or not PowerupConfig.Definitions[powerupId]
+		or typeof(position) ~= "Vector3"
+	then
+		return false
 	end
 
 	local activeCount = 0
@@ -232,7 +235,7 @@ function PowerupDropController.Spawn(position: Vector3, landingY: number?, owner
 	nextDropId += 1
 	local drop = {
 		id = nextDropId,
-		powerupId = choosePowerupId(),
+		powerupId = powerupId,
 		position = targetPosition,
 		collectibleAt = now + duration * 0.72,
 		-- Scavenger's extra time belongs only to powerups dropped from their own breakable kill.
@@ -249,6 +252,23 @@ function PowerupDropController.Spawn(position: Vector3, landingY: number?, owner
 		arcHeight = random:NextNumber(PowerupConfig.ArcHeight.Min, PowerupConfig.ArcHeight.Max),
 		despawnAt = drop.despawnAt,
 	})
+	return true
+end
+
+function PowerupDropController.Spawn(position: Vector3, landingY: number?, owner: Player?): boolean
+	return spawnPowerup(choosePowerupId(), position, landingY, owner)
+end
+
+function PowerupDropController.SpawnSpecific(
+	powerupId: string,
+	position: Vector3,
+	landingY: number?,
+	owner: Player?
+): boolean
+	if type(powerupId) ~= "string" then
+		return false
+	end
+	return spawnPowerup(powerupId, position, landingY, owner)
 end
 
 function PowerupDropController.GetSnapshot(_, _player)
@@ -262,6 +282,18 @@ function PowerupDropController.GetSnapshot(_, _player)
 		})
 	end
 	return snapshot
+end
+
+function PowerupDropController.ClearAll()
+	local ids = {}
+	for id in drops do
+		table.insert(ids, id)
+	end
+	table.clear(drops)
+	accumulator = 0
+	if powerupNetwork and #ids > 0 then
+		powerupNetwork:fireAll("DespawnPowerups", ids)
+	end
 end
 
 function PowerupDropController.Init()

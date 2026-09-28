@@ -12,7 +12,7 @@ local orderedEntries = {
 	{ Id = "Screamer", Name = "Screamer", Description = "Stops to scream and summon a small group of Walkers." },
 	{ Id = "Tank", Name = "Tank", Description = "A huge threat that winds up a damaging shockwave around itself." },
 	{ Id = "Leaper", Name = "Leaper", Description = "Predicts a survivor's movement and quickly leaps toward that position." },
-	{ Id = "Shielder", Name = "Shielder", Description = "Blocks direct attacks from the front; area and status damage bypass the shield." },
+	{ Id = "Shielder", Name = "Shielder", Description = "Greatly reduces direct damage from the front; area and status damage bypass the shield." },
 	{ Id = "Bomber", Name = "Bomber", Description = "Starts a countdown when close, then explodes and damages everything nearby." },
 	{ Id = "Grabber", Name = "Grabber", Description = "Attacks from range and yanks the target toward itself." },
 	{ Id = "Summoner", Name = "Summoner", Description = "Periodically summons several fast Splitlings around itself." },

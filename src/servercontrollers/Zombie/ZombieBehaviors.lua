@@ -5,6 +5,8 @@ local ZombieBehaviors = {
 	Attack = {},
 }
 
+local ATTACK_IMPACT_GRACE_DISTANCE = 0.5
+
 function ZombieBehaviors.Movement.DirectChase(zombie, direction, distance, deltaTime, facing)
 	local travelDistance = math.min(
 		zombie.definition.MoveSpeed
@@ -25,7 +27,9 @@ function ZombieBehaviors.Attack.Contact(zombie, targetCandidate, now, distance)
 			-- The hit lands at the end of the visible downward strike, not at wind-up start.
 			if targetCandidate
 				and targetCandidate.humanoid.Health > 0
-				and distance <= zombie.definition.AttackRange * 1.15
+				-- A small fixed grace distance tolerates movement during the wind-up without giving
+				-- large zombies disproportionately longer reach than their authored contact range.
+				and distance <= zombie.definition.AttackRange + ATTACK_IMPACT_GRACE_DISTANCE
 			then
 				-- The shared method reports only authoritative post-mitigation health loss to defensive passives.
 				zombie:DamagePlayer(targetCandidate, zombie.definition.AttackDamage)

@@ -8,6 +8,7 @@ local CoinDropController = require(ServerStorage.Controllers.CoinDropController)
 local ClassController = require(ServerStorage.Controllers.ClassController)
 local RageController = require(ServerStorage.Controllers.RageController)
 local PassiveEffects = require(ServerStorage.Controllers.Ability.PassiveEffects)
+local PowerupDropController = require(ServerStorage.Controllers.PowerupDropController)
 local XPDropController = require(ServerStorage.Controllers.XPDropController)
 local ZombieController = require(ServerStorage.Controllers.ZombieController)
 
@@ -25,6 +26,31 @@ local function onZombieDied(death)
 	local rewardMultiplier = 1
 	if killer then
 		ClassController.RegisterRageKill(killer, RageController.IsActive(killer))
+		if death.damageSource ~= "ClassKillExplosion" then
+			local effect = ClassController.RegisterKill(killer)
+			if effect then
+				local targets = ZombieController.GetZombiesInRadius(
+					death.position,
+					effect.pullRadius or effect.radius,
+					effect.maximumTargets
+				)
+				for _, target in targets do
+					if effect.pullDistance then
+						ZombieController.PullZombie(target.id, death.position, effect.pullDistance)
+					end
+					local targetPosition = ZombieController.GetZombiePosition(target.id)
+					if targetPosition and (targetPosition - death.position).Magnitude <= effect.radius then
+						ZombieController.DamageZombie(target.id, effect.damage, death.position, 0, {
+							player = killer,
+							source = "ClassKillExplosion",
+							canApplyHitPassives = false,
+						})
+					end
+				end
+				-- Existing stud-built Meteor and Vortex collapse effects keep class procs visually consistent.
+				ClassController.BroadcastKillEffect(effect.kind, death.position, effect.radius)
+			end
+		end
 		local luckyEndsAt = RuntimeState.Get(killer, "LuckySkullEndsAt", 0)
 		if type(luckyEndsAt) == "number" and workspace:GetServerTimeNow() < luckyEndsAt then
 			-- Lucky Skull doubles only rewards from kills credited to its owner; it never changes zombie health.
@@ -34,7 +60,25 @@ local function onZombieDied(death)
 
 	local xpValue = death.definition.XPValue
 	if type(xpValue) == "number" and xpValue > 0 then
-		XPDropController.Spawn(death.position, xpValue * rewardMultiplier, killer, death.groundY)
+		local totalXP = math.max(1, math.floor(xpValue * rewardMultiplier))
+		local special = death.definition.Special
+		local configuredDropCount = type(special) == "table" and special.XPDropCount or 1
+		local dropCount = math.clamp(
+			if type(configuredDropCount) == "number" then math.floor(configuredDropCount) else 1,
+			1,
+			totalXP
+		)
+		local baseValue = math.floor(totalXP / dropCount)
+		local remainder = totalXP % dropCount
+		-- Bosses burst into multiple crystals without changing their authoritative total XP reward.
+		for index = 1, dropCount do
+			XPDropController.Spawn(
+				death.position,
+				baseValue + (if index <= remainder then 1 else 0),
+				killer,
+				death.groundY
+			)
+		end
 	end
 	local coinValue = death.definition.CoinValue
 	if type(coinValue) == "number" and coinValue > 0 then
@@ -54,6 +98,14 @@ local function onZombieDied(death)
 			if wholeValue > 0 then
 				CoinDropController.SpawnBurst(death.position, wholeValue, death.groundY, killer)
 			end
+		end
+	end
+	if death.definition.IsBoss then
+		local special = death.definition.Special
+		local dropId = type(special) == "table" and special.DeathDropId or nil
+		if type(dropId) == "string" then
+			-- Boss victories guarantee their configured rare pickup in addition to normal XP and coins.
+			PowerupDropController.SpawnSpecific(dropId, death.position, death.groundY, killer)
 		end
 	end
 end

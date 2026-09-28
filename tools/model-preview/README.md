@@ -17,12 +17,13 @@ Default Blender path: `C:\Program Files\Blender Foundation\Blender 4.5\blender.e
 
 ```powershell
 # Read directly from the clipboard. JSON is data, never executable source.
-Get-Clipboard -Raw | .\tools\model-preview\preview.cmd render -Paste -Out tools/model-preview/renders/pasted
+.\tools\model-preview\preview.cmd render -Clipboard -Out tools/model-preview/renders/pasted
 
 # Or type/paste into stdin, then Ctrl+Z followed by Enter to finish.
 .\tools\model-preview\preview.cmd render -Paste
 
 # Or pipe a multiline string:
+$OutputEncoding = [System.Text.UTF8Encoding]::new($false)
 @'
 {"version":1,"root":{"class":"Part","name":"Block","properties":{"Size":[4,2,3],"TopSurface":"Studs","FrontSurface":"Studs"}}}
 '@ | .\tools\model-preview\preview.cmd render -Paste -Views front,perspective
@@ -49,7 +50,7 @@ Get-Clipboard -Raw | .\tools\model-preview\preview.cmd render -Paste -Out tools/
 .\tools\model-preview\preview.cmd test -RenderTests
 ```
 
-The clipboard and stdin are read only when requested. A render saves `definition.json`, so pasted data can be edited and rendered again. File input is not overwritten by rendering to the default output directory. The previous successful render survives validation/render failure. Existing unrelated files in a chosen output directory are retained; `manifest.json` lists the current run's artifacts (old angle PNGs can remain when the angle list is reduced).
+The clipboard and stdin are read only when requested. `-Clipboard` preserves Unicode names automatically; for native PowerShell pipelines, set UTF-8 `$OutputEncoding` as above. A render saves `definition.json`, so pasted data can be edited and rendered again. File input is not overwritten by rendering to the default output directory. The previous successful render survives validation/render failure. Existing unrelated files in a chosen output directory are retained; `manifest.json` lists the current run's artifacts (old angle PNGs can remain when the angle list is reduced).
 
 ## JSON construction schema, version 1
 

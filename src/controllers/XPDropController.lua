@@ -102,7 +102,8 @@ local function createView(id: number, value: number, position: Vector3, scale: n
 	local highlight = Instance.new("Highlight")
 	highlight.Name = "XPHighlight"
 	highlight.Adornee = model
-	highlight.DepthMode = Enum.HighlightDepthMode.Occluded
+	-- XP is progression-critical and can otherwise disappear beneath a dense top-down crowd.
+	highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
 	highlight.FillTransparency = 0.72
 	highlight.OutlineTransparency = 0.12
 	highlight.Parent = model

@@ -9,6 +9,7 @@ local Networker = require(ReplicatedStorage.Packages.networker)
 local PowerupConfig = require(ReplicatedStorage.Modules.Game.PowerupConfig)
 local NotificationManager = require(ReplicatedStorage.Modules.UI.NotificationManager)
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
+local StudVFX = require(ReplicatedStorage.Modules.UI.StudVFX)
 
 local IDLE_BOB_HEIGHT = 0.32
 local IDLE_BOB_SPEED = 2.8
@@ -178,6 +179,18 @@ local function renderView(view: PowerupView, now: number, deltaTime: number)
 end
 
 local function createPulse(position: Vector3, color: Color3, radius: number)
+	-- The broad translucent pulse preserves the pickup radius while studded accents add a crisp activation beat.
+	StudVFX.Ring(effectsFolder, position + Vector3.yAxis * 0.14, color, radius, 0.48, 18)
+	StudVFX.Flash(effectsFolder, position + Vector3.yAxis * 1.35, color, math.min(radius * 0.58, 6), 0.3)
+	StudVFX.Burst(
+		effectsFolder,
+		position + Vector3.yAxis * 0.45,
+		color,
+		math.clamp(math.floor(radius * 0.7), 6, 12),
+		math.min(radius * 0.55, 7),
+		0.38,
+		color:Lerp(Color3.new(1, 1, 1), 0.5)
+	)
 	local ring = Instance.new("Part")
 	ring.Name = "PowerupPulse"
 	ring.Anchored = true

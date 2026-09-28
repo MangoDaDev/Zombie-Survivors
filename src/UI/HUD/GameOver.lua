@@ -7,6 +7,7 @@ local StudTexture = require(script.Parent.Parent.Classes.StudTexture)
 local RoundController = require(ReplicatedStorage.Controllers.RoundController)
 local RunSessionController = require(ReplicatedStorage.Controllers.RunSessionController)
 local FormatNumber = require(ReplicatedStorage.Modules.Math.FormatNumber)
+local Images = require(ReplicatedStorage.Modules.UI.Images)
 local UIStyle = require(ReplicatedStorage.Modules.UI.UIStyle)
 local Vide = require(ReplicatedStorage.Packages.vide)
 
@@ -26,7 +27,7 @@ local function formatDuration(seconds: number): string
 	return string.format("%02d:%02d", math.floor(total / 60), total % 60)
 end
 
-local function statTile(name: string, label: string, value, order: number)
+local function statTile(name: string, label: string, value, order: number, icon: string?)
 	return create "Frame" {
 		Name = name,
 		BackgroundColor3 = PANEL_LIGHT,
@@ -47,11 +48,23 @@ local function statTile(name: string, label: string, value, order: number)
 			TextXAlignment = Enum.TextXAlignment.Left,
 			ZIndex = 407,
 		},
+		create "ImageLabel" {
+			Name = "Icon",
+			AnchorPoint = Vector2.new(0, 0.5),
+			BackgroundTransparency = 1,
+			Image = icon or "",
+			Position = UDim2.fromScale(0.07, 0.63),
+			ScaleType = Enum.ScaleType.Fit,
+			Size = UDim2.fromScale(0.16, 0.34),
+			Visible = icon ~= nil,
+			ZIndex = 408,
+			create "UIAspectRatioConstraint" { AspectRatio = 1 },
+		},
 		create "TextLabel" {
 			BackgroundTransparency = 1,
 			FontFace = Font.new(UIStyle.Font.Family, Enum.FontWeight.Bold),
-			Position = UDim2.fromScale(0.07, 0.42),
-			Size = UDim2.fromScale(0.86, 0.42),
+			Position = UDim2.fromScale(if icon then 0.25 else 0.07, 0.42),
+			Size = UDim2.fromScale(if icon then 0.68 else 0.86, 0.42),
 			Text = value,
 			TextColor3 = Color3.fromRGB(239, 243, 247),
 			TextScaled = true,
@@ -229,7 +242,7 @@ return function()
 				end, 2),
 				statTile("Coins", "COINS COLLECTED", function()
 					return FormatNumber(stats().coinsCollected) or "0"
-				end, 3),
+				end, 3, Images.Coin),
 				statTile("XP", "XP COLLECTED", function()
 					return FormatNumber(stats().xpCollected) or "0"
 				end, 4),
@@ -244,8 +257,15 @@ return function()
 					if failureMessage() ~= "" then
 						return failureMessage()
 					end
+					if state().hasReplayVoted then
+						return string.format(
+							"WAITING FOR PLAYERS  %d/%d",
+							state().replayVoteCount,
+							state().replayRequiredVotes
+						)
+					end
 					if replayPending() then
-						return "RESTARTING RUN..."
+						return "SENDING REPLAY VOTE..."
 					end
 					return string.format("RETURNING TO LOBBY IN %d", math.ceil(remaining()))
 				end,
@@ -263,6 +283,9 @@ return function()
 				ClipsDescendants = true,
 				Position = UDim2.fromScale(0.08, 0.825),
 				Size = UDim2.fromScale(0.84, 0.035),
+				Visible = function()
+					return not state().hasReplayVoted
+				end,
 				ZIndex = 405,
 				create "UICorner" { CornerRadius = UDim.new(1, 0) },
 				create "Frame" {
@@ -297,46 +320,29 @@ return function()
 				Size = UDim2.fromScale(0.84, 0.085),
 				ZIndex = 405,
 				create "Frame" {
-					Name = "SkipVote",
+					Name = "Replay",
 					BackgroundTransparency = 1,
-					Size = UDim2.fromScale(0.38, 1),
+					Size = UDim2.fromScale(1, 1),
 					ZIndex = 406,
 					Button({
 						Text = function()
-							local current = roundState()
-							return string.format(
-								"%s %d/%d",
-								if current.hasVoted then "VOTED" else "SKIP",
-								current.voteCount,
-								current.requiredVotes
+							local current = state()
+							-- Inactive session snapshots omit replay totals, but Vide still evaluates hidden UI properties.
+							local replayVoteCount = if type(current.replayVoteCount) == "number" then current.replayVoteCount else 0
+							local replayRequiredVotes = if type(current.replayRequiredVotes) == "number"
+								then current.replayRequiredVotes
+								else 0
+							if current.hasReplayVoted then
+								return string.format("VOTED  %d / %d", replayVoteCount, replayRequiredVotes)
+							end
+							return if replayPending() then "VOTING..." else string.format(
+								"PLAY AGAIN  %d / %d",
+								replayVoteCount,
+								replayRequiredVotes
 							)
 						end,
 						Enabled = function()
-							local current = roundState()
-							return visible() and current.active and not current.hasVoted
-						end,
-						BackgroundColor3 = Color3.fromRGB(219, 112, 45),
-						CornerRadius = UIStyle.CornerRadius,
-						FontFace = Font.new(UIStyle.Font.Family, Enum.FontWeight.Bold),
-						MaxTextSize = 18,
-						MinTextSize = 11,
-						Size = UDim2.fromScale(1, 1),
-						OnActivated = RoundController.VoteToSkip,
-					}),
-				},
-				create "Frame" {
-					Name = "Replay",
-					AnchorPoint = Vector2.new(1, 0),
-					BackgroundTransparency = 1,
-					Position = UDim2.fromScale(1, 0),
-					Size = UDim2.fromScale(0.59, 1),
-					ZIndex = 406,
-					Button({
-						Text = function()
-							return if replayPending() then "RESTARTING..." else "PLAY AGAIN"
-						end,
-						Enabled = function()
-							return visible() and not replayPending()
+							return visible() and not replayPending() and not state().hasReplayVoted
 						end,
 						BackgroundColor3 = UIStyle.Colors.Green,
 						CornerRadius = UIStyle.CornerRadius,

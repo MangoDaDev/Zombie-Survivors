@@ -1,7 +1,6 @@
 -- Zombie-specific balance, timed spawn weighting, and presentation data lives here so the
 -- simulation, networking, and rendering code never need type-specific spawn tables.
 local ZOMBIE_MOVE_SPEED_MULTIPLIER = 1.7
-local ZOMBIE_ATTACK_RANGE_MULTIPLIER = 1.4
 local ZOMBIE_AGGRO_DISTANCE_MULTIPLIER = 3.5
 local ZOMBIE_DAMAGE_MULTIPLIER = 1 / 3
 local XP_ADVANTAGE_PER_THREAT_LEVEL = 2
@@ -12,11 +11,13 @@ local function define(name, overrides)
 		AssetName = name,
 		MaxHealth = 100,
 		XPValue = 5,
-		CoinValue = 4,
+		CoinValue = 1,
 		ThreatLevel = 1,
 		MoveSpeed = 8,
 		TurnSpeed = 8,
 		AggroDistance = 70,
+		-- Melee range is an authored center-to-center contact distance. Keep larger enemies' extra
+		-- reach explicit in their definitions instead of applying another global size/range inflation.
 		AttackRange = 4.5,
 		AttackDamage = 4,
 		DamageMultiplier = ZOMBIE_DAMAGE_MULTIPLIER,
@@ -41,21 +42,24 @@ local function define(name, overrides)
 	end
 	local threatLevel = definition.ThreatLevel
 	if type(threatLevel) == "number" and threatLevel >= 1 then
-		-- Threat is the authoritative reward floor: dangerous archetypes always pay more coins, while
-		-- XP remains the larger reward so run progression stays ahead of permanent currency income.
-		definition.CoinValue = math.max(math.floor(definition.CoinValue), threatLevel * (threatLevel + 1))
-		definition.XPValue = math.max(math.floor(definition.XPValue), definition.CoinValue + threatLevel * XP_ADVANTAGE_PER_THREAT_LEVEL)
+		-- Squaring threat keeps dangerous archetypes valuable while cutting the weakest tiers most sharply;
+		-- keep XP on its existing independent curve so this coin rebalance does not slow run progression.
+		local coinRewardFloor = threatLevel * threatLevel
+		local xpRewardFloor = threatLevel * (threatLevel + 1) + threatLevel * XP_ADVANTAGE_PER_THREAT_LEVEL
+		definition.CoinValue = math.max(math.floor(definition.CoinValue), coinRewardFloor)
+		definition.XPValue = math.max(math.floor(definition.XPValue), xpRewardFloor)
 	end
 	definition.MoveSpeed *= ZOMBIE_MOVE_SPEED_MULTIPLIER
-	definition.AttackRange *= ZOMBIE_ATTACK_RANGE_MULTIPLIER
 	definition.AggroDistance *= ZOMBIE_AGGRO_DISTANCE_MULTIPLIER
 	return definition
 end
 
 local ZombieDefinitions = {
-	Walker = define("Walker", { SpawnWeight = 50 }),
+	-- The two immediately available archetypes must fall quickly before the player earns an upgrade:
+	-- these values keep the default level-one Dagger at three hits for a Walker and two for a Runner.
+	Walker = define("Walker", { MaxHealth = 50, SpawnWeight = 50 }),
 	Runner = define("Runner", {
-		MaxHealth = 70, XPValue = 4, CoinValue = 3, MoveSpeed = 14, TurnSpeed = 12, ThreatLevel = 2,
+		MaxHealth = 40, XPValue = 4, CoinValue = 3, MoveSpeed = 14, TurnSpeed = 12, ThreatLevel = 2,
 		AggroDistance = 90, AttackRange = 4, AttackDamage = 3, AttackCooldown = 0.8,
 		AttackWindupDuration = 0.4, AttackStrikeDuration = 0.14, AttackRecoveryDuration = 0.18,
 		SeparationRadius = 1.55, AnimationStyle = "Runner", EffectColor = Color3.fromRGB(158, 190, 105),
@@ -103,8 +107,12 @@ local ZombieDefinitions = {
 	Shielder = define("Shielder", {
 		MaxHealth = 270, XPValue = 15, CoinValue = 11, ThreatLevel = 4, MoveSpeed = 5, TurnSpeed = 5,
 		ModelScale = 1.08, EffectColor = Color3.fromRGB(70, 128, 190), SpecialBehavior = "Shielder",
-		AnimationStyle = "Brute", SpawnWeight = 2, SpawnUnlockTime = 240, SpawnGrowthPerMinute = 0.11,
-		Special = { FrontDotThreshold = 0.15 },
+		-- Delay this build-check enemy until after the first boss so automatic-weapon builds have time to
+		-- develop alternatives; it remains rare while its normal one-minute spawn ramp fills.
+		AnimationStyle = "Brute", SpawnWeight = 2, SpawnUnlockTime = 330, SpawnGrowthPerMinute = 0.11,
+		-- Frontal direct hits must always make progress. A strong reduction preserves the shield role
+		-- without making solo builds that lack an explicit bypass effectively unable to kill it.
+		Special = { FrontDotThreshold = 0.15, FrontDamageMultiplier = 0.35 },
 	}),
 	Bomber = define("Bomber", {
 		MaxHealth = 60, XPValue = 8, CoinValue = 6, ThreatLevel = 3, MoveSpeed = 9,
@@ -239,6 +247,123 @@ local ZombieDefinitions = {
 		EffectColor = Color3.fromRGB(154, 104, 64), SpecialBehavior = "Juggernaut", AnimationStyle = "Brute",
 		SpawnWeight = 2, SpawnUnlockTime = 240, SpawnGrowthPerMinute = 0.13,
 		Special = { BuildTime = 5, MaximumSpeedMultiplier = 2.1, MaximumKnockbackResistance = 0.8, ResetDelay = 0.8 },
+	}),
+	Boss = define("Boss", {
+		-- The Grave Titan belongs only to the scripted round-15 encounter and must never enter weighted waves.
+		DisplayName = "Grave Titan",
+		IsBoss = true,
+		BossHint = "SLAMS, SUMMONS, AND ENRAGES AT 50%",
+		MaxHealth = 6000, XPValue = 180, CoinValue = 120, ThreatLevel = 10, MoveSpeed = 4.5, TurnSpeed = 4,
+		-- The encounter boss must read as several times larger than a normal zombie at gameplay distance.
+		AttackDamage = 24, AttackRange = 10, AttackCooldown = 1.8, ModelScale = 3, SeparationRadius = 4.5,
+		EffectColor = Color3.fromRGB(181, 52, 61), SpecialBehavior = "Boss", AnimationStyle = "Brute",
+		SpawnWeight = 0, SummonedOnly = true,
+		Special = {
+			InitialDelay = 4,
+			Cooldown = 8,
+			Radius = 17,
+			SlamTriggerRange = 19,
+			SlamWindup = 1.4,
+			SlamDamage = 45,
+			SummonWindup = 1.8,
+			SummonCount = 5,
+			SummonRadius = 8,
+			SummonTypes = { "Walker", "Runner" },
+			EnrageHealthThreshold = 0.5,
+			EnrageSpeedMultiplier = 1.45,
+			EnrageDamageMultiplier = 1.5,
+			KnockbackResistance = 0.7,
+			DeathShockwaveRadius = 160,
+			DeathShockwaveDuration = 1.15,
+			DeathDropId = "LuckySkull",
+			XPDropCount = 6,
+		},
+	}),
+	PlagueMatron = define("PlagueMatron", {
+		-- The round-30 boss keeps distance and turns safe ground into temporary hazards; raw stats alone
+		-- cannot solve the fight because players must keep rotating away from its telegraphed plague pools.
+		DisplayName = "Plague Matron",
+		IsBoss = true,
+		BossHint = "KEEP MOVING — PLAGUE POOLS LINGER",
+		MaxHealth = 10000, XPValue = 300, CoinValue = 220, ThreatLevel = 12, MoveSpeed = 4.1, TurnSpeed = 6,
+		AttackDamage = 30, AttackRange = 8, AttackCooldown = 1.7, ModelScale = 2.6, SeparationRadius = 4.2,
+		EffectColor = Color3.fromRGB(118, 205, 65), SpecialBehavior = "PlagueMatron", AnimationStyle = "Brute",
+		SpawnWeight = 0, SummonedOnly = true,
+		Special = {
+			InitialDelay = 3.5,
+			Cooldown = 5.8,
+			Range = 42,
+			PreferredRange = 25,
+			RetreatRange = 14,
+			Windup = 1.6,
+			PredictionTime = 0.55,
+			Radius = 7,
+			ImpactDamage = 54,
+			PoolDuration = 7,
+			SlowMultiplier = 0.48,
+			KnockbackResistance = 0.78,
+			DeathShockwaveRadius = 165,
+			DeathShockwaveDuration = 1.2,
+			DeathDropId = "LuckySkull",
+			XPDropCount = 8,
+		},
+	}),
+	RiftStalker = define("RiftStalker", {
+		-- The round-45 boss repeatedly vanishes and reappears at predicted player positions, replacing
+		-- ordinary pursuit with an evade-the-marker rhythm and a short post-eruption punish window.
+		DisplayName = "Rift Stalker",
+		IsBoss = true,
+		BossHint = "WATCH THE GROUND — IT HUNTS FROM BELOW",
+		MaxHealth = 15000, XPValue = 440, CoinValue = 330, ThreatLevel = 14, MoveSpeed = 5.8, TurnSpeed = 10,
+		AttackDamage = 38, AttackRange = 7, AttackCooldown = 1.35, ModelScale = 2.35, SeparationRadius = 3.8,
+		EffectColor = Color3.fromRGB(132, 83, 230), SpecialBehavior = "RiftStalker", AnimationStyle = "Runner",
+		SpawnWeight = 0, SummonedOnly = true,
+		Special = {
+			InitialDelay = 3,
+			Cooldown = 5.2,
+			HiddenDuration = 0.85,
+			WarningDuration = 1.55,
+			EmergeDuration = 0.55,
+			RecoveryDuration = 0.8,
+			PredictionTime = 0.7,
+			Radius = 10,
+			EruptionDamage = 72,
+			KnockbackResistance = 0.62,
+			DeathShockwaveRadius = 170,
+			DeathShockwaveDuration = 1.25,
+			DeathDropId = "LuckySkull",
+			XPDropCount = 10,
+		},
+	}),
+	BoneColossus = define("BoneColossus", {
+		-- The round-60 boss is slow between attacks but crosses the arena in a committed lane charge;
+		-- the long rectangular telegraph is the intended counterplay, followed by a vulnerability window.
+		DisplayName = "Bone Colossus",
+		IsBoss = true,
+		BossHint = "LEAVE THE CHARGE LANE, THEN PUNISH",
+		MaxHealth = 22000, XPValue = 620, CoinValue = 480, ThreatLevel = 17, MoveSpeed = 3.7, TurnSpeed = 3.2,
+		AttackDamage = 50, AttackRange = 11, AttackCooldown = 2, ModelScale = 3.4, SeparationRadius = 5.2,
+		EffectColor = Color3.fromRGB(225, 188, 112), SpecialBehavior = "BoneColossus", AnimationStyle = "Brute",
+		SpawnWeight = 0, SummonedOnly = true,
+		Special = {
+			InitialDelay = 4,
+			Cooldown = 7,
+			MinimumRange = 12,
+			MaximumRange = 46,
+			Windup = 1.85,
+			ChargeSpeed = 38,
+			ChargeDuration = 1.15,
+			ChargeWidth = 7,
+			ChargeDamage = 105,
+			RecoveryDuration = 1.35,
+			RecoveryDamageMultiplier = 1.4,
+			Radius = 4,
+			KnockbackResistance = 0.9,
+			DeathShockwaveRadius = 180,
+			DeathShockwaveDuration = 1.35,
+			DeathDropId = "LuckySkull",
+			XPDropCount = 12,
+		},
 	}),
 }
 

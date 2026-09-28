@@ -9,6 +9,7 @@ local BreakableConfig = require(script.Parent.Breakable.BreakableConfig)
 local MapController = require(script.Parent.MapController)
 local PowerupDropController = require(script.Parent.PowerupDropController)
 local ServerContext = require(script.Parent.ServerContext)
+local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
 
 type Breakable = {
 	id: number,
@@ -32,7 +33,6 @@ local contextChangedConnection
 
 local assets = ReplicatedStorage.Assets
 local breakableTemplates = assets.Models.Breakables
-local sounds = assets.Sounds
 
 local function chooseTemplate()
 	local totalWeight = 0
@@ -102,19 +102,12 @@ local function findSpawnCFrame(activeMap: Instance, baseplate: BasePart, modelHe
 end
 
 local function playSound(parent: BasePart, names: { string }, volume: number)
-	local template = sounds:FindFirstChild(names[random:NextInteger(1, #names)])
-	if not template or not template:IsA("Sound") then
-		return
-	end
-	local sound = template:Clone()
-	-- Authored sounds are reused, but runtime copies get restrained spatial settings so a break is local and punchy.
-	sound.Volume = volume
-	sound.RollOffMinDistance = 8
-	sound.RollOffMaxDistance = 85
-	sound.PlaybackSpeed = random:NextNumber(0.94, 1.08)
-	sound.Parent = parent
-	sound:Play()
-	Debris:AddItem(sound, math.max(sound.TimeLength, 1) + 0.5)
+	-- The shared player snapshots this position, allowing the prop to disappear without clipping its impact sound.
+	Sounds.Play(names[random:NextInteger(1, #names)], parent, 85, {
+		Volume = volume,
+		RollOffMinDistance = 8,
+		PlaybackSpeed = random:NextNumber(0.94, 1.08),
+	})
 end
 
 local function flashModel(model: Model)

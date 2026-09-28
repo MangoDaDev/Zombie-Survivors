@@ -4,6 +4,7 @@ local RunService = game:GetService("RunService")
 local ServerStorage = game:GetService("ServerStorage")
 
 local AbilityDefinitions = require(ReplicatedStorage.Modules.Game.Abilities.AbilityDefinitions)
+local RuntimeState = require(ReplicatedStorage.Modules.Game.RuntimeState)
 local RageController = require(ServerStorage.Controllers.RageController)
 local ClassController = require(ServerStorage.Controllers.ClassController)
 local PlayerStatController = require(ServerStorage.Controllers.PlayerStatController)
@@ -30,6 +31,16 @@ type PlayerRuntime = {
 	criticalLevel: number?,
 	adrenalineLevel: number?,
 	impactLevel: number?,
+	armorLevel: number?,
+	magnetLevel: number?,
+	executionerLevel: number?,
+	trainingManualLevel: number?,
+	overchargeLevel: number?,
+	overchargeCount: number,
+	magnetRageRevision: number,
+	fortifyUntil: number,
+	lastArmorVfxAt: number,
+	lastExecutionerVfxAt: number,
 	lastCriticalVfxAt: number,
 	revengeUntil: number,
 	lastDamageAt: number,
@@ -68,6 +79,11 @@ local GIANT_FIELDS = {
 	Meteor = { Radius = "AreaBonus" },
 	Turret = { BulletRadius = "ProjectileBonus" },
 	Vortex = { Radius = "AreaBonus" },
+	Crowbar = { Reach = "AreaBonus" },
+	Crossfire = { Width = "ProjectileBonus" },
+	Buzzsaw = { Radius = "AreaBonus" },
+	Crusher = { Length = "AreaBonus", Width = "AreaBonus" },
+	LaserSweep = { Width = "ProjectileBonus" },
 }
 
 function PassiveEffects.ModifyWeaponStats(player: Player, abilityId: string, stats)
@@ -131,6 +147,78 @@ function PassiveEffects.GetGreedBonus(player: Player, threatLevel: number): numb
 	return bonus
 end
 
+function PassiveEffects.ConsumeWeaponActivation(player: Player, _abilityId: string)
+	local runtime = runtimes[player]
+	local level = runtime and runtime.overchargeLevel
+	if not runtime or not level then
+		return nil
+	end
+	local definition = AbilityDefinitions.ById.Overcharge
+	local stats = if RageController.IsActive(player) then definition.GetRageStats(level) else definition.GetStats(level)
+	runtime.overchargeCount += 1
+	if runtime.overchargeCount < stats.ActivationsRequired then
+		return nil
+	end
+	-- Charge is consumed only by a real weapon activation. Failed target searches never waste it.
+	runtime.overchargeCount = stats.RetainedCharge
+	local root = runtime.root
+	if root then
+		abilityNetwork:fireAll("OverchargeTriggered", {
+			ownerUserId = player.UserId,
+			position = root.Position + Vector3.yAxis * 1.2,
+		})
+	end
+	return {
+		Delay = stats.RepeatDelay,
+		DamageMultiplier = stats.RepeatDamageMultiplier,
+	}
+end
+
+function PassiveEffects.MakeOverchargeStats(stats, damageMultiplier: number)
+	local repeated = table.clone(stats)
+	-- Every scheduler names its direct and persistent damage fields consistently; scaling this compact
+	-- set preserves each weapon's geometry, crowd control, and milestone behavior on the echoed cast.
+	for _, field in { "Damage", "BurnDamage", "GroundDamage", "TickDamage" } do
+		if type(repeated[field]) == "number" then repeated[field] *= damageMultiplier end
+	end
+	return repeated
+end
+
+function PassiveEffects.GetIncomingDamageMultiplier(player: Player, incomingDamage: number): number
+	local runtime = runtimes[player]
+	local level = runtime and runtime.armorLevel
+	if not runtime or not level then
+		return 1
+	end
+	local definition = AbilityDefinitions.ById.Armor
+	local stats = if RageController.IsActive(player) then definition.GetRageStats(level) else definition.GetStats(level)
+	local reductionPercent = stats.ReductionPercent
+	local humanoid = runtime.humanoid
+	local isHeavyHit = humanoid ~= nil
+		and humanoid.MaxHealth > 0
+		and incomingDamage >= humanoid.MaxHealth * stats.HeavyHitThresholdPercent / 100
+	if isHeavyHit then
+		reductionPercent += stats.HeavyHitReductionPercent
+		if stats.FortifyDuration > 0 then
+			runtime.fortifyUntil = workspace:GetServerTimeNow() + stats.FortifyDuration
+		end
+	end
+	if workspace:GetServerTimeNow() < runtime.fortifyUntil then
+		reductionPercent += stats.FortifyReductionPercent
+	end
+	reductionPercent = math.min(reductionPercent, 72)
+	local now = workspace:GetServerTimeNow()
+	if now - runtime.lastArmorVfxAt >= 0.18 and runtime.root then
+		runtime.lastArmorVfxAt = now
+		abilityNetwork:fireAll("ArmorBlocked", {
+			ownerUserId = player.UserId,
+			position = runtime.root.Position + Vector3.yAxis * 1.2,
+			heavy = isHeavyHit,
+		})
+	end
+	return 1 - reductionPercent / 100
+end
+
 local function modifyHit(target, amount: number, knockback: number, context)
 	local player = context.player
 	local runtime = typeof(player) == "Instance" and player:IsA("Player") and runtimes[player]
@@ -147,6 +235,19 @@ local function modifyHit(target, amount: number, knockback: number, context)
 		if random:NextNumber(0, 100) < stats.ChancePercent then
 			amount *= stats.DamageMultiplier
 			critical = true
+		end
+	end
+	if target.kind == "Zombie" and runtime.executionerLevel
+		and type(target.health) == "number" and type(target.maximumHealth) == "number" and target.maximumHealth > 0
+	then
+		local definition = AbilityDefinitions.ById.Executioner
+		local stats = if RageController.IsActive(player)
+			then definition.GetRageStats(runtime.executionerLevel)
+			else definition.GetStats(runtime.executionerLevel)
+		if target.health / target.maximumHealth <= stats.HealthThresholdPercent / 100 then
+			amount *= 1 + (stats.DamageBonusPercent
+				+ (if (target.threatLevel or 0) >= 4 then stats.StrongEnemyBonusPercent else 0)) / 100
+			context.executioner = true
 		end
 	end
 	if target.kind == "Zombie" and runtime.impactLevel then
@@ -188,6 +289,13 @@ local function onHitResolved(target, critical: boolean, context)
 		end
 	end
 	local now = workspace:GetServerTimeNow()
+	if context.executioner == true and target.kind == "Zombie" and now - runtime.lastExecutionerVfxAt >= 0.1 then
+		runtime.lastExecutionerVfxAt = now
+		abilityNetwork:fireAll("ExecutionerHit", {
+			position = target.position,
+			ownerUserId = player.UserId,
+		})
+	end
 	if critical and target.kind == "Zombie" and now - runtime.lastCriticalVfxAt >= 0.1 then
 		runtime.lastCriticalVfxAt = now
 		abilityNetwork:fireAll("CriticalHit", { position = target.position, ownerUserId = player.UserId })
@@ -420,6 +528,60 @@ local function bindBoots(player: Player, runtime: PlayerRuntime, token: number)
 			end)
 		end
 	end))
+end
+
+local function triggerMagnetBurst(player: Player, runtime: PlayerRuntime, radius: number)
+	local root = runtime.root
+	if not root or radius <= 0 then return end
+	-- Lazy requires avoid a module initialization cycle: reward controllers are fully initialized
+	-- before a player can ever reach this timed milestone effect.
+	local xpCount = require(ServerStorage.Controllers.XPDropController).CollectInRadius(player, root.Position, radius)
+	local coinCount = require(ServerStorage.Controllers.CoinDropController).CollectInRadius(player, root.Position, radius)
+	if xpCount + coinCount > 0 then
+		abilityNetwork:fireAll("MagnetBurst", {
+			ownerUserId = player.UserId,
+			position = root.Position + Vector3.yAxis * 1.1,
+			radius = radius,
+		})
+	end
+end
+
+local function startMagnetBurstLoop(player: Player, runtime: PlayerRuntime, token: number)
+	local level = runtime.magnetLevel
+	if not level then return end
+	task.spawn(function()
+		while runtimes[player] == runtime and runtime.refreshToken == token and runtime.magnetLevel do
+			local currentLevel = runtime.magnetLevel
+			local definition = AbilityDefinitions.ById.Magnet
+			local stats = if RageController.IsActive(player)
+				then definition.GetRageStats(currentLevel)
+				else definition.GetStats(currentLevel)
+			if stats.BurstInterval <= 0 then return end
+			task.wait(stats.BurstInterval)
+			if runtimes[player] ~= runtime or runtime.refreshToken ~= token or not runtime.magnetLevel then return end
+			triggerMagnetBurst(player, runtime, stats.BurstRadius)
+		end
+	end)
+end
+
+function PassiveEffects.OnRageActivated(player: Player)
+	local runtime = runtimes[player]
+	local level = runtime and runtime.magnetLevel
+	if not runtime or not level then return end
+	-- Magnet's Rage promise is immediate and readable even if its normal periodic timer only just began.
+	local stats = AbilityDefinitions.ById.Magnet.GetRageStats(level)
+	runtime.magnetRageRevision += 1
+	local revision = runtime.magnetRageRevision
+	triggerMagnetBurst(player, runtime, stats.BurstRadius)
+	task.spawn(function()
+		while runtimes[player] == runtime and runtime.magnetRageRevision == revision and RageController.IsActive(player) do
+			task.wait(stats.BurstInterval)
+			if runtimes[player] ~= runtime or runtime.magnetRageRevision ~= revision or not RageController.IsActive(player) then
+				return
+			end
+			triggerMagnetBurst(player, runtime, stats.BurstRadius)
+		end
+	end)
 end
 
 local function getEquippedLevel(data, abilityId: string): number?
@@ -716,6 +878,7 @@ function PassiveEffects.Init(network, getDataCallback)
 	abilityNetwork = network
 	getAbilityData = getDataCallback
 	CombatTargets.SetHitCallbacks(modifyHit, onHitResolved)
+	ZombieController.SetPlayerDamageMultiplierModifier(PassiveEffects.GetIncomingDamageMultiplier)
 	ZombieController.GetZombieDamagedSignal():Connect(onZombieDamaged)
 	ZombieController.GetPlayerDamagedByZombieSignal():Connect(onPlayerDamagedByZombie)
 	RunService.Heartbeat:Connect(stepBurns)
@@ -741,6 +904,18 @@ function PassiveEffects.Refresh(player: Player)
 	runtime.criticalLevel = getEquippedLevel(data, "Critical")
 	runtime.adrenalineLevel = getEquippedLevel(data, "Adrenaline")
 	runtime.impactLevel = getEquippedLevel(data, "Impact")
+	runtime.armorLevel = getEquippedLevel(data, "Armor")
+	runtime.magnetLevel = getEquippedLevel(data, "Magnet")
+	if not runtime.magnetLevel then runtime.magnetRageRevision += 1 end
+	runtime.executionerLevel = getEquippedLevel(data, "Executioner")
+	runtime.trainingManualLevel = getEquippedLevel(data, "TrainingManual")
+	local previousOverchargeLevel = runtime.overchargeLevel
+	runtime.overchargeLevel = getEquippedLevel(data, "Overcharge")
+	if not runtime.overchargeLevel or not previousOverchargeLevel then runtime.overchargeCount = 0 end
+	-- Reward controllers read only the equipped level and resolve current Rage stats at collection time.
+	RuntimeState.Set(player, "MagnetAbilityLevel", runtime.magnetLevel)
+	RuntimeState.Set(player, "TrainingManualAbilityLevel", runtime.trainingManualLevel)
+	if not runtime.trainingManualLevel then RuntimeState.Set(player, "TrainingManualBreakthroughReady", false) end
 	runtime.sprintActive = false
 	runtime.quickStartActive = false
 	if runtime.heartLevel and not heartWasEquipped then
@@ -775,6 +950,7 @@ function PassiveEffects.Refresh(player: Player)
 	local token = runtime.refreshToken
 	bindHeart(player, runtime, token)
 	bindBoots(player, runtime, token)
+	startMagnetBurstLoop(player, runtime, token)
 end
 
 function PassiveEffects.OnPlayerAdded(player: Player)
@@ -794,6 +970,16 @@ function PassiveEffects.OnPlayerAdded(player: Player)
 		criticalLevel = nil,
 		adrenalineLevel = nil,
 		impactLevel = nil,
+		armorLevel = nil,
+		magnetLevel = nil,
+		executionerLevel = nil,
+		trainingManualLevel = nil,
+		overchargeLevel = nil,
+		overchargeCount = 0,
+		magnetRageRevision = 0,
+		fortifyUntil = -math.huge,
+		lastArmorVfxAt = -math.huge,
+		lastExecutionerVfxAt = -math.huge,
 		lastCriticalVfxAt = -math.huge,
 		revengeUntil = -math.huge,
 		lastDamageAt = -math.huge,
@@ -820,6 +1006,7 @@ function PassiveEffects.OnCharacterAdded(player: Player, character: Model)
 	runtime.lastDamageAt = workspace:GetServerTimeNow()
 	runtime.lastHealth = 0
 	runtime.revengeUntil = -math.huge
+	runtime.fortifyUntil = -math.huge
 	local root = character:FindFirstChild("HumanoidRootPart")
 	runtime.root = if root and root:IsA("BasePart") then root else nil
 	PassiveEffects.Refresh(player)
@@ -831,6 +1018,9 @@ function PassiveEffects.OnPlayerRemoving(player: Player)
 		disconnectCharacter(runtime)
 	end
 	clearBurnsForPlayer(player)
+	RuntimeState.Set(player, "MagnetAbilityLevel", nil)
+	RuntimeState.Set(player, "TrainingManualAbilityLevel", nil)
+	RuntimeState.Set(player, "TrainingManualBreakthroughReady", nil)
 	runtimes[player] = nil
 end
 

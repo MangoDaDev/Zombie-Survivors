@@ -41,9 +41,11 @@ local boundaryRadii = {}
 local maximumBoundaryRadius = 0
 local pendingSpawnRequests = {}
 local pendingProjectiles = {}
+local pendingBossEntrance
 local slowHazards = {}
 local nextSlowHazardId = 0
 local playerEffectTokens = {}
+local arenaClearInProgress = false
 local firstZombieSpawnedAt: number? = nil
 local zombieDamaged = Signal.new()
 local zombieDied = Signal.new()
@@ -51,6 +53,7 @@ local zombieSpawned = Signal.new()
 local playerDamagedByZombie = Signal.new()
 local firstZombieSpawned = Signal.new()
 local simulationStarted = Signal.new()
+local playerDamageMultiplierModifier
 
 type DamageContext = {
 	player: Player?,
@@ -70,12 +73,22 @@ local function isPlayerInvulnerable(player: Player): boolean
 	return type(endsAt) == "number" and workspace:GetServerTimeNow() < endsAt
 end
 
-local function getPlayerDamageMultiplier(candidate): number
+local function getPlayerDamageMultiplier(candidate, incomingDamage: number?): number
 	local radius, requiredCount = ClassController.GetNearbyDefenseConfig(candidate.player)
 	local nearbyCount = if radius and requiredCount
 		then #ZombieController.GetZombiesInRadius(candidate.position, radius, requiredCount)
 		else 0
-	return ClassController.GetIncomingDamageMultiplier(candidate.player, nearbyCount)
+	local multiplier = ClassController.GetIncomingDamageMultiplier(candidate.player, nearbyCount)
+	if playerDamageMultiplierModifier then
+		multiplier *= playerDamageMultiplierModifier(candidate.player, incomingDamage or 0)
+	end
+	return multiplier
+end
+
+function ZombieController.SetPlayerDamageMultiplierModifier(modifier)
+	-- AbilityController installs this callback after both modules initialize, avoiding a require cycle
+	-- between zombie simulation and defensive passive effects.
+	playerDamageMultiplierModifier = modifier
 end
 
 local function createVariation(definition)
@@ -241,8 +254,30 @@ local function releaseStolenRewards(position, coinValue, xpValue, owner, groundY
 	end
 end
 
+local function killAllZombies(excludedId, origin, killer)
+	arenaClearInProgress = true
+	-- The victory clear owns the arena completely: no cast, hazard, or already-queued summon may
+	-- survive beyond the boss that created the encounter.
+	table.clear(pendingSpawnRequests)
+	table.clear(pendingProjectiles)
+	table.clear(slowHazards)
+	local creditedKiller = if typeof(killer) == "Instance" and killer:IsA("Player") then killer else nil
+	for id, target in zombies do
+		if id ~= excludedId and not target:IsDead() then
+			target.health = 0
+			target.lastDamager = creditedKiller
+			target.lastDamageSource = "BossDeathShockwave"
+			local offset = target.cframe.Position - origin
+			local horizontal = Vector3.new(offset.X, 0, offset.Z)
+			local direction = if horizontal.Magnitude > 0.001 then horizontal.Unit else Vector3.zAxis
+			-- Immediate zero-health packets make every client ragdoll outward with the expanding wave.
+			zombieNetwork:fireAll("ZombieDamaged", id, 0, target.maximumHealth, direction, 26)
+		end
+	end
+end
+
 local function queueSpawn(typeName, position, spawnArena, roundNumber)
-	if ZombieDefinitions[typeName] then
+	if not arenaClearInProgress and ZombieDefinitions[typeName] then
 		table.insert(pendingSpawnRequests, {
 			typeName = typeName,
 			position = Vector3.new(position.X, spawnArena.GroundY, position.Z),
@@ -288,6 +323,7 @@ local zombieServices = {
 	CreateSlowHazard = createSlowHazard,
 	StealRewards = stealRewards,
 	ReleaseStolenRewards = releaseStolenRewards,
+	KillAllZombies = killAllZombies,
 	QueueSpawn = queueSpawn,
 	LaunchProjectile = launchProjectile,
 }
@@ -311,7 +347,7 @@ local function isInsideArena(spawnArena, position: Vector3): boolean
 		and math.abs(localPosition.Y) <= 20
 end
 
-local function findGroundPosition(spawnArena, worldPosition: Vector3, candidates)
+local function findSurfacePosition(spawnArena, worldPosition: Vector3)
 	local activeMap = MapController.GetActiveMap()
 	if not activeMap then
 		return nil
@@ -328,7 +364,15 @@ local function findGroundPosition(spawnArena, worldPosition: Vector3, candidates
 		return nil
 	end
 	local surfacePosition = result.Position
-	if not isInsideArena(spawnArena, surfacePosition)
+	if not isInsideArena(spawnArena, surfacePosition) then
+		return nil
+	end
+	return surfacePosition
+end
+
+local function findGroundPosition(spawnArena, worldPosition: Vector3, candidates)
+	local surfacePosition = findSurfacePosition(spawnArena, worldPosition)
+	if not surfacePosition
 		or not isAwayFromPlayers(surfacePosition, candidates, RunProgressionConfig.Spawning.MinimumDistance)
 	then
 		return nil
@@ -536,6 +580,147 @@ function ZombieController.SpawnRound(roundNumber: number, zombieCount: number): 
 	return spawnedIds
 end
 
+local function getEncounterCenter(spawnArena, candidates, outerRadius: number): Vector3
+	local sum = Vector3.zero
+	for _, candidate in candidates do
+		sum += candidate.position
+	end
+	local average = sum / #candidates
+	local localAverage = spawnArena.CFrame:PointToObjectSpace(average)
+	local halfSize = spawnArena.Size * 0.5
+	local margin = math.max(outerRadius + maximumBoundaryRadius * VARIATION_MAXIMUM, 0)
+	local maximumX = math.max(halfSize.X - margin, 0)
+	local maximumZ = math.max(halfSize.Y - margin, 0)
+	local clampedLocal = Vector3.new(
+		math.clamp(localAverage.X, -maximumX, maximumX),
+		0,
+		math.clamp(localAverage.Z, -maximumZ, maximumZ)
+	)
+	local center = spawnArena.CFrame:PointToWorldSpace(clampedLocal)
+	return Vector3.new(center.X, spawnArena.GroundY, center.Z)
+end
+
+local function getBossSpawnPosition(config, candidates, center, rotation)
+	-- Try several directions so authored obstacles cannot suppress a required milestone encounter.
+	for attempt = 1, 12 do
+		local angle = rotation + TAU * (attempt - 1) / 12
+		local desired = center + Vector3.new(math.cos(angle), 0, math.sin(angle)) * config.BossDistance
+		local surfacePosition = findSurfacePosition(arena, desired)
+		if surfacePosition then
+			return surfacePosition
+		end
+	end
+	return chooseGroupCenter(arena, candidates)
+end
+
+function ZombieController.SpawnBossBuildup(roundNumber: number): { number }
+	local config = RunProgressionConfig.GetBossEncounter(roundNumber)
+	if not simulationConnection
+		or not arena
+		or type(roundNumber) ~= "number"
+		or not config
+	then
+		return {}
+	end
+
+	local candidates = getLivePlayerCandidates()
+	if #candidates == 0 then
+		return {}
+	end
+
+	local center = getEncounterCenter(arena, candidates, math.max(config.BossDistance, config.RingRadius))
+	local packets = {}
+	local spawnedIds = {}
+	local ringCount = math.min(
+		config.BaseRingCount + math.max(#candidates - 1, 0) * config.RingCountPerAdditionalPlayer,
+		config.MaximumRingCount
+	)
+	local rotation = random:NextNumber(0, TAU)
+	local ringSpawned = 0
+
+	for index = 1, ringCount do
+		local angle = rotation + TAU * (index - 1) / ringCount
+		local desired = center + Vector3.new(math.cos(angle), 0, math.sin(angle)) * config.RingRadius
+		-- Boss buildup rings are a required readable formation. If an exact ray misses decorative map
+		-- geometry, use the known combat-floor height so a harmless prop cannot erase a ring slot.
+		local surfacePosition = findSurfacePosition(arena, desired)
+			or Vector3.new(desired.X, arena.GroundY, desired.Z)
+		if surfacePosition then
+			local packet, zombieId = createZombie(arena, config.RingType, surfacePosition, roundNumber)
+			if packet and zombieId then
+				-- Slow buildup enemies create pressure without reaching players before the entrance telegraph ends.
+				zombies[zombieId].moveSpeedMultiplier *= config.RingMoveSpeedMultiplier
+				table.insert(packets, packet)
+				table.insert(spawnedIds, zombieId)
+				ringSpawned += 1
+			end
+		end
+	end
+	if ringSpawned < ringCount then
+		warn(string.format("Round %d placed %d/%d surrounding zombies", roundNumber, ringSpawned, ringCount))
+	end
+
+	local bossPosition = getBossSpawnPosition(config, candidates, center, rotation)
+	pendingBossEntrance = if bossPosition then {
+		roundNumber = roundNumber,
+		typeName = config.BossType,
+		position = bossPosition,
+	} else nil
+	if not pendingBossEntrance then
+		warn(string.format("Round %d could not reserve its required boss entrance", roundNumber))
+	end
+
+	if #packets > 0 then
+		zombieNetwork:fireAll("SpawnZombies", packets, workspace:GetServerTimeNow())
+	end
+	return spawnedIds
+end
+
+function ZombieController.BeginBossEntrance(roundNumber: number): boolean
+	local config = RunProgressionConfig.GetBossEncounter(roundNumber)
+	local entrance = pendingBossEntrance
+	if not config or not entrance or entrance.roundNumber ~= roundNumber or entrance.typeName ~= config.BossType then
+		return false
+	end
+	local definition = ZombieDefinitions[config.BossType]
+	if not definition then
+		return false
+	end
+	-- The boss does not exist during this effect, so the obvious marked location is always safe to
+	-- approach or avoid until the complete entrance duration has elapsed.
+	broadcastAbility({
+		Kind = "BossEntrance",
+		Position = entrance.position,
+		Radius = math.max((boundaryRadii[config.BossType] or 4) * definition.ModelScale, 7),
+		Duration = config.EntranceDuration,
+		Color = definition.EffectColor,
+	})
+	return true
+end
+
+function ZombieController.SpawnBossEncounter(roundNumber: number): { number }
+	local config = RunProgressionConfig.GetBossEncounter(roundNumber)
+	local entrance = pendingBossEntrance
+	if not simulationConnection
+		or not arena
+		or not config
+		or not entrance
+		or entrance.roundNumber ~= roundNumber
+		or entrance.typeName ~= config.BossType
+	then
+		return {}
+	end
+
+	pendingBossEntrance = nil
+	local packet, zombieId = createZombie(arena, config.BossType, entrance.position, roundNumber)
+	if not packet or not zombieId then
+		warn(string.format("Round %d could not place its required boss", roundNumber))
+		return {}
+	end
+	zombieNetwork:fireAll("SpawnZombies", { packet }, workspace:GetServerTimeNow())
+	return { zombieId }
+end
+
 local function removeZombies(ids)
 	local removedIds = {}
 	for _, id in ids do
@@ -562,6 +747,7 @@ function ZombieController.RestartRun()
 	-- must not survive after the old zombies have been despawned.
 	table.clear(pendingSpawnRequests)
 	table.clear(pendingProjectiles)
+	pendingBossEntrance = nil
 	table.clear(slowHazards)
 	for player, bucket in playerEffectTokens do
 		for sourceId in bucket do
@@ -569,6 +755,7 @@ function ZombieController.RestartRun()
 		end
 	end
 	table.clear(playerEffectTokens)
+	arenaClearInProgress = false
 	firstZombieSpawnedAt = nil
 	nextSnapshotAt = workspace:GetServerTimeNow() + ZombieProtocol.SnapshotInterval
 	separationAccumulator = 0
@@ -668,6 +855,9 @@ local function stepSimulation(deltaTime)
 	end
 
 	removeZombies(deadIds)
+	if arenaClearInProgress and next(zombies) == nil then
+		arenaClearInProgress = false
+	end
 
 	if #pendingSpawnRequests > 0 then
 		local spawnPackets = {}
@@ -727,6 +917,16 @@ damageZombieInternal = function(
 	if damaged then
 		local actualDamage = math.max(healthBefore - zombie.health, 0)
 		local killed = zombie:IsDead()
+		if actualDamage > 0 and not killed and type(damageContext) == "table" then
+			local owner = damageContext.player
+			if typeof(owner) == "Instance" and owner:IsA("Player") then
+				local slowMultiplier, slowDuration = ClassController.GetOnHitSlow(owner)
+				if slowMultiplier and slowDuration then
+					-- Cryomancer's class-wide Chill is applied after confirmed damage, never from blocked or dodged hits.
+					zombie:ApplySlow(slowMultiplier, workspace:GetServerTimeNow() + slowDuration)
+				end
+			end
+		end
 		local position = zombie.cframe.Position
 		local direction = Vector3.zero
 		if typeof(hitOrigin) == "Vector3" then
@@ -820,6 +1020,8 @@ function ZombieController.GetZombiesInRadius(position: Vector3, maximumDistance:
 					id = id,
 					position = zombiePosition,
 					threatLevel = zombie.definition.ThreatLevel,
+					health = zombie.health,
+					maximumHealth = zombie.maximumHealth,
 				})
 				if #candidates >= countLimit then
 					break
@@ -899,6 +1101,8 @@ function ZombieController.GetNearestZombies(position: Vector3, maximumDistance: 
 					position = zombie.cframe.Position,
 					distance = distance,
 					threatLevel = zombie.definition.ThreatLevel,
+					health = zombie.health,
+					maximumHealth = zombie.maximumHealth,
 				})
 			end
 		end

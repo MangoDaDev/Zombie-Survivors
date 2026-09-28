@@ -1,10 +1,15 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Images = require(ReplicatedStorage.Modules.UI.Images)
+local AbilityLevelScaling = require(script.Parent.AbilityLevelScaling)
 
 local CrowdWeaponDefinitions = {}
 
 local MAX_LEVEL = 50
+
+local function upgradeProgress(level: number): number
+	return AbilityLevelScaling.GetWeaponProgress(level, MAX_LEVEL)
+end
 
 local function clampLevel(level: number): number
 	return math.clamp(math.floor(level), 1, MAX_LEVEL)
@@ -52,7 +57,9 @@ local aura = {
 		MinimumTickInterval = 0.42,
 		MaximumTargetsPerTick = 45,
 		Knockback = 0,
-		Pulse = { Level = 20, Interval = 4, RadiusMultiplier = 1.25, DamageMultiplier = 2 },
+		-- Every Aura visibly pulses from level one so its damage cadence is readable. Level 10 empowers
+		-- that existing pulse instead of introducing the field's only active-looking moment.
+		Pulse = { Level = 10, Interval = 4, RadiusMultiplier = 1.25, DamageMultiplier = 2 },
 	},
 	Rage = {
 		RadiusMultiplier = 1.45,
@@ -64,31 +71,32 @@ local aura = {
 		KnockbackMultiplier = 1,
 	},
 	Milestones = {
-		{ Level = 5, Description = "Larger Aura - noticeably increases Aura radius" },
-		{ Level = 10, Description = "Faster Aura - damages enemies more frequently" },
-		{ Level = 20, Description = "Pulse - periodically releases a larger, stronger ring" },
-		{ Level = 30, Description = "Strong Aura - significantly increases normal damage" },
-		{ Level = 40, Description = "Double Pulse - pulses happen faster and hit harder" },
-		{ Level = 50, Description = "Super Aura - improves radius, damage, tick speed, and Pulse" },
+		{ Level = 2, Description = "Larger Aura - noticeably increases Aura radius" },
+		{ Level = 5, Description = "Faster Aura - damages enemies more frequently" },
+		{ Level = 10, Description = "Empowered Pulse - the energy wave becomes larger and deals double damage" },
+		{ Level = 15, Description = "Strong Aura - significantly increases normal damage" },
+		{ Level = 20, Description = "Double Pulse - pulses happen faster and hit harder" },
+		{ Level = 25, Description = "Super Aura - improves radius, damage, tick speed, and Pulse" },
 	},
 }
 
 function aura.GetStats(level: number)
 	local validLevel = clampLevel(level)
 	local combat = aura.Combat
-	local damage = combat.BaseDamage * (1 + (validLevel - 1) * combat.DamagePerLevel)
-	local radius = combat.BaseRadius * (1 + (validLevel - 1) * combat.RadiusPerLevel)
-	local tickInterval = combat.BaseTickInterval / (1 + (validLevel - 1) * combat.TickSpeedPerLevel)
-	if validLevel >= 5 then radius *= 1.2 end
-	if validLevel >= 10 then tickInterval *= 0.88 end
-	if validLevel >= 30 then damage *= 1.4 end
-	local pulseInterval = if validLevel >= combat.Pulse.Level then combat.Pulse.Interval else nil
-	local pulseDamageMultiplier = combat.Pulse.DamageMultiplier
-	if validLevel >= 40 then
+	local damage = combat.BaseDamage * (1 + upgradeProgress(validLevel) * combat.DamagePerLevel)
+	local radius = combat.BaseRadius * (1 + upgradeProgress(validLevel) * combat.RadiusPerLevel)
+	local tickInterval = combat.BaseTickInterval / (1 + upgradeProgress(validLevel) * combat.TickSpeedPerLevel)
+	if validLevel >= 2 then radius *= 1.2 end
+	if validLevel >= 5 then tickInterval *= 0.88 end
+	if validLevel >= 15 then damage *= 1.4 end
+	local pulseInterval = combat.Pulse.Interval
+	local pulseDamageMultiplier = if validLevel >= combat.Pulse.Level then combat.Pulse.DamageMultiplier else 1
+	local pulseRadiusMultiplier = if validLevel >= combat.Pulse.Level then combat.Pulse.RadiusMultiplier else 1
+	if validLevel >= 20 then
 		pulseInterval *= 0.7
 		pulseDamageMultiplier *= 1.35
 	end
-	if validLevel >= 50 then
+	if validLevel >= 25 then
 		radius *= 1.2
 		damage *= 1.3
 		tickInterval *= 0.82
@@ -99,7 +107,7 @@ function aura.GetStats(level: number)
 		Radius = math.min(radius, combat.MaximumRadius),
 		TickInterval = math.max(tickInterval, combat.MinimumTickInterval),
 		PulseInterval = pulseInterval,
-		PulseRadiusMultiplier = combat.Pulse.RadiusMultiplier,
+		PulseRadiusMultiplier = pulseRadiusMultiplier,
 		PulseDamageMultiplier = pulseDamageMultiplier,
 		Cooldown = math.max(tickInterval, combat.MinimumTickInterval),
 	}
@@ -168,26 +176,26 @@ local ball = {
 		KnockbackMultiplier = 1.2,
 	},
 	Milestones = {
-		{ Level = 5, Description = "Extra Bounce - increases maximum bounces" },
-		{ Level = 10, Description = "Big Ball - noticeably increases size and hitbox" },
-		{ Level = 20, Description = "Double Ball - launches 2 balls toward separate enemies" },
-		{ Level = 30, Description = "Power Bounce - consecutive new hits become stronger, up to a cap" },
-		{ Level = 40, Description = "Extra Bounces - significantly increases maximum bounces" },
-		{ Level = 50, Description = "Triple Ball - launches 3 larger, faster, stronger balls" },
+		{ Level = 2, Description = "Extra Bounce - increases maximum bounces" },
+		{ Level = 5, Description = "Big Ball - noticeably increases size and hitbox" },
+		{ Level = 10, Description = "Double Ball - launches 2 balls toward separate enemies" },
+		{ Level = 15, Description = "Power Bounce - consecutive new hits become stronger, up to a cap" },
+		{ Level = 20, Description = "Extra Bounces - significantly increases maximum bounces" },
+		{ Level = 25, Description = "Triple Ball - launches 3 larger, faster, stronger balls" },
 	},
 }
 
 function ball.GetStats(level: number)
 	local validLevel = clampLevel(level)
 	local combat = ball.Combat
-	local damage = combat.BaseDamage * (1 + (validLevel - 1) * combat.DamagePerLevel)
-	local scale = combat.BaseScale * (1 + (validLevel - 1) * combat.ScalePerLevel)
-	local speed = combat.BaseSpeed * (1 + (validLevel - 1) * combat.SpeedPerLevel)
-	local cooldown = combat.BaseCooldown * (1 - (validLevel - 1) * combat.CooldownReductionPerLevel / 10)
-	local bounceCount = combat.BaseBounces + (if validLevel >= 5 then 1 else 0) + (if validLevel >= 40 then 3 else 0)
-	local ballCount = if validLevel >= 50 then 3 elseif validLevel >= 20 then 2 else 1
-	if validLevel >= 10 then scale *= 1.3 end
-	if validLevel >= 50 then
+	local damage = combat.BaseDamage * (1 + upgradeProgress(validLevel) * combat.DamagePerLevel)
+	local scale = combat.BaseScale * (1 + upgradeProgress(validLevel) * combat.ScalePerLevel)
+	local speed = combat.BaseSpeed * (1 + upgradeProgress(validLevel) * combat.SpeedPerLevel)
+	local cooldown = combat.BaseCooldown * (1 - upgradeProgress(validLevel) * combat.CooldownReductionPerLevel / 10)
+	local bounceCount = combat.BaseBounces + (if validLevel >= 2 then 1 else 0) + (if validLevel >= 20 then 3 else 0)
+	local ballCount = if validLevel >= 25 then 3 elseif validLevel >= 10 then 2 else 1
+	if validLevel >= 5 then scale *= 1.3 end
+	if validLevel >= 25 then
 		damage *= 1.25
 		scale *= 1.12
 		speed *= 1.18
@@ -201,7 +209,7 @@ function ball.GetStats(level: number)
 		BounceCount = bounceCount,
 		BallCount = ballCount,
 		HitRadius = 1.25 * scale,
-		PowerBouncePerHit = if validLevel >= 30 then 0.05 else 0,
+		PowerBouncePerHit = if validLevel >= 15 then 0.05 else 0,
 		PowerBounceCap = 0.3,
 		MaximumActive = combat.MaximumActive,
 	}
@@ -265,29 +273,29 @@ local drill = {
 		KnockbackMultiplier = 1.15,
 	},
 	Milestones = {
-		{ Level = 5, Description = "Long Drill - significantly increases travel distance" },
-		{ Level = 10, Description = "Wide Drill - increases width and hitbox" },
-		{ Level = 20, Description = "Double Drill - fires 2 drills side-by-side" },
-		{ Level = 30, Description = "Fast Drill - significantly increases travel speed" },
-		{ Level = 40, Description = "Triple Drill - fires 3 drills in a narrow spread" },
-		{ Level = 50, Description = "Mega Drill - improves drill count, size, range, damage, and speed" },
+		{ Level = 2, Description = "Long Drill - significantly increases travel distance" },
+		{ Level = 5, Description = "Wide Drill - increases width and hitbox" },
+		{ Level = 10, Description = "Double Drill - fires 2 drills side-by-side" },
+		{ Level = 15, Description = "Fast Drill - significantly increases travel speed" },
+		{ Level = 20, Description = "Triple Drill - fires 3 drills in a narrow spread" },
+		{ Level = 25, Description = "Mega Drill - improves drill count, size, range, damage, and speed" },
 	},
 }
 
 function drill.GetStats(level: number)
 	local validLevel = clampLevel(level)
 	local combat = drill.Combat
-	local damage = combat.BaseDamage * (1 + (validLevel - 1) * combat.DamagePerLevel)
-	local width = combat.BaseWidth * (1 + (validLevel - 1) * combat.WidthPerLevel)
-	local range = combat.BaseRange * (1 + (validLevel - 1) * combat.RangePerLevel)
+	local damage = combat.BaseDamage * (1 + upgradeProgress(validLevel) * combat.DamagePerLevel)
+	local width = combat.BaseWidth * (1 + upgradeProgress(validLevel) * combat.WidthPerLevel)
+	local range = combat.BaseRange * (1 + upgradeProgress(validLevel) * combat.RangePerLevel)
 	local speed = combat.BaseSpeed
-	local cooldown = combat.BaseCooldown * (1 - (validLevel - 1) * combat.CooldownReductionPerLevel / 10)
-	if validLevel >= 5 then range *= 1.3 end
-	if validLevel >= 10 then width *= 1.35 end
-	if validLevel >= 30 then speed *= 1.35 end
-	local drillCount = if validLevel >= 40 then 3 elseif validLevel >= 20 then 2 else 1
-	local spreadDegrees = if validLevel >= 40 then 6 else 0
-	if validLevel >= 50 then
+	local cooldown = combat.BaseCooldown * (1 - upgradeProgress(validLevel) * combat.CooldownReductionPerLevel / 10)
+	if validLevel >= 2 then range *= 1.3 end
+	if validLevel >= 5 then width *= 1.35 end
+	if validLevel >= 15 then speed *= 1.35 end
+	local drillCount = if validLevel >= 20 then 3 elseif validLevel >= 10 then 2 else 1
+	local spreadDegrees = if validLevel >= 20 then 6 else 0
+	if validLevel >= 25 then
 		damage *= 1.25
 		width *= 1.2
 		range *= 1.2
@@ -354,7 +362,7 @@ local mine = {
 		GroundRayHeight = 7,
 		GroundRayDepth = 18,
 		Knockback = 20,
-		Chain = { Level = 30, Radius = 15, Stagger = 0.08 },
+		Chain = { Level = 15, Radius = 15, Stagger = 0.08 },
 	},
 	Rage = {
 		CooldownMultiplier = 0.38,
@@ -365,26 +373,26 @@ local mine = {
 		KnockbackMultiplier = 1.2,
 	},
 	Milestones = {
-		{ Level = 5, Description = "Bigger Mine - increases explosion radius" },
-		{ Level = 10, Description = "Extra Mine - deploys 2 offset Mines" },
-		{ Level = 20, Description = "Strong Mine - significantly increases explosion damage" },
-		{ Level = 30, Description = "Chain Mine - nearby Mines trigger with a short stagger" },
-		{ Level = 40, Description = "Triple Mine - deploys 3 Mines in a small spread" },
-		{ Level = 50, Description = "Mega Mine - improves explosions, cooldown, count, and trigger response" },
+		{ Level = 2, Description = "Bigger Mine - increases explosion radius" },
+		{ Level = 5, Description = "Extra Mine - deploys 2 offset Mines" },
+		{ Level = 10, Description = "Strong Mine - significantly increases explosion damage" },
+		{ Level = 15, Description = "Chain Mine - nearby Mines trigger with a short stagger" },
+		{ Level = 20, Description = "Triple Mine - deploys 3 Mines in a small spread" },
+		{ Level = 25, Description = "Mega Mine - improves explosions, cooldown, count, and trigger response" },
 	},
 }
 
 function mine.GetStats(level: number)
 	local validLevel = clampLevel(level)
 	local combat = mine.Combat
-	local damage = combat.BaseDamage * (1 + (validLevel - 1) * combat.DamagePerLevel)
-	local radius = combat.BaseRadius * (1 + (validLevel - 1) * combat.RadiusPerLevel)
-	local cooldown = combat.BaseCooldown * (1 - (validLevel - 1) * combat.CooldownReductionPerLevel / 10)
-	if validLevel >= 5 then radius *= 1.25 end
-	if validLevel >= 20 then damage *= 1.45 end
-	local mineCount = if validLevel >= 40 then 3 elseif validLevel >= 10 then 2 else 1
+	local damage = combat.BaseDamage * (1 + upgradeProgress(validLevel) * combat.DamagePerLevel)
+	local radius = combat.BaseRadius * (1 + upgradeProgress(validLevel) * combat.RadiusPerLevel)
+	local cooldown = combat.BaseCooldown * (1 - upgradeProgress(validLevel) * combat.CooldownReductionPerLevel / 10)
+	if validLevel >= 2 then radius *= 1.25 end
+	if validLevel >= 10 then damage *= 1.45 end
+	local mineCount = if validLevel >= 20 then 3 elseif validLevel >= 5 then 2 else 1
 	local fuseDuration = combat.FuseDuration
-	if validLevel >= 50 then
+	if validLevel >= 25 then
 		damage *= 1.25
 		radius *= 1.2
 		cooldown *= 0.82
@@ -453,7 +461,7 @@ local poison = {
 		GroundRayDepth = 18,
 		Knockback = 0,
 		Spread = {
-			Level = 40,
+			Level = 20,
 			ChancePercent = 15,
 			FinalChancePercent = 28,
 			RadiusMultiplier = 0.58,
@@ -470,27 +478,27 @@ local poison = {
 		KnockbackMultiplier = 1,
 	},
 	Milestones = {
-		{ Level = 5, Description = "Bigger Puddle - significantly increases Poison radius" },
-		{ Level = 10, Description = "Long Poison - puddles remain longer" },
-		{ Level = 20, Description = "Double Poison - creates 2 puddles beneath separate groups" },
-		{ Level = 30, Description = "Strong Poison - substantially increases tick damage" },
-		{ Level = 40, Description = "Poison Spread - poisoned deaths can create one weaker secondary puddle" },
-		{ Level = 50, Description = "Toxic Field - creates 3 larger, longer, stronger puddles with improved spread" },
+		{ Level = 2, Description = "Bigger Puddle - significantly increases Poison radius" },
+		{ Level = 5, Description = "Long Poison - puddles remain longer" },
+		{ Level = 10, Description = "Double Poison - creates 2 puddles beneath separate groups" },
+		{ Level = 15, Description = "Strong Poison - substantially increases tick damage" },
+		{ Level = 20, Description = "Poison Spread - poisoned deaths can create one weaker secondary puddle" },
+		{ Level = 25, Description = "Toxic Field - creates 3 larger, longer, stronger puddles with improved spread" },
 	},
 }
 
 function poison.GetStats(level: number)
 	local validLevel = clampLevel(level)
 	local combat = poison.Combat
-	local damage = combat.BaseDamage * (1 + (validLevel - 1) * combat.DamagePerLevel)
-	local radius = combat.BaseRadius * (1 + (validLevel - 1) * combat.RadiusPerLevel)
-	local duration = combat.BaseDuration * (1 + (validLevel - 1) * combat.DurationPerLevel)
-	local cooldown = combat.BaseCooldown * (1 - (validLevel - 1) * combat.CooldownReductionPerLevel / 10)
-	if validLevel >= 5 then radius *= 1.28 end
-	if validLevel >= 10 then duration *= 1.3 end
-	if validLevel >= 30 then damage *= 1.45 end
-	local puddleCount = if validLevel >= 50 then 3 elseif validLevel >= 20 then 2 else 1
-	if validLevel >= 50 then
+	local damage = combat.BaseDamage * (1 + upgradeProgress(validLevel) * combat.DamagePerLevel)
+	local radius = combat.BaseRadius * (1 + upgradeProgress(validLevel) * combat.RadiusPerLevel)
+	local duration = combat.BaseDuration * (1 + upgradeProgress(validLevel) * combat.DurationPerLevel)
+	local cooldown = combat.BaseCooldown * (1 - upgradeProgress(validLevel) * combat.CooldownReductionPerLevel / 10)
+	if validLevel >= 2 then radius *= 1.28 end
+	if validLevel >= 5 then duration *= 1.3 end
+	if validLevel >= 15 then damage *= 1.45 end
+	local puddleCount = if validLevel >= 25 then 3 elseif validLevel >= 10 then 2 else 1
+	if validLevel >= 25 then
 		damage *= 1.25
 		radius *= 1.18
 		duration *= 1.15
@@ -503,7 +511,7 @@ function poison.GetStats(level: number)
 		TickInterval = combat.TickInterval,
 		PuddleCount = puddleCount,
 		SpreadUnlocked = validLevel >= combat.Spread.Level,
-		SpreadChancePercent = if validLevel >= 50 then combat.Spread.FinalChancePercent else combat.Spread.ChancePercent,
+		SpreadChancePercent = if validLevel >= 25 then combat.Spread.FinalChancePercent else combat.Spread.ChancePercent,
 		MaximumActive = combat.MaximumActive,
 	}
 end

@@ -148,6 +148,9 @@ local function createView(id: number, value: number, position: Vector3, scale: n
 	gui.LightInfluence = 1
 	gui.MaxDistance = 180
 	gui.Size = UDim2.fromScale(COIN_STUD_SIZE, COIN_STUD_SIZE)
+	-- BillboardGui remains camera-facing automatically; lift it clear of the floor so its silhouette
+	-- and quantity stay readable from the steep gameplay view without rotating the physical pickup.
+	gui.StudsOffsetWorldSpace = Vector3.new(0, 0.35, 0)
 	gui.Parent = holder
 
 	local glow = Instance.new("ImageLabel")

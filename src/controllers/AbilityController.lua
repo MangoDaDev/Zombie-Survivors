@@ -9,10 +9,12 @@ local Signal = require(ReplicatedStorage.Packages.signal)
 local AbilityDefinitions = require(ReplicatedStorage.Modules.Game.Abilities.AbilityDefinitions)
 local NotificationManager = require(ReplicatedStorage.Modules.UI.NotificationManager)
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
+local StudVFX = require(ReplicatedStorage.Modules.UI.StudVFX)
 local UIStyle = require(ReplicatedStorage.Modules.UI.UIStyle)
 local ActiveWeaponEffects = require(script.Parent.Ability.ActiveWeaponEffects)
 local AdditionalWeaponEffects = require(script.Parent.Ability.AdditionalWeaponEffects)
 local CrowdWeaponEffects = require(script.Parent.Ability.CrowdWeaponEffects)
+local ExpandedWeaponEffects = require(script.Parent.Ability.ExpandedWeaponEffects)
 local OrbitingSwordsView = require(script.Parent.Ability.OrbitingSwordsView)
 local PassiveEffectsView = require(script.Parent.Ability.PassiveEffectsView)
 
@@ -73,13 +75,20 @@ local function emitAt(position: Vector3, flashCount: number, sparkCount: number,
 			emitter:Emit(if child.Name == "Flash" then flashCount else sparkCount)
 		end
 	end
-	if rage then
-		local light = Instance.new("PointLight")
-		light.Color = Color3.fromRGB(255, 101, 42)
-		light.Brightness = 1.6
-		light.Range = 6.5
-		light.Parent = holder
-	end
+	local light = Instance.new("PointLight")
+	light.Color = if rage then Color3.fromRGB(255, 101, 42) else Color3.fromRGB(132, 205, 255)
+	light.Brightness = if rage then 1.6 else 0.8
+	light.Range = if rage then 6.5 else 4.5
+	light.Parent = holder
+	StudVFX.Burst(
+		effectsFolder,
+		position,
+		if rage then Color3.fromRGB(255, 91, 35) else Color3.fromRGB(105, 185, 255),
+		math.clamp(math.floor(sparkCount * 0.6), 3, 7),
+		if rage then 2.5 else 1.7,
+		0.2,
+		if rage then Color3.fromRGB(255, 231, 117) else Color3.fromRGB(218, 243, 255)
+	)
 	Debris:AddItem(holder, 2)
 	return holder
 end
@@ -144,17 +153,15 @@ local function spawnDagger(packet)
 	end
 	model:ScaleTo(packet.scale)
 	addTrail(model, packet.rage)
-	if packet.rage then
-		local highlight = Instance.new("Highlight")
-		highlight.Name = "RageDaggerGlow"
-		highlight.Adornee = model
-		highlight.DepthMode = Enum.HighlightDepthMode.Occluded
-		highlight.FillColor = Color3.fromRGB(255, 91, 35)
-		highlight.FillTransparency = 0.7
-		highlight.OutlineColor = Color3.fromRGB(255, 231, 117)
-		highlight.OutlineTransparency = 0.25
-		highlight.Parent = model
-	end
+	local highlight = Instance.new("Highlight")
+	highlight.Name = if packet.rage then "RageDaggerGlow" else "DaggerGlint"
+	highlight.Adornee = model
+	highlight.DepthMode = Enum.HighlightDepthMode.Occluded
+	highlight.FillColor = if packet.rage then Color3.fromRGB(255, 91, 35) else Color3.fromRGB(105, 185, 255)
+	highlight.FillTransparency = if packet.rage then 0.7 else 0.84
+	highlight.OutlineColor = if packet.rage then Color3.fromRGB(255, 231, 117) else Color3.fromRGB(218, 243, 255)
+	highlight.OutlineTransparency = 0.25
+	highlight.Parent = model
 	model:PivotTo(getFlightCFrame(packet.startPosition, packet.targetPosition, 0))
 	model.Parent = effectsFolder
 
@@ -191,7 +198,8 @@ local function renderProjectiles(deltaTime: number)
 				projectile.rage
 			)
 			if impactEffect and projectile.daggerIndex == 1 then
-				Sounds.Play("BulletHit", impactEffect, 120)
+			-- Daggers share the blade-family impact cue instead of the generic bullet hit.
+			Sounds.Play("AbilityBladeImpact", impactEffect, 120)
 			end
 			projectile.model:Destroy()
 			table.remove(projectiles, index)
@@ -200,6 +208,7 @@ local function renderProjectiles(deltaTime: number)
 	ActiveWeaponEffects.Render(now, deltaTime)
 	AdditionalWeaponEffects.Render(now)
 	CrowdWeaponEffects.Render(now, deltaTime)
+	ExpandedWeaponEffects.Render(now, deltaTime)
 	OrbitingSwordsView.Render(now, deltaTime)
 	PassiveEffectsView.Render()
 end
@@ -473,14 +482,67 @@ function AbilityController.VortexRemoved(_, id)
 	AdditionalWeaponEffects.VortexRemoved(id)
 end
 
+function AbilityController.CrowbarSwung(_, packet)
+	ExpandedWeaponEffects.CrowbarSwung(packet)
+end
+
+function AbilityController.CrossfireFired(_, packet)
+	ExpandedWeaponEffects.CrossfireFired(packet)
+end
+
+function AbilityController.BuzzsawCreated(_, packet)
+	ExpandedWeaponEffects.BuzzsawCreated(packet)
+end
+
+function AbilityController.BuzzsawRemoved(_, id)
+	ExpandedWeaponEffects.BuzzsawRemoved(id)
+end
+
+function AbilityController.CrusherWarned(_, packet)
+	ExpandedWeaponEffects.CrusherWarned(packet)
+end
+
+function AbilityController.CrusherImpacted(_, packet)
+	ExpandedWeaponEffects.CrusherImpacted(packet)
+end
+
+function AbilityController.CrusherCancelled(_, id)
+	ExpandedWeaponEffects.CrusherCancelled(id)
+end
+
+function AbilityController.LaserSweepStarted(_, packet)
+	ExpandedWeaponEffects.LaserSweepStarted(packet)
+end
+
+function AbilityController.LaserSweepEnded(_, id)
+	ExpandedWeaponEffects.LaserSweepEnded(id)
+end
+
 function AbilityController.CriticalHit(_, packet)
 	PassiveEffectsView.CriticalHit(packet)
+end
+
+function AbilityController.ArmorBlocked(_, packet)
+	PassiveEffectsView.ArmorBlocked(packet)
+end
+
+function AbilityController.MagnetBurst(_, packet)
+	PassiveEffectsView.MagnetBurst(packet)
+end
+
+function AbilityController.ExecutionerHit(_, packet)
+	PassiveEffectsView.ExecutionerHit(packet)
+end
+
+function AbilityController.OverchargeTriggered(_, packet)
+	PassiveEffectsView.OverchargeTriggered(packet)
 end
 
 function AbilityController.AbilityEffectsCleared(_, ownerUserId, abilityId)
 	ActiveWeaponEffects.AbilityEffectsCleared(ownerUserId, abilityId)
 	CrowdWeaponEffects.AbilityEffectsCleared(ownerUserId, abilityId)
 	AdditionalWeaponEffects.AbilityEffectsCleared(ownerUserId, abilityId)
+	ExpandedWeaponEffects.AbilityEffectsCleared(ownerUserId, abilityId)
 end
 
 function AbilityController.SetDataService(service)
@@ -495,6 +557,7 @@ function AbilityController.Init()
 	ActiveWeaponEffects.Init(effectsFolder)
 	AdditionalWeaponEffects.Init(effectsFolder)
 	CrowdWeaponEffects.Init(effectsFolder)
+	ExpandedWeaponEffects.Init(effectsFolder)
 	OrbitingSwordsView.Init(effectsFolder)
 	PassiveEffectsView.Init(effectsFolder)
 	renderConnection = RunService.RenderStepped:Connect(renderProjectiles)

@@ -2,8 +2,11 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local vide = require(ReplicatedStorage.Packages.vide)
 local Confirmation = require(script.Parent.Classes.Confirmation)
 local AbilityInterface = require(script.Parent.HUD.AbilityInterface)
+local BossHealthBar = require(script.Parent.HUD.BossHealthBar)
+local BossWarning = require(script.Parent.HUD.BossWarning)
 local ClassInterface = require(script.Parent.HUD.ClassInterface)
 local GameOver = require(script.Parent.HUD.GameOver)
+local HealthBar = require(script.Parent.HUD.HealthBar)
 local LevelUpChoices = require(script.Parent.HUD.LevelUpChoices)
 local Notifications = require(script.Parent.HUD.Notifications)
 local PartyTeleporterMenu = require(script.Parent.HUD.PartyTeleporterMenu)
@@ -29,6 +32,12 @@ return function()
 		ZombieIndex(),
 		-- RunHUD is always mounted so Studio's promoted destination can activate reactively without remounting App.
 		RunHUD(),
+		-- Local Humanoid health is presentation-only here; damage and maximum-health changes remain authoritative.
+		HealthBar(),
+		-- Boss health mirrors authoritative zombie snapshots and exists only while the encounter boss is alive.
+		BossHealthBar(),
+		-- Milestone warning stages stay visible while players move through the guard wave and entrance.
+		BossWarning(),
 		-- Level-up presentation does not pause or intercept live combat outside the three choice cards.
 		LevelUpChoices(),
 		-- The Creation Menu is presentation-only; party membership, settings, and departure stay authoritative.
