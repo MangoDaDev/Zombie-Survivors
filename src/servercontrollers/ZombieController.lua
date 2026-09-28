@@ -22,6 +22,7 @@ local ZombieSeparation = require(script.Parent.Zombie.ZombieSeparation)
 local SEPARATION_INTERVAL = 0.05
 local VARIATION_MINIMUM = 0.95
 local VARIATION_MAXIMUM = 1.05
+local MAXIMUM_MANUAL_SPAWN_COUNT = 100
 local TAU = math.pi * 2
 
 local ZombieController = {}
@@ -580,6 +581,59 @@ function ZombieController.SpawnRound(roundNumber: number, zombieCount: number): 
 	return spawnedIds
 end
 
+function ZombieController.SpawnSpecific(typeName: string, zombieCount: number, roundNumber: number): { number }
+	if not simulationConnection
+		or not arena
+		or type(typeName) ~= "string"
+		or not ZombieDefinitions[typeName]
+		or type(zombieCount) ~= "number"
+		or zombieCount % 1 ~= 0
+		or zombieCount < 1
+		or zombieCount > MAXIMUM_MANUAL_SPAWN_COUNT
+		or type(roundNumber) ~= "number"
+		or roundNumber % 1 ~= 0
+		or roundNumber < 1
+	then
+		return {}
+	end
+
+	local candidates = getLivePlayerCandidates()
+	if #candidates == 0 then
+		return {}
+	end
+
+	local spawnPackets = {}
+	local spawnedIds = {}
+	local attemptsRemaining = zombieCount * RunProgressionConfig.Spawning.AttemptsPerGroup
+	while #spawnPackets < zombieCount and attemptsRemaining > 0 do
+		local groupCenter = chooseGroupCenter(arena, candidates)
+		if not groupCenter then
+			attemptsRemaining -= 1
+			continue
+		end
+		local clusterSize = math.min(RunProgressionConfig.Rounds.MaximumClusterSize, zombieCount - #spawnPackets)
+		for _ = 1, clusterSize do
+			attemptsRemaining -= 1
+			local surfacePosition = getGroupedSpawnPosition(arena, groupCenter, candidates) or groupCenter
+			local packet, zombieId = createZombie(arena, typeName, surfacePosition, roundNumber)
+			if packet and zombieId then
+				table.insert(spawnPackets, packet)
+				table.insert(spawnedIds, zombieId)
+			end
+			if #spawnPackets >= zombieCount or attemptsRemaining <= 0 then
+				break
+			end
+		end
+	end
+
+	if #spawnPackets > 0 then
+		-- Manual spawns use the normal compact replication path and safe arena placement; only their
+		-- selected type differs from a weighted round batch.
+		zombieNetwork:fireAll("SpawnZombies", spawnPackets, workspace:GetServerTimeNow())
+	end
+	return spawnedIds
+end
+
 local function getEncounterCenter(spawnArena, candidates, outerRadius: number): Vector3
 	local sum = Vector3.zero
 	for _, candidate in candidates do
@@ -736,15 +790,15 @@ local function removeZombies(ids)
 	end
 end
 
-function ZombieController.RestartRun()
+local function clearZombieWorld(resetFirstSpawn: boolean): number
 	local ids = {}
 	for id in zombies do
 		table.insert(ids, id)
 	end
 	removeZombies(ids)
 
-	-- Replay owns a completely fresh horde; delayed attacks, summons, hazards, and their stat modifiers
-	-- must not survive after the old zombies have been despawned.
+	-- A full clear owns a clean horde boundary; delayed attacks, summons, hazards, and their stat
+	-- modifiers must not survive after the old zombies have been despawned.
 	table.clear(pendingSpawnRequests)
 	table.clear(pendingProjectiles)
 	pendingBossEntrance = nil
@@ -756,9 +810,29 @@ function ZombieController.RestartRun()
 	end
 	table.clear(playerEffectTokens)
 	arenaClearInProgress = false
-	firstZombieSpawnedAt = nil
+	if resetFirstSpawn then
+		firstZombieSpawnedAt = nil
+	end
 	nextSnapshotAt = workspace:GetServerTimeNow() + ZombieProtocol.SnapshotInterval
 	separationAccumulator = 0
+	return #ids
+end
+
+function ZombieController.ClearAll(): number
+	-- Admin cleanup is not a new run, so the survival clock's original first-spawn timestamp is preserved.
+	return clearZombieWorld(false)
+end
+
+function ZombieController.GetTotalLivingZombieCount(): number
+	local count = 0
+	for _ in zombies do
+		count += 1
+	end
+	return count
+end
+
+function ZombieController.RestartRun()
+	clearZombieWorld(true)
 end
 
 local function buildGroundOffsets()

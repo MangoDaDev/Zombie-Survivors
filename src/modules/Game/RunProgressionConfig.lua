@@ -1,3 +1,6 @@
+-- Coin and XP rewards both remain collectible for two minutes before authoritative cleanup.
+local PICKUP_LIFETIME = 120
+
 local RunProgressionConfig = {
 	-- Run levels are transient. This curve deliberately grows sub-exponentially enough that later
 	-- hordes still produce visible progress without letting early levels arrive all at once.
@@ -19,7 +22,7 @@ local RunProgressionConfig = {
 			MagnetRadius = 15,
 			MagnetInitialSpeed = 16,
 			MagnetAcceleration = 52,
-			Lifetime = 45,
+			Lifetime = PICKUP_LIFETIME,
 			ScatterRadius = NumberRange.new(1.5, 3.75),
 			ScatterDuration = NumberRange.new(0.35, 0.55),
 			-- Scale and tier multipliers make the single XP drop visually outweigh a multi-coin burst.
@@ -36,7 +39,7 @@ local RunProgressionConfig = {
 			PickupRadius = 2.5,
 			MagnetRadius = 12,
 			MagnetDuration = 0.42,
-			Lifetime = 35,
+			Lifetime = PICKUP_LIFETIME,
 		},
 	},
 
@@ -46,6 +49,12 @@ local RunProgressionConfig = {
 		-- something new. This chance falls as the ten run slots fill so established builds develop.
 		NewOfferChanceAtEmpty = 0.4,
 		NewOfferChanceAtFull = 0.08,
+		-- Upgrades keep their normal rarity weight until they lead the player's other owned abilities
+		-- by more than this many levels. Each further level compounds the penalty, but the floor keeps
+		-- a highly developed ability possible instead of silently removing it from the choice pool.
+		UpgradeLevelLeadGrace = 3,
+		UpgradeLevelLeadDecay = 0.65,
+		MinimumUpgradeWeightMultiplier = 0.1,
 		-- Permanent ownership is the authoritative gate for new run choices. Keep this escape hatch empty
 		-- unless a future global event deliberately makes an ability available without unlocking it.
 		AlwaysAvailable = {},
@@ -53,18 +62,29 @@ local RunProgressionConfig = {
 
 	Rounds = {
 		-- A round owns one finite assigned group, delivered in paced reinforcements rather than one spike.
-		-- Skipped-round zombies remain alive but no longer block later rounds. Population must become the
-		-- main source of later-round pressure, so the extra growth eases in mathematically instead of
-		-- switching on at a particular round.
+		-- Skipped-round zombies remain alive but no longer block later rounds. Population is the main
+		-- difficulty driver: the bounded early density curve stays smooth, then a second linear slope
+		-- starts after the first boss so late-round pressure does not flatten out.
 		BaseZombieCount = 4,
 		ZombieCountGrowthPerRound = 1,
-		LateZombieCountGrowthPerRound = 0.3,
-		ZombieCountGrowthRampRounds = 6,
+		MaximumHordeDensityBonus = 1.5,
+		HordeDensityRampRounds = 6,
+		-- After the first boss, add a second population slope so late builds face a genuinely larger
+		-- horde instead of letting the bounded density multiplier flatten the difficulty curve.
+		LateHordeGrowthStartRound = 15,
+		LateZombieCountGrowthPerRound = 2,
 		FirstRoundDelay = 1.5,
 		IntermissionDuration = 3,
-		InitialBatchSize = 4,
-		ReinforcementBatchSize = 3,
-		ReinforcementInterval = 2.25,
+		-- Late-round batch growth and a shrinking interval put the increased assignment on the field
+		-- together. The caps and interval floor preserve pacing without creating one giant spawn spike.
+		InitialBatchSize = 6,
+		ReinforcementBatchSize = 5,
+		ReinforcementBatchGrowthRounds = 3,
+		MaximumInitialBatchSize = 18,
+		MaximumReinforcementBatchSize = 16,
+		ReinforcementInterval = 1.75,
+		ReinforcementIntervalReductionPerRound = 0.06,
+		MinimumReinforcementInterval = 0.45,
 		-- Keep skip votes deliberate across round boundaries, especially when one player can pass a vote alone.
 		SkipVoteCooldown = 8,
 		-- These values govern threat unlocks and strength bias, not player movement or responsiveness.
@@ -167,18 +187,41 @@ function RunProgressionConfig.GetRoundZombieCount(roundNumber: number, playerCou
 	local validPlayerCount = math.max(1, math.floor(playerCount))
 	local rounds = RunProgressionConfig.Rounds
 	local completedRounds = validRound - 1
-	-- x^2 / (x + ramp) starts gently and approaches linear growth, adding late density without an
-	-- arbitrary round cutoff or the runaway counts produced by an uncapped power curve.
-	local lateGrowth = rounds.LateZombieCountGrowthPerRound
-		* completedRounds
-		* completedRounds
-		/ (completedRounds + rounds.ZombieCountGrowthRampRounds)
-	local singlePlayerCount = rounds.BaseZombieCount
+	-- x^2 / (x^2 + ramp^2) is a smooth saturation curve: round one stays untouched, crowd pressure
+	-- rises decisively through the early rounds, and the multiplier remains bounded for server safety.
+	local completedRoundsSquared = completedRounds * completedRounds
+	local rampRoundsSquared = rounds.HordeDensityRampRounds * rounds.HordeDensityRampRounds
+	local densityProgress = completedRoundsSquared / (completedRoundsSquared + rampRoundsSquared)
+	local hordeDensityMultiplier = 1 + rounds.MaximumHordeDensityBonus * densityProgress
+	local lateRounds = math.max(0, validRound - rounds.LateHordeGrowthStartRound)
+	local baseCount = rounds.BaseZombieCount
 		+ completedRounds * rounds.ZombieCountGrowthPerRound
-		+ lateGrowth
+		+ lateRounds * rounds.LateZombieCountGrowthPerRound
+	local singlePlayerCount = baseCount * hordeDensityMultiplier
 	return math.max(
 		1,
 		math.floor(singlePlayerCount * validPlayerCount ^ RunProgressionConfig.Spawning.PlayerCountExponent + 0.5)
+	)
+end
+
+function RunProgressionConfig.GetRoundSpawnBatchSize(roundNumber: number, firstBatch: boolean): number
+	local validRound = math.max(1, math.floor(roundNumber))
+	local rounds = RunProgressionConfig.Rounds
+	local lateRounds = math.max(0, validRound - rounds.LateHordeGrowthStartRound)
+	local batchGrowth = math.floor(lateRounds / rounds.ReinforcementBatchGrowthRounds)
+	if firstBatch then
+		return math.min(rounds.InitialBatchSize + batchGrowth, rounds.MaximumInitialBatchSize)
+	end
+	return math.min(rounds.ReinforcementBatchSize + batchGrowth, rounds.MaximumReinforcementBatchSize)
+end
+
+function RunProgressionConfig.GetRoundReinforcementInterval(roundNumber: number): number
+	local validRound = math.max(1, math.floor(roundNumber))
+	local rounds = RunProgressionConfig.Rounds
+	local lateRounds = math.max(0, validRound - rounds.LateHordeGrowthStartRound)
+	return math.max(
+		rounds.MinimumReinforcementInterval,
+		rounds.ReinforcementInterval - lateRounds * rounds.ReinforcementIntervalReductionPerRound
 	)
 end
 

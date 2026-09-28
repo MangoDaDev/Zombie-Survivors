@@ -42,6 +42,7 @@ local modules_to_init = {
 	ServerStorage.Controllers.SurvivalStatsController,
 	ServerStorage.Controllers.RoundController,
 	ServerStorage.Controllers.RunSessionController,
+	ServerStorage.Controllers.AdminGameplayCommandController,
 }
 
 -- Simulator-era reward rolls and extraction remain dormant. Run pickups, wearable bags, progression,

@@ -262,8 +262,16 @@ local function registerBuiltInCommands()
 		Description = "List the commands available to you.",
 		Execute = function(context)
 			local lines = { "Available commands:" }
+			local currentLength = #lines[1]
 			for _, definition in orderedDefinitions do
-				table.insert(lines, string.format("%s - %s", definition.Usage, definition.Description))
+				local line = string.format("%s - %s", definition.Usage, definition.Description)
+				if currentLength + #line + 1 > 900 then
+					context.Reply(table.concat(lines, "\n"))
+					lines = { "Commands continued:" }
+					currentLength = #lines[1]
+				end
+				table.insert(lines, line)
+				currentLength += #line + 1
 			end
 			context.Reply(table.concat(lines, "\n"))
 		end,

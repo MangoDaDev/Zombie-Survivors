@@ -78,12 +78,42 @@ local function getRollWeight(definition): number
 	return if type(reciprocalOdds) == "number" and reciprocalOdds > 0 then 1 / reciprocalOdds else 1
 end
 
+local function getUpgradeLevelWeightMultiplier(
+	currentLevel: number,
+	totalOwnedLevels: number,
+	ownedCount: number
+): number
+	if ownedCount <= 1 then
+		return 1
+	end
+	local averageOtherLevel = (totalOwnedLevels - currentLevel) / (ownedCount - 1)
+	local penalizedLead = math.max(
+		0,
+		currentLevel - averageOtherLevel - RunProgressionConfig.Abilities.UpgradeLevelLeadGrace
+	)
+	-- The penalty is relative to the other abilities in this run, so it encourages lagging abilities
+	-- to catch up without changing rarity, slot limits, or the legality of any upgrade choice.
+	return math.max(
+		RunProgressionConfig.Abilities.MinimumUpgradeWeightMultiplier,
+		RunProgressionConfig.Abilities.UpgradeLevelLeadDecay ^ penalizedLead
+	)
+end
+
 local function buildCandidates(player: Player)
 	local runData = AbilityController.GetRunData(player)
 	if not runData then
 		return {}
 	end
 	local permanentData = AbilityController.GetPermanentData(player)
+	local totalOwnedLevels = 0
+	local ownedCount = 0
+	for abilityId in runData.Owned do
+		local level = runData.Levels[abilityId]
+		if type(level) == "number" then
+			totalOwnedLevels += level
+			ownedCount += 1
+		end
+	end
 
 	local candidates = {}
 	-- Choice kind is explicit so future Evolution candidates can share this roller and validation path
@@ -97,7 +127,8 @@ local function buildCandidates(player: Player)
 					kind = "Upgrade",
 					currentLevel = currentLevel,
 					nextLevel = currentLevel + 1,
-					weight = getRollWeight(definition),
+					weight = getRollWeight(definition)
+						* getUpgradeLevelWeightMultiplier(currentLevel, totalOwnedLevels, ownedCount),
 				})
 			end
 		elseif permanentData.Owned[definition.Id] == true
@@ -267,6 +298,54 @@ function RunProgressionController.AddXP(player: Player, amount: number): boolean
 		-- Retry unresolved tokens on every XP update. This closes the brief startup window where progression
 		-- can initialize before the run ability pool and guarantees every earned level eventually gets a roll.
 		offerNextChoice(player, state)
+	end
+	sendState(player, state)
+	return true
+end
+
+function RunProgressionController.SetLevelForAdmin(player: Player, targetLevel: number): (boolean, number?)
+	if type(targetLevel) ~= "number"
+		or targetLevel % 1 ~= 0
+		or targetLevel < 1
+		or targetLevel > RunProgressionConfig.XP.MaximumLevel
+	then
+		return false, nil
+	end
+	if not states[player] then
+		initializePlayer(player)
+	end
+	local state = states[player]
+	if not state then
+		return false, nil
+	end
+
+	local previousLevel = state.level
+	state.level = targetLevel
+	state.xp = 0
+	state.xpRequired = if targetLevel >= RunProgressionConfig.XP.MaximumLevel
+		then 0
+		else RunProgressionConfig.GetXPRequirement(targetLevel)
+	if targetLevel > previousLevel then
+		-- Admin-granted levels preserve the normal one-choice-per-level invariant so test runs exercise
+		-- the same legal ability selection flow as XP-earned progression.
+		state.pendingChoices += targetLevel - previousLevel
+	elseif targetLevel < previousLevel then
+		-- Lowering the displayed run level must not leave choices earned by the discarded levels queued.
+		-- Already selected run abilities remain intact because silently undoing a loadout is more surprising.
+		state.pendingChoices = 0
+		state.choices = nil
+	end
+	if state.pendingChoices > 0 then
+		offerNextChoice(player, state)
+	end
+	sendState(player, state)
+	return true, previousLevel
+end
+
+function RunProgressionController.RefreshPlayer(player: Player): boolean
+	local state = states[player]
+	if not state then
+		return false
 	end
 	sendState(player, state)
 	return true

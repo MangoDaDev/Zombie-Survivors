@@ -8,4 +8,9 @@ return table.freeze({
 	GroupMinimumDeveloperRank = 255,
 	CommandCooldown = 0.25,
 	RespawnCooldown = 2,
+	-- Bound developer test commands so a typo cannot create an unmanageable server load.
+	MaximumRound = 60,
+	MaximumZombieSpawnCount = 50,
+	MaximumPowerupSpawnCount = 20,
+	MaximumXPGrant = 1_000_000,
 })

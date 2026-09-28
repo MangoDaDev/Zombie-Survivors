@@ -232,7 +232,9 @@ advanceRound = function()
 			broadcastState()
 		else
 			while remaining > 0 and runGeneration == scheduledGeneration and currentRound == roundNumber do
-				local batchLimit = if firstBatch then rounds.InitialBatchSize else rounds.ReinforcementBatchSize
+				-- Later rounds deploy larger reinforcements with shorter gaps so their increased population
+				-- becomes simultaneous combat pressure instead of merely extending the round's duration.
+				local batchLimit = RunProgressionConfig.GetRoundSpawnBatchSize(roundNumber, firstBatch)
 				local batchCount = math.min(remaining, batchLimit)
 				spawningRound = true
 				local spawnedIds = ZombieController.SpawnRound(roundNumber, batchCount)
@@ -242,7 +244,7 @@ advanceRound = function()
 				firstBatch = false
 				broadcastState()
 				if remaining > 0 then
-					task.wait(rounds.ReinforcementInterval)
+					task.wait(RunProgressionConfig.GetRoundReinforcementInterval(roundNumber))
 				end
 			end
 		end
@@ -277,6 +279,43 @@ end
 
 function RoundController.GetRoundCompletedSignal()
 	return roundCompleted
+end
+
+function RoundController.GetCurrentRound(): number
+	return currentRound
+end
+
+function RoundController.AdvanceForAdmin(): (boolean, number)
+	if not ZombieController.IsSimulationStarted() or advancing then
+		return false, currentRound
+	end
+	advanceRound()
+	return currentRound > 0, currentRound
+end
+
+function RoundController.SetRoundForAdmin(roundNumber: number): (boolean, number)
+	if type(roundNumber) ~= "number"
+		or roundNumber % 1 ~= 0
+		or roundNumber < 1
+		or not ZombieController.IsSimulationStarted()
+	then
+		return false, currentRound
+	end
+
+	-- Setting a round is an exact testing jump: invalidate delayed batches, clear the current horde,
+	-- and start the requested round without crediting completion for the abandoned round.
+	runGeneration += 1
+	currentRound = roundNumber - 1
+	table.clear(votes)
+	table.clear(lastSkipVoteAt)
+	advancing = false
+	spawningRound = false
+	roundSpawnPending = false
+	completionCheckPending = false
+	setBossAnnouncement(false)
+	ZombieController.ClearAll()
+	advanceRound()
+	return currentRound == roundNumber, currentRound
 end
 
 function RoundController.VoteToSkip(_, player: Player)

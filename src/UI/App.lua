@@ -9,6 +9,7 @@ local GameOver = require(script.Parent.HUD.GameOver)
 local HealthBar = require(script.Parent.HUD.HealthBar)
 local LevelUpChoices = require(script.Parent.HUD.LevelUpChoices)
 local Notifications = require(script.Parent.HUD.Notifications)
+local OffscreenPlayerIndicators = require(script.Parent.HUD.OffscreenPlayerIndicators)
 local PartyTeleporterMenu = require(script.Parent.HUD.PartyTeleporterMenu)
 local RageBar = require(script.Parent.HUD.RageBar)
 local RunHUD = require(script.Parent.HUD.RunHUD)
@@ -32,6 +33,8 @@ return function()
 		ZombieIndex(),
 		-- RunHUD is always mounted so Studio's promoted destination can activate reactively without remounting App.
 		RunHUD(),
+		-- Offscreen teammates remain findable without adding replicated state or changing character ownership.
+		OffscreenPlayerIndicators(),
 		-- Local Humanoid health is presentation-only here; damage and maximum-health changes remain authoritative.
 		HealthBar(),
 		-- Boss health mirrors authoritative zombie snapshots and exists only while the encounter boss is alive.

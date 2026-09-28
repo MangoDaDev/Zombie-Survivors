@@ -437,6 +437,43 @@ function AbilityController.UpgradeRunAbility(player: Player, abilityId: string):
 	return true
 end
 
+function AbilityController.SetRunAbilityLevelForAdmin(player: Player, abilityId: string, targetLevel: number): boolean
+	local runtime = runtimes[player]
+	local definition = AbilityDefinitions.ById[abilityId]
+	local runData = runtime and runtime.runData
+	if not definition
+		or not runData
+		or type(targetLevel) ~= "number"
+		or targetLevel % 1 ~= 0
+		or targetLevel < 1
+		or targetLevel > definition.MaxLevel
+	then
+		return false
+	end
+
+	if not runData.Owned[abilityId] then
+		local equipped = runData.Equipped[definition.Category]
+		if #equipped >= AbilityDefinitions.EquipLimits[definition.Category] then
+			return false
+		end
+		-- This is deliberately run-only: admin testing can inject a build without granting permanent
+		-- ownership or weakening the normal unlock and level-up validation paths.
+		runData.Owned[abilityId] = true
+		table.insert(equipped, abilityId)
+	end
+	runData.Levels[abilityId] = targetLevel
+
+	-- Refresh every scheduler because this path can both add an ability and move it down to an earlier level.
+	refreshAttacks(player)
+	ActiveWeapons.Refresh(player)
+	AdditionalWeapons.Refresh(player)
+	CrowdWeapons.Refresh(player)
+	ExpandedWeapons.Refresh(player)
+	OrbitingSwords.Refresh(player)
+	PassiveEffects.Refresh(player)
+	return true
+end
+
 function AbilityController.SetDiscoveryAcknowledgedCallback(callback)
 	discoveryAcknowledgedCallback = callback
 end

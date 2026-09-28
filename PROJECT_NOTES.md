@@ -21,6 +21,14 @@ Concise project-specific decisions that should survive future changes. General w
 - Coin amounts and coin-spending/claim actions pair their text with `Images.Coin` on the left; yellow text alone is not sufficient.
 - The shared `Button` supports reactive `LeftIcon` and `LeftIconVisible` props for currency actions.
 
+## Multiplayer wayfinding
+
+- Game sessions show safe-edge arrows with Roblox headshots for living offscreen teammates; lobby, local-player, dead-player, and on-screen markers stay hidden, and all projections share one render callback.
+
+## World rewards
+
+- Coin and XP drops share a 120-second authoritative lifetime through `RunProgressionConfig`.
+
 ## Class prerequisites
 
 - Missing or temporarily out-of-sync ability definitions fail closed: the class stays locked and both client and server show a safe fallback instead of indexing a missing definition.
@@ -38,8 +46,14 @@ Concise project-specific decisions that should survive future changes. General w
 ## Ability progression
 
 - Ability milestone requirements use half of their former levels, rounded down, so former level-50 milestones unlock at level 25; continuous weapon upgrades remain available through level 50 and use a stronger early/mid-level curve without changing their level-one baselines or level-50 totals. Passive upgrades retain their gentler curve.
+- Weapon balance reviews must model dense-horde mechanics from the server implementation—including retargeting, unique-hit chains, persistent overlap, geometry, active caps, and crowd control—not rank weapons from displayed stats or single-target damage alone.
+- Level-up spins progressively reduce an owned ability's upgrade weight when it leads the average level of the player's other owned abilities by more than three levels; the card remains possible and its base rarity still applies.
 
 ## Round difficulty
 
-- Later-round difficulty is population-led: horde growth accelerates smoothly with no fixed transition round, while strong-archetype weighting continues at a gentler rate.
+- Later-round difficulty is population-led: the smooth density curve gains a second population slope after the round-15 boss, while capped reinforcement-batch growth and a shrinking interval (floored for server safety) put substantially more zombies on the field together instead of only extending rounds. Strong-archetype weighting remains secondary.
 - Shielders enter after the first boss and reduce frontal direct damage instead of nullifying it, so every solo build can still defeat them while flanking and bypass effects remain rewarded.
+
+## Developer commands
+
+- Developer chat controls reuse `ChatCommandController` authorization; run ability injection is transient, while Coin edits are intentionally persistent. Exact round jumps clear the active horde without awarding abandoned-round completion.
