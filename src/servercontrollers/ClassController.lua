@@ -3,7 +3,6 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Networker = require(ReplicatedStorage.Packages.networker)
 local ClassDefinitions = require(ReplicatedStorage.Modules.Game.Classes.ClassDefinitions)
-local ClassAccessoryFit = require(ReplicatedStorage.Modules.Game.Classes.ClassAccessoryFit)
 local AbilityDefinitions = require(ReplicatedStorage.Modules.Game.Abilities.AbilityDefinitions)
 local CoinsController = require(script.Parent.CoinsController)
 local PlayerStatController = require(script.Parent.PlayerStatController)
@@ -88,7 +87,8 @@ local function meetsPrerequisite(player: Player, definition): boolean
 	local requiredAbilityId = definition.RequiredAbilityId
 	if not requiredAbilityId then return true end
 	local abilities = dataService:get(player, AbilityDefinitions.DataKey)
-	return type(abilities) == "table" and type(abilities.Owned) == "table"
+	return AbilityDefinitions.ById[requiredAbilityId] ~= nil
+		and type(abilities) == "table" and type(abilities.Owned) == "table"
 		and abilities.Owned[requiredAbilityId] == true
 end
 
@@ -103,9 +103,9 @@ local function clearCharacter(player: Player, runtime)
 		runtime.movementConnection:Disconnect()
 		runtime.movementConnection = nil
 	end
-	if runtime.headSizeConnection then
-		runtime.headSizeConnection:Disconnect()
-		runtime.headSizeConnection = nil
+	if runtime.accessoryConnection then
+		runtime.accessoryConnection:Disconnect()
+		runtime.accessoryConnection = nil
 	end
 	runtime.movementRevision += 1
 	runtime.moving = false
@@ -128,9 +128,23 @@ local function applyStats(player: Player)
 	})
 end
 
-local function applyAccessory(player: Player, runtime, character: Model, head: BasePart)
+local function getAccessoryType(instance: Instance): Enum.AccessoryType?
+	if instance:IsA("Accessory") then
+		return instance.AccessoryType
+	end
+	if instance:IsA("Hat") then
+		return Enum.AccessoryType.Hat
+	end
+	return nil
+end
+
+local function applyAccessory(player: Player, runtime, character: Model, humanoid: Humanoid)
 	if player.Character ~= character or runtimes[player] ~= runtime then
 		return
+	end
+	if runtime.accessoryConnection then
+		runtime.accessoryConnection:Disconnect()
+		runtime.accessoryConnection = nil
 	end
 	if runtime.accessory then
 		runtime.accessory:Destroy()
@@ -138,14 +152,19 @@ local function applyAccessory(player: Player, runtime, character: Model, head: B
 	end
 	local assets = ReplicatedStorage.Assets.Models:FindFirstChild("Classes")
 	local template = assets and assets:FindFirstChild(runtime.classId)
-	if not template or not template:IsA("Model") or not template.PrimaryPart then
+	if not template or not template:IsA("Accoutrement") or not template:FindFirstChild("Handle") then
 		warn("Missing authored class accessory: " .. runtime.classId)
 		return
 	end
 	local accessory = template:Clone()
 	accessory.Name = ACCESSORY_NAME
-	-- The fit is shared with the 3D menu preview so both R6 and scaled MeshPart heads wear the same model.
-	ClassAccessoryFit.FitToHead(accessory, head)
+	local accessoryType = getAccessoryType(accessory)
+	-- Class gear must be unobscured: remove only avatar accessories in the same Roblox accessory category.
+	for _, child in character:GetChildren() do
+		if accessoryType and getAccessoryType(child) == accessoryType then
+			child:Destroy()
+		end
+	end
 	for _, descendant in accessory:GetDescendants() do
 		if descendant:IsA("BasePart") then
 			descendant.Anchored = false
@@ -155,13 +174,15 @@ local function applyAccessory(player: Player, runtime, character: Model, head: B
 			descendant.Massless = true
 		end
 	end
-	local headWeld = Instance.new("WeldConstraint")
-	headWeld.Name = "HeadWeld"
-	headWeld.Part0 = head
-	headWeld.Part1 = accessory.PrimaryPart
-	headWeld.Parent = accessory.PrimaryPart
-	accessory.Parent = character
 	runtime.accessory = accessory
+	-- AddAccessory accepts native legacy Hats at runtime; pass the intact object instead of rebuilding its Handle.
+	humanoid:AddAccessory(accessory :: any)
+	-- Appearance can finish loading after CharacterAdded, so enforce the same-type rule for late accessories too.
+	runtime.accessoryConnection = character.ChildAdded:Connect(function(child)
+		if accessoryType and child ~= runtime.accessory and getAccessoryType(child) == accessoryType then
+			child:Destroy()
+		end
+	end)
 end
 
 local function bindMovement(player: Player, runtime, humanoid: Humanoid)
@@ -471,7 +492,9 @@ function ClassController.UnlockClass(_, player: Player, classId: any)
 		return
 	end
 	if not meetsPrerequisite(player, definition) then
-		sendResult(player, false, "Unlock " .. AbilityDefinitions.ById[definition.RequiredAbilityId].Name .. " first.")
+		local requiredAbility = AbilityDefinitions.ById[definition.RequiredAbilityId]
+		-- Configuration mismatches remain locked and return a safe message instead of crashing the request handler.
+		sendResult(player, false, if requiredAbility then "Unlock " .. requiredAbility.Name .. " first." else "This class is temporarily unavailable.")
 		return
 	end
 	local data = getData(player)
@@ -514,14 +537,11 @@ function ClassController.EquipClass(_, player: Player, classId: any)
 	clearRageKillSpeed(player, runtime)
 	applyStats(player)
 	local character = player.Character
-	local head = character and character:FindFirstChild("Head")
 	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 	if humanoid then
 		if runtime.movementConnection then runtime.movementConnection:Disconnect() end
 		bindMovement(player, runtime, humanoid)
-	end
-	if character and head and head:IsA("BasePart") then
-		applyAccessory(player, runtime, character, head)
+		applyAccessory(player, runtime, character, humanoid)
 	end
 	sendResult(player, true, definition.Name .. " equipped!")
 end
@@ -557,7 +577,7 @@ function ClassController.OnPlayerAdded(player: Player)
 		moving = false,
 		movingRangeBonus = false,
 		movementConnection = nil,
-		headSizeConnection = nil,
+		accessoryConnection = nil,
 		accessory = nil,
 		swordHitCount = 0,
 		shieldEndsAt = 0,
@@ -575,20 +595,11 @@ function ClassController.OnCharacterAdded(player: Player, character: Model)
 	end
 	clearCharacter(player, runtime)
 	local humanoid = character:FindFirstChildOfClass("Humanoid") or character:WaitForChild("Humanoid", 10)
-	local head = character:FindFirstChild("Head") or character:WaitForChild("Head", 10)
-	if player.Character ~= character or not humanoid or not humanoid:IsA("Humanoid")
-		or not head or not head:IsA("BasePart")
-	then
+	if player.Character ~= character or not humanoid or not humanoid:IsA("Humanoid") then
 		return
 	end
 	bindMovement(player, runtime, humanoid)
-	applyAccessory(player, runtime, character, head)
-	-- Avatar appearance can resize the head after CharacterAdded; refit without polling.
-	runtime.headSizeConnection = head:GetPropertyChangedSignal("Size"):Connect(function()
-		if player.Character == character and runtimes[player] == runtime then
-			applyAccessory(player, runtime, character, head)
-		end
-	end)
+	applyAccessory(player, runtime, character, humanoid)
 end
 
 function ClassController.OnPlayerRemoving(player: Player)

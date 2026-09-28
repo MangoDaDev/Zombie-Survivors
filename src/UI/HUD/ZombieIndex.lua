@@ -746,6 +746,10 @@ return function()
 									then if portrait() then "REWARD CLAIMED" else "DISCOVERY REWARD CLAIMED"
 									else string.format("CLAIM  +%d COINS", selectedDefinition().DiscoveryReward)
 							end,
+							LeftIcon = Images.Coin,
+							LeftIconVisible = function()
+								return not selectedClaimed()
+							end,
 							Enabled = function()
 								return not selectedClaimed()
 							end,

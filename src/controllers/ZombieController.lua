@@ -7,6 +7,7 @@ local Workspace = game:GetService "Workspace"
 local Networker = require(ReplicatedStorage.Packages.networker)
 local Signal = require(ReplicatedStorage.Packages.signal)
 local ZombieDefinitions = require(ReplicatedStorage.Modules.Game.Zombies.ZombieDefinitions)
+local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
 local ZombieView = require(script.Parent.Zombie.ZombieView)
 
 local ZombieController = {}
@@ -193,15 +194,12 @@ local function makeStudEffectPart(name, color)
 end
 
 local function playEffectSound(soundName: string, parent: Instance, playbackSpeed: number?)
-	local template = ReplicatedStorage.Assets.Sounds:FindFirstChild(soundName)
-	if not template or not template:IsA("Sound") then
-		return
+	local template = Sounds.Get(soundName)
+	if template then
+		Sounds.Play(soundName, parent, nil, {
+			PlaybackSpeed = template.PlaybackSpeed * (playbackSpeed or 1),
+		})
 	end
-	local sound = template:Clone()
-	sound.PlaybackSpeed *= playbackSpeed or 1
-	sound.Parent = parent
-	sound:Play()
-	Debris:AddItem(sound, 4)
 end
 
 local function playBossDeathShockwave(packet)

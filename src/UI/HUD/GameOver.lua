@@ -7,6 +7,7 @@ local StudTexture = require(script.Parent.Parent.Classes.StudTexture)
 local RoundController = require(ReplicatedStorage.Controllers.RoundController)
 local RunSessionController = require(ReplicatedStorage.Controllers.RunSessionController)
 local FormatNumber = require(ReplicatedStorage.Modules.Math.FormatNumber)
+local Images = require(ReplicatedStorage.Modules.UI.Images)
 local UIStyle = require(ReplicatedStorage.Modules.UI.UIStyle)
 local Vide = require(ReplicatedStorage.Packages.vide)
 
@@ -26,7 +27,7 @@ local function formatDuration(seconds: number): string
 	return string.format("%02d:%02d", math.floor(total / 60), total % 60)
 end
 
-local function statTile(name: string, label: string, value, order: number)
+local function statTile(name: string, label: string, value, order: number, icon: string?)
 	return create "Frame" {
 		Name = name,
 		BackgroundColor3 = PANEL_LIGHT,
@@ -47,11 +48,23 @@ local function statTile(name: string, label: string, value, order: number)
 			TextXAlignment = Enum.TextXAlignment.Left,
 			ZIndex = 407,
 		},
+		create "ImageLabel" {
+			Name = "Icon",
+			AnchorPoint = Vector2.new(0, 0.5),
+			BackgroundTransparency = 1,
+			Image = icon or "",
+			Position = UDim2.fromScale(0.07, 0.63),
+			ScaleType = Enum.ScaleType.Fit,
+			Size = UDim2.fromScale(0.16, 0.34),
+			Visible = icon ~= nil,
+			ZIndex = 408,
+			create "UIAspectRatioConstraint" { AspectRatio = 1 },
+		},
 		create "TextLabel" {
 			BackgroundTransparency = 1,
 			FontFace = Font.new(UIStyle.Font.Family, Enum.FontWeight.Bold),
-			Position = UDim2.fromScale(0.07, 0.42),
-			Size = UDim2.fromScale(0.86, 0.42),
+			Position = UDim2.fromScale(if icon then 0.25 else 0.07, 0.42),
+			Size = UDim2.fromScale(if icon then 0.68 else 0.86, 0.42),
 			Text = value,
 			TextColor3 = Color3.fromRGB(239, 243, 247),
 			TextScaled = true,
@@ -229,7 +242,7 @@ return function()
 				end, 2),
 				statTile("Coins", "COINS COLLECTED", function()
 					return FormatNumber(stats().coinsCollected) or "0"
-				end, 3),
+				end, 3, Images.Coin),
 				statTile("XP", "XP COLLECTED", function()
 					return FormatNumber(stats().xpCollected) or "0"
 				end, 4),

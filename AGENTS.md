@@ -4,6 +4,7 @@
 
 - Do not create permanent scripts inside of studio.
 - `default.project.json` defines the source-to-DataModel mapping; `Index.md` is the concise first-party code map.
+- Review `PROJECT_NOTES.md` before changes and keep its project-specific decisions concise and current.
 
 ## Requirements / Rules
 

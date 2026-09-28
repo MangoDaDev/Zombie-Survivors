@@ -55,9 +55,11 @@ local function define(name, overrides)
 end
 
 local ZombieDefinitions = {
-	Walker = define("Walker", { SpawnWeight = 50 }),
+	-- The two immediately available archetypes must fall quickly before the player earns an upgrade:
+	-- these values keep the default level-one Dagger at three hits for a Walker and two for a Runner.
+	Walker = define("Walker", { MaxHealth = 50, SpawnWeight = 50 }),
 	Runner = define("Runner", {
-		MaxHealth = 70, XPValue = 4, CoinValue = 3, MoveSpeed = 14, TurnSpeed = 12, ThreatLevel = 2,
+		MaxHealth = 40, XPValue = 4, CoinValue = 3, MoveSpeed = 14, TurnSpeed = 12, ThreatLevel = 2,
 		AggroDistance = 90, AttackRange = 4, AttackDamage = 3, AttackCooldown = 0.8,
 		AttackWindupDuration = 0.4, AttackStrikeDuration = 0.14, AttackRecoveryDuration = 0.18,
 		SeparationRadius = 1.55, AnimationStyle = "Runner", EffectColor = Color3.fromRGB(158, 190, 105),

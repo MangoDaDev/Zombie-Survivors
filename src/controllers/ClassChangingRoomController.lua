@@ -3,7 +3,6 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
 local ClassController = require(script.Parent.ClassController)
-local ClassAccessoryFit = require(ReplicatedStorage.Modules.Game.Classes.ClassAccessoryFit)
 
 local localPlayer = Players.LocalPlayer
 local ClassChangingRoomController = {}
@@ -23,11 +22,33 @@ local previousCameraCFrame: CFrame?
 local previousFieldOfView: number?
 local viewportConnection: RBXScriptConnection?
 local revision = 0
+local avatarBodyHeight = 6
+
+local function getBodyVerticalBounds(model: Model): (number, number)
+	local minimumY = math.huge
+	local maximumY = -math.huge
+	for _, descendant in model:GetDescendants() do
+		if descendant:IsA("BasePart") and not descendant:FindFirstAncestorWhichIsA("Accessory") then
+			local halfSize = descendant.Size * 0.5
+			local cframe = descendant.CFrame
+			-- Account for rotated limbs so the preview stands on the room floor without using accessory bounds.
+			local verticalExtent = math.abs(cframe.RightVector.Y) * halfSize.X
+				+ math.abs(cframe.UpVector.Y) * halfSize.Y
+				+ math.abs(cframe.LookVector.Y) * halfSize.Z
+			minimumY = math.min(minimumY, cframe.Position.Y - verticalExtent)
+			maximumY = math.max(maximumY, cframe.Position.Y + verticalExtent)
+		end
+	end
+	if minimumY == math.huge then
+		local bounds, size = model:GetBoundingBox()
+		return bounds.Position.Y - size.Y * 0.5, bounds.Position.Y + size.Y * 0.5
+	end
+	return minimumY, maximumY
+end
 
 local function frameCamera()
 	if not avatar or not camera then return end
-	local _, size = avatar:GetBoundingBox()
-	local height = size.Y
+	local height = avatarBodyHeight
 	local viewport = camera.ViewportSize
 	local portrait = viewport.X < 600 and viewport.X < viewport.Y
 	-- Reserve the upper portion of the screen for the entire avatar; the class
@@ -40,6 +61,16 @@ local function frameCamera()
 	local eye = ROOM_POSITION + Vector3.new(lookX, height * 0.55, -distance)
 	camera.CFrame = CFrame.lookAt(eye, target)
 	camera.Focus = CFrame.new(ROOM_POSITION + Vector3.new(0, height * 0.5, 0))
+end
+
+local function getAccessoryType(instance: Instance): Enum.AccessoryType?
+	if instance:IsA("Accessory") then
+		return instance.AccessoryType
+	end
+	if instance:IsA("Hat") then
+		return Enum.AccessoryType.Hat
+	end
+	return nil
 end
 
 local function updateAvatar()
@@ -70,36 +101,53 @@ local function updateAvatar()
 	local oldAccessory = clone:FindFirstChild("ClassAccessory")
 	if oldAccessory then oldAccessory:Destroy() end
 	clone:PivotTo(CFrame.new(ROOM_POSITION))
-	local bounds, size = clone:GetBoundingBox()
-	clone:PivotTo(clone:GetPivot() + Vector3.new(-bounds.Position.X + ROOM_POSITION.X, ROOM_POSITION.Y + size.Y / 2 - bounds.Position.Y, -bounds.Position.Z + ROOM_POSITION.Z))
+	local bodyMinimumY, bodyMaximumY = getBodyVerticalBounds(clone)
+	local rootPart = clone:FindFirstChild("HumanoidRootPart")
+	local bodyCenter = if rootPart and rootPart:IsA("BasePart") then rootPart.Position else clone:GetPivot().Position
+	avatarBodyHeight = math.max(4, bodyMaximumY - bodyMinimumY)
+	clone:PivotTo(clone:GetPivot() + Vector3.new(
+		ROOM_POSITION.X - bodyCenter.X,
+		ROOM_POSITION.Y - bodyMinimumY,
+		ROOM_POSITION.Z - bodyCenter.Z
+	))
 	clone.Parent = scene
 	avatar = clone
+	-- Frame the authored room from body-only bounds before accessory work, so malformed gear can never blank the preview.
+	frameCamera()
 
-	local head = clone:FindFirstChild("Head")
+	local humanoid = clone:FindFirstChildOfClass("Humanoid")
 	local assets = ReplicatedStorage:FindFirstChild("Assets")
 	local models = assets and assets:FindFirstChild("Models")
 	local classes = models and models:FindFirstChild("Classes")
 	local template = classes and classes:FindFirstChild(ClassController.GetPreviewClassId())
-	if head and head:IsA("BasePart") and template and template:IsA("Model") then
-		-- Only the Workspace preview gets this headpiece; purchases and live appearance remain authoritative.
+	if humanoid and template and template:IsA("Accoutrement") then
 		local accessory = template:Clone()
 		accessory.Name = "PreviewClassAccessory"
-		ClassAccessoryFit.FitToHead(accessory, head)
+		local accessoryType = getAccessoryType(accessory)
+		-- Mirror live characters by hiding only avatar accessories that share this class accessory's category.
+		for _, child in clone:GetChildren() do
+			if accessoryType and getAccessoryType(child) == accessoryType then
+				child:Destroy()
+			end
+		end
+		-- Humanoid attachment accepts the intact legacy Hat, preserving its AttachmentPoint and original scale.
+		humanoid:AddAccessory(accessory :: any)
 		for _, part in accessory:GetDescendants() do
 			if part:IsA("BasePart") then
 				part.Anchored = true
 				part.CanCollide = false
+				part.CanTouch = false
+				part.CanQuery = false
 			end
 		end
-		accessory.Parent = clone
 	end
-	frameCamera()
 end
 
 local function closeRoom()
 	revision += 1
 	if viewportConnection then viewportConnection:Disconnect(); viewportConnection = nil end
 	if avatar then avatar:Destroy(); avatar = nil end
+	avatarBodyHeight = 6
 	if scene then scene:Destroy(); scene = nil end
 	if camera and camera == Workspace.CurrentCamera and camera.CameraType == Enum.CameraType.Scriptable then
 		camera.CameraType = previousCameraType or Enum.CameraType.Custom

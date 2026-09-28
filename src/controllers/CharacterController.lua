@@ -1,6 +1,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local SoundService = game:GetService("SoundService")
 local Workspace = game:GetService("Workspace")
 
 local Networker = require(ReplicatedStorage.Packages.networker)
@@ -34,11 +35,18 @@ type CameraState = {
 	fieldOfView: number,
 }
 
+type ListenerState = {
+	listenerType: Enum.ListenerType,
+	listener: any,
+}
+
 local CharacterController = {}
 local CharacterNetwork: Networker.Client?
 local IsReady = false
 local gameplayCameraEnabled = false
 local savedCameraState: CameraState? = nil
+local savedListenerState: ListenerState? = nil
+local gameplayListenerRoot: BasePart? = nil
 local smoothedFocus: Vector3? = nil
 local choiceAvailable = false
 
@@ -74,6 +82,32 @@ local function restoreCamera()
 			state.camera.CameraSubject = state.cameraSubject
 		end
 	end
+end
+
+local function restoreAudioListener()
+	local state = savedListenerState
+	savedListenerState = nil
+	if not state then
+		return
+	end
+
+	local listenerType, listener = SoundService:GetListener()
+	-- Only restore the previous listener while this controller still owns it. A lobby audio system is
+	-- free to replace the listener during a session transition without being overwritten here.
+	if listenerType == Enum.ListenerType.ObjectPosition and listener == gameplayListenerRoot then
+		SoundService:SetListener(state.listenerType, state.listener)
+	end
+	gameplayListenerRoot = nil
+end
+
+local function updateGameplayAudioListener(root: BasePart)
+	local listenerType, listener = SoundService:GetListener()
+	if listenerType ~= Enum.ListenerType.ObjectPosition or listener ~= root then
+		-- The top-down camera sits far above the battlefield, which would heavily attenuate every
+		-- world-space sound. Listen from the character so spatial sounds retain their authored volume.
+		SoundService:SetListener(Enum.ListenerType.ObjectPosition, root)
+	end
+	gameplayListenerRoot = root
 end
 
 local function claimCurrentCamera()
@@ -112,6 +146,7 @@ local function renderGameplayCamera(deltaTime: number)
 	if not root then
 		return
 	end
+	updateGameplayAudioListener(root)
 	-- A live choice reel occupies the upper screen, so frame a little farther ahead along the fixed
 	-- camera heading. This keeps the character slightly lower without moving gameplay geometry.
 	local choiceOffset = if choiceAvailable then Vector3.new(0, 0, -CAMERA_CHOICE_FORWARD_OFFSET) else Vector3.zero
@@ -133,12 +168,18 @@ local function setGameplayCameraEnabled(enabled: boolean)
 	end
 	gameplayCameraEnabled = enabled
 	if enabled then
+		local listenerType, listener = SoundService:GetListener()
+		savedListenerState = {
+			listenerType = listenerType,
+			listener = listener,
+		}
 		claimCurrentCamera()
 		-- This runs just before Roblox's normal camera priority. Scriptable mode prevents the default
 		-- camera from competing, while later one-frame presentation impulses can remain additive.
 		RunService:BindToRenderStep(GAMEPLAY_CAMERA_BINDING, CAMERA_RENDER_PRIORITY, renderGameplayCamera)
 	else
 		RunService:UnbindFromRenderStep(GAMEPLAY_CAMERA_BINDING)
+		restoreAudioListener()
 		restoreCamera()
 	end
 end

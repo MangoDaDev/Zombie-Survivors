@@ -3,8 +3,8 @@ local ClassDefinitions = {}
 ClassDefinitions.DataKey = "Classes"
 ClassDefinitions.DefaultId = "Survivor"
 
--- One definition drives the menu, permanent price, starting weapon, server perks, and authored headpiece.
--- Add future classes here and place a same-named block-built model in Assets.Models.Classes.
+-- One definition drives the menu, permanent price, starting weapon, server perks, and native class accessory.
+-- Keep one sanitized, same-named native Accessory or Hat in Assets.Models.Classes; never rebuild its Handle hierarchy.
 ClassDefinitions.List = {
 	{
 		Id = "Survivor",

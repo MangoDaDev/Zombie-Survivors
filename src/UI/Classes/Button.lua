@@ -19,6 +19,8 @@ export type Props = {
 	BackgroundColor3: Reactive<Color3>?,
 	CornerRadius: Reactive<UDim>?,
 	FontFace: Reactive<Font>?,
+	LeftIcon: Reactive<string>?,
+	LeftIconVisible: Reactive<boolean>?,
 	LayoutOrder: Reactive<number>?,
 	MaxTextSize: Reactive<number>?,
 	MinTextSize: Reactive<number>?,
@@ -36,6 +38,9 @@ return function(props: Props)
 	local hovered, pressed = source(false), source(false)
 	local enabled = derive(function()
 		return readOr(props.Enabled, true)
+	end)
+	local leftIconVisible = derive(function()
+		return props.LeftIcon ~= nil and readOr(props.LeftIconVisible, true)
 	end)
 	local buttonColor = derive(function()
 		return readOr(props.BackgroundColor3, UIStyle.Colors.Blue)
@@ -168,6 +173,24 @@ return function(props: Props)
 				Transparency = UIStyle.InsideStrokeTransparency,
 			},
 		},
+		create "ImageLabel" {
+			Name = "LeftIcon",
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			BackgroundTransparency = 1,
+			Image = function()
+				return readOr(props.LeftIcon, "")
+			end,
+			Position = function()
+				return UDim2.fromScale(0.13, 0.5 + faceDepth())
+			end,
+			ScaleType = Enum.ScaleType.Fit,
+			Size = UDim2.fromScale(0.16, 0.62),
+			Visible = leftIconVisible,
+			ZIndex = 3,
+			create "UIAspectRatioConstraint" {
+				AspectRatio = 1,
+			},
+		},
 		create "TextLabel" {
 			AnchorPoint = Vector2.new(0.5, 0.5),
 			BackgroundTransparency = 1,
@@ -176,10 +199,10 @@ return function(props: Props)
 			end,
 			-- Move the label by the same spring offset as the raised face so the button depresses as one unit.
 			Position = function()
-				return UDim2.fromScale(0.5, readOr(props.TextCenterY, 0.5) + faceDepth())
+				return UDim2.fromScale(if leftIconVisible() then 0.59 else 0.5, readOr(props.TextCenterY, 0.5) + faceDepth())
 			end,
 			Size = function()
-				return readOr(props.TextBounds, UDim2.fromScale(1, 1))
+				return readOr(props.TextBounds, if leftIconVisible() then UDim2.fromScale(0.75, 1) else UDim2.fromScale(1, 1))
 			end,
 			Text = function()
 				return readOr(props.Text, "Button")

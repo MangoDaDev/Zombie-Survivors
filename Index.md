@@ -15,12 +15,12 @@ Quick reference for the reusable first-party Luau foundation. Generated Wally de
 | Path | Responsibility |
 | --- | --- |
 | `src/controllers/ChatCommandController.lua` | Displays server-authorized command responses in modern chat with a notification fallback. |
-| `src/controllers/CharacterController.lua` | Requests server-authorized character spawning, owns the smooth fixed-heading top-down camera only while the Game map is active, shifts choice-time framing slightly ahead so the player sits lower on-screen, restores lobby camera state, and leaves in-run death/respawn ownership to the run session flow. |
+| `src/controllers/CharacterController.lua` | Requests server-authorized character spawning, owns the smooth fixed-heading top-down camera and character-centered 3D-audio listener only while the Game map is active, shifts choice-time framing slightly ahead so the player sits lower on-screen, restores lobby camera/audio state, and leaves in-run death/respawn ownership to the run session flow. |
 | `src/controllers/GameReadyController.lua` | Mirrors the authoritative in-game ready phase and sends the local player's one-way ready request. |
 | `src/controllers/PartyTeleporterController.lua` | Mirrors validated party/setup/loading state, sends leader confirmation and member requests, and presents server messages through the shared notification system. |
 | `src/controllers/AbilityController.lua` | Mirrors persistent ability unlocks, sends lobby purchase requests, and dispatches validated weapon/passive presentation events; run loadouts are presented by the progression snapshot. |
 | `src/controllers/ClassController.lua` | Mirrors saved class ownership/equipment, opens the lobby Classes menu, tracks local preview selection, sends unlock/equip requests, and presents authoritative class kill-proc effects through the shared stud VFX. |
-| `src/controllers/ClassChangingRoomController.lua` | Clones the Studio-authored room and player avatar into client-local Workspace 3D, frames them with the game camera, previews selected headpieces, and restores the camera on close. |
+| `src/controllers/ClassChangingRoomController.lua` | Clones the Studio-authored room and player avatar into client-local Workspace 3D, frames them with the game camera, previews selected fitted class accessories, and restores the camera on close. |
 | `src/controllers/LobbyPlayerBillboardController.lua` | Mounts and cleans up lobby-only Vide overhead cards for every replicated player, driven by validated public survival/class snapshots. |
 | `src/controllers/ZombieIndexController.lua` | Mirrors persistent zombie discoveries and kill counts, coordinates the lobby index menu, and sends one-time discovery reward claims. |
 | `src/controllers/RunProgressionController.lua` | Mirrors the owning player's run-only level, XP, queued legal choices, and current run ability snapshot, and sends indexed card selections. |
@@ -52,7 +52,7 @@ Quick reference for the reusable first-party Luau foundation. Generated Wally de
 | `src/servercontrollers/PartyTeleporterController.lua` | Owns closed-elevator entry/exit, explicitly confirmed leader setup with timeout ejection, party settings/countdowns, Studio loading/completion tracking, and whole-party ejection on teleport failure. |
 | `src/servercontrollers/GameReadyController.lua` | Gates combat in Game sessions until the authoritative destination roster is unanimously ready or the 30-second fallback expires. |
 | `src/servercontrollers/AbilityController.lua` | Owns server-validated coin purchases and persistent unlocks plus transient game-run loadouts/levels, including fresh same-server replay loadouts with hard temporary-effect cleanup, active/passive refreshes, ability-specific Rage behavior, and authoritative damage. |
-| `src/servercontrollers/ClassController.lua` | Owns saved class purchases/equipment, class starting abilities, broad and kill-triggered combat/stat perks, and block-built character headpieces cloned from `Assets.Models.Classes`. |
+| `src/servercontrollers/ClassController.lua` | Owns saved class purchases/equipment, class starting abilities, broad and kill-triggered combat/stat perks, and intact native Accessory/Hat class gear while suppressing same-type avatar accessories. |
 | `src/servercontrollers/SurvivalStatsController.lua` | Persists server-awarded lifetime rounds survived and exposes only each lobby player's public total and equipped class for overhead presentation. |
 | `src/servercontrollers/RunProgressionController.lua` | Owns and resets per-player run XP/levels, applies authoritative Training Manual bonuses, queues every earned level-up, rolls three distinct legal unlocked ability choices, and validates one indexed selection at a time. |
 | `src/servercontrollers/RoundController.lua` | Owns paced shared-party round progression, staged warning/buildup/entrance phases for milestone bosses, breathing windows, cooldown-gated strict-majority skip voting, replay resets to round one, current-round completion, and synchronized snapshots without removing zombies from skipped rounds. |
@@ -115,8 +115,7 @@ These modules provide shared game configuration, persistent player-data defaults
 | `src/modules/Game/Abilities/AbilityDefinitions.lua` | Defines the starter unlock pool (including Orbiting Swords), rarity-priced permanent purchases, five active/five passive per-player limits, expandable ability metadata, upgrade costs, per-level stats, milestones, and Rage tuning. |
 | `src/modules/Game/Abilities/AdditionalAbilityDefinitions.lua` | Defines Shotgun, Frost Nova, Meteor, Turret, Vortex, Giant, Greed, Critical, Adrenaline, and Impact level stats, milestone perks, and Rage tuning. |
 | `src/modules/Game/Abilities/ExpandedAbilityDefinitions.lua` | Defines Crowbar, Crossfire, Buzzsaw, Crusher, Laser Sweep, Armor, Magnet, Executioner, Training Manual, and Overcharge level stats, upgrade milestones, descriptions, and Rage tuning. |
-| `src/modules/Game/Classes/ClassDefinitions.lua` | Defines the extensible 17-class catalog, costs, starting abilities, descriptions, prerequisites, colors, and perk values. |
-| `src/modules/Game/Classes/ClassAccessoryFit.lua` | Fits authored block headpieces to the avatar's actual head size for both equipped characters and changing-room previews. |
+| `src/modules/Game/Classes/ClassDefinitions.lua` | Defines the extensible 17-class catalog, costs, starting abilities, descriptions, prerequisites, colors, perk values, and native same-name Accessory/Hat contract. |
 | `src/modules/Game/Abilities/CrowdWeaponDefinitions.lua` | Centralizes the level, milestone, combat, cap, and unique Rage balance for Aura, Ball, Drill, Mine, and Poison. |
 | `src/modules/Game/Stats/PlayerStatConfig.lua` | Defines the shared starting movement speed, base health, and the global final movement-speed limit. |
 | `src/modules/Game/Rage/RageConfig.lua` | Defines shared Rage capacity, 30-second charge, 10-second duration, keybind, and request cadence. |
@@ -174,7 +173,7 @@ These modules provide shared game configuration, persistent player-data defaults
 | `src/UI/UIOrigin.lua` | Mounts the Vide application once into LocalPlayer.PlayerGui. |
 | `src/UI/App.story.lua` | Exposes the app component for UI story previews. |
 | `src/UI/World/LobbyPlayerBillboard.lua` | Renders the Vide-backed overhead rounds badge and equipped-class label used only while the Lobby map is active. |
-| `src/UI/Classes/Button.lua` | Provides a reusable reactive button with configurable presentation, unified face/text press motion, interaction feedback, and sounds. |
+| `src/UI/Classes/Button.lua` | Provides a reusable reactive button with configurable presentation, optional reactive left iconography, unified face/text press motion, interaction feedback, and sounds. |
 | `src/UI/Classes/Confirmation.lua` | Provides a reusable modal confirmation component. |
 | `src/UI/Classes/StudTexture.lua` | Provides the reusable tiled STUD surface layer used across active HUD panels and menus. |
 | `src/UI/Effects/HoverExpand.lua` | Provides reusable hover scaling for GuiObjects. |
@@ -192,7 +191,7 @@ These modules provide shared game configuration, persistent player-data defaults
 | `src/modules/UI/NotificationManager.lua` | Emits reusable transient notification events. |
 | `src/modules/UI/PlayVFX.lua` | Clones, starts, and cleans up reusable effects and sounds. |
 | `src/modules/UI/SafeArea.lua` | Provides dynamic Roblox topbar-safe offsets. |
-| `src/modules/UI/Sounds.lua` | Resolves optional Studio-owned sound templates and plays cloned copies. |
+| `src/modules/UI/Sounds.lua` | Resolves optional Studio-owned sound templates and plays self-cleaning clones from stable 2D or snapshotted positional emitters, independent of temporary visual lifetimes. |
 | `src/modules/UI/UIStyle.lua` | Centralizes the reusable STUD design tokens. |
 
 ## Local developer tools

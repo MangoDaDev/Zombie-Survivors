@@ -141,10 +141,30 @@ local function classCard(definition, order: number, props)
 			end,
 			ZIndex = 367,
 			StudTexture({ ZIndex = 367, ImageTransparency = 0.89, TileSize = UDim2.fromOffset(36, 36) }),
+			create "ImageLabel" {
+				Name = "Coin",
+				AnchorPoint = Vector2.new(0, 0.5),
+				BackgroundTransparency = 1,
+				Image = Images.Coin,
+				Position = UDim2.new(0, 6, 0.5, 0),
+				Size = function()
+					local size = if props.portrait() then 14 elseif props.shortLandscape() then 17 else 20
+					return UDim2.fromOffset(size, size)
+				end,
+				Visible = function()
+					return not owned()
+				end,
+				ZIndex = 368,
+			},
 			create "TextLabel" {
 				BackgroundTransparency = 1,
 				FontFace = HEAVY_FONT,
-				Size = UDim2.fromScale(1, 1),
+				Position = function()
+					return if owned() then UDim2.fromScale(0, 0) else UDim2.new(0, if props.portrait() then 22 else 29, 0, 0)
+				end,
+				Size = function()
+					return if owned() then UDim2.fromScale(1, 1) else UDim2.new(1, if props.portrait() then -25 else -33, 1, 0)
+				end,
 				Text = function()
 					if equipped() then return "EQUIPPED" end
 					if owned() then return "OWNED" end
@@ -228,12 +248,17 @@ return function()
 	local selectedEquipped = derive(function()
 		return state().Equipped == selectedDefinition().Id
 	end)
+	local requiredAbility = derive(function()
+		local requiredAbilityId = selectedDefinition().RequiredAbilityId
+		return if type(requiredAbilityId) == "string" then AbilityDefinitions.ById[requiredAbilityId] else nil
+	end)
 	local canAfford = derive(function()
 		return balance() >= selectedDefinition().UnlockCost
 	end)
 	local prerequisiteMet = derive(function()
 		local requiredAbilityId = selectedDefinition().RequiredAbilityId
-		return requiredAbilityId == nil or (type(abilityState().Owned) == "table" and abilityState().Owned[requiredAbilityId] == true)
+		return requiredAbilityId == nil
+			or (requiredAbility() ~= nil and type(abilityState().Owned) == "table" and abilityState().Owned[requiredAbilityId] == true)
 	end)
 
 	table.insert(connections, ClassController.GetStateChangedSignal():Connect(function(newState)
@@ -663,12 +688,17 @@ return function()
 							Text = function()
 								if selectedEquipped() then return "EQUIPPED" end
 								if not prerequisiteMet() then
-									local requiredAbility = AbilityDefinitions.ById[selectedDefinition().RequiredAbilityId]
-									return "UNLOCK " .. string.upper(requiredAbility.Name) .. " FIRST"
+									local ability = requiredAbility()
+									-- Missing prerequisite definitions must disable the class without breaking the entire Vide effect.
+									return if ability then "UNLOCK " .. string.upper(ability.Name) .. " FIRST" else "REQUIRED ABILITY UNAVAILABLE"
 								end
 								if selectedOwned() then return "EQUIP CLASS" end
 								local cost = FormatNumber(selectedDefinition().UnlockCost) or tostring(selectedDefinition().UnlockCost)
 								return if canAfford() then "UNLOCK FOR " .. cost .. " COINS" else "NEED " .. cost .. " COINS"
+							end,
+							LeftIcon = Images.Coin,
+							LeftIconVisible = function()
+								return prerequisiteMet() and not selectedOwned() and not selectedEquipped()
 							end,
 							Enabled = function() return prerequisiteMet() and not selectedEquipped() and (selectedOwned() or canAfford()) end,
 							BackgroundColor3 = function()

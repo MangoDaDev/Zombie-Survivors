@@ -922,6 +922,10 @@ return function()
 								end
 								return "UNLOCK FOR " .. costText .. " COINS"
 							end,
+							LeftIcon = Images.Coin,
+							LeftIconVisible = function()
+								return not selectedOwned() and selectedCost() > 0
+							end,
 							Enabled = function()
 								return not selectedOwned() and selectedCost() > 0 and canAfford()
 							end,
