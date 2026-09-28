@@ -9,6 +9,7 @@ local Signal = require(ReplicatedStorage.Packages.signal)
 local AbilityDefinitions = require(ReplicatedStorage.Modules.Game.Abilities.AbilityDefinitions)
 local NotificationManager = require(ReplicatedStorage.Modules.UI.NotificationManager)
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
+local StudVFX = require(ReplicatedStorage.Modules.UI.StudVFX)
 local UIStyle = require(ReplicatedStorage.Modules.UI.UIStyle)
 local ActiveWeaponEffects = require(script.Parent.Ability.ActiveWeaponEffects)
 local AdditionalWeaponEffects = require(script.Parent.Ability.AdditionalWeaponEffects)
@@ -79,6 +80,15 @@ local function emitAt(position: Vector3, flashCount: number, sparkCount: number,
 	light.Brightness = if rage then 1.6 else 0.8
 	light.Range = if rage then 6.5 else 4.5
 	light.Parent = holder
+	StudVFX.Burst(
+		effectsFolder,
+		position,
+		if rage then Color3.fromRGB(255, 91, 35) else Color3.fromRGB(105, 185, 255),
+		math.clamp(math.floor(sparkCount * 0.6), 3, 7),
+		if rage then 2.5 else 1.7,
+		0.2,
+		if rage then Color3.fromRGB(255, 231, 117) else Color3.fromRGB(218, 243, 255)
+	)
 	Debris:AddItem(holder, 2)
 	return holder
 end

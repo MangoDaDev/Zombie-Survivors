@@ -1,9 +1,14 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Images = require(ReplicatedStorage.Modules.UI.Images)
+local AbilityLevelScaling = require(script.Parent.AbilityLevelScaling)
 
 local AdditionalAbilityDefinitions = {}
 local MAX_LEVEL = 50
+
+local function upgradeProgress(level: number): number
+	return AbilityLevelScaling.GetProgress(level, MAX_LEVEL)
+end
 
 local function levelOf(level: number): number
 	return math.clamp(math.floor(level), 1, MAX_LEVEL)
@@ -44,28 +49,28 @@ local shotgun = {
 	Roll = { BaseOdds = 10, Rarity = "Rare", RarityRank = 3 },
 	Combat = { Range = 48, MaximumCandidates = 60, Knockback = 10, SecondBlastDelay = 0.18 },
 	Milestones = {
-		{ Level = 5, Description = "Tight Choke - narrower spread and longer range" },
-		{ Level = 10, Description = "Extra Buckshot - two additional pellets per blast" },
-		{ Level = 20, Description = "Double Barrel - a weaker second blast follows each shot" },
-		{ Level = 30, Description = "Shell Shock - several pellets briefly stagger a zombie" },
-		{ Level = 40, Description = "Heavy Load - pellets pierce one zombie" },
-		{ Level = 50, Description = "Street Sweeper - more pellets and a full-strength second blast" },
+		{ Level = 2, Description = "Tight Choke - narrower spread and longer range" },
+		{ Level = 5, Description = "Extra Buckshot - two additional pellets per blast" },
+		{ Level = 10, Description = "Double Barrel - a weaker second blast follows each shot" },
+		{ Level = 15, Description = "Shell Shock - several pellets briefly stagger a zombie" },
+		{ Level = 20, Description = "Heavy Load - pellets pierce one zombie" },
+		{ Level = 25, Description = "Street Sweeper - more pellets and a full-strength second blast" },
 	},
 }
 
 function shotgun.GetStats(level: number)
 	local valid = levelOf(level)
 	return {
-		Damage = math.floor(11 * (1 + (valid - 1) * 0.045) + 0.5),
-		Pellets = 6 + (if valid >= 10 then 2 else 0) + (if valid >= 50 then 2 else 0),
-		SpreadDegrees = if valid >= 5 then 30 else 38,
-		Range = shotgun.Combat.Range * (1 + (valid - 1) * 0.003) * (if valid >= 5 then 1.15 else 1),
-		PelletRadius = 0.62 * (1 + (valid - 1) * 0.003),
-		Cooldown = math.max(1.18, 2.15 - (valid - 1) * 0.014),
-		SecondBlast = valid >= 20,
-		SecondDamageMultiplier = if valid >= 50 then 1 else 0.62,
-		Stagger = valid >= 30,
-		Pierce = valid >= 40,
+		Damage = math.floor(11 * (1 + upgradeProgress(valid) * 0.045) + 0.5),
+		Pellets = 6 + (if valid >= 5 then 2 else 0) + (if valid >= 25 then 2 else 0),
+		SpreadDegrees = if valid >= 2 then 30 else 38,
+		Range = shotgun.Combat.Range * (1 + upgradeProgress(valid) * 0.003) * (if valid >= 2 then 1.15 else 1),
+		PelletRadius = 0.62 * (1 + upgradeProgress(valid) * 0.003),
+		Cooldown = math.max(1.18, 2.15 - upgradeProgress(valid) * 0.014),
+		SecondBlast = valid >= 10,
+		SecondDamageMultiplier = if valid >= 25 then 1 else 0.62,
+		Stagger = valid >= 15,
+		Pierce = valid >= 20,
 	}
 end
 
@@ -98,27 +103,27 @@ local frostNova = {
 	Roll = { BaseOdds = 20, Rarity = "Epic", RarityRank = 4 },
 	Combat = { WaveDuration = 0.48, MaximumTargets = 60, Knockback = 3, ChillDuration = 2.3 },
 	Milestones = {
-		{ Level = 5, Description = "Wide Nova - larger wave radius" },
-		{ Level = 10, Description = "Deep Chill - stronger and longer slow" },
-		{ Level = 20, Description = "Brittle Ice - the next hit shatters Chill for bonus damage" },
-		{ Level = 30, Description = "Aftershock - a smaller second ring follows each Nova" },
-		{ Level = 40, Description = "Frozen Ground - a lingering ring slows crossing zombies" },
-		{ Level = 50, Description = "Absolute Zero - two full waves can freeze normal zombies" },
+		{ Level = 2, Description = "Wide Nova - larger wave radius" },
+		{ Level = 5, Description = "Deep Chill - stronger and longer slow" },
+		{ Level = 10, Description = "Brittle Ice - the next hit shatters Chill for bonus damage" },
+		{ Level = 15, Description = "Aftershock - a smaller second ring follows each Nova" },
+		{ Level = 20, Description = "Frozen Ground - a lingering ring slows crossing zombies" },
+		{ Level = 25, Description = "Absolute Zero - two full waves can freeze normal zombies" },
 	},
 }
 
 function frostNova.GetStats(level: number)
 	local valid = levelOf(level)
 	return {
-		Damage = math.floor(19 * (1 + (valid - 1) * 0.052) + 0.5),
-		Radius = math.min(19, 10 * (1 + (valid - 1) * 0.006) * (if valid >= 5 then 1.18 else 1)),
-		Cooldown = math.max(2.1, 3.4 - (valid - 1) * 0.018),
-		ChillMultiplier = math.max(0.44, 0.75 - (valid - 1) * 0.003 - (if valid >= 10 then 0.08 else 0)),
-		ChillDuration = frostNova.Combat.ChillDuration + (valid - 1) * 0.013 + (if valid >= 10 then 0.6 else 0),
-		Shatter = valid >= 20,
-		Aftershock = valid >= 30,
-		FrozenGround = valid >= 40,
-		DoubleWave = valid >= 50,
+		Damage = math.floor(19 * (1 + upgradeProgress(valid) * 0.052) + 0.5),
+		Radius = math.min(19, 10 * (1 + upgradeProgress(valid) * 0.006) * (if valid >= 2 then 1.18 else 1)),
+		Cooldown = math.max(2.1, 3.4 - upgradeProgress(valid) * 0.018),
+		ChillMultiplier = math.max(0.44, 0.75 - upgradeProgress(valid) * 0.003 - (if valid >= 5 then 0.08 else 0)),
+		ChillDuration = frostNova.Combat.ChillDuration + upgradeProgress(valid) * 0.013 + (if valid >= 5 then 0.6 else 0),
+		Shatter = valid >= 10,
+		Aftershock = valid >= 15,
+		FrozenGround = valid >= 20,
+		DoubleWave = valid >= 25,
 	}
 end
 
@@ -151,27 +156,27 @@ local meteor = {
 	Roll = { BaseOdds = 40, Rarity = "Legendary", RarityRank = 5 },
 	Combat = { MaximumCandidates = 40, MaximumTargets = 60, Knockback = 17, FragmentCount = 5, FragmentRadius = 2.6 },
 	Milestones = {
-		{ Level = 5, Description = "Fast Fall - shorter warning before impact" },
-		{ Level = 10, Description = "Shockwave - a larger, weaker outer blast" },
-		{ Level = 20, Description = "Twin Impact - targets two separate groups" },
-		{ Level = 30, Description = "Falling Fragments - impact scatters small damaging fragments" },
-		{ Level = 40, Description = "Extinction - impact kills advance the next cast, up to a cap" },
-		{ Level = 50, Description = "Cataclysm - three larger meteors with stronger overlapping impacts" },
+		{ Level = 2, Description = "Fast Fall - shorter warning before impact" },
+		{ Level = 5, Description = "Shockwave - a larger, weaker outer blast" },
+		{ Level = 10, Description = "Twin Impact - targets two separate groups" },
+		{ Level = 15, Description = "Falling Fragments - impact scatters small damaging fragments" },
+		{ Level = 20, Description = "Extinction - impact kills advance the next cast, up to a cap" },
+		{ Level = 25, Description = "Cataclysm - three larger meteors with stronger overlapping impacts" },
 	},
 }
 
 function meteor.GetStats(level: number)
 	local valid = levelOf(level)
 	return {
-		Damage = math.floor(62 * (1 + (valid - 1) * 0.06) * (if valid >= 50 then 1.2 else 1) + 0.5),
-		Radius = math.min(14, 7.5 * (1 + (valid - 1) * 0.006) * (if valid >= 50 then 1.12 else 1)),
-		Range = 72 * (1 + (valid - 1) * 0.005),
-		Cooldown = math.max(3.3, 5.4 - (valid - 1) * 0.025),
-		FallDelay = math.max(0.55, 1.1 - (valid - 1) * 0.004 - (if valid >= 5 then 0.18 else 0)),
-		Count = if valid >= 50 then 3 elseif valid >= 20 then 2 else 1,
-		Shockwave = valid >= 10,
-		Fragments = valid >= 30,
-		Extinction = valid >= 40,
+		Damage = math.floor(62 * (1 + upgradeProgress(valid) * 0.06) * (if valid >= 25 then 1.2 else 1) + 0.5),
+		Radius = math.min(14, 7.5 * (1 + upgradeProgress(valid) * 0.006) * (if valid >= 25 then 1.12 else 1)),
+		Range = 72 * (1 + upgradeProgress(valid) * 0.005),
+		Cooldown = math.max(3.3, 5.4 - upgradeProgress(valid) * 0.025),
+		FallDelay = math.max(0.55, 1.1 - upgradeProgress(valid) * 0.004 - (if valid >= 2 then 0.18 else 0)),
+		Count = if valid >= 25 then 3 elseif valid >= 10 then 2 else 1,
+		Shockwave = valid >= 5,
+		Fragments = valid >= 15,
+		Extinction = valid >= 20,
 	}
 end
 
@@ -203,28 +208,28 @@ local turret = {
 	Roll = { BaseOdds = 25, Rarity = "Epic", RarityRank = 4 },
 	Combat = { MaximumActive = 3, MaximumTargets = 16, Knockback = 6, RailRange = 36 },
 	Milestones = {
-		{ Level = 5, Description = "Long Barrel - more range and faster bullets" },
-		{ Level = 10, Description = "Twin Barrel - two bullets per attack" },
-		{ Level = 20, Description = "Expanded Network - two active turrets" },
-		{ Level = 30, Description = "Target Lock - repeated shots against one zombie grow stronger" },
-		{ Level = 40, Description = "Rail Shot - every fifth attack pierces multiple zombies" },
-		{ Level = 50, Description = "Fortress - three turrets, longer deployment, and more Rail Shots" },
+		{ Level = 2, Description = "Long Barrel - more range and faster bullets" },
+		{ Level = 5, Description = "Twin Barrel - two bullets per attack" },
+		{ Level = 10, Description = "Expanded Network - two active turrets" },
+		{ Level = 15, Description = "Target Lock - repeated shots against one zombie grow stronger" },
+		{ Level = 20, Description = "Rail Shot - every fifth attack pierces multiple zombies" },
+		{ Level = 25, Description = "Fortress - three turrets, longer deployment, and more Rail Shots" },
 	},
 }
 
 function turret.GetStats(level: number)
 	local valid = levelOf(level)
 	return {
-		Damage = math.floor(14 * (1 + (valid - 1) * 0.05) + 0.5),
-		FireInterval = math.max(0.36, 0.8 - (valid - 1) * 0.005) * (if valid >= 50 then 0.85 else 1),
-		Range = 31 * (1 + (valid - 1) * 0.005) * (if valid >= 5 then 1.18 else 1),
-		Duration = 8 * (1 + (valid - 1) * 0.004) * (if valid >= 50 then 1.2 else 1),
-		Cooldown = math.max(6.5, 11 - (valid - 1) * 0.05),
+		Damage = math.floor(14 * (1 + upgradeProgress(valid) * 0.05) + 0.5),
+		FireInterval = math.max(0.36, 0.8 - upgradeProgress(valid) * 0.005) * (if valid >= 25 then 0.85 else 1),
+		Range = 31 * (1 + upgradeProgress(valid) * 0.005) * (if valid >= 2 then 1.18 else 1),
+		Duration = 8 * (1 + upgradeProgress(valid) * 0.004) * (if valid >= 25 then 1.2 else 1),
+		Cooldown = math.max(6.5, 11 - upgradeProgress(valid) * 0.05),
 		BulletRadius = 0.5,
-		Barrels = if valid >= 10 then 2 else 1,
-		MaximumActive = if valid >= 50 then 3 elseif valid >= 20 then 2 else 1,
-		TargetLock = valid >= 30,
-		RailEvery = if valid >= 50 then 4 elseif valid >= 40 then 5 else 0,
+		Barrels = if valid >= 5 then 2 else 1,
+		MaximumActive = if valid >= 25 then 3 elseif valid >= 10 then 2 else 1,
+		TargetLock = valid >= 15,
+		RailEvery = if valid >= 25 then 4 elseif valid >= 20 then 5 else 0,
 	}
 end
 
@@ -257,26 +262,26 @@ local vortex = {
 	Roll = { BaseOdds = 35, Rarity = "Legendary", RarityRank = 5 },
 	Combat = { Range = 62, TickInterval = 0.45, MaximumActive = 6, MaximumTargets = 45, Knockback = 0 },
 	Milestones = {
-		{ Level = 5, Description = "Wide Vortex - larger gravity area" },
-		{ Level = 10, Description = "Strong Gravity - faster inward pull" },
-		{ Level = 20, Description = "Binary Vortex - creates two wells at separate groups" },
-		{ Level = 30, Description = "Compression - damage rises with trapped zombies, up to a cap" },
-		{ Level = 40, Description = "Collapse - an expiring well releases a final blast" },
-		{ Level = 50, Description = "Singularity - three longer, stronger wells with a larger Collapse" },
+		{ Level = 2, Description = "Wide Vortex - larger gravity area" },
+		{ Level = 5, Description = "Strong Gravity - faster inward pull" },
+		{ Level = 10, Description = "Binary Vortex - creates two wells at separate groups" },
+		{ Level = 15, Description = "Compression - damage rises with trapped zombies, up to a cap" },
+		{ Level = 20, Description = "Collapse - an expiring well releases a final blast" },
+		{ Level = 25, Description = "Singularity - three longer, stronger wells with a larger Collapse" },
 	},
 }
 
 function vortex.GetStats(level: number)
 	local valid = levelOf(level)
 	return {
-		Damage = math.floor(8 * (1 + (valid - 1) * 0.05) + 0.5),
-		Radius = math.min(15, 7.5 * (1 + (valid - 1) * 0.006) * (if valid >= 5 then 1.2 else 1) * (if valid >= 50 then 1.1 else 1)),
-		PullSpeed = 3.5 * (1 + (valid - 1) * 0.01) * (if valid >= 10 then 1.25 else 1) * (if valid >= 50 then 1.2 else 1),
-		Duration = math.min(7, 4 * (1 + (valid - 1) * 0.005) * (if valid >= 50 then 1.2 else 1)),
-		Cooldown = math.max(2.8, 4.4 - (valid - 1) * 0.018),
-		Count = if valid >= 50 then 3 elseif valid >= 20 then 2 else 1,
-		Compression = valid >= 30,
-		Collapse = valid >= 40,
+		Damage = math.floor(8 * (1 + upgradeProgress(valid) * 0.05) + 0.5),
+		Radius = math.min(15, 7.5 * (1 + upgradeProgress(valid) * 0.006) * (if valid >= 2 then 1.2 else 1) * (if valid >= 25 then 1.1 else 1)),
+		PullSpeed = 3.5 * (1 + upgradeProgress(valid) * 0.01) * (if valid >= 5 then 1.25 else 1) * (if valid >= 25 then 1.2 else 1),
+		Duration = math.min(7, 4 * (1 + upgradeProgress(valid) * 0.005) * (if valid >= 25 then 1.2 else 1)),
+		Cooldown = math.max(2.8, 4.4 - upgradeProgress(valid) * 0.018),
+		Count = if valid >= 25 then 3 elseif valid >= 10 then 2 else 1,
+		Compression = valid >= 15,
+		Collapse = valid >= 20,
 	}
 end
 
@@ -306,11 +311,11 @@ local giant = {
 	MaxLevel = MAX_LEVEL, BaseUpgradeCost = 115, UpgradeCostGrowth = 1.145,
 	Roll = { BaseOdds = 12, Rarity = "Rare", RarityRank = 3 },
 	Milestones = {
-		{ Level = 5, Description = "Enlarged - adds 1% weapon size" },
-		{ Level = 10, Description = "Wide Reach - adds 1% area radius" },
-		{ Level = 20, Description = "Oversized - adds 1% projectile and weapon hitbox size" },
-		{ Level = 35, Description = "Huge - adds 1% size to all supported weapons" },
-		{ Level = 50, Description = "Colossal - adds 2% size, up to the 14% cap" },
+		{ Level = 2, Description = "Enlarged - adds 1% weapon size" },
+		{ Level = 5, Description = "Wide Reach - adds 1% area radius" },
+		{ Level = 10, Description = "Oversized - adds 1% projectile and weapon hitbox size" },
+		{ Level = 17, Description = "Huge - adds 1% size to all supported weapons" },
+		{ Level = 25, Description = "Colossal - adds 2% size, up to the 14% cap" },
 	},
 }
 
@@ -318,14 +323,14 @@ function giant.GetStats(level: number)
 	local valid = levelOf(level)
 	-- Radius, not area, is capped: even a 14% radius bonus already covers about 30% more ground.
 	-- This stays below the cap until level 50, so every normal upgrade improves coverage.
-	local bonus = 0.02 + (valid - 1) * 0.0014
-	bonus += (if valid >= 5 then 0.01 else 0)
-		+ (if valid >= 35 then 0.01 else 0)
-		+ (if valid >= 50 then 0.02 else 0)
+	local bonus = 0.02 + upgradeProgress(valid) * 0.0014
+	bonus += (if valid >= 2 then 0.01 else 0)
+		+ (if valid >= 17 then 0.01 else 0)
+		+ (if valid >= 25 then 0.02 else 0)
 	return {
 		SizeBonus = math.min(bonus, 0.14),
-		AreaBonus = math.min(bonus + (if valid >= 10 then 0.01 else 0), 0.14),
-		ProjectileBonus = math.min(bonus + (if valid >= 20 then 0.01 else 0), 0.14),
+		AreaBonus = math.min(bonus + (if valid >= 5 then 0.01 else 0), 0.14),
+		ProjectileBonus = math.min(bonus + (if valid >= 10 then 0.01 else 0), 0.14),
 	}
 end
 
@@ -358,21 +363,21 @@ local greed = {
 	MaxLevel = MAX_LEVEL, BaseUpgradeCost = 115, UpgradeCostGrowth = 1.145,
 	Roll = { BaseOdds = 15, Rarity = "Rare", RarityRank = 3 },
 	Milestones = {
-		{ Level = 5, Description = "Lucky Find - higher bonus Coin chance" },
-		{ Level = 10, Description = "Extra Value - bonus drops can award two Coins" },
-		{ Level = 20, Description = "Gold Rush - another chance increase" },
-		{ Level = 35, Description = "Jackpot - a small chance for a valuable Coin drop" },
-		{ Level = 50, Description = "Midas Touch - stronger zombies guarantee extra Coins" },
+		{ Level = 2, Description = "Lucky Find - higher bonus Coin chance" },
+		{ Level = 5, Description = "Extra Value - bonus drops can award two Coins" },
+		{ Level = 10, Description = "Gold Rush - another chance increase" },
+		{ Level = 17, Description = "Jackpot - a small chance for a valuable Coin drop" },
+		{ Level = 25, Description = "Midas Touch - stronger zombies guarantee extra Coins" },
 	},
 }
 
 function greed.GetStats(level: number)
 	local valid = levelOf(level)
 	return {
-		ChancePercent = math.min(35, 6 + (valid - 1) * 0.35 + (if valid >= 5 then 3 else 0) + (if valid >= 20 then 6 else 0) + (if valid >= 50 then 3 else 0)),
-		ExtraValueChancePercent = if valid >= 10 then 18 else 0,
-		JackpotChancePercent = if valid >= 35 then 2.5 else 0,
-		StrongBonus = valid >= 50,
+		ChancePercent = math.min(35, 6 + upgradeProgress(valid) * 0.35 + (if valid >= 2 then 3 else 0) + (if valid >= 10 then 6 else 0) + (if valid >= 25 then 3 else 0)),
+		ExtraValueChancePercent = if valid >= 5 then 18 else 0,
+		JackpotChancePercent = if valid >= 17 then 2.5 else 0,
+		StrongBonus = valid >= 25,
 	}
 end
 
@@ -403,31 +408,31 @@ local critical = {
 	Id = "Critical", Name = "Critical", Category = "Passive",
 	Description = "Direct ability hits sometimes deal increased damage.",
 	UpgradeDescription = "Levels improve critical chance and damage. Milestones provide larger boosts to each.",
-	RageDescription = "Critical chance and damage rise substantially during Rage; level 50 adds an even stronger Rage critical.",
+	RageDescription = "Critical chance and damage rise substantially during Rage; level 25 adds an even stronger Rage critical.",
 	Icon = Images.Abilities.Critical, Color = Color3.fromRGB(255, 103, 68),
 	MaxLevel = MAX_LEVEL, BaseUpgradeCost = 125, UpgradeCostGrowth = 1.147,
 	Roll = { BaseOdds = 20, Rarity = "Epic", RarityRank = 4 },
 	Milestones = {
-		{ Level = 5, Description = "Sharp Strike - stronger critical damage" },
-		{ Level = 10, Description = "Keen Eye - increased critical chance" },
-		{ Level = 20, Description = "Heavy Critical - another large damage bonus" },
-		{ Level = 35, Description = "Reliable Critical - another chance increase" },
-		{ Level = 50, Description = "Perfect Strike - more chance and damage, especially during Rage" },
+		{ Level = 2, Description = "Sharp Strike - stronger critical damage" },
+		{ Level = 5, Description = "Keen Eye - increased critical chance" },
+		{ Level = 10, Description = "Heavy Critical - another large damage bonus" },
+		{ Level = 17, Description = "Reliable Critical - another chance increase" },
+		{ Level = 25, Description = "Perfect Strike - more chance and damage, especially during Rage" },
 	},
 }
 
 function critical.GetStats(level: number)
 	local valid = levelOf(level)
 	return {
-		ChancePercent = math.min(28, 5 + (valid - 1) * 0.22 + (if valid >= 10 then 3 else 0) + (if valid >= 35 then 4 else 0) + (if valid >= 50 then 3 else 0)),
-		DamageMultiplier = 1.5 + (valid - 1) * 0.006 + (if valid >= 5 then 0.12 else 0) + (if valid >= 20 then 0.18 else 0) + (if valid >= 50 then 0.15 else 0),
+		ChancePercent = math.min(28, 5 + upgradeProgress(valid) * 0.22 + (if valid >= 5 then 3 else 0) + (if valid >= 17 then 4 else 0) + (if valid >= 25 then 3 else 0)),
+		DamageMultiplier = 1.5 + upgradeProgress(valid) * 0.006 + (if valid >= 2 then 0.12 else 0) + (if valid >= 10 then 0.18 else 0) + (if valid >= 25 then 0.15 else 0),
 	}
 end
 
 function critical.GetRageStats(level: number)
 	local stats = critical.GetStats(level)
 	stats.ChancePercent = math.min(45, stats.ChancePercent * 1.6)
-	stats.DamageMultiplier += if level >= 50 then 0.45 else 0.3
+	stats.DamageMultiplier += if level >= 25 then 0.45 else 0.3
 	return stats
 end
 
@@ -452,25 +457,25 @@ local adrenaline = {
 	MaxLevel = MAX_LEVEL, BaseUpgradeCost = 110, UpgradeCostGrowth = 1.145,
 	Roll = { BaseOdds = 12, Rarity = "Rare", RarityRank = 3 },
 	Milestones = {
-		{ Level = 5, Description = "Quick Response - more attack speed" },
-		{ Level = 10, Description = "Early Rush - activates below 45% health" },
-		{ Level = 20, Description = "Surge - substantially more attack speed" },
-		{ Level = 35, Description = "Last Push - activates below 50% health" },
-		{ Level = 50, Description = "Maximum Adrenaline - strongest speed bonus, greatly empowered in Rage" },
+		{ Level = 2, Description = "Quick Response - more attack speed" },
+		{ Level = 5, Description = "Early Rush - activates below 45% health" },
+		{ Level = 10, Description = "Surge - substantially more attack speed" },
+		{ Level = 17, Description = "Last Push - activates below 50% health" },
+		{ Level = 25, Description = "Maximum Adrenaline - strongest speed bonus, greatly empowered in Rage" },
 	},
 }
 
 function adrenaline.GetStats(level: number)
 	local valid = levelOf(level)
 	return {
-		SpeedBonusPercent = math.min(38, 8 + (valid - 1) * 0.27 + (if valid >= 5 then 3 else 0) + (if valid >= 20 then 6 else 0) + (if valid >= 50 then 5 else 0)),
-		HealthThresholdPercent = if valid >= 35 then 50 elseif valid >= 10 then 45 else 40,
+		SpeedBonusPercent = math.min(38, 8 + upgradeProgress(valid) * 0.27 + (if valid >= 2 then 3 else 0) + (if valid >= 10 then 6 else 0) + (if valid >= 25 then 5 else 0)),
+		HealthThresholdPercent = if valid >= 17 then 50 elseif valid >= 5 then 45 else 40,
 	}
 end
 
 function adrenaline.GetRageStats(level: number)
 	local stats = adrenaline.GetStats(level)
-	stats.SpeedBonusPercent = math.min(55, stats.SpeedBonusPercent * (if level >= 50 then 1.7 else 1.5))
+	stats.SpeedBonusPercent = math.min(55, stats.SpeedBonusPercent * (if level >= 25 then 1.7 else 1.5))
 	return stats
 end
 
@@ -495,26 +500,26 @@ local impact = {
 	MaxLevel = MAX_LEVEL, BaseUpgradeCost = 110, UpgradeCostGrowth = 1.145,
 	Roll = { BaseOdds = 12, Rarity = "Rare", RarityRank = 3 },
 	Milestones = {
-		{ Level = 5, Description = "Heavy Hits - stronger knockback" },
-		{ Level = 10, Description = "Strong Push - weak attacks gain a better push" },
-		{ Level = 20, Description = "Massive Force - substantially stronger knockback" },
-		{ Level = 35, Description = "Unsteady - resistant zombies are briefly slowed" },
-		{ Level = 50, Description = "Unstoppable Force - maximum knockback and a stronger Rage bonus" },
+		{ Level = 2, Description = "Heavy Hits - stronger knockback" },
+		{ Level = 5, Description = "Strong Push - weak attacks gain a better push" },
+		{ Level = 10, Description = "Massive Force - substantially stronger knockback" },
+		{ Level = 17, Description = "Unsteady - resistant zombies are briefly slowed" },
+		{ Level = 25, Description = "Unstoppable Force - maximum knockback and a stronger Rage bonus" },
 	},
 }
 
 function impact.GetStats(level: number)
 	local valid = levelOf(level)
 	return {
-		KnockbackBonusPercent = math.min(75, 12 + (valid - 1) * 0.7 + (if valid >= 5 then 6 else 0) + (if valid >= 20 then 12 else 0) + (if valid >= 50 then 10 else 0)),
-		MinimumKnockback = if valid >= 10 then 3.5 else 2,
-		SlowResistant = valid >= 35,
+		KnockbackBonusPercent = math.min(75, 12 + upgradeProgress(valid) * 0.7 + (if valid >= 2 then 6 else 0) + (if valid >= 10 then 12 else 0) + (if valid >= 25 then 10 else 0)),
+		MinimumKnockback = if valid >= 5 then 3.5 else 2,
+		SlowResistant = valid >= 17,
 	}
 end
 
 function impact.GetRageStats(level: number)
 	local stats = impact.GetStats(level)
-	stats.KnockbackBonusPercent = math.min(125, stats.KnockbackBonusPercent * (if level >= 50 then 1.8 else 1.6))
+	stats.KnockbackBonusPercent = math.min(125, stats.KnockbackBonusPercent * (if level >= 25 then 1.8 else 1.6))
 	stats.MinimumKnockback *= 1.5
 	return stats
 end

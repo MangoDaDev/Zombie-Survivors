@@ -513,7 +513,8 @@ local function updateTurrets(now: number)
 			abilityNetwork:fireAll("TurretFired", {
 				id = turret.id, origin = origin, targetPosition = target.position,
 				endpoints = endpoints, bulletRadius = stats.BulletRadius,
-				rage = rage, rail = rail, fast = level >= 5,
+				-- Match the condensed Long Barrel milestone so its faster-shot presentation unlocks at level 2.
+				rage = rage, rail = rail, fast = level >= 2,
 			})
 			turret.nextFireAt = now + stats.FireInterval * PassiveEffects.GetCooldownMultiplier(turret.player)
 		end

@@ -17,6 +17,20 @@ ClassDefinitions.List = {
 		Bonuses = { MaxHealth = 0.15, PickupMagnet = 0.25 },
 	},
 	{
+		Id = "BladeDancer",
+		Name = "Blade Dancer",
+		Description = "Orbits blades faster and earns a brief shield through sustained sword hits.",
+		AbilityId = "OrbitingSwords",
+		RequiredAbilityId = "OrbitingSwords",
+		PerkText = "+12% sword orbit speed and radius  |  every 10th hit grants a brief shield",
+		-- Blade Dancer is deliberately the cheapest purchasable class so the automatically unlocked
+		-- Orbiting Swords ability has an accessible matching class at the start of progression.
+		UnlockCost = 300,
+		Color = Color3.fromRGB(180, 161, 255),
+		-- The shield cuts incoming zombie damage by 25% for 2s after every tenth sword hit.
+		Bonuses = { OrbitSpeed = 0.12, OrbitRadius = 0.12, SwordShieldEveryHits = 10, SwordShieldDuration = 2, SwordShieldDamageReduction = 0.25 },
+	},
+	{
 		Id = "Scout",
 		Name = "Scout",
 		Description = "Stay on the move and strike from farther away.",
@@ -117,18 +131,6 @@ ClassDefinitions.List = {
 		UnlockCost = 6000,
 		Color = Color3.fromRGB(224, 202, 118),
 		Bonuses = { CoinReward = 0.15, CoinPickupRadius = 0.20, PowerupLifetime = 5, WeaponDamage = -0.08 },
-	},
-	{
-		Id = "BladeDancer",
-		Name = "Blade Dancer",
-		Description = "Orbits blades faster and earns a brief shield through sustained sword hits.",
-		AbilityId = "OrbitingSwords",
-		RequiredAbilityId = "OrbitingSwords",
-		PerkText = "+12% sword orbit speed and radius  |  every 10th hit grants a brief shield",
-		UnlockCost = 7200,
-		Color = Color3.fromRGB(180, 161, 255),
-		-- The shield cuts incoming zombie damage by 25% for 2s after every tenth sword hit.
-		Bonuses = { OrbitSpeed = 0.12, OrbitRadius = 0.12, SwordShieldEveryHits = 10, SwordShieldDuration = 2, SwordShieldDamageReduction = 0.25 },
 	},
 	{
 		Id = "Gunslinger",

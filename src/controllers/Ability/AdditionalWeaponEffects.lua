@@ -5,6 +5,7 @@ local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
+local StudVFX = require(ReplicatedStorage.Modules.UI.StudVFX)
 
 local AdditionalWeaponEffects = {}
 
@@ -22,24 +23,7 @@ local function finite(value): boolean
 end
 
 local function makeBlock(name: string, size: Vector3, color: Color3, transparency: number?): Part
-	local part = Instance.new("Part")
-	part.Name = name
-	part.Size = size
-	part.Color = color
-	part.Material = Enum.Material.Plastic
-	part.Transparency = transparency or 0
-	part.Anchored = true
-	part.CanCollide = false
-	part.CanQuery = false
-	part.CanTouch = false
-	part.CastShadow = false
-	part.TopSurface = Enum.SurfaceType.Studs
-	part.BottomSurface = Enum.SurfaceType.Studs
-	part.FrontSurface = Enum.SurfaceType.Studs
-	part.BackSurface = Enum.SurfaceType.Studs
-	part.LeftSurface = Enum.SurfaceType.Studs
-	part.RightSurface = Enum.SurfaceType.Studs
-	return part
+	return StudVFX.CreateBlock(nil, name, size, color, transparency)
 end
 
 local function makeRing(name: string, radius: number, color: Color3, segmentCount: number): Model?
@@ -64,43 +48,11 @@ local function makeRing(name: string, radius: number, color: Color3, segmentCoun
 end
 
 local function burstStuds(position: Vector3, color: Color3, count: number, distance: number, duration: number)
-	if not effectsFolder then
-		return
-	end
-	for index = 1, count do
-		local angle = (index - 1) / count * math.pi * 2 + random:NextNumber(-0.12, 0.12)
-		local direction = Vector3.new(math.cos(angle), random:NextNumber(0.16, 0.48), math.sin(angle)).Unit
-		local length = random:NextNumber(0.55, 0.95)
-		local stud = makeBlock("AbilityBurstStud", Vector3.new(0.24, 0.24, length), color, 0.08)
-		stud.CFrame = CFrame.lookAt(position + direction * 0.35, position + direction)
-		stud.Parent = effectsFolder
-		TweenService:Create(stud, TweenInfo.new(duration, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-			CFrame = CFrame.lookAt(position + direction * distance, position + direction * (distance + 1)),
-			Transparency = 1,
-			Size = Vector3.new(0.12, 0.12, length * 0.35),
-		}):Play()
-		Debris:AddItem(stud, duration + 0.05)
-	end
+	StudVFX.Burst(effectsFolder, position, color, count, distance, duration)
 end
 
 local function flash(position: Vector3, color: Color3, radius: number, duration: number)
-	if not effectsFolder then
-		return
-	end
-	local part = makeBlock("AbilityFlash", Vector3.one * 0.2, color:Lerp(Color3.new(1, 1, 1), 0.42), 0.08)
-	part.CFrame = CFrame.new(position)
-	part.Parent = effectsFolder
-	local light = Instance.new("PointLight")
-	light.Color = color
-	light.Brightness = math.clamp(radius * 0.45, 1.2, 3.5)
-	light.Range = math.max(radius * 1.4, 5)
-	light.Parent = part
-	TweenService:Create(part, TweenInfo.new(duration, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-		Size = Vector3.one * radius,
-		Transparency = 1,
-	}):Play()
-	TweenService:Create(light, TweenInfo.new(duration), { Brightness = 0 }):Play()
-	Debris:AddItem(part, duration + 0.05)
+	StudVFX.Flash(effectsFolder, position, color, radius, duration)
 end
 
 local function pulse(position: Vector3, radius: number, color: Color3, duration: number, soundName: string?)

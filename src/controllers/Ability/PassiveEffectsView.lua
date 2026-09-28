@@ -3,6 +3,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
+local StudVFX = require(ReplicatedStorage.Modules.UI.StudVFX)
 local ZombieController = require(script.Parent.Parent.ZombieController)
 
 local PassiveEffectsView = {}
@@ -27,12 +28,7 @@ local function makePart(name: string, position: Vector3, color: Color3, shape: E
 	part.CastShadow = false
 	part.Position = position
 	if shape == Enum.PartType.Block then
-		part.TopSurface = Enum.SurfaceType.Studs
-		part.BottomSurface = Enum.SurfaceType.Studs
-		part.FrontSurface = Enum.SurfaceType.Studs
-		part.BackSurface = Enum.SurfaceType.Studs
-		part.LeftSurface = Enum.SurfaceType.Studs
-		part.RightSurface = Enum.SurfaceType.Studs
+		StudVFX.PreparePart(part)
 	end
 	part.Parent = effectsFolder
 	return part
@@ -91,6 +87,7 @@ end
 
 function PassiveEffectsView.BlastTriggered(packet)
 	local color = if packet.secondary then Color3.fromRGB(255, 76, 29) else Color3.fromRGB(255, 157, 47)
+	StudVFX.Ring(effectsFolder, packet.position + Vector3.yAxis * 0.12, color, packet.radius, 0.28, 18)
 	local ring = makePart("BlastRadius", packet.position, color, Enum.PartType.Cylinder)
 	if ring then
 		ring.Size = Vector3.new(0.12, 0.2, 0.2)
@@ -333,6 +330,8 @@ end
 function PassiveEffectsView.OverchargeTriggered(packet)
 	if type(packet) ~= "table" or typeof(packet.position) ~= "Vector3" then return end
 	local color = Color3.fromRGB(230, 83, 255)
+	StudVFX.Flash(effectsFolder, packet.position + Vector3.yAxis * 0.5, color, 3.8, 0.24)
+	StudVFX.Ring(effectsFolder, packet.position + Vector3.yAxis * 0.12, color, 4.5, 0.3, 12)
 	radialStudBurst(packet.position, color, 12, 4.5, 0.28)
 	local soundAnchor
 	for index = 1, 2 do

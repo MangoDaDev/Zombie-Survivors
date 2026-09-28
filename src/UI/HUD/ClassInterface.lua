@@ -40,6 +40,15 @@ local function getAbility(definition)
 	return AbilityDefinitions.ById[definition.AbilityId]
 end
 
+local function hasRequiredAbility(abilityState, definition): boolean
+	local requiredAbilityId = definition.RequiredAbilityId
+	return requiredAbilityId == nil
+		or (AbilityDefinitions.ById[requiredAbilityId] ~= nil
+			and type(abilityState) == "table"
+			and type(abilityState.Owned) == "table"
+			and abilityState.Owned[requiredAbilityId] == true)
+end
+
 local function classCard(definition, order: number, props)
 	local hovered = source(false)
 	local owned = derive(function()
@@ -50,6 +59,9 @@ local function classCard(definition, order: number, props)
 	end)
 	local equipped = derive(function()
 		return props.state().Equipped == definition.Id
+	end)
+	local prerequisiteMet = derive(function()
+		return hasRequiredAbility(props.abilityState(), definition)
 	end)
 	local scale = spring(function()
 		return if hovered() then 1.015 else 1
@@ -132,7 +144,9 @@ local function classCard(definition, order: number, props)
 			Name = "StateBadge",
 			AnchorPoint = function() return if props.portrait() then Vector2.new(1, 0) else Vector2.new(1, 0.5) end,
 			BackgroundColor3 = function()
-				return if equipped() then UIStyle.Colors.Green elseif owned() then Color3.fromRGB(28, 110, 143) else Color3.fromRGB(67, 55, 26)
+				if equipped() then return UIStyle.Colors.Green end
+				if not prerequisiteMet() then return UIStyle.Colors.Muted end
+				return if owned() then Color3.fromRGB(28, 110, 143) else Color3.fromRGB(67, 55, 26)
 			end,
 			BorderSizePixel = 0,
 			Position = function() return if props.portrait() then UDim2.new(1, -8, 0, 9) else UDim2.new(1, -9, 0.5, 0) end,
@@ -152,7 +166,7 @@ local function classCard(definition, order: number, props)
 					return UDim2.fromOffset(size, size)
 				end,
 				Visible = function()
-					return not owned()
+					return not owned() and prerequisiteMet()
 				end,
 				ZIndex = 368,
 			},
@@ -160,18 +174,25 @@ local function classCard(definition, order: number, props)
 				BackgroundTransparency = 1,
 				FontFace = HEAVY_FONT,
 				Position = function()
-					return if owned() then UDim2.fromScale(0, 0) else UDim2.new(0, if props.portrait() then 22 else 29, 0, 0)
+					return if owned() or not prerequisiteMet()
+						then UDim2.fromScale(0, 0)
+						else UDim2.new(0, if props.portrait() then 22 else 29, 0, 0)
 				end,
 				Size = function()
-					return if owned() then UDim2.fromScale(1, 1) else UDim2.new(1, if props.portrait() then -25 else -33, 1, 0)
+					return if owned() or not prerequisiteMet()
+						then UDim2.fromScale(1, 1)
+						else UDim2.new(1, if props.portrait() then -25 else -33, 1, 0)
 				end,
 				Text = function()
 					if equipped() then return "EQUIPPED" end
+					-- The scrolling list replaces the coin cost with the prerequisite state so a blocked
+					-- class never looks purchasable before its starting ability has been unlocked.
+					if not prerequisiteMet() then return "ABILITY LOCKED" end
 					if owned() then return "OWNED" end
 					return FormatNumber(definition.UnlockCost) or tostring(definition.UnlockCost)
 				end,
 				TextColor3 = function()
-					return if owned() then PAPER else Color3.fromRGB(255, 224, 129)
+					return if owned() or not prerequisiteMet() then PAPER else Color3.fromRGB(255, 224, 129)
 				end,
 				TextScaled = true,
 				ZIndex = 368,
@@ -256,9 +277,7 @@ return function()
 		return balance() >= selectedDefinition().UnlockCost
 	end)
 	local prerequisiteMet = derive(function()
-		local requiredAbilityId = selectedDefinition().RequiredAbilityId
-		return requiredAbilityId == nil
-			or (requiredAbility() ~= nil and type(abilityState().Owned) == "table" and abilityState().Owned[requiredAbilityId] == true)
+		return hasRequiredAbility(abilityState(), selectedDefinition())
 	end)
 
 	table.insert(connections, ClassController.GetStateChangedSignal():Connect(function(newState)
@@ -300,6 +319,7 @@ return function()
 	for order, definition in ClassDefinitions.List do
 		table.insert(cards, classCard(definition, order, {
 			state = state,
+			abilityState = abilityState,
 			selectedId = selectedId,
 			portrait = portrait,
 			compactPortrait = compactPortrait,

@@ -4,7 +4,7 @@
 
 - Crowbar, Crossfire, Buzzsaw, Crusher, and Laser Sweep are server-authored weapons rendered as client-local stud-built effects.
 - Armor, Magnet, Executioner, Training Manual, and Overcharge are server-authoritative passives.
-- Every added ability has continuous level scaling, five or six milestone upgrades through level 50, and a distinct Rage variant.
+- Every added ability has continuous level scaling, condensed milestone upgrades through level 25, and a distinct Rage variant.
 
 ## Preserved decisions
 

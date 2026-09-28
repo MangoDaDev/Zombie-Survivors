@@ -6,6 +6,7 @@ local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
+local StudVFX = require(ReplicatedStorage.Modules.UI.StudVFX)
 local ZombieController = require(script.Parent.Parent.ZombieController)
 
 local BOOMERANG_HOMING_SPEED = 7
@@ -244,6 +245,17 @@ end
 
 local function playExplosion(position: Vector3, radius: number, rage: boolean, empowered: boolean)
 	local color = if rage then Color3.fromRGB(255, 64, 15) else Color3.fromRGB(255, 123, 28)
+	-- A segmented ground ring and chunky two-tone debris keep the explosion readable in the game's stud-built style.
+	StudVFX.Ring(effectsFolder, position + Vector3.yAxis * 0.14, color, radius * 1.08, 0.38, 20)
+	StudVFX.Burst(
+		effectsFolder,
+		position + Vector3.yAxis * 0.35,
+		color,
+		if rage or empowered then 16 else 11,
+		math.min(radius * 0.72, 9),
+		if rage then 0.42 else 0.34,
+		Color3.fromRGB(255, 232, 118)
+	)
 	local flash = makeSphere("FireballImpact", position, Color3.fromRGB(255, 235, 123), 1.2, 0.05)
 	if flash then
 		local light = Instance.new("PointLight")
@@ -439,6 +451,15 @@ local function playLightningImpact(position: Vector3, rage: boolean, final: bool
 			"LightningImpactSpark"
 		)
 	end
+	StudVFX.Burst(
+		effectsFolder,
+		position + Vector3.yAxis * 0.3,
+		if rage then Color3.fromRGB(255, 211, 65) else Color3.fromRGB(72, 188, 255),
+		if final then 8 else 4,
+		if final then 3.2 else 1.8,
+		0.2,
+		Color3.fromRGB(230, 250, 255)
+	)
 end
 
 local function advanceBoomerangStep(projectile, deltaTime: number)
@@ -622,6 +643,7 @@ function ActiveWeaponEffects.FireballGroundCreated(packet)
 	area.CanTouch = false
 	area.CastShadow = false
 	area.Parent = effectsFolder
+	StudVFX.Ring(effectsFolder, packet.position + Vector3.yAxis * 0.12, area.Color, packet.radius, 0.34, 18)
 	local light = Instance.new("PointLight")
 	light.Color = area.Color
 	light.Brightness = if packet.rage then 1.15 else 0.65
@@ -814,6 +836,15 @@ function ActiveWeaponEffects.BoomerangHit(packet)
 		Sounds.Play("BulletHit", flash, 90)
 		Debris:AddItem(flash, 0.18)
 	end
+	StudVFX.Burst(
+		effectsFolder,
+		packet.position + Vector3.yAxis * 0.25,
+		if packet.rage then Color3.fromRGB(255, 119, 33) else Color3.fromRGB(255, 177, 61),
+		if packet.rage then 8 else 5,
+		if packet.rage then 2.7 else 1.9,
+		0.2,
+		Color3.fromRGB(255, 238, 151)
+	)
 	emitImpactParticles(
 		packet.position,
 		Color3.fromRGB(255, 242, 157),

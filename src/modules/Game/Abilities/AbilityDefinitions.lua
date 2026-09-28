@@ -1,11 +1,16 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Images = require(ReplicatedStorage.Modules.UI.Images)
+local AbilityLevelScaling = require(script.Parent.AbilityLevelScaling)
 local CrowdWeaponDefinitions = require(script.Parent.CrowdWeaponDefinitions)
 local AdditionalAbilityDefinitions = require(script.Parent.AdditionalAbilityDefinitions)
 local ExpandedAbilityDefinitions = require(script.Parent.ExpandedAbilityDefinitions)
 
 local AbilityDefinitions = {}
+
+local function upgradeProgress(level: number): number
+	return AbilityLevelScaling.GetProgress(level, 50)
+end
 
 AbilityDefinitions.DataKey = "Abilities"
 AbilityDefinitions.Categories = {
@@ -48,55 +53,55 @@ AbilityDefinitions.EquipLimits = {
 }
 
 local function getDaggerCount(level: number): number
-	if level >= 50 then
+	if level >= 25 then
 		return 5
-	elseif level >= 20 then
-		return 4
 	elseif level >= 10 then
-		return 3
+		return 4
 	elseif level >= 5 then
+		return 3
+	elseif level >= 2 then
 		return 2
 	end
 	return 1
 end
 
 local function getOrbitingSwordCount(level: number): number
-	if level >= 50 then
+	if level >= 25 then
 		return 4
-	elseif level >= 20 then
+	elseif level >= 10 then
 		return 3
-	elseif level >= 5 then
+	elseif level >= 2 then
 		return 2
 	end
 	return 1
 end
 
 local function getFireballCount(level: number): number
-	if level >= 50 then
+	if level >= 25 then
 		return 4
-	elseif level >= 30 then
+	elseif level >= 15 then
 		return 3
-	elseif level >= 10 then
+	elseif level >= 5 then
 		return 2
 	end
 	return 1
 end
 
 local function getLightningTargetCount(level: number): number
-	if level >= 50 then
+	if level >= 25 then
 		return 9
-	elseif level >= 30 then
+	elseif level >= 15 then
 		return 7
-	elseif level >= 5 then
+	elseif level >= 2 then
 		return 5
 	end
 	return 3
 end
 
 local function getBoomerangCount(level: number): number
-	if level >= 30 then
+	if level >= 15 then
 		return 3
-	elseif level >= 10 then
+	elseif level >= 5 then
 		return 2
 	end
 	return 1
@@ -145,19 +150,19 @@ local dagger = {
 		VolleyStagger = 0.05,
 	},
 	Milestones = {
-		{ Level = 5, Description = "Throws 2 Daggers" },
-		{ Level = 10, Description = "Throws 3 Daggers" },
-		{ Level = 20, Description = "Throws 4 Daggers" },
-		{ Level = 50, Description = "Throws 5 Daggers" },
+		{ Level = 2, Description = "Throws 2 Daggers" },
+		{ Level = 5, Description = "Throws 3 Daggers" },
+		{ Level = 10, Description = "Throws 4 Daggers" },
+		{ Level = 25, Description = "Throws 5 Daggers" },
 	},
 }
 
 function dagger.GetStats(level: number)
 	local clampedLevel = math.clamp(math.floor(level), 1, dagger.MaxLevel)
 	return {
-		Damage = math.floor(22 + (clampedLevel - 1) * 3.1 + 0.5),
+		Damage = math.floor(22 + upgradeProgress(clampedLevel) * 3.1 + 0.5),
 		ProjectileScale = dagger.Combat.BaseProjectileScale
-			+ (clampedLevel - 1) * dagger.Combat.ProjectileScalePerLevel,
+			+ upgradeProgress(clampedLevel) * dagger.Combat.ProjectileScalePerLevel,
 		DaggerCount = getDaggerCount(clampedLevel),
 	}
 end
@@ -249,25 +254,25 @@ local orbitingSwords = {
 		KnockbackMultiplier = 1.18,
 	},
 	Milestones = {
-		{ Level = 5, Description = "Twin Blades - adds a second sword opposite the first" },
-		{ Level = 10, Description = "Extended Reach - noticeably widens the orbit" },
-		{ Level = 15, Description = "Serrated Blades - Sword hits apply Wounded" },
-		{ Level = 20, Description = "Triple Blades - adds a third equally spaced sword" },
-		{ Level = 25, Description = "Momentum Blades - kills temporarily accelerate rotation" },
-		{ Level = 30, Description = "Inner Orbit - adds a smaller defensive sword" },
-		{ Level = 40, Description = "Blade Release - periodically launches a spectral copy" },
-		{ Level = 50, Description = "Blade Storm - four blades and faster releases" },
+		{ Level = 2, Description = "Twin Blades - adds a second sword opposite the first" },
+		{ Level = 5, Description = "Extended Reach - noticeably widens the orbit" },
+		{ Level = 7, Description = "Serrated Blades - Sword hits apply Wounded" },
+		{ Level = 10, Description = "Triple Blades - adds a third equally spaced sword" },
+		{ Level = 12, Description = "Momentum Blades - kills temporarily accelerate rotation" },
+		{ Level = 15, Description = "Inner Orbit - adds a smaller defensive sword" },
+		{ Level = 20, Description = "Blade Release - periodically launches a spectral copy" },
+		{ Level = 25, Description = "Blade Storm - four blades and faster releases" },
 	},
 }
 
 function orbitingSwords.GetStats(level: number)
 	local clampedLevel = math.clamp(math.floor(level), 1, orbitingSwords.MaxLevel)
-	local levelOffset = clampedLevel - 1
+	local levelOffset = upgradeProgress(clampedLevel)
 	local radius = orbitingSwords.Combat.BaseRadius
-	if clampedLevel >= 10 then
+	if clampedLevel >= 5 then
 		radius += 1.8
 	end
-	if clampedLevel >= 50 then
+	if clampedLevel >= 25 then
 		radius += 1
 	end
 
@@ -275,14 +280,14 @@ function orbitingSwords.GetStats(level: number)
 		Damage = math.floor(orbitingSwords.Combat.BaseDamage * (1 + levelOffset * 0.06) + 0.5),
 		SwordScale = orbitingSwords.Combat.BaseScale * (1 + levelOffset * 0.005),
 		RotationSpeed = orbitingSwords.Combat.BaseRotationSpeed * (1 + levelOffset * 0.005),
-		HitCooldown = math.max(0.52, orbitingSwords.Combat.BaseHitCooldown - math.max(clampedLevel - 10, 0) * 0.004),
+		HitCooldown = math.max(0.52, orbitingSwords.Combat.BaseHitCooldown - math.max(clampedLevel - 5, 0) * 0.004),
 		OrbitRadius = radius,
 		MainSwordCount = getOrbitingSwordCount(clampedLevel),
-		Wounded = clampedLevel >= 15,
-		Momentum = clampedLevel >= 25,
-		InnerOrbit = clampedLevel >= 30,
-		BladeRelease = clampedLevel >= 40,
-		ReleaseEveryRotations = if clampedLevel >= 50 then 1.75 else 3,
+		Wounded = clampedLevel >= 7,
+		Momentum = clampedLevel >= 12,
+		InnerOrbit = clampedLevel >= 15,
+		BladeRelease = clampedLevel >= 20,
+		ReleaseEveryRotations = if clampedLevel >= 25 then 1.75 else 3,
 	}
 end
 
@@ -362,13 +367,13 @@ local fireball = {
 		MaximumTargetsPerExplosion = 45,
 		GroupSearchCandidates = 30,
 		Burn = {
-			Level = 10,
+			Level = 5,
 			Duration = 3,
 			TickInterval = 1,
 			DamageRatio = 0.09,
 		},
 		BurningGround = {
-			Level = 20,
+			Level = 10,
 			Duration = 4,
 			FinalDuration = 6,
 			RadiusMultiplier = 0.62,
@@ -377,14 +382,14 @@ local fireball = {
 			MaximumPerPlayer = 8,
 		},
 		EmpoweredExplosion = {
-			Level = 40,
+			Level = 20,
 			RadiusMultiplier = 1.12,
 			CenterRadiusRatio = 0.45,
 			CenterDamageMultiplier = 1.25,
 			KnockbackMultiplier = 1.25,
 		},
 		Final = {
-			Level = 50,
+			Level = 25,
 			RadiusMultiplier = 1.08,
 			ProjectileScaleMultiplier = 1.18,
 			BurnDamageMultiplier = 1.35,
@@ -401,17 +406,17 @@ local fireball = {
 		MeteorHeight = 22,
 	},
 	Milestones = {
-		{ Level = 10, Description = "Double Fireball - fire 2 spread projectiles and ignite damaged zombies" },
-		{ Level = 20, Description = "Burning Ground - explosions leave a damaging fire area" },
-		{ Level = 30, Description = "Triple Fireball - fire 3 projectiles toward separate groups" },
-		{ Level = 40, Description = "Empowered Explosion - larger blasts deal extra damage near the center" },
-		{ Level = 50, Description = "Firestorm - fire 4 larger projectiles with stronger Burn and longer ground fire" },
+		{ Level = 5, Description = "Double Fireball - fire 2 spread projectiles and ignite damaged zombies" },
+		{ Level = 10, Description = "Burning Ground - explosions leave a damaging fire area" },
+		{ Level = 15, Description = "Triple Fireball - fire 3 projectiles toward separate groups" },
+		{ Level = 20, Description = "Empowered Explosion - larger blasts deal extra damage near the center" },
+		{ Level = 25, Description = "Firestorm - fire 4 larger projectiles with stronger Burn and longer ground fire" },
 	},
 }
 
 function fireball.GetStats(level: number)
 	local clampedLevel = math.clamp(math.floor(level), 1, fireball.MaxLevel)
-	local levelOffset = clampedLevel - 1
+	local levelOffset = upgradeProgress(clampedLevel)
 	local combat = fireball.Combat
 	local explosionRadius = combat.BaseExplosionRadius * (1 + levelOffset * combat.ExplosionRadiusPerLevel)
 	if clampedLevel >= combat.EmpoweredExplosion.Level then
@@ -520,15 +525,15 @@ local lightning = {
 		FirstTargetRange = 45,
 		BaseChainRange = 12,
 		ChainRangePerLevel = 0.005,
-		ExtendedRangeLevel = 15,
+		ExtendedRangeLevel = 7,
 		ExtendedRangeMultiplier = 1.35,
 		FinalRangeMultiplier = 1.1,
-		FinisherLevel = 10,
+		FinisherLevel = 5,
 		FinisherDamageMultiplier = 1.35,
-		ForkLevel = 20,
+		ForkLevel = 10,
 		ForkDamageMultiplier = 0.65,
 		ForkEveryAttacks = 2,
-		TwinChainsLevel = 40,
+		TwinChainsLevel = 20,
 		TwinChainsEveryAttacks = 3,
 		MaximumCandidatePool = 80,
 		Knockback = 5,
@@ -542,19 +547,19 @@ local lightning = {
 		KnockbackMultiplier = 1.15,
 	},
 	Milestones = {
-		{ Level = 5, Description = "Long Chain - increase maximum targets from 3 to 5" },
-		{ Level = 10, Description = "Finisher - the final strike deals additional damage" },
-		{ Level = 15, Description = "Extended Arc - lightning can jump significantly farther" },
-		{ Level = 20, Description = "Fork - some attacks branch to one additional zombie" },
-		{ Level = 30, Description = "Crowd Conductor - increase maximum targets from 5 to 7" },
-		{ Level = 40, Description = "Twin Chains - every third attack launches two separate chains" },
-		{ Level = 50, Description = "Lightning Storm - longer nine-target chains with improved branching" },
+		{ Level = 2, Description = "Long Chain - increase maximum targets from 3 to 5" },
+		{ Level = 5, Description = "Finisher - the final strike deals additional damage" },
+		{ Level = 7, Description = "Extended Arc - lightning can jump significantly farther" },
+		{ Level = 10, Description = "Fork - some attacks branch to one additional zombie" },
+		{ Level = 15, Description = "Crowd Conductor - increase maximum targets from 5 to 7" },
+		{ Level = 20, Description = "Twin Chains - every third attack launches two separate chains" },
+		{ Level = 25, Description = "Lightning Storm - longer nine-target chains with improved branching" },
 	},
 }
 
 function lightning.GetStats(level: number)
 	local clampedLevel = math.clamp(math.floor(level), 1, lightning.MaxLevel)
-	local levelOffset = clampedLevel - 1
+	local levelOffset = upgradeProgress(clampedLevel)
 	local combat = lightning.Combat
 	local chainRange = combat.BaseChainRange * (1 + levelOffset * combat.ChainRangePerLevel)
 	if clampedLevel >= combat.ExtendedRangeLevel then
@@ -641,20 +646,20 @@ local boomerang = {
 		BaseHitRadius = 1.75,
 		SpreadDegrees = 18,
 		TurnDuration = 0.28,
-		ReturnDamageLevel = 5,
+		ReturnDamageLevel = 2,
 		ReturnDamageMultiplier = 1.25,
-		LargeLevel = 15,
+		LargeLevel = 7,
 		LargeScaleMultiplier = 1.28,
 		LargeRangeMultiplier = 1.25,
 		LargeHitRadiusMultiplier = 1.3,
-		FastReturnLevel = 20,
+		FastReturnLevel = 10,
 		BaseReturnSpeedMultiplier = 1.15,
 		FastReturnSpeedMultiplier = 1.7,
-		BonusLoopLevel = 40,
+		BonusLoopLevel = 20,
 		BonusLoopHits = 5,
 		BonusLoopRangeMultiplier = 0.55,
 		Final = {
-			Level = 50,
+			Level = 25,
 			ScaleMultiplier = 1.12,
 			RangeMultiplier = 1.1,
 			ReturnDamageMultiplier = 1.45,
@@ -674,19 +679,19 @@ local boomerang = {
 		KnockbackMultiplier = 1.18,
 	},
 	Milestones = {
-		{ Level = 5, Description = "Dangerous Return - returning Boomerangs deal additional damage" },
-		{ Level = 10, Description = "Double Throw - launch 2 spread Boomerangs" },
-		{ Level = 15, Description = "Crowd Cutter - larger Boomerangs travel significantly farther" },
-		{ Level = 20, Description = "Fast Return - Boomerangs return significantly faster" },
-		{ Level = 30, Description = "Triple Throw - launch 3 Boomerangs in a fan" },
-		{ Level = 40, Description = "Bonus Loop - hitting 5 zombies earns one additional short loop" },
-		{ Level = 50, Description = "Perfect Return - larger, longer throws with stronger, faster returns" },
+		{ Level = 2, Description = "Dangerous Return - returning Boomerangs deal additional damage" },
+		{ Level = 5, Description = "Double Throw - launch 2 spread Boomerangs" },
+		{ Level = 7, Description = "Crowd Cutter - larger Boomerangs travel significantly farther" },
+		{ Level = 10, Description = "Fast Return - Boomerangs return significantly faster" },
+		{ Level = 15, Description = "Triple Throw - launch 3 Boomerangs in a fan" },
+		{ Level = 20, Description = "Bonus Loop - hitting 5 zombies earns one additional short loop" },
+		{ Level = 25, Description = "Perfect Return - larger, longer throws with stronger, faster returns" },
 	},
 }
 
 function boomerang.GetStats(level: number)
 	local clampedLevel = math.clamp(math.floor(level), 1, boomerang.MaxLevel)
-	local levelOffset = clampedLevel - 1
+	local levelOffset = upgradeProgress(clampedLevel)
 	local combat = boomerang.Combat
 	local scale = combat.BaseScale * (1 + levelOffset * combat.ScalePerLevel)
 	local range = combat.BaseRange * (1 + levelOffset * combat.RangePerLevel)
@@ -779,46 +784,46 @@ local heart = {
 		BaseMaxHealthPercent = 10,
 		MaxHealthPercentPerLevel = 2,
 		StrongHeart = {
-			Level = 5,
+			Level = 2,
 			AdditionalPercentPerLevel = 0.25,
 		},
 		Recovery = {
-			Level = 10,
+			Level = 5,
 			DelayAfterDamage = 6,
 			PercentPerSecond = 0.8,
 			TickInterval = 0.5,
 		},
 		Healthy = {
-			Level = 20,
+			Level = 10,
 			BonusPercent = 12,
 		},
 		SecondWind = {
-			Level = 35,
+			Level = 17,
 			ThresholdPercent = 30,
 			RegenPercentPerSecond = 4,
 			Duration = 4,
 			TickInterval = 0.25,
 		},
 		GiantHeart = {
-			Level = 50,
+			Level = 25,
 			BonusPercent = 20,
 			RecoveryPercentPerSecond = 1.25,
 			SecondWindRegenPercentPerSecond = 6,
 		},
 	},
 	Milestones = {
-		{ Level = 5, Description = "Strong Heart - improves Max Health gained per level" },
-		{ Level = 10, Description = "Recovery - regenerate after avoiding damage for 6 seconds" },
-		{ Level = 20, Description = "Healthy - gain an additional 12% Max Health" },
-		{ Level = 35, Description = "Second Wind - once per run, low health triggers brief regeneration" },
-		{ Level = 50, Description = "Giant Heart - gain 20% Max Health and stronger regeneration" },
+		{ Level = 2, Description = "Strong Heart - improves Max Health gained per level" },
+		{ Level = 5, Description = "Recovery - regenerate after avoiding damage for 6 seconds" },
+		{ Level = 10, Description = "Healthy - gain an additional 12% Max Health" },
+		{ Level = 17, Description = "Second Wind - once per run, low health triggers brief regeneration" },
+		{ Level = 25, Description = "Giant Heart - gain 20% Max Health and stronger regeneration" },
 	},
 }
 
 function heart.GetStats(level: number)
 	local clampedLevel = math.clamp(math.floor(level), 1, heart.MaxLevel)
 	local config = heart.Config
-	local maxHealthPercent = config.BaseMaxHealthPercent + (clampedLevel - 1) * config.MaxHealthPercentPerLevel
+	local maxHealthPercent = config.BaseMaxHealthPercent + upgradeProgress(clampedLevel) * config.MaxHealthPercentPerLevel
 	if clampedLevel >= config.StrongHeart.Level then
 		maxHealthPercent += (clampedLevel - config.StrongHeart.Level + 1) * config.StrongHeart.AdditionalPercentPerLevel
 	end
@@ -888,38 +893,38 @@ local boots = {
 		MovementSpeedPercentPerLevel = 1,
 		MovementThreshold = 0.5,
 		LightFeet = {
-			Level = 5,
+			Level = 2,
 			AdditionalPercentPerLevel = 0.1,
 		},
 		Sprint = {
-			Level = 10,
+			Level = 5,
 			ActivationDelay = 3,
 			StopGracePeriod = 1.5,
 			BonusPercent = 6,
 		},
 		FastFeet = {
-			Level = 20,
+			Level = 10,
 			BonusPercent = 5,
 		},
 		QuickStart = {
-			Level = 35,
+			Level = 17,
 			RequiredStationaryDuration = 2,
 			Duration = 1.5,
 			Cooldown = 6,
 			BonusPercent = 10,
 		},
 		Speedy = {
-			Level = 50,
+			Level = 25,
 			BonusPercent = 8,
 			SprintBonusPercent = 8,
 		},
 	},
 	Milestones = {
-		{ Level = 5, Description = "Light Feet - improves Movement Speed gained per level" },
-		{ Level = 10, Description = "Sprint - sustained movement grants another 6% speed" },
-		{ Level = 20, Description = "Fast Feet - gain an additional 5% Movement Speed" },
-		{ Level = 35, Description = "Quick Start - moving after a pause grants a brief speed burst" },
-		{ Level = 50, Description = "Speedy - gain 8% Movement Speed and a stronger Sprint" },
+		{ Level = 2, Description = "Light Feet - improves Movement Speed gained per level" },
+		{ Level = 5, Description = "Sprint - sustained movement grants another 6% speed" },
+		{ Level = 10, Description = "Fast Feet - gain an additional 5% Movement Speed" },
+		{ Level = 17, Description = "Quick Start - moving after a pause grants a brief speed burst" },
+		{ Level = 25, Description = "Speedy - gain 8% Movement Speed and a stronger Sprint" },
 	},
 }
 
@@ -927,7 +932,7 @@ function boots.GetStats(level: number)
 	local clampedLevel = math.clamp(math.floor(level), 1, boots.MaxLevel)
 	local config = boots.Config
 	local movementSpeedPercent = config.BaseMovementSpeedPercent
-		+ (clampedLevel - 1) * config.MovementSpeedPercentPerLevel
+		+ upgradeProgress(clampedLevel) * config.MovementSpeedPercentPerLevel
 	if clampedLevel >= config.LightFeet.Level then
 		movementSpeedPercent += (clampedLevel - config.LightFeet.Level + 1) * config.LightFeet.AdditionalPercentPerLevel
 	end
@@ -1001,48 +1006,48 @@ local blast = {
 		RadiusPerLevel = 0.035,
 		MaximumTargets = 30,
 		BiggerBlast = {
-			Level = 5,
+			Level = 2,
 			RadiusBonus = 1.5,
 		},
 		StrongBlast = {
-			Level = 10,
+			Level = 5,
 			DamageBonus = 14,
 		},
 		ChainBlast = {
-			Level = 20,
+			Level = 10,
 			ChancePercent = 14,
 			MaximumDepth = 2,
 			MaximumExplosionsPerReaction = 8,
 		},
 		DoubleBlast = {
-			Level = 35,
+			Level = 17,
 			ChancePercent = 12,
 			DamageMultiplier = 0.75,
 			RadiusMultiplier = 1.2,
 			Delay = 0.08,
 		},
 		MegaBlast = {
-			Level = 50,
+			Level = 25,
 			ChanceBonusPercent = 4,
 			DamageBonus = 30,
 			RadiusBonus = 1,
 		},
 	},
 	Milestones = {
-		{ Level = 5, Description = "Bigger Blast - noticeably increases explosion radius" },
-		{ Level = 10, Description = "Strong Blast - substantially increases explosion damage" },
-		{ Level = 20, Description = "Chain Blast - Blast kills can trigger another capped Blast" },
-		{ Level = 35, Description = "Double Blast - sometimes creates a second, larger explosion" },
-		{ Level = 50, Description = "Mega Blast - higher chance, damage, and radius" },
+		{ Level = 2, Description = "Bigger Blast - noticeably increases explosion radius" },
+		{ Level = 5, Description = "Strong Blast - substantially increases explosion damage" },
+		{ Level = 10, Description = "Chain Blast - Blast kills can trigger another capped Blast" },
+		{ Level = 17, Description = "Double Blast - sometimes creates a second, larger explosion" },
+		{ Level = 25, Description = "Mega Blast - higher chance, damage, and radius" },
 	},
 }
 
 function blast.GetStats(level: number)
 	local clampedLevel = math.clamp(math.floor(level), 1, blast.MaxLevel)
 	local config = blast.Config
-	local chancePercent = config.BaseChancePercent + (clampedLevel - 1) * config.ChancePercentPerLevel
-	local damage = config.BaseDamage + (clampedLevel - 1) * config.DamagePerLevel
-	local radius = config.BaseRadius + (clampedLevel - 1) * config.RadiusPerLevel
+	local chancePercent = config.BaseChancePercent + upgradeProgress(clampedLevel) * config.ChancePercentPerLevel
+	local damage = config.BaseDamage + upgradeProgress(clampedLevel) * config.DamagePerLevel
+	local radius = config.BaseRadius + upgradeProgress(clampedLevel) * config.RadiusPerLevel
 	if clampedLevel >= config.BiggerBlast.Level then
 		radius += config.BiggerBlast.RadiusBonus
 	end
@@ -1119,24 +1124,24 @@ local burn = {
 		DurationPerLevel = 0.03,
 		TickInterval = 0.75,
 		Hotter = {
-			Level = 5,
+			Level = 2,
 			DamageBonus = 2,
 		},
 		LongerBurn = {
-			Level = 10,
+			Level = 5,
 			DurationBonus = 0.75,
 		},
 		Spread = {
-			Level = 20,
+			Level = 10,
 			ChancePercent = 18,
 			Radius = 8,
 		},
 		StrongBurn = {
-			Level = 35,
+			Level = 17,
 			DamageMultiplier = 1.35,
 		},
 		Inferno = {
-			Level = 50,
+			Level = 25,
 			ChanceBonusPercent = 4,
 			DamageBonus = 6,
 			DurationBonus = 0.75,
@@ -1144,20 +1149,20 @@ local burn = {
 		},
 	},
 	Milestones = {
-		{ Level = 5, Description = "Hotter - increases Burn tick damage" },
-		{ Level = 10, Description = "Longer Burn - increases Burn duration" },
-		{ Level = 20, Description = "Spread - burning deaths can ignite one nearby zombie" },
-		{ Level = 35, Description = "Strong Burn - substantially increases tick damage" },
-		{ Level = 50, Description = "Inferno - higher chance, damage, duration, and spread chance" },
+		{ Level = 2, Description = "Hotter - increases Burn tick damage" },
+		{ Level = 5, Description = "Longer Burn - increases Burn duration" },
+		{ Level = 10, Description = "Spread - burning deaths can ignite one nearby zombie" },
+		{ Level = 17, Description = "Strong Burn - substantially increases tick damage" },
+		{ Level = 25, Description = "Inferno - higher chance, damage, duration, and spread chance" },
 	},
 }
 
 function burn.GetStats(level: number)
 	local clampedLevel = math.clamp(math.floor(level), 1, burn.MaxLevel)
 	local config = burn.Config
-	local chancePercent = config.BaseChancePercent + (clampedLevel - 1) * config.ChancePercentPerLevel
-	local tickDamage = config.BaseTickDamage + (clampedLevel - 1) * config.TickDamagePerLevel
-	local duration = config.BaseDuration + (clampedLevel - 1) * config.DurationPerLevel
+	local chancePercent = config.BaseChancePercent + upgradeProgress(clampedLevel) * config.ChancePercentPerLevel
+	local tickDamage = config.BaseTickDamage + upgradeProgress(clampedLevel) * config.TickDamagePerLevel
+	local duration = config.BaseDuration + upgradeProgress(clampedLevel) * config.DurationPerLevel
 	if clampedLevel >= config.Hotter.Level then
 		tickDamage += config.Hotter.DamageBonus
 	end
@@ -1234,25 +1239,25 @@ local thorns = {
 		ReflectionPercentPerLevel = 1.2,
 		MaximumBurstTargets = 15,
 		SharpThorns = {
-			Level = 5,
+			Level = 2,
 			ReflectionBonusPercent = 8,
 		},
 		ThornBurst = {
-			Level = 10,
+			Level = 5,
 			Radius = 4.5,
 			DamagePercent = 20,
 		},
 		StrongThorns = {
-			Level = 20,
+			Level = 10,
 			ReflectionBonusPercent = 15,
 		},
 		Revenge = {
-			Level = 35,
+			Level = 17,
 			Duration = 4,
 			BonusPercent = 35,
 		},
 		ThornArmor = {
-			Level = 50,
+			Level = 25,
 			ReflectionBonusPercent = 20,
 			BurstRadiusBonus = 1.5,
 			BurstDamagePercent = 30,
@@ -1260,11 +1265,11 @@ local thorns = {
 		},
 	},
 	Milestones = {
-		{ Level = 5, Description = "Sharp Thorns - increases reflected damage" },
-		{ Level = 10, Description = "Thorn Burst - also damages zombies very close to you" },
-		{ Level = 20, Description = "Strong Thorns - substantially increases reflected damage" },
-		{ Level = 35, Description = "Revenge - recent hits temporarily strengthen reflection" },
-		{ Level = 50, Description = "Thorn Armor - stronger reflection, burst, and Revenge" },
+		{ Level = 2, Description = "Sharp Thorns - increases reflected damage" },
+		{ Level = 5, Description = "Thorn Burst - also damages zombies very close to you" },
+		{ Level = 10, Description = "Strong Thorns - substantially increases reflected damage" },
+		{ Level = 17, Description = "Revenge - recent hits temporarily strengthen reflection" },
+		{ Level = 25, Description = "Thorn Armor - stronger reflection, burst, and Revenge" },
 	},
 }
 
@@ -1272,7 +1277,7 @@ function thorns.GetStats(level: number)
 	local clampedLevel = math.clamp(math.floor(level), 1, thorns.MaxLevel)
 	local config = thorns.Config
 	local reflectionPercent = config.BaseReflectionPercent
-		+ (clampedLevel - 1) * config.ReflectionPercentPerLevel
+		+ upgradeProgress(clampedLevel) * config.ReflectionPercentPerLevel
 	if clampedLevel >= config.SharpThorns.Level then
 		reflectionPercent += config.SharpThorns.ReflectionBonusPercent
 	end
@@ -1323,6 +1328,8 @@ function thorns.GetStatsText(level: number): string
 	return table.concat(lines, "\n")
 end
 
+-- Milestone requirements are intentionally authored at half of their former levels, rounded down
+-- (for example 5 -> 2 and 50 -> 25). Keep each table and its GetStats checks on the same level.
 AbilityDefinitions.List = { dagger, orbitingSwords, fireball, lightning, boomerang }
 for _, definition in CrowdWeaponDefinitions.List do
 	table.insert(AbilityDefinitions.List, definition)

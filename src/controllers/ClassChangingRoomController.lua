@@ -23,12 +23,13 @@ local previousFieldOfView: number?
 local viewportConnection: RBXScriptConnection?
 local revision = 0
 local avatarBodyHeight = 6
+local hiddenAvatarAccessories = {}
 
 local function getBodyVerticalBounds(model: Model): (number, number)
 	local minimumY = math.huge
 	local maximumY = -math.huge
 	for _, descendant in model:GetDescendants() do
-		if descendant:IsA("BasePart") and not descendant:FindFirstAncestorWhichIsA("Accessory") then
+		if descendant:IsA("BasePart") and not descendant:FindFirstAncestorWhichIsA("Accoutrement") then
 			local halfSize = descendant.Size * 0.5
 			local cframe = descendant.CFrame
 			-- Account for rotated limbs so the preview stands on the room floor without using accessory bounds.
@@ -73,8 +74,120 @@ local function getAccessoryType(instance: Instance): Enum.AccessoryType?
 	return nil
 end
 
+local function clearHiddenAvatarAccessories()
+	for _, accessory in hiddenAvatarAccessories do
+		accessory:Destroy()
+	end
+	table.clear(hiddenAvatarAccessories)
+end
+
+local function restoreHiddenAvatarAccessories()
+	if not avatar then
+		clearHiddenAvatarAccessories()
+		return
+	end
+	for _, accessory in hiddenAvatarAccessories do
+		accessory.Parent = avatar
+	end
+	table.clear(hiddenAvatarAccessories)
+end
+
+local function findBodyAttachment(model: Model, attachmentName: string): Attachment?
+	for _, descendant in model:GetDescendants() do
+		if descendant:IsA("Attachment")
+			and descendant.Name == attachmentName
+			and not descendant:FindFirstAncestorWhichIsA("Accoutrement")
+		then
+			return descendant
+		end
+	end
+	return nil
+end
+
+local function attachPreviewAccessory(model: Model, accessory: Accoutrement): boolean
+	local handle = accessory:FindFirstChild("Handle")
+	if not handle or not handle:IsA("BasePart") then
+		return false
+	end
+	local handleAttachment = handle:FindFirstChildWhichIsA("Attachment")
+	local bodyAttachment = handleAttachment and findBodyAttachment(model, handleAttachment.Name)
+	local bodyPart = bodyAttachment and bodyAttachment.Parent
+	local attachmentC0
+	local attachmentC1
+	if bodyAttachment and bodyPart and bodyPart:IsA("BasePart") then
+		attachmentC0 = handleAttachment.CFrame
+		attachmentC1 = bodyAttachment.CFrame
+	else
+		bodyPart = model:FindFirstChild("Head")
+		if not bodyPart or not bodyPart:IsA("BasePart") then
+			return false
+		end
+		attachmentC0 = accessory.AttachmentPoint
+		-- Legacy Hats define AttachmentPoint from the top of Head, not its center.
+		attachmentC1 = CFrame.new(0, bodyPart.Size.Y * 0.5, 0)
+	end
+
+	-- Preview rigs are fully anchored, so position the complete assembly immediately instead of waiting for physics.
+	local targetHandleCFrame = bodyPart.CFrame * attachmentC1 * attachmentC0:Inverse()
+	local assemblyTransform = targetHandleCFrame * handle.CFrame:Inverse()
+	for _, descendant in accessory:GetDescendants() do
+		if descendant:IsA("BasePart") then
+			descendant.CFrame = assemblyTransform * descendant.CFrame
+		elseif descendant:IsA("JointInstance") and descendant.Name == "AccessoryWeld" then
+			descendant:Destroy()
+		end
+	end
+	handle.CFrame = targetHandleCFrame
+	accessory.Parent = model
+	local weld = Instance.new("Weld")
+	weld.Name = "AccessoryWeld"
+	weld.Part0 = handle
+	weld.Part1 = bodyPart
+	weld.C0 = attachmentC0
+	weld.C1 = attachmentC1
+	weld.Parent = handle
+	return true
+end
+
+local function updateAccessory()
+	if not avatar then return end
+	local oldAccessory = avatar:FindFirstChild("PreviewClassAccessory")
+	if oldAccessory then oldAccessory:Destroy() end
+	restoreHiddenAvatarAccessories()
+
+	local assets = ReplicatedStorage:FindFirstChild("Assets")
+	local models = assets and assets:FindFirstChild("Models")
+	local classes = models and models:FindFirstChild("Classes")
+	local template = classes and classes:FindFirstChild(ClassController.GetPreviewClassId())
+	if not template or not template:IsA("Accoutrement") then return end
+
+	local accessory = template:Clone()
+	accessory.Name = "PreviewClassAccessory"
+	local accessoryType = getAccessoryType(accessory)
+	-- Temporarily unparent same-type avatar gear, allowing it to be restored when the preview category changes.
+	for _, child in avatar:GetChildren() do
+		if accessoryType and getAccessoryType(child) == accessoryType then
+			child.Parent = nil
+			table.insert(hiddenAvatarAccessories, child)
+		end
+	end
+	if not attachPreviewAccessory(avatar, accessory) then
+		accessory:Destroy()
+		return
+	end
+	for _, part in accessory:GetDescendants() do
+		if part:IsA("BasePart") then
+			part.Anchored = true
+			part.CanCollide = false
+			part.CanTouch = false
+			part.CanQuery = false
+		end
+	end
+end
+
 local function updateAvatar()
 	if not scene then return end
+	clearHiddenAvatarAccessories()
 	if avatar then avatar:Destroy(); avatar = nil end
 	local character = localPlayer.Character
 	if not character then return end
@@ -85,7 +198,7 @@ local function updateAvatar()
 	character.Archivable = wasArchivable
 	clone.Name = "ClassPreviewAvatar"
 	for _, descendant in clone:GetDescendants() do
-		if descendant:IsA("LuaSourceContainer") then
+		if descendant:IsA("LuaSourceContainer") or descendant:IsA("Animator") then
 			descendant:Destroy()
 		elseif descendant:IsA("BasePart") then
 			descendant.Anchored = true
@@ -114,38 +227,13 @@ local function updateAvatar()
 	avatar = clone
 	-- Frame the authored room from body-only bounds before accessory work, so malformed gear can never blank the preview.
 	frameCamera()
-
-	local humanoid = clone:FindFirstChildOfClass("Humanoid")
-	local assets = ReplicatedStorage:FindFirstChild("Assets")
-	local models = assets and assets:FindFirstChild("Models")
-	local classes = models and models:FindFirstChild("Classes")
-	local template = classes and classes:FindFirstChild(ClassController.GetPreviewClassId())
-	if humanoid and template and template:IsA("Accoutrement") then
-		local accessory = template:Clone()
-		accessory.Name = "PreviewClassAccessory"
-		local accessoryType = getAccessoryType(accessory)
-		-- Mirror live characters by hiding only avatar accessories that share this class accessory's category.
-		for _, child in clone:GetChildren() do
-			if accessoryType and getAccessoryType(child) == accessoryType then
-				child:Destroy()
-			end
-		end
-		-- Humanoid attachment accepts the intact legacy Hat, preserving its AttachmentPoint and original scale.
-		humanoid:AddAccessory(accessory :: any)
-		for _, part in accessory:GetDescendants() do
-			if part:IsA("BasePart") then
-				part.Anchored = true
-				part.CanCollide = false
-				part.CanTouch = false
-				part.CanQuery = false
-			end
-		end
-	end
+	updateAccessory()
 end
 
 local function closeRoom()
 	revision += 1
 	if viewportConnection then viewportConnection:Disconnect(); viewportConnection = nil end
+	clearHiddenAvatarAccessories()
 	if avatar then avatar:Destroy(); avatar = nil end
 	avatarBodyHeight = 6
 	if scene then scene:Destroy(); scene = nil end
@@ -216,7 +304,8 @@ function ClassChangingRoomController.Init()
 		if isOpen then openRoom() else closeRoom() end
 	end)
 	ClassController.GetPreviewChangedSignal():Connect(function()
-		if ClassController.IsOpen() then updateAvatar() end
+		-- Class browsing swaps only the gear; retaining the cloned rig guarantees a stable frozen pose.
+		if ClassController.IsOpen() then updateAccessory() end
 	end)
 	localPlayer.CharacterAdded:Connect(function()
 		if ClassController.IsOpen() then updateAvatar() end

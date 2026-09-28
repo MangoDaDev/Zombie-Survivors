@@ -3,6 +3,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
+local StudVFX = require(ReplicatedStorage.Modules.UI.StudVFX)
 
 local CrowdWeaponEffects = {}
 
@@ -47,14 +48,7 @@ local function getFirstPart(model: Model): BasePart?
 end
 
 local function makeBlock(name: string, size: Vector3, color: Color3, transparency: number): Part
-	local part = Instance.new("Part")
-	part.Name = name
-	part.Size = size
-	part.Color = color
-	part.Material = Enum.Material.Neon
-	part.Transparency = transparency
-	preparePart(part)
-	return part
+	return StudVFX.CreateBlock(nil, name, size, color, transparency)
 end
 
 local function createRing(name: string, radius: number, color: Color3, transparency: number, segmentCount: number): Model?
@@ -110,6 +104,17 @@ local function addBurst(position: Vector3, radius: number, color: Color3, durati
 		duration = duration,
 		maximumScale = radius,
 	})
+	-- The range ring remains the gameplay read; a short layered core and two-tone chips add a clear impact frame.
+	StudVFX.Flash(effectsFolder, position + Vector3.yAxis * 0.3, color, math.min(radius * 0.42, 4.5), duration * 0.68)
+	StudVFX.Burst(
+		effectsFolder,
+		position + Vector3.yAxis * 0.22,
+		color,
+		math.clamp(math.floor(radius * 0.65), 5, 12),
+		math.min(radius * 0.55, 6),
+		duration,
+		color:Lerp(Color3.new(1, 1, 1), 0.48)
+	)
 	if soundName and ring.PrimaryPart then
 		Sounds.Play(soundName, ring.PrimaryPart, 105)
 	end
@@ -139,6 +144,7 @@ local function addImpact(position: Vector3, color: Color3, rage: boolean, soundN
 	end
 	model.Parent = effectsFolder
 	model:PivotTo(model:GetPivot())
+	StudVFX.Flash(effectsFolder, position + Vector3.yAxis * 0.45, color, if rage then 2.1 else 1.5, 0.18)
 	table.insert(bursts, {
 		model = model,
 		startedAt = os.clock(),
