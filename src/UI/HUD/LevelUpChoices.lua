@@ -840,6 +840,11 @@ return function()
 			-- A wide responsive slot keeps mobile cards tappable; the pixel cap keeps desktop presentation compact.
 			Size = UDim2.new(0.92, 0, 0.32, 0),
 			ZIndex = 300,
+			create "UIAspectRatioConstraint" {
+				-- Preserve the three-card menu silhouette instead of stretching cards with the viewport.
+				AspectRatio = 510 / 230,
+				DominantAxis = Enum.DominantAxis.Width,
+			},
 			action(function(instance)
 				chain = instance :: Frame
 				local title = makeLabel(chain, "Prompt", UDim2.fromScale(0.05, 0), UDim2.fromScale(0.9, 0.09), 301)
@@ -865,9 +870,6 @@ return function()
 				scale.Scale = 1
 				scale.Parent = row
 				rowScale = scale
-				local sizeConstraint = Instance.new("UISizeConstraint")
-				sizeConstraint.MaxSize = Vector2.new(510, 230)
-				sizeConstraint.Parent = row
 				local layout = Instance.new("UIListLayout")
 				layout.FillDirection = Enum.FillDirection.Horizontal
 				layout.HorizontalAlignment = Enum.HorizontalAlignment.Center

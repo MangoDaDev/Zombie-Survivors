@@ -77,7 +77,6 @@ return function()
 		Size = UDim2.new(0.28, 112, 0, 48),
 		Visible = inGame,
 		ZIndex = 90,
-		create "UISizeConstraint" { MaxSize = Vector2.new(220, 48) },
 		create "UICorner" { CornerRadius = UDim.new(0, 5) },
 		StudTexture({ ZIndex = 91, ImageTransparency = 0.86 }),
 		create "UIStroke" {

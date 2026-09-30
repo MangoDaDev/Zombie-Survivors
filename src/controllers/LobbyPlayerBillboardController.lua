@@ -127,7 +127,8 @@ local function removePlayer(player: Player)
 	end
 	clearMountedView(view)
 	view.characterConnection:Disconnect()
-	view.changed:Destroy()
+	-- GoodSignal 0.3.1 has no Destroy method; disconnect its listeners before releasing the per-player view.
+	view.changed:DisconnectAll()
 	views[player] = nil
 	statsByUserId[player.UserId] = nil
 end

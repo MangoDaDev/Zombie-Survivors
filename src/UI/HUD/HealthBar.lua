@@ -155,10 +155,6 @@ return function()
 			return inGame() and hasHumanoid()
 		end,
 		ZIndex = 90,
-		create "UISizeConstraint" {
-			MaxSize = Vector2.new(240, 52),
-			MinSize = Vector2.new(180, 39),
-		},
 		create "UIAspectRatioConstraint" {
 			AspectRatio = 240 / 52,
 			DominantAxis = Enum.DominantAxis.Width,

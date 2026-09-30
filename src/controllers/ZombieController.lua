@@ -19,6 +19,12 @@ local zombieViews = {}
 local renderParts = {}
 local renderCFrames = {}
 local TAU = math.pi * 2
+local ZOMBIE_HIT_SOUND = "BulletHit"
+local ZOMBIE_DEATH_SOUND = "BodyImpact"
+local HIT_SOUND_MIN_INTERVAL = 0.035
+local DEATH_SOUND_MIN_INTERVAL = 0.025
+local nextHitSoundAt = 0
+local nextDeathSoundAt = 0
 local bossState = {
 	active = false,
 	id = nil,
@@ -201,6 +207,33 @@ local function playEffectSound(soundName: string, parent: Instance, playbackSpee
 			PlaybackSpeed = template.PlaybackSpeed * (playbackSpeed or 1),
 		})
 	end
+end
+
+local function playZombieDamageSound(view, killed: boolean)
+	local now = os.clock()
+	local nextAllowedAt = if killed then nextDeathSoundAt else nextHitSoundAt
+	if now < nextAllowedAt then
+		return
+	end
+
+	local soundName = if killed then ZOMBIE_DEATH_SOUND else ZOMBIE_HIT_SOUND
+	local template = Sounds.Get(soundName)
+	if not template then
+		return
+	end
+	if killed then
+		nextDeathSoundAt = now + DEATH_SOUND_MIN_INTERVAL
+	else
+		nextHitSoundAt = now + HIT_SOUND_MIN_INTERVAL
+	end
+
+	-- Damage bursts can affect large hordes in one frame, so cap the shared cue rate while retaining
+	-- positional feedback. Deaths use a separate budget so ordinary impacts cannot suppress lethal cues.
+	local pitchVariation = ((view.id % 5) - 2) * 0.025
+	local playbackScale = (if killed then 0.72 else 0.96) + pitchVariation
+	Sounds.Play(soundName, view.model, 85, {
+		PlaybackSpeed = template.PlaybackSpeed * playbackScale,
+	})
 end
 
 local function playBossDeathShockwave(packet)
@@ -486,6 +519,7 @@ end
 function ZombieController.ZombieDamaged(_, id, health, maximumHealth, knockbackDirection, knockbackImpulse)
 	local view = type(id) == "number" and zombieViews[id]
 	if view then
+		playZombieDamageSound(view, type(health) == "number" and health <= 0)
 		view:ApplyDamage(health, maximumHealth, knockbackDirection, knockbackImpulse)
 		if view.definition.IsBoss then
 			setBossState(true, id, view.typeName, health, maximumHealth)

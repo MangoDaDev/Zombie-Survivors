@@ -44,10 +44,6 @@ return function()
 			return state().active
 		end,
 		ZIndex = 140,
-		create "UISizeConstraint" {
-			MaxSize = Vector2.new(650, 122),
-			MinSize = Vector2.new(320, 82),
-		},
 		create "UIAspectRatioConstraint" {
 			AspectRatio = 580 / 112,
 			DominantAxis = Enum.DominantAxis.Width,

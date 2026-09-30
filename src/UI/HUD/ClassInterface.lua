@@ -412,10 +412,13 @@ return function()
 					return UDim2.new(0.95, 0, 0.94, 0)
 				end,
 				ZIndex = 345,
-				create "UISizeConstraint" {
-					MaxSize = function()
-						return if portrait() then Vector2.new(420, 690) else Vector2.new(1280, 760)
+				create "UIAspectRatioConstraint" {
+					-- Keep the two-column class layout proportional across resolution changes while
+					-- retaining the deliberately taller phone arrangement.
+					AspectRatio = function()
+						return if portrait() then 420 / 690 else 1280 / 760
 					end,
+					DominantAxis = Enum.DominantAxis.Height,
 				},
 				create "Frame" {
 					Name = "Header",

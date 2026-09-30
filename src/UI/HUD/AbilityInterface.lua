@@ -484,10 +484,13 @@ return function()
 				ZIndex = 305,
 				-- Every filled menu surface uses the shared stud layer; light content panels tint it dark below.
 				StudTexture({ ZIndex = 306, ImageTransparency = 0.92, TileSize = UDim2.fromOffset(76, 76) }),
-				create "UISizeConstraint" {
-					MaxSize = function()
-						return if portrait() then Vector2.new(420, 880) else Vector2.new(980, 620)
+				create "UIAspectRatioConstraint" {
+					-- Preserve the authored menu proportions when the viewport changes; portrait and
+					-- landscape use different content arrangements and therefore different ratios.
+					AspectRatio = function()
+						return if portrait() then 420 / 880 else 980 / 620
 					end,
+					DominantAxis = Enum.DominantAxis.Height,
 				},
 				create "UIStroke" { ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Color = Color3.fromRGB(0, 5, 10), Thickness = 7 },
 				create "UIStroke" { ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Color = CYAN, Thickness = 3 },

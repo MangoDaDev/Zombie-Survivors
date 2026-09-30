@@ -654,21 +654,17 @@ return function()
 			ZIndex = 61,
 			-- The outer shell and nested settings surfaces share one texture implementation.
 			StudTexture({ ZIndex = 62, ImageTransparency = 0.94, TileSize = UDim2.fromOffset(80, 80) }),
+			create "UIAspectRatioConstraint" {
+				-- Keep the party header, settings body, and confirm action in their authored
+				-- proportions instead of allowing short or narrow screens to squash the panel.
+				AspectRatio = 1.25,
+				DominantAxis = Enum.DominantAxis.Height,
+			},
 			create "UIScale" {
 				-- Reserve the bottom-center exit affordance on short landscape screens without
 				-- changing the menu's internal proportions.
 				Scale = function()
 					return if short() then 0.75 else 1
-				end,
-			},
-			create "UISizeConstraint" {
-				MaxSize = function()
-					if portrait() then
-						return Vector2.new(360, 510)
-					elseif short() then
-						return Vector2.new(660, 430)
-					end
-					return Vector2.new(660, 470)
 				end,
 			},
 			create "UIStroke" {

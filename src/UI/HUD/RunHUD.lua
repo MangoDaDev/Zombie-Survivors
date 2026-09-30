@@ -377,15 +377,12 @@ return function()
 		Visible = true,
 		create "Frame" {
 			Name = "Coins",
-			AnchorPoint = Vector2.new(0, 0),
+			AnchorPoint = Vector2.new(0, 0.5),
 			BackgroundColor3 = Color3.fromRGB(38, 33, 24),
 			BorderSizePixel = 0,
 			Position = function()
-				-- On narrow game viewports the large round/ready panel owns the top band, so currency sits below it.
-				return UDim2.fromOffset(
-					if narrowViewport() then 12 else 20,
-					topOffset() + (if narrowViewport() and inGame() then 84 else 0)
-				)
+				-- Keep permanent currency centered on the left edge instead of returning it to the top HUD band.
+				return UDim2.new(0, if narrowViewport() then 12 else 20, 0.5, 0)
 			end,
 			Size = function()
 				return if narrowViewport() then UDim2.fromOffset(142, 42) else UDim2.fromOffset(160, 44)
@@ -606,7 +603,6 @@ return function()
 			end,
 			Visible = inGame,
 			ZIndex = 90,
-			create "UISizeConstraint" { MaxSize = Vector2.new(640, 52) },
 			create "UICorner" { CornerRadius = UDim.new(0, 4) },
 			stroke(Color3.fromRGB(0, 139, 168), 2),
 			StudTexture({ ZIndex = 91, ImageTransparency = 0.88 }),

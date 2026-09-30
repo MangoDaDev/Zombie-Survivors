@@ -384,10 +384,12 @@ return function()
 				ZIndex = 405,
 				-- The collection now uses the same stud surface language as the active HUD and shared buttons.
 				StudTexture({ ZIndex = 406, ImageTransparency = 0.92, TileSize = UDim2.fromOffset(76, 76) }),
-				create "UISizeConstraint" {
-					MaxSize = function()
-						return if portrait() then Vector2.new(430, 880) else Vector2.new(1080, 650)
+				create "UIAspectRatioConstraint" {
+					-- The catalog/detail split must not stretch independently on unusual viewport ratios.
+					AspectRatio = function()
+						return if portrait() then 430 / 880 else 1080 / 650
 					end,
+					DominantAxis = Enum.DominantAxis.Height,
 				},
 				create "UIStroke" { ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Color = Color3.fromRGB(0, 5, 10), Thickness = 6 },
 				create "UIStroke" { ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Color = CYAN, Thickness = 3 },

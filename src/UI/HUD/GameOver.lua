@@ -159,8 +159,10 @@ return function()
 			Position = UDim2.fromScale(0.5, 0.5),
 			Size = UDim2.fromScale(0.88, 0.78),
 			ZIndex = 402,
-			create "UISizeConstraint" {
-				MaxSize = Vector2.new(520, 520),
+			-- The results menu is authored as a square so its proportional sections cannot stretch.
+			create "UIAspectRatioConstraint" {
+				AspectRatio = 1,
+				DominantAxis = Enum.DominantAxis.Width,
 			},
 			create "UICorner" { CornerRadius = UDim.new(0, 10) },
 			StudTexture({ ZIndex = 403, ImageTransparency = 0.9, TileSize = UDim2.fromOffset(56, 56) }),

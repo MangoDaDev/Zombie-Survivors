@@ -28,7 +28,7 @@ Do not build an entire interface using only offsets.
 Do not build an entire interface using only scale.
 Layouts must remain usable across different viewport sizes.
 When using UIAspectRatioConstraint, keep meaningful non-zero responsive size values on both axes unless a zero axis is intentionally required.
-Avoid UITextSizeConstraint and UISizeConstraint unless they solve a real layout problem.
+Never use UISizeConstraint. Use responsive Size values and UIAspectRatioConstraint where proportions must be preserved.
 Use UIAspectRatioConstraint when preserving proportions materially improves the element.
 Positioning
 Prefer:
@@ -303,3 +303,6 @@ ALWAYS use IMAGE ids instead of DECAL ids. They are 2 seperate things.
 You dont need to create a menu for everything.
 Dont use pixels for everything.
 For `BillboardGui.Size`, the `UDim2` scale components are measured in world studs and the offset components are measured in screen pixels. When the user asks for a billboard to be "stud-based," size it primarily with scale, such as `UDim2.fromScale(4, 3)`; use offsets only for minor pixel adjustments. This describes physical sizing, not stud-textured artwork.
+- Good practice to put UIAspectRatioConstraint in menus to make sure that no issues with scale happen across different resolutions
+
+Dont use UISIZECONSTRAINT!

@@ -21,6 +21,12 @@ Concise project-specific decisions that should survive future changes. General w
 - Coin amounts and coin-spending/claim actions pair their text with `Images.Coin` on the left; yellow text alone is not sufficient.
 - The shared `Button` supports reactive `LeftIcon` and `LeftIconVisible` props for currency actions.
 
+## Responsive menus
+
+- Every composed menu keeps its authored panel proportions with a `UIAspectRatioConstraint`; layout-specific ratios are used only where explicitly authored.
+- The party setup panel uses a fixed `1.25` aspect ratio.
+- UI sizing must not use `UISizeConstraint`; use responsive `Size` values and aspect-ratio constraints instead.
+
 ## Multiplayer wayfinding
 
 - Game sessions show safe-edge arrows with Roblox headshots for living offscreen teammates; lobby, local-player, dead-player, and on-screen markers stay hidden, and all projections share one render callback.
@@ -38,6 +44,7 @@ Concise project-specific decisions that should survive future changes. General w
 ## Sound playback
 
 - Runtime one-shot sounds use `Modules.UI.Sounds`; it owns a stable 2D or positional playback parent so destroying a temporary visual, drop, projectile, or prop does not cut the sound off.
+- Zombie damage feedback reuses positional `BulletHit` for surviving hits and a lower-pitched `BodyImpact` for deaths, with separate shared rate limits so simultaneous horde damage cannot create an unbounded sound burst.
 
 ## Player regeneration
 
