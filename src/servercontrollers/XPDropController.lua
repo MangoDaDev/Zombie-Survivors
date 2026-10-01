@@ -197,13 +197,16 @@ local function releaseDrop(drop: XPDropState, player: Player)
 	fireEligible(drop, "ReleaseXP", drop.id, drop.position)
 end
 
-local function distributeSharedXP(collector: Player, value: number): boolean
+local function distributeSharedXP(dropId: number, collector: Player, value: number): boolean
 	local otherPlayers = {}
 	for _, player in Players:GetPlayers() do
 		if player ~= collector then
 			table.insert(otherPlayers, player)
 		end
 	end
+	table.sort(otherPlayers, function(left, right)
+		return left.UserId < right.UserId
+	end)
 
 	local sharedPool = if #otherPlayers > 0
 		then math.floor(value * RunProgressionConfig.Pickups.SharedXPPercent)
@@ -216,9 +219,12 @@ local function distributeSharedXP(collector: Player, value: number): boolean
 	if sharedPool > 0 then
 		local baseShare = math.floor(sharedPool / #otherPlayers)
 		local remainder = sharedPool % #otherPlayers
+		local remainderOffset = (dropId - 1) % #otherPlayers
 		for index, player in otherPlayers do
-			-- Integer XP is conserved exactly; any indivisible remainder is handed out one point at a time.
-			local share = baseShare + (if index <= remainder then 1 else 0)
+			-- Rotate indivisible remainder points by drop so small crystals do not always favor the
+			-- same teammate, while still conserving the party's integer base XP exactly.
+			local remainderRank = (index - 1 - remainderOffset) % #otherPlayers
+			local share = baseShare + (if remainderRank < remainder then 1 else 0)
 			if share > 0 then
 				RunProgressionController.AddXP(player, share)
 			end
@@ -230,7 +236,7 @@ end
 local function collectDrop(id: number, drop: XPDropState, player: Player)
 	-- A shard must only disappear after the authoritative progression state accepts its value.
 	-- If startup ordering temporarily blocks the grant, release it for a later collection attempt.
-	if not distributeSharedXP(player, drop.value) then
+	if not distributeSharedXP(id, player, drop.value) then
 		drop.collectibleAt = workspace:GetServerTimeNow() + 0.25
 		releaseDrop(drop, player)
 		return

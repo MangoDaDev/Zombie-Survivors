@@ -41,6 +41,9 @@ Concise project-specific decisions that should survive future changes. General w
 ## Multiplayer wayfinding
 
 - Game sessions show safe-edge arrows with Roblox headshots for living offscreen teammates; lobby, local-player, dead-player, and on-screen markers stay hidden, and all projections share one render callback.
+
+## Party formation
+
 - The first player entering an empty lobby teleporter becomes its leader; every later entrant remains outside until that leader explicitly approves the server-owned join request.
 
 ## World rewards

@@ -656,6 +656,9 @@ function PartyTeleporterController.SetMaxPartySize(_, player: Player, maximumSiz
 		return
 	end
 	state.maxSize = maximumSize
+	if #state.members >= state.maxSize then
+		clearPendingMembers(state, true, "That party is now full.")
+	end
 	updateFullCountdown(state, Workspace:GetServerTimeNow())
 	updateWorldView(state, Workspace:GetServerTimeNow())
 	broadcastState(state)
