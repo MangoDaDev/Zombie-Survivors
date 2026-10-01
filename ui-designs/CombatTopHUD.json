@@ -1,0 +1,142 @@
+{
+  "pinevex_object": {
+    "type": "Frame",
+    "name": "CombatTopHUDPreview",
+    "size": [1, 0, 1, 0],
+    "bg": [20, 25, 31],
+    "children": [
+      {
+        "type": "Frame",
+        "name": "RoundStatus",
+        "size": [0, 520, 0, 68],
+        "position": [0.5, 0, 0, 44],
+        "anchor": [0.5, 0],
+        "bg": [3, 24, 39],
+        "strokes": [
+          { "thickness": 2, "color": [0, 139, 168], "applyMode": "Border" }
+        ],
+        "children": [
+          {
+            "type": "TextLabel",
+            "name": "Round",
+            "size": [0, 112, 0, 52],
+            "position": [0, 12, 0, 8],
+            "bgTransparency": 1,
+            "text": "ROUND 15",
+            "textColor": [80, 221, 247],
+            "textScaled": true,
+            "textXAlignment": "Left",
+            "font": "Ubuntu",
+            "fontWeight": "Heavy"
+          },
+          {
+            "type": "TextLabel",
+            "name": "Remaining",
+            "size": [0, 152, 0, 22],
+            "position": [0, 132, 0, 9],
+            "bgTransparency": 1,
+            "text": "1 THIS ROUND",
+            "textColor": [229, 240, 247],
+            "textScaled": true,
+            "textXAlignment": "Left",
+            "font": "Ubuntu",
+            "fontWeight": "Bold"
+          },
+          {
+            "type": "TextLabel",
+            "name": "Timer",
+            "size": [0, 152, 0, 18],
+            "position": [0, 132, 0, 37],
+            "bgTransparency": 1,
+            "text": "02:45",
+            "textColor": [157, 180, 193],
+            "textScaled": true,
+            "textXAlignment": "Left",
+            "font": "Ubuntu",
+            "fontWeight": "Medium"
+          },
+          {
+            "type": "TextButton",
+            "name": "SkipRoundButton",
+            "size": [0, 156, 0, 50],
+            "position": [1, -10, 0.5, 0],
+            "anchor": [1, 0.5],
+            "bg": [219, 112, 45],
+            "text": "SKIP  0 / 1",
+            "textColor": [255, 255, 255],
+            "textScaled": true,
+            "font": "Ubuntu",
+            "fontWeight": "Heavy"
+          }
+        ]
+      },
+      {
+        "type": "Frame",
+        "name": "BossHealthBar",
+        "size": [0, 620, 0, 72],
+        "position": [0.5, 0, 0, 122],
+        "anchor": [0.5, 0],
+        "bg": [31, 16, 20],
+        "strokes": [
+          { "thickness": 3, "color": [154, 47, 58], "applyMode": "Border" }
+        ],
+        "children": [
+          {
+            "type": "TextLabel",
+            "name": "Title",
+            "size": [0.35, -12, 0, 24],
+            "position": [0, 12, 0, 7],
+            "bgTransparency": 1,
+            "text": "GRAVE TITAN",
+            "textColor": [255, 226, 211],
+            "textScaled": true,
+            "textXAlignment": "Left",
+            "font": "Ubuntu",
+            "fontWeight": "Heavy"
+          },
+          {
+            "type": "TextLabel",
+            "name": "PhaseLabel",
+            "size": [0.3, -8, 0, 16],
+            "position": [0.5, 0, 0, 11],
+            "anchor": [0.5, 0],
+            "bgTransparency": 1,
+            "text": "SLAMS, SUMMONS, AND ENRAGES AT 50%",
+            "textColor": [255, 211, 137],
+            "textScaled": true,
+            "font": "Ubuntu",
+            "fontWeight": "Bold"
+          },
+          {
+            "type": "TextLabel",
+            "name": "Value",
+            "size": [0.35, -12, 0, 22],
+            "position": [1, -12, 0, 8],
+            "anchor": [1, 0],
+            "bgTransparency": 1,
+            "text": "2.05K / 6K",
+            "textColor": [222, 178, 173],
+            "textScaled": true,
+            "textXAlignment": "Right",
+            "font": "Ubuntu",
+            "fontWeight": "Bold"
+          },
+          {
+            "type": "Frame",
+            "name": "Track",
+            "size": [1, -24, 0, 24],
+            "position": [0.5, 0, 1, -10],
+            "anchor": [0.5, 1],
+            "bg": [58, 37, 41],
+            "children": [
+              { "type": "Frame", "name": "Fill", "size": [0.34, 0, 1, 0], "bg": [195, 48, 61] },
+              { "type": "Frame", "name": "EnrageMarker", "size": [0, 3, 1, 4], "position": [0.5, 0, 0.5, 0], "anchor": [0.5, 0.5], "bg": [255, 222, 158] }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "viewport_size": [1280, 720],
+  "transparent_background": false
+}

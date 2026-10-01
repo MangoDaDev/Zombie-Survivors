@@ -351,7 +351,8 @@ return function()
 			else 0
 	)
 	local coinBalance = source(CoinsController.Get())
-	local topOffset = source(SafeArea.GetTopOffset(12))
+	-- Keep the combat stack flush with the dynamic top safe area; extra padding pushes both rows too low.
+	local topOffset = source(SafeArea.GetTopOffset())
 	local progressTarget = source(
 		if initialState.xpRequired > 0 then math.clamp(initialState.xp / initialState.xpRequired, 0, 1) else 1
 	)
@@ -436,7 +437,7 @@ return function()
 		end
 	end)
 	local safeAreaConnection = SafeArea.GetChangedSignal():Connect(function()
-		topOffset(SafeArea.GetTopOffset(12))
+		topOffset(SafeArea.GetTopOffset())
 	end)
 	local viewportConnection = if Workspace.CurrentCamera
 		then Workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(function()
@@ -662,7 +663,7 @@ return function()
 			Position = function()
 				return UDim2.new(0.5, 0, 0, topOffset())
 			end,
-			Size = UDim2.fromScale(0.82, 0.095),
+			Size = UDim2.fromScale(0.9, 0.095),
 			Visible = function()
 				local currentSession = sessionState()
 				return inGame()
@@ -671,10 +672,10 @@ return function()
 			end,
 			ZIndex = 80,
 			create "UIAspectRatioConstraint" {
-				-- Keep the in-game top bar deliberately wider on desktop so its round, timer,
-				-- and skip-vote regions each have clear horizontal space. Preserve the proven
-				-- compact envelope on narrow screens instead of forcing the desktop width there.
-				AspectRatio = function() return if narrowViewport() then 396 / 68 else 460 / 68 end,
+				-- The desktop silhouette intentionally reserves a full text column between the round
+				-- number and skip button. Preserve the compact mobile envelope where horizontal room
+				-- is limited, while ensuring desktop labels never render underneath the button.
+				AspectRatio = function() return if narrowViewport() then 396 / 68 else 520 / 68 end,
 				AspectType = Enum.AspectType.FitWithinMaxSize,
 			},
 			create "UIScale" { Scale = roundScale },

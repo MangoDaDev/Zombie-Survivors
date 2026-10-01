@@ -94,6 +94,10 @@ Concise project-specific decisions that should survive future changes. General w
 
 - `PlayerStatController` owns baseline natural regeneration at 0.25% of maximum health per second; the empty mapped `StarterCharacterScripts.Health` only suppresses Roblox's competing default. Heart recovery and other authored healing remain separate.
 
+## Character placement
+
+- The server bootstrap dispatches `CharacterController` before yield-prone character hooks so initial map placement cannot arrive late and teleport a player after gameplay has begun.
+
 ## Part-built VFX
 
 - Client-local part effects share `Modules.UI.StudVFX` for studded Plastic blocks, layered flashes, segmented rings, and bounded two-tone debris bursts; keep gameplay timing and authority in their existing controllers.

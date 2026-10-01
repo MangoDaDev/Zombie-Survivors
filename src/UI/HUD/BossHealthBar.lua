@@ -18,7 +18,8 @@ return function()
 		if initialState.maximumHealth > 0 then initialState.health / initialState.maximumHealth else 0
 	)
 	local smoothProgress = spring(progressTarget, 0.16, 0.9)
-	local topOffset = source(SafeArea.GetTopOffset(12))
+	-- Match RoundStatus at the safe-area edge so the two top-center rows move as one stack.
+	local topOffset = source(SafeArea.GetTopOffset())
 
 	local stateConnection = ZombieController.GetBossStateChangedSignal():Connect(function(newState)
 		state(newState)
@@ -27,7 +28,7 @@ return function()
 		)
 	end)
 	local safeAreaConnection = SafeArea.GetChangedSignal():Connect(function()
-		topOffset(SafeArea.GetTopOffset(12))
+		topOffset(SafeArea.GetTopOffset())
 	end)
 	cleanup(function()
 		stateConnection:Disconnect()

@@ -20,6 +20,10 @@ data_service:init({
 local modules_to_init = {
 	ServerStorage.Controllers.AnalyticsController,
 	ServerStorage.Controllers.MapController,
+	-- Character placement must be dispatched before character hooks that may yield while waiting for
+	-- avatar descendants. Otherwise its initial deferred spawn placement can run after gameplay begins
+	-- and appear to teleport a moving player at an unrelated boundary such as a completed wave.
+	ServerStorage.Controllers.CharacterController,
 	ServerStorage.Controllers.GameReadyController,
 	ServerStorage.Controllers.ChatCommandController,
 	ServerStorage.Controllers.PlayerStateController,
@@ -37,7 +41,6 @@ local modules_to_init = {
 	ServerStorage.Controllers.CoinDropController,
 	ServerStorage.Controllers.XPDropController,
 	ServerStorage.Controllers.CollisionController,
-	ServerStorage.Controllers.CharacterController,
 	ServerStorage.Controllers.PartyTeleporterController,
 	ServerStorage.Controllers.ZombieRewardsController,
 	ServerStorage.Controllers.ZombieIndexController,

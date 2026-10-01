@@ -24,7 +24,7 @@ local BreakableConfig = {
 		{ Name = "Broken fountain", MaxHealth = 260, Weight = 4 },
 		{ Name = "Stone well", MaxHealth = 300, Weight = 3 },
 	},
-	HitSounds = { "CrateDamage", "CrateDamage1", "CrateDamage2" },
+	HitSounds = { "CrateDamage", "CrateDamage1" },
 	BreakSounds = { "CrateBreak1", "CrateBreak2", "CrateBreak3" },
 }
 
