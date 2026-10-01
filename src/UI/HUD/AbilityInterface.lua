@@ -479,12 +479,15 @@ return function()
 					return UDim2.new(0.5, 0, 0.5, topOffset() * 0.08)
 				end,
 				Size = function()
-					if portrait() then
-						return UDim2.fromScale(0.96, 0.94)
+					if compactPortrait() then
+						return UDim2.new(0.5, 170, 0.55, 240)
+					elseif portrait() then
+						return UDim2.new(0.4, 220, 0.4, 450)
 					elseif shortLandscape() then
-						return UDim2.fromScale(0.94, 0.94)
+						return UDim2.new(0.8, 40, 0.85, 20)
 					end
-					return UDim2.fromScale(0.81, 0.86)
+					-- Scale plus a fixed base keeps the menu growing with resolution while reducing its relative footprint.
+					return UDim2.new(0.5, 320, 0.6, 200)
 				end,
 				ZIndex = 305,
 				-- Every filled menu surface uses the shared stud layer; light content panels tint it dark below.

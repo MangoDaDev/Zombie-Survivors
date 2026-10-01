@@ -373,13 +373,14 @@ return function()
 				Position = UDim2.fromScale(0.5, 0.5),
 				Size = function()
 					if compactPortrait() then
-						return UDim2.fromScale(0.97, 0.88)
+						return UDim2.new(0.5, 175, 0.55, 230)
 					elseif portrait() then
-						return UDim2.fromScale(0.96, 0.95)
+						return UDim2.new(0.4, 225, 0.4, 450)
 					elseif shortLandscape() then
-						return UDim2.fromScale(0.96, 0.96)
+						return UDim2.new(0.82, 40, 0.86, 20)
 					end
-					return UDim2.fromScale(0.84, 0.87)
+					-- Scale plus a fixed base keeps the menu growing with resolution while reducing its relative footprint.
+					return UDim2.new(0.5, 360, 0.6, 200)
 				end,
 				ZIndex = 405,
 				-- The collection now uses the same stud surface language as the active HUD and shared buttons.

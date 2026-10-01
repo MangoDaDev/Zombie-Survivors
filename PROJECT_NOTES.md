@@ -35,6 +35,7 @@ Concise project-specific decisions that should survive future changes. General w
 ## Responsive menus
 
 - Every composed menu keeps its authored panel proportions with a `UIAspectRatioConstraint`; use `FitWithinMaxSize` so the limiting axis can change safely between narrow, standard, and ultrawide viewports.
+- Major catalog menus combine scale and positive pixel offsets so they continue growing across resolutions while occupying proportionally less space on larger displays; do not hard-cap them with pixel ceilings.
 - The party setup panel uses a fixed `1.25` aspect ratio.
 - UI sizing must not use `UISizeConstraint`; use responsive `Size` values and aspect-ratio constraints instead.
 

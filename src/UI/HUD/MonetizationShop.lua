@@ -340,7 +340,13 @@ return function()
 				BackgroundColor3 = PANEL,
 				BorderSizePixel = 0,
 				Position = function() return UDim2.new(0.5, 0, 0.5, topOffset() * 0.5) end,
-				Size = function() return if portrait() then UDim2.fromScale(0.94, 0.9) else UDim2.fromScale(0.92, 0.9) end,
+				Size = function()
+					if portrait() then
+						return UDim2.new(0.35, 230, 0.35, 465)
+					end
+					-- Keep growing on larger displays, but more slowly than a predominantly scale-sized panel.
+					return UDim2.new(0.5, 380, 0.6, 220)
+				end,
 				ZIndex = 215,
 				create "UIAspectRatioConstraint" {
 					AspectRatio = function() return if portrait() then 0.72 else 1.7 end,
