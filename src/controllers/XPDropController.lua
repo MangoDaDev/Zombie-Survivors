@@ -4,6 +4,7 @@ local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
 local Networker = require(ReplicatedStorage.Packages.networker)
+local EffectLightingConfig = require(ReplicatedStorage.Modules.UI.EffectLightingConfig)
 local RunProgressionConfig = require(ReplicatedStorage.Modules.Game.RunProgressionConfig)
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
 
@@ -33,6 +34,7 @@ local XPDropController = {}
 local xpNetwork
 local effectsFolder: Folder?
 local renderConnection: RBXScriptConnection?
+local nextVisibilityReportAt = 0
 local views: { [number]: XPView } = {}
 
 local function getRoot(userId: number?): BasePart?
@@ -81,6 +83,7 @@ local function createView(id: number, value: number, position: Vector3, scale: n
 
 	local template = ReplicatedStorage.Assets.Models.Pickups.XPCrystal
 	local model = template:Clone()
+	EffectLightingConfig.ApplyTree(model)
 	model.Name = "XP_" .. tostring(id)
 	for _, descendant in model:GetDescendants() do
 		if descendant:IsA("BasePart") then
@@ -94,7 +97,7 @@ local function createView(id: number, value: number, position: Vector3, scale: n
 	if rootPart then
 		local light = Instance.new("PointLight")
 		light.Name = "XPGlow"
-		light.Brightness = 2.4
+		light.Brightness = EffectLightingConfig.Scale(2.4)
 		light.Range = 12
 		light.Shadows = false
 		light.Parent = rootPart
@@ -233,6 +236,21 @@ local function render(deltaTime: number)
 	for _, view in views do
 		renderView(view, now, deltaTime)
 	end
+	if now >= nextVisibilityReportAt and xpNetwork then
+		local camera = Workspace.CurrentCamera
+		if camera then
+			nextVisibilityReportAt = now + RunProgressionConfig.Pickups.VisibilityReportInterval
+			local offscreenIds = {}
+			for id, view in views do
+				local viewportPoint, onScreen = camera:WorldToViewportPoint(view.position)
+				if not onScreen or viewportPoint.Z <= 0 then
+					table.insert(offscreenIds, id)
+				end
+			end
+			-- Report only known offscreen views; an unreceived drop can therefore never be mistaken for offscreen.
+			xpNetwork:fire("ReportVisibility", offscreenIds)
+		end
+	end
 end
 
 function XPDropController.Init()
@@ -242,6 +260,7 @@ function XPDropController.Init()
 	for id in views do
 		destroyView(id)
 	end
+	nextVisibilityReportAt = 0
 	local oldFolder = Workspace:FindFirstChild("ClientXPDrops")
 	if oldFolder then
 		oldFolder:Destroy()

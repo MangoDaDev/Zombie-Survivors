@@ -170,14 +170,14 @@ local function classCard(definition, order: number, props)
 				Name = "Coin",
 				AnchorPoint = Vector2.new(0, 0.5),
 				BackgroundTransparency = 1,
-				Image = if premium then Images.Robux else Images.Coin,
+				Image = Images.Coin,
 				Position = UDim2.new(0, 6, 0.5, 0),
 				Size = function()
 					local size = if props.portrait() then 14 elseif props.shortLandscape() then 17 else 20
 					return UDim2.fromOffset(size, size)
 				end,
 				Visible = function()
-					return not tutorialTarget() and not owned() and prerequisiteMet()
+					return not premium and not tutorialTarget() and not owned() and prerequisiteMet()
 				end,
 				ZIndex = 368,
 			},
@@ -185,12 +185,12 @@ local function classCard(definition, order: number, props)
 				BackgroundTransparency = 1,
 				FontFace = HEAVY_FONT,
 				Position = function()
-					return if tutorialTarget() or owned() or not prerequisiteMet()
+					return if premium or tutorialTarget() or owned() or not prerequisiteMet()
 						then UDim2.fromScale(0, 0)
 						else UDim2.new(0, if props.portrait() then 22 else 29, 0, 0)
 				end,
 				Size = function()
-					return if tutorialTarget() or owned() or not prerequisiteMet()
+					return if premium or tutorialTarget() or owned() or not prerequisiteMet()
 						then UDim2.fromScale(1, 1)
 						else UDim2.new(1, if props.portrait() then -25 else -33, 1, 0)
 				end,
@@ -201,7 +201,7 @@ local function classCard(definition, order: number, props)
 					-- class never looks purchasable before its starting ability has been unlocked.
 					if not prerequisiteMet() then return "ABILITY LOCKED" end
 					if owned() then return "OWNED" end
-					if premium then return MonetizationController.GetPriceText(definition.Id) end
+					if premium then return UIStyle.RobuxSymbol .. " " .. MonetizationController.GetPriceText(definition.Id) end
 					return FormatNumber(definition.UnlockCost) or tostring(definition.UnlockCost)
 				end,
 				TextColor3 = function()
@@ -241,6 +241,7 @@ return function()
 	local balance = source(CoinsController.Get())
 	local runState = source(RunProgressionController.GetState())
 	local abilityShopOpen = source(AbilityController.IsInventoryOpen())
+	local shopOpen = source(MonetizationController.IsShopOpen())
 	local open = source(ClassController.IsOpen())
 	local tutorialState = source(ClassesAbilitiesTutorialController.GetState())
 	local partyActive = source(PartyTeleporterController.GetState() ~= nil)
@@ -310,6 +311,9 @@ return function()
 	end))
 	table.insert(connections, MonetizationController.GetStateChangedSignal():Connect(function(newState)
 		monetizationState(newState)
+	end))
+	table.insert(connections, MonetizationController.GetShopChangedSignal():Connect(function(isOpen)
+		shopOpen(isOpen)
 	end))
 	table.insert(connections, MonetizationController.GetProductInfoChangedSignal():Connect(function(productKey)
 		if productKey == selectedDefinition().Id then
@@ -402,7 +406,7 @@ return function()
 				return if compactLauncher() then UDim2.new(1 / 3, -12, 0, 48) else UDim2.fromOffset(176, 50)
 			end,
 			Visible = function()
-				return not inRun() and not open() and not abilityShopOpen() and not partyActive()
+				return not inRun() and not open() and not abilityShopOpen() and not shopOpen() and not partyActive()
 			end,
 			ZIndex = 55,
 			Button({
@@ -761,13 +765,19 @@ return function()
 									return if ability then "UNLOCK " .. string.upper(ability.Name) .. " FIRST" else "REQUIRED ABILITY UNAVAILABLE"
 								end
 								if selectedOwned() then return "EQUIP CLASS" end
-								if selectedPremium() then return MonetizationController.GetPriceText(selectedDefinition().Id) end
+								if selectedPremium() then
+									return UIStyle.RobuxSymbol .. " " .. MonetizationController.GetPriceText(selectedDefinition().Id)
+								end
 								local cost = FormatNumber(selectedDefinition().UnlockCost) or tostring(selectedDefinition().UnlockCost)
 								return if canAfford() then "UNLOCK FOR " .. cost .. " COINS" else "NEED " .. cost .. " COINS"
 							end,
-							LeftIcon = function() return if selectedPremium() then Images.Robux else Images.Coin end,
+							LeftIcon = Images.Coin,
 							LeftIconVisible = function()
-								return not tutorialState().active and prerequisiteMet() and not selectedOwned() and not selectedEquipped()
+								return not selectedPremium()
+									and not tutorialState().active
+									and prerequisiteMet()
+									and not selectedOwned()
+									and not selectedEquipped()
 							end,
 							Enabled = function()
 								if tutorialState().active then return selectedTutorialTarget() and prerequisiteMet() end

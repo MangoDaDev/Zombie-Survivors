@@ -5,6 +5,7 @@ local Vide = require(ReplicatedStorage.Packages.vide)
 local ZombieIndexController = require(ReplicatedStorage.Controllers.ZombieIndexController)
 local AbilityController = require(ReplicatedStorage.Controllers.AbilityController)
 local ClassController = require(ReplicatedStorage.Controllers.ClassController)
+local MonetizationController = require(ReplicatedStorage.Controllers.MonetizationController)
 local PartyTeleporterController = require(ReplicatedStorage.Controllers.PartyTeleporterController)
 local RunProgressionController = require(ReplicatedStorage.Controllers.RunProgressionController)
 local ZombieIndexConfig = require(ReplicatedStorage.Modules.Game.Zombies.ZombieIndexConfig)
@@ -212,6 +213,7 @@ return function()
 	local partyActive = source(PartyTeleporterController.GetState() ~= nil)
 	local abilityOpen = source(AbilityController.IsInventoryOpen())
 	local classOpen = source(ClassController.IsOpen())
+	local shopOpen = source(MonetizationController.IsShopOpen())
 	local runState = source(RunProgressionController.GetState())
 	local selectedId = source(ZombieIndexConfig.List[1].Id)
 	local viewportSize = source(Vector2.new(1280, 720))
@@ -268,6 +270,9 @@ return function()
 	end))
 	table.insert(connections, ClassController.GetOpenChangedSignal():Connect(function(isOpen)
 		classOpen(isOpen)
+	end))
+	table.insert(connections, MonetizationController.GetShopChangedSignal():Connect(function(isOpen)
+		shopOpen(isOpen)
 	end))
 	table.insert(connections, RunProgressionController.GetStateChangedSignal():Connect(function(newState)
 		runState(newState)
@@ -328,7 +333,7 @@ return function()
 				return if compactLauncher() then UDim2.new(1 / 3, -12, 0, 48) else UDim2.fromOffset(176, 50)
 			end,
 			Visible = function()
-				return not inRun() and not open() and not abilityOpen() and not classOpen() and not partyActive()
+				return not inRun() and not open() and not abilityOpen() and not classOpen() and not shopOpen() and not partyActive()
 			end,
 			ZIndex = 55,
 			Button({
@@ -393,6 +398,7 @@ return function()
 					-- Fit against both bounds so the tall and wide arrangements stay on-screen at their ratio.
 					AspectType = Enum.AspectType.FitWithinMaxSize,
 				},
+				create "UIScale" { Scale = UIStyle.NonClassMenuScale },
 				create "UIStroke" { ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Color = Color3.fromRGB(0, 5, 10), Thickness = 6 },
 				create "UIStroke" { ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Color = CYAN, Thickness = 3 },
 				create "Frame" {

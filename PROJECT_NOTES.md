@@ -20,10 +20,13 @@ Concise project-specific decisions that should survive future changes. General w
 
 - Coin amounts and coin-spending/claim actions pair their text with `Images.Coin` on the left; yellow text alone is not sufficient.
 - The shared `Button` supports reactive `LeftIcon` and `LeftIconVisible` props for currency actions.
+- Roblox player-list leaderstats mirror Coins and the highest round survived for display only; DataService remains authoritative and gameplay must never read the leaderstats ValueObjects.
 
 ## Monetization
 
 - `src/modules/Game/MonetizationConfig.lua` is the sole editable catalog for commerce IDs, one standalone Image ID per product, coin amounts, merchandising, and major balance settings.
+- The shared lobby launcher dock stays hidden while the monetization shop is open so its controls never overlap the modal catalog.
+- Robux purchase controls render Roblox's Unicode Robux glyph in their text; do not restore image icons beside Robux prices.
 - `MonetizationController` is the only owner of `MarketplaceService.ProcessReceipt`; repeatable rewards use persisted receipt credits and contextual products bind to server-owned run state before prompting.
 - Permanent x2 Coins and the current-run boost multiply at the authoritative coin/XP award boundaries. The run boost is cleared at every final run/replay boundary.
 - Gunslinger, Cryomancer, Starcaller, Titan, and Void Emperor are premium Gamepass classes. Verified ownership grants into the existing class/ability data; the legacy coin-unlock remote cannot bypass the pass.
@@ -31,11 +34,15 @@ Concise project-specific decisions that should survive future changes. General w
 - A player death is a downed state while any teammate lives. Downed players spectate; every fifth completed wave revives all downed party members, and only a full-team wipe can start the final result/lobby-return flow.
 - Monetization artwork uses one standalone transparent PNG and one Roblox Image asset ID per product/class; never use atlases or runtime local-file paths. Source PNGs live under `assets/monetization/`, and runtime UI falls back to Marketplace/generic art until the corresponding Image IDs are configured.
 - The monetization shop is one continuous scrolling catalog. Its top category controls only jump the existing scroll position to section anchors; do not turn them back into filtered pages.
+- Purchase celebration is confirmation-driven: Developer Products celebrate only after their receipt applies, Gamepasses only after verified ownership, and cancellations never produce success feedback.
+- A confirmed Take All receipt must consume the current level-up presentation and either roll the next queued choice or close it; never leave the purchased choice set on screen.
 
 ## Responsive menus
 
 - Every composed menu keeps its authored panel proportions with a `UIAspectRatioConstraint`; use `FitWithinMaxSize` so the limiting axis can change safely between narrow, standard, and ultrawide viewports.
+- Authored HUD surfaces such as the round timer, currency chip, status bars, compact offers, and ability tray also preserve their breakpoint-specific proportions with `UIAspectRatioConstraint`; full-screen composition roots and intentionally fluid layout wrappers remain unconstrained.
 - Major catalog menus combine scale and positive pixel offsets so they continue growing across resolutions while occupying proportionally less space on larger displays; do not hard-cap them with pixel ceilings.
+- Ability Arsenal, Shop, Zombie Index, Party Creation, and Run Over use the shared `UIStyle.NonClassMenuScale` value of `0.84`; Classes deliberately remains at its authored scale.
 - The party setup panel uses a fixed `1.25` aspect ratio.
 - UI sizing must not use `UISizeConstraint`; use responsive `Size` values and aspect-ratio constraints instead.
 
@@ -43,14 +50,22 @@ Concise project-specific decisions that should survive future changes. General w
 
 - Game sessions show safe-edge arrows with Roblox headshots for living offscreen teammates; lobby, local-player, dead-player, and on-screen markers stay hidden, and all projections share one render callback.
 
+## Spectator UI
+
+- While a downed player spectates a living teammate, hide all ordinary App UI (including queued ability choices and combat HUD) and show only the dedicated downed/spectate overlay. Keep the final game-over screen outside this gate so a team wipe can replace spectator mode normally.
+
 ## Party formation
 
 - The first player entering an empty lobby teleporter becomes its leader; every later entrant remains outside until that leader explicitly approves the server-owned join request.
 
 ## World rewards
 
-- Coin and XP drops share a 120-second authoritative lifetime through `RunProgressionConfig`.
+- Coin and XP drops share a 120-second authoritative lifetime through `RunProgressionConfig`; lifetime advances at 3x only while every eligible player's fresh camera report confirms the drop is offscreen.
 - Coin and XP drops are single shared world pickups claimed first-come-first-served. Coins go entirely to the collector; up to 25% of an XP drop's integer base value is divided among the other present players, with the indivisible remainder staying with the collector and no base XP duplicated.
+
+## Effect lighting
+
+- `EffectLightingConfig` applies the required 50% intensity scale to gameplay lights, emissive particles/trails/beams, and short Lighting-service post-processing flashes.
 
 ## Class prerequisites
 
@@ -73,6 +88,7 @@ Concise project-specific decisions that should survive future changes. General w
 ## Combat feedback
 
 - Floating zombie damage numbers use the server's post-mitigation health loss and are sent only to the player credited by the damage context. Each hit owns a separate client-local, stud-scaled BillboardGui so simultaneous hits do not replace one another or modify the shared health bar.
+- Zombie spawn height is measured from authored foot/leg geometry rather than the complete model bounds, preventing roots, accessories, or effect parts below the body from lifting visible feet off the ground.
 
 ## Player regeneration
 
@@ -88,14 +104,15 @@ Concise project-specific decisions that should survive future changes. General w
 - Permanent weapon and passive unlocks use explicit simulator-style prices instead of rarity-only pricing. Class-linked weapons cost roughly half their corresponding class benchmark, culminating in Vortex at 750,000 Coins against Void Emperor at 1,500,000; starter abilities remain free.
 - Weapon progression is capped at level 25, with its already-condensed special milestones culminating at that cap. The shorter continuous curve preserves the former level-one baseline and level-50 maximum power; passive progression remains capped at level 50 with its gentler curve.
 - Weapon balance reviews must model dense-horde mechanics from the server implementation—including retargeting, unique-hit chains, persistent overlap, geometry, active caps, and crowd control—not rank weapons from displayed stats or single-target damage alone.
-- Level-up spins draw uniformly without replacement from every eligible unlocked ability. Rarity, current level, upgrade/new status, and filled-slot ratio never bias a candidate's chance; max levels and available category slots still determine eligibility.
+- Level-up spins preserve the higher offer chance for abilities already owned in the current run, but all abilities within the upgrade and new-ability groups have equal weight. Rarity and current level never bias candidates; max levels and available category slots still determine eligibility.
 - Aura begins at a 5-stud radius and gains a diminishing but always-positive amount of radius every level with no radius cap. Its radius unlocks shared color-coded Outer, Inner, and Core zones whose damage increases toward the player; final modified radius controls both authoritative zones and visuals.
-- The 3D lobby Abilities booth opens the permanent unlock menu through the `Abilities > PromptPart` proximity prompt; prompt binding follows the booth hierarchy because the Studio-authored prompt may retain a duplicated display name.
+- The 3D lobby Abilities booth opens the permanent unlock menu through the `Abilities > PromptPart` proximity prompt; prompt binding follows the booth hierarchy and normalizes its labels to `Abilities` / `Open Abilities` because the Studio-authored prompt may retain duplicated Classes metadata.
 
 ## Round difficulty
 
 - Round one starts with six zombies, then population grows through gentle bounded density and post-round-15 slopes so the run does not hit a population/replication cliff around round 30. Reinforcement batches grow slowly and remain capped at 12 initially/10 thereafter; never lower the interval below 1.4 seconds. Strong-archetype weighting remains secondary and gradual.
 - Shielders enter after the first boss and reduce frontal direct damage instead of nullifying it, so every solo build can still defeat them while flanking and bypass effects remain rewarded.
+- The persisted `RoundsSurvived` public stat is a personal best: it stores the highest authoritative round the player completed while alive, never a cumulative lifetime total.
 
 ## Developer commands
 

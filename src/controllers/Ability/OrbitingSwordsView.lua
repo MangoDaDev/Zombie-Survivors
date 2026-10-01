@@ -3,6 +3,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
+local EffectLightingConfig = require(ReplicatedStorage.Modules.UI.EffectLightingConfig)
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
 local StudVFX = require(ReplicatedStorage.Modules.UI.StudVFX)
 
@@ -63,7 +64,7 @@ local function addSpectralTrail(model: Model, rage: boolean, inner: boolean)
 		elseif inner
 		then ColorSequence.new(Color3.fromRGB(164, 245, 255), Color3.fromRGB(88, 126, 255))
 		else ColorSequence.new(Color3.fromRGB(220, 205, 255), Color3.fromRGB(116, 91, 255))
-	trail.LightEmission = if rage then 0.78 else 0.8
+	trail.LightEmission = EffectLightingConfig.Scale(if rage then 0.78 else 0.8)
 	trail.Lifetime = if rage then 0.27 else 0.16
 	trail.MinLength = 0.08
 	trail.Transparency = NumberSequence.new(0.2, 1)
@@ -81,6 +82,7 @@ local function cloneSword(scale: number, rage: boolean, inner: boolean, temporar
 	end
 
 	local model = template:Clone()
+	EffectLightingConfig.ApplyTree(model)
 	model.Name = if inner then "InnerOrbitSword" elseif temporary then "RageOrbitSword" else "OrbitSword"
 	for _, descendant in model:GetDescendants() do
 		if descendant:IsA("BasePart") then
@@ -180,6 +182,7 @@ local function emitReleaseImpact(position: Vector3, rage: boolean)
 	for _, child in ReplicatedStorage.Assets.VFX.CriticalHit.Impact:GetChildren() do
 		if child:IsA("ParticleEmitter") then
 			local emitter = child:Clone()
+			EffectLightingConfig.Apply(emitter)
 			emitter.Color = if rage
 				then ColorSequence.new(Color3.fromRGB(255, 230, 100), Color3.fromRGB(255, 65, 32))
 				else ColorSequence.new(Color3.fromRGB(211, 200, 255), Color3.fromRGB(105, 91, 255))

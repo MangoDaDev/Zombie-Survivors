@@ -1,313 +1,229 @@
-AgentsCreatingUI.md
-Purpose
-This file defines how agents must create, modify, review, and polish Roblox UI in this project.
-The project uses Vide for production UI and Pinevex Renderer for headless visual iteration. UI work is not complete when the code merely runs; agents must render, inspect, revise, and re-render substantial interfaces until the result is visually coherent and matches the requested direction.
-Core Rules
-- Production UI must use Vide unless the surrounding system explicitly requires otherwise.
-- Preserve existing gameplay logic, state, signals, callbacks, controllers, and data flow when changing UI.
-- Do not replace working behavior just to simplify styling.
-- Reuse existing UI components, style modules, animation helpers, image registries, and interaction modules where appropriate.
-- Follow the visual direction requested for the specific screen; do not impose an unrelated existing style on it.
-- Prefer clear, maintainable component boundaries over a single giant UI function.
-- Do not duplicate the same styled control across multiple screens.
-- Do not add large example blocks, mock systems, or unrelated demo UI to production files.
-Visual Direction
-There is no mandatory project-wide visual aesthetic. Follow the user's brief, supplied reference, or screen-specific direction.
-Do not assume that new UI needs rounded corners, stud textures, gradients, glow, layered depth, thick strokes, a particular palette, or any other existing treatment.
-Existing style modules and visual components are optional resources. Reuse them only when they fit the requested result; functional interaction helpers may still be reused independently of their presentation.
-Keep each screen internally coherent, readable, and appropriately polished without forcing it to match unrelated existing interfaces.
-When extending an established icon set, inspect representative source images and match their transparency, crop, silhouette, outline, color treatment, and rendering style before generating additions.
-Do not treat new icons as integrated while their image registry entries reuse other icons; after an approved upload, verify every new entry points to its own Image asset ID.
-After wiring uploaded art, validate the exact registry IDs with a Studio content preload; never assume an upload response or Decal container ID is directly usable by an ImageLabel.
-Layout Rules
-Responsive Sizing
-Use a deliberate mix of:
-- Scale
-- pixel offsets
-Do not build an entire interface using only offsets.
-Do not build an entire interface using only scale.
-Layouts must remain usable across different viewport sizes.
-Every major menu or window must put an appropriately configured UIAspectRatioConstraint on its outer container so the complete interface retains its authored width-to-height ratio. Use FitWithinMaxSize when the limiting axis can change between narrow, standard, and ultrawide viewports, rather than forcing one dominant axis that can overflow.
-Size and position the outer container and its child panels, buttons, labels, images, and scrolling regions primarily with Scale values so they resize together. Keep pixel offsets for small padding, strokes, minimum touch/readability details, or other deliberate corrections—not as the main layout system.
-When using UIAspectRatioConstraint, keep meaningful non-zero responsive size values on both axes unless a zero axis is intentionally required.
-Never use UISizeConstraint. Use responsive Size values and UIAspectRatioConstraint where proportions must be preserved.
-Do not use pixel ceilings or hard maximum sizes to control responsive menus. Mix scale with positive pixel offsets so interfaces continue growing across resolutions while taking proportionally less space on larger displays.
-Use UIAspectRatioConstraint when preserving proportions materially improves the element.
-Positioning
-Prefer:
-- logical container hierarchy
-- padding
-- list/grid layouts where suitable
-- consistent anchor points
-- predictable alignment
-Avoid excessive hand-positioned children when a layout object would be clearer and more robust.
-Do not use arbitrary positioning values merely to make one screenshot look correct if they make the component fragile.
-Backgrounds
-Not every UI element needs a filled background.
-Use filled surfaces mainly for:
-- buttons
-- cards
-- panels
-- bars
-- important interactive containers
-- elements that need visual grouping
-For simple labels or lightweight information, transparent backgrounds with text strokes or surrounding structure are often better.
-Typography
-Use TextScaled for rendered UI text unless there is a specific reason not to.
-Typography must preserve hierarchy through:
-- container size
-- weight
-- spacing
-- contrast
-- placement
-Do not make every label equally prominent.
-Primary titles, important values, action labels, secondary text, and helper text should visibly differ in importance.
-Prevent:
-- clipping
-- cramped text
-- overly wide lines
-- weak contrast
-- tiny text on mobile
-- text touching strokes or panel edges
-Choose typography deliberately for the requested design. Existing fonts and text-stroke conventions are optional, not defaults that override the brief.
-Color and Theme
-Use a controlled palette appropriate to the requested design.
-Maintain sufficient contrast between:
-- text and background
-- icons and background
-- selected and unselected states
-- enabled and disabled states
-- foreground and decorative elements
-Surface Treatment
-Use corners, textures, gradients, strokes, shadows, glow, and depth only when the requested design benefits from them.
-No surface treatment is required by default.
-Decorative layers must not interfere with input or readability.
-Reusable UI Components
-Create reusable Vide components for visual structures that appear repeatedly.
-Good candidates include:
-- standard buttons
-- icon buttons
-- close buttons
-- panels
-- cards
-- tabs
-- progress bars
-- currency/cost displays
-- badges
-- locked states
-- selected states
-- notification elements
-- upgrade nodes
-Reusable components should accept the data and state they need without forcing one presentation onto every consumer.
-Do not create reusable abstractions for tiny one-off elements.
-Before building a new control from scratch, inspect the existing UI codebase for an appropriate component to reuse or extend.
-Interaction States
-Interactive elements must clearly communicate their state.
-Where relevant, support:
-- hover
-- pressed
-- selected
-- disabled
-- locked
-- notification/attention states
-Reuse existing interaction, hover, click, tween, or animation helpers when available.
-Do not duplicate animation systems unnecessarily.
-Animations should feel responsive and intentional.
-Avoid excessive motion that reduces readability or delays interaction.
-Vide Requirements
-Production UI must integrate cleanly with the project's existing Vide architecture.
-Use the existing project import style and conventions.
-Keep visual structure separate from unrelated gameplay logic when practical.
-Do not destroy or bypass:
-- reactive state
-- cleanup logic
-- controller subscriptions
-- callbacks
-- signals
-- visibility conditions
-- existing ownership rules
-When modifying an existing component, preserve its external API unless a task explicitly requires changing it.
-Avoid introducing duplicate live UI instances.
-Do not use weak-key tables as the sole ownership registry for live Instance-backed UI. Keep explicit ownership, clean it up when the Instance is removed, and deduplicate against the actual hierarchy before creating another instance.
-Pinevex Visual Workflow
-Pinevex is the required headless visual feedback tool for substantial UI work.
-Any newly created visible UI must receive a Pinevex render-and-inspect pass before production integration, even when the component is small.
-The local Pinevex server is expected to run at:
-http://127.0.0.1:8000
-Project UI design files live in:
-ui-designs/
-Rendered previews live in:
-.ui-previews/
-The project renderer command is:
-python tools/pinevex/render.py ui-designs/<Name>.json
-When Pinevex Must Be Used
-Use the Pinevex loop when:
-- creating a new screen
-- creating a new major component
-- substantially restyling an existing component
-- recreating UI from a screenshot/reference
-- changing layout hierarchy
-- changing spacing, proportions, or visual structure
-- performing visual polish that cannot be validated from code alone
-Minor text or logic-only changes do not require a full visual iteration cycle unless they affect layout.
-Required Visual Iteration Loop
-For substantial UI work, follow this loop:
-1. Inspect the relevant existing UI code, shared components, style modules, and image registries.
-2. Determine the intended hierarchy and interaction model.
-3. Create or update the corresponding Pinevex design in ui-designs/.
-4. Render it with the project Pinevex tool.
-5. Inspect the generated PNG in .ui-previews/.
-6. Identify the highest-impact visual problems.
-7. Correct those problems.
-8. Render again.
-9. Repeat until another pass would not create a meaningful visual improvement.
-10. Implement or update the production Vide UI to match the validated design.
-11. Re-check that existing behavior and reactive logic still work.
-Do not declare substantial UI work complete after only writing code.
-Do not assume the first render is acceptable.
-Visual Review Order
-Review each render in this order:
-1. overall composition
-2. hierarchy
-3. proportions
-4. alignment
-5. spacing and padding
-6. control sizing
-7. typography
-8. contrast and color balance
-9. strokes, corners, gradients, texture, and depth
-10. small polish
-Fix the largest structural issues before adjusting minor decorative details.
-Do not waste iterations tuning tiny color differences while major layout problems remain.
-Iteration Discipline
-After each render, focus on the 1-3 highest-impact defects.
-Avoid changing many unrelated visual decisions at once.
-Each iteration should have a clear reason.
-Good iteration behavior:
-- identify a concrete problem
-- make a targeted correction
-- render again
-- verify whether the correction actually improved the result
-Bad iteration behavior:
-- random restyling
-- changing multiple unrelated areas without evidence
-- endlessly tweaking insignificant values
-- declaring success without inspecting the render
-Stop when:
-- hierarchy is clear
-- spacing is consistent
-- proportions are coherent
-- text is readable
-- states are understandable
-- the UI matches the requested visual direction
-- further changes would be marginal rather than meaningful
-Reference Images
-When a screenshot or visual reference is provided, treat it as a target rather than loose inspiration unless the task says otherwise.
-Compare:
-- overall silhouette
-- hierarchy
-- relative sizes
-- spacing
-- alignment
-- major colors
-- panel structure
-- button treatment
-- typography
-- icon placement
-- decorative density
-Do not blindly copy defects from a reference.
-The user's requested design takes precedence over existing project styling. Do not adapt it back toward an established aesthetic unless asked.
-Pinevex vs Production Vide
-Pinevex is the visual design and validation layer.
-Vide is the production implementation layer.
-Do not maintain two independently designed versions of the same interface.
-The Pinevex design should describe the intended visual result, and the Vide implementation should match it as closely as practical.
-If Pinevex cannot represent a Roblox/Vide feature exactly:
-- use Pinevex for the closest visual approximation
-- implement the real feature correctly in Vide
-- preserve the same layout and visual intent
-Do not reduce production functionality merely to fit Pinevex limitations.
-Responsive Validation
-Major screens should be checked at more than one viewport when practical.
-Pay particular attention to:
-- desktop
-- narrow/mobile layouts
-- text wrapping
-- panel overflow
-- controls becoming too small
-- excessive empty space
-- aspect-ratio breakage
-A UI that only looks correct at one exact resolution is not finished.
-Existing Codebase First
-Before creating new UI infrastructure, inspect:
-- existing UI components
-- shared style modules
-- image/asset registries
-- existing animation helpers
-- current Vide patterns
-- nearby screens with related functionality
-Prefer extending what already exists over creating parallel systems.
-Do not rewrite a working system unless the task specifically requires it.
-Code Quality
-UI code should be:
-- readable
-- modular
-- consistently named
-- easy to revise
-- explicit about ownership and cleanup
-Use clear internal names such as:
-- Content
-- StudTexture
-- Glow
-- Icon
-- Label
-- Cost
-- Sensor
-- Header
-- Body
-- Footer
-Avoid meaningless autogenerated names.
-Avoid giant components when meaningful visual sections can be separated cleanly.
-Do not over-engineer simple UI.
-Completion Criteria
-UI work is complete only when all relevant items below are satisfied:
-- production UI uses Vide correctly
-- existing logic still works
-- visual structure matches the requested design
-- visual styling matches the requested direction
-- repeated controls reuse appropriate components
-- layout is responsive enough for intended viewports
-- text is readable and unclipped
-- interaction states are clear
-- Pinevex preview has been rendered and inspected for substantial visual work
-- major visual defects found during inspection have been corrected
-- no unnecessary duplicate UI systems or components were introduced
-Code correctness alone is not sufficient for substantial UI work.
+# Roblox UI Authoring Guide
 
-# UI Reference Library
+## Purpose and precedence
 
-Optional historical visual references are stored in `ui-references/`.
+This file is the authoritative UI-specific instruction set for Zombie Survivors. Read it in full before creating, modifying, restyling, reviewing, or fixing Roblox UI. The repository-wide rules in the root `AGENTS.md` still apply.
 
-Consult them only when the user requests that style or when a specific reference is relevant to the task. They do not define a mandatory project-wide visual language.
+Production application UI uses Vide. Pinevex is the headless design and validation layer for new or substantial visual work. Correct code alone is not enough when a task materially changes a visible interface.
 
-When using a reference, extract only the traits that support the requested result. Do not automatically copy its corner treatment, depth, texture, strokes, palette, decoration, or layout.
+## Core requirements
 
-Verify typography against the production component path: explicitly set required font weights and check shared-component text-size constraints instead of assuming the preview renderer will match Studio.
+- Use Vide for production UI unless the surrounding system explicitly requires otherwise, such as the early ReplicatedFirst loading screen.
+- Preserve existing gameplay logic, state, signals, callbacks, controllers, ownership, and data flow while changing presentation.
+- Preserve an existing UI hierarchy unless the request requires a structural change.
+- Do not replace working behavior merely to simplify styling.
+- Inspect nearby UI, shared components, styles, image registries, animation helpers, and interaction patterns before editing.
+- Reuse suitable existing implementation instead of creating a parallel system or rewriting a working one.
+- Keep UI code readable, modular, typed where practical, explicit about ownership, and proportionate to the task.
+- Do not add large examples, mock systems, demo UI, or unrelated polish to production files.
+- Do not create a menu when the feature does not need one.
+- Use one responsive interface across desktop and mobile rather than maintaining separate versions.
 
-Also inspect good existing production UI under `src/UI/` when it is relevant to the task.
+## Application architecture
 
-Do not copy obsolete, unused, or visibly inconsistent UI merely because it exists in the codebase.
-Make sure to avoid unnesscecary rendering. If you arent greatly altering the visuals of something, do not render.a
-No need for seperate mobile/computer UI. Just make sure the 1 ui scales correctly on all screen sizes.
+- `UIOrigin.lua` is the single application mount boundary. It mounts `App.lua` into `LocalPlayer.PlayerGui` once.
+- `App.lua` is the neutral `ScreenGui` composition root. Compose screens and HUD components there without moving gameplay authority into UI code.
+- Keep the main App `ScreenGui.IgnoreGuiInset` enabled. Clear the Roblox topbar with explicit dynamic safe offsets.
+- Components return their UI hierarchy. They must not find `PlayerGui`, parent themselves, or call `mount` independently.
+- Put generic reusable controls in `src/UI/Classes`. Add folders such as Menus, Frames, Theme, Effects, or Utility only when real components require them.
+- Shared presentation-only data and effects belong in `src/modules/UI`; Vide components remain under `src/UI`.
+- `src/modules/UI/PlayVFX.lua` clones Studio-owned effect templates, starts supported particles, beams, trails, and sounds, and schedules cleanup. Pass it a template instead of mutating the source.
+- Studio-owned assets are optional and are not mapped by Rojo. Inspect the live hierarchy through Studio MCP and keep reusable UI roots safe when optional asset folders are absent.
+- Name component groups for their role or position, such as `Content`, `StudTexture`, `Glow`, `Icon`, `Label`, `Cost`, `Sensor`, `Header`, `Body`, `Footer`, or `BottomRight`, rather than using vague or autogenerated names.
+- Preserve a component's external API unless the task explicitly requires a breaking change.
+- Avoid duplicate live UI instances. Do not use weak-key tables as the sole ownership registry for Instance-backed UI; keep explicit ownership, clean it up when the Instance is removed, and deduplicate against the actual hierarchy.
 
-Make sure the UI works well on all screen aspect ratios. Use aspectratioconstraint. 
+### ReplicatedFirst loading screen exception
 
-ALWAYS use IMAGE ids instead of DECAL ids. They are 2 seperate things.
+- `src/loading/init.client.lua` runs from ReplicatedFirst before the normal client bootstrap finishes.
+- Keep this loading screen deliberately simple and image-free: use Frames, text, and the existing progress bar rather than asset-backed `ImageLabel` or `ImageButton` instances.
+- Do not use Vide there; direct Instance creation is intentional so the screen can appear before replicated application UI is ready.
+- The flow waits for `PlayerGui.App`, then `CharacterController:WaitUntilReady()`, and finally requests a character because `CharacterAutoLoads` is disabled. Update the loading script if the UI root name, startup API, or character-loading policy changes.
+- Do not scan or preload the entire DataModel. Load only assets required by an explicitly requested future design.
+- Disconnect or finish animations before destroying the `ScreenGui`, and do not leave loading tasks running after dismissal.
 
-You dont need to create a menu for everything.
-Dont use pixels for everything.
-For `BillboardGui.Size`, the `UDim2` scale components are measured in world studs and the offset components are measured in screen pixels. When the user asks for a billboard to be "stud-based," size it primarily with scale, such as `UDim2.fromScale(4, 3)`; use offsets only for minor pixel adjustments. This describes physical sizing, not stud-textured artwork.
-- Good practice to put UIAspectRatioConstraint in menus to make sure that no issues with scale happen across different resolutions
+## Vide implementation
 
-Dont use UISIZECONSTRAINT! Instead use a mix of scale and pixels to make sure stuff scales well on all devices. Dont even use pixel caps with scripts. No form of any pixel caps. Use a combonation of Scale and Offset so its still sizeable on high res displays but is bigger on mobile displays.
-Dont use image atlases or local references. Only image ids work in roblox. 
+- Prefer Vide's `create`, `source`, `derive`, `read`, `spring`, `effect`, `cleanup`, `action`, `context`, `batch`, `changed`, and `mount` APIs over manual synchronization.
+- Pass reactive values directly to properties. Use `effect` only for actual side effects, not to mirror a value into a property.
+- Use `cleanup` for manually created RBXScriptConnections, callbacks, threads, Instances, and other resources.
+- Prefer small composable functions and typed props over OOP-style `new`, `Enable`, `Disable`, and `Destroy` APIs.
+- Split genuinely distinct sections into meaningful components instead of growing one giant component, but do not overengineer small one-off UI.
+- Keep visual structure separate from unrelated gameplay logic where practical.
+- Preserve reactive state, controller subscriptions, callbacks, signals, visibility conditions, cleanup, and ownership rules.
+- Reuse `Classes/Button.lua` before introducing another general-purpose button.
+- Clone sounds before playback, parent each runtime copy appropriately, and clean it up so concurrent interactions do not compete over a shared Sound.
+
+## Visual direction
+
+- Follow the user's brief, supplied reference, or screen-specific direction. There is no mandatory project-wide aesthetic.
+- Do not impose rounded corners, stud textures, gradients, glow, layered depth, thick strokes, a palette, or any other existing treatment unless it supports the requested result.
+- Existing style modules and visual components are optional presentation resources. Reuse them only when they fit; functional helpers may still be reused independently of their appearance.
+- Keep each screen internally coherent, readable, and polished without forcing it to resemble unrelated interfaces.
+- When a reference is supplied, treat it as the target unless the user says it is only inspiration. Compare silhouette, hierarchy, relative sizes, spacing, alignment, colors, panel structure, controls, typography, icons, and decorative density without copying defects.
+- The user's requested direction overrides existing styling.
+
+## Responsive layout
+
+### Sizing rules
+
+- Use a deliberate combination of `Scale` and pixel offsets. Do not build an entire interface with only one of them.
+- Size and position the outer container and its major child regions primarily with Scale so they resize together. Reserve offsets for small padding, strokes, minimum touch/readability details, and deliberate corrections.
+- Never use `UISizeConstraint` or scripted pixel ceilings/hard maximum sizes to control responsive UI.
+- Do not use `UIScale` to resize menus or solve layout responsiveness unless the user or a documented project invariant explicitly requires a uniform full-menu transform.
+- Existing or explicitly requested interaction animations may use `UIScale`. When such a control participates in a layout, keep an unscaled layout slot and center the scaled visual child at `AnchorPoint` and `Position` `(0.5, 0.5)`.
+- Every major menu or window must have an appropriately configured `UIAspectRatioConstraint` on its outer container. Use `FitWithinMaxSize` when the limiting axis can change across narrow, standard, short, and ultrawide viewports.
+- When an aspect constraint is present, keep meaningful non-zero responsive size values on both axes unless a zero axis is intentional.
+- Major responsive menus should mix scale with positive offsets so they continue growing on large displays while occupying proportionally less of the viewport.
+- Use `UIAspectRatioConstraint` on other elements whenever preserving authored proportions materially improves the result.
+- Layouts must remain usable across every supported screen size and aspect ratio.
+
+### Safe menu resizing
+
+- Never resize a menu by changing only its outer container when descendants use authored pixel offsets.
+- Before resizing, trace every dependent `Size`, `Position`, padding, list/grid cell, canvas, text bound, scroll region, and responsive breakpoint.
+- Update all dependent dimensions and thresholds coherently so the menu contents retain their intended proportions and remain contained.
+- Do not use `UIScale` as a shortcut for this work unless an explicit user request or documented project invariant calls for the complete menu and all descendants to scale uniformly.
+- Validate the resized interface at representative desktop, portrait/mobile, short-landscape, and unusual aspect ratios. Check containment, overlap, clipping, readability, touch targets, scrolling, and close/action controls.
+
+### Structure and positioning
+
+- Prefer logical container hierarchy, padding, list/grid layouts, consistent anchor points, and predictable alignment.
+- Avoid excessive hand-positioning when a layout object would express the relationship more clearly.
+- Do not choose arbitrary positions that fit one preview while making the component fragile elsewhere.
+- For `BillboardGui.Size`, remember that `UDim2` scale components represent world studs and offsets represent screen pixels. For a stud-based billboard, size primarily with scale, such as `UDim2.fromScale(4, 3)`, and use offsets only for minor corrections.
+
+## Composition and readability
+
+### Backgrounds and surfaces
+
+- Not every element needs a filled background. Use filled surfaces mainly for buttons, cards, panels, bars, important interactive containers, or groups that require separation.
+- Lightweight labels and information can use transparent backgrounds when surrounding structure and contrast are sufficient.
+- Use corners, textures, gradients, strokes, shadows, glow, and depth only when they improve the requested design.
+- Decorative layers must not interfere with input or readability.
+
+### Typography
+
+- Use `TextScaled` for rendered UI text unless there is a specific reason not to.
+- Create hierarchy through container size, font weight, spacing, contrast, and placement. Titles, important values, actions, secondary text, and helper copy should not have equal emphasis.
+- Prevent clipping, cramped text, overly wide lines, weak contrast, tiny mobile text, and text touching borders.
+- Explicitly set required font weights and verify text-size constraints in production components; do not assume a preview renderer matches Studio typography exactly.
+
+### Color and contrast
+
+- Use a controlled palette appropriate to the requested screen.
+- Maintain clear contrast between text and backgrounds, icons and backgrounds, selected and unselected states, enabled and disabled states, and foreground and decorative elements.
+
+## Components and interaction
+
+- Create reusable Vide components for repeated structures such as standard/icon/close buttons, panels, cards, tabs, progress bars, currency displays, badges, locked/selected states, notifications, and upgrade nodes.
+- Reusable components should accept the data and state they need without forcing one visual treatment onto every consumer.
+- Do not abstract tiny one-off elements.
+- Interactive elements must communicate relevant hover, pressed, selected, disabled, locked, and attention states.
+- Pressed feedback has priority over hover feedback. Ensure state cannot remain stuck after input ends, the pointer leaves, or a control becomes disabled.
+- Reuse existing hover, click, tween, and animation helpers instead of creating duplicate animation systems.
+- Keep animations responsive and intentional; avoid motion that delays interaction or reduces readability.
+- Keep undiscovered collection entries anonymous and non-interactive. Do not leak their authored name or icon before discovery.
+- Put frequent item actions directly on collection cards when space permits instead of requiring a secondary detail view.
+- Keep persistent HUD control rows in a stable frame; presentation overlays must not move or own them.
+- For reel or carousel focus effects, derive each entry's scale from its current distance to the focus point so neighboring entries cannot retain stale emphasis.
+- For a Workspace-based character preview, verify the camera's `RightVector` before offsetting its aim to place the character on a particular side of the screen.
+
+## Images and UI assets
+
+- Roblox runtime UI must use Image asset IDs, never Decal IDs, local file paths, or image atlases.
+- Reuse suitable Studio-owned assets when they exist, but do not make a reusable root depend on optional folders.
+- UI image searches through Roblox Studio MCP may search only `Image` or `Decal` asset types in the Creator Store, user inventory, group inventory, or universe inventory. Never source models, meshes, packages, or other non-image asset types for UI image work.
+- Visually inspect a candidate's returned thumbnail or source image before using it. Confirm that it is polished, relevant, and free of suspicious, inappropriate, misleading, or moderation-risk content.
+- Asset sourcing must never introduce scripts. Reject any inserted result containing a `Script`, `LocalScript`, or `ModuleScript`.
+- When extending an icon set, inspect representative source images and match transparency, crop, silhouette, outline, color treatment, and rendering style.
+- Never treat new icons as integrated while their registry entries reuse another icon. After an approved upload, verify that each entry uses its own Image asset ID.
+- After wiring uploaded art, validate exact registry IDs with a Studio content preload. Never assume an upload response or Decal container ID is directly usable by an `ImageLabel`.
+- Upload UI images only after verifying that the Studio account is exactly `Varie3n`, completing the repository-wide moderation review, and obtaining the required human review. If identity cannot be verified or the image is questionable, do not upload it.
+
+## Pinevex visual workflow
+
+Pinevex is the project's headless UI design and validation tool. Do not use computer control, Studio screenshots, screen capture, or similar capture tools. Pinevex-rendered previews are the supported visual-validation path.
+
+The local server is expected at `http://127.0.0.1:8000`.
+
+- Design files: `ui-designs/`
+- Rendered previews: `.ui-previews/`
+- Renderer: `python tools/pinevex/render.py ui-designs/<Name>.json`
+
+### When to render
+
+Use the Pinevex loop for:
+
+- any newly created visible UI, even a small component;
+- a new screen or major component;
+- substantial restyling;
+- recreation from a visual reference;
+- layout-hierarchy changes;
+- material changes to spacing, proportions, or visual structure; and
+- visual polish that source inspection cannot validate.
+
+Do not render for minor text, logic-only, or similarly non-visual changes unless they can affect layout. Avoid unnecessary renders.
+
+### Required iteration loop
+
+1. Inspect the relevant production UI, shared components, styles, image registries, and interactions.
+2. Define the intended hierarchy and interaction model.
+3. Create or update the matching Pinevex design in `ui-designs/`.
+4. Render it with the project tool.
+5. Inspect the generated preview.
+6. Identify the one to three highest-impact visual problems.
+7. Make targeted corrections and render again.
+8. Repeat until another pass would produce only marginal improvement.
+9. Implement or update the production Vide UI to match the validated design.
+10. Recheck behavior, reactivity, ownership, cleanup, and responsive layout.
+
+Do not declare substantial visual work complete after the first render or after code changes alone.
+
+### Review order
+
+Review previews in this order:
+
+1. Overall composition
+2. Hierarchy
+3. Proportions
+4. Alignment
+5. Spacing and padding
+6. Control sizing
+7. Typography
+8. Contrast and color balance
+9. Surface treatment and depth
+10. Small polish
+
+Fix structural problems before decorative details. Avoid random restyling, unrelated simultaneous changes, and endless low-impact tweaking.
+
+Stop when hierarchy is clear, spacing is consistent, proportions are coherent, text is readable, states are understandable, the requested direction is met, and further changes would be marginal.
+
+### Pinevex and production Vide
+
+- Pinevex describes the intended visual result; Vide is the production implementation. Do not maintain two independently designed versions.
+- If Pinevex cannot represent a Roblox/Vide feature exactly, use the closest preview approximation and implement the production feature correctly without reducing functionality.
+- Check major screens at more than one viewport when practical. Include desktop and narrow/mobile conditions and watch for wrapping, overflow, undersized controls, excessive empty space, and broken aspect ratios.
+- A UI that works only at one exact resolution is not complete.
+
+## Reference library
+
+- Optional historical references live in `ui-references/`.
+- Consult them only when the user requests that style or a specific reference is relevant. They do not define a global visual language.
+- Extract only the traits that help the current task. Do not automatically copy palette, textures, corners, strokes, depth, decoration, or layout.
+- Also inspect strong existing production UI under `src/UI/` when relevant.
+- Do not copy obsolete, unused, or visibly inconsistent UI merely because it exists.
+
+## Completion checklist
+
+UI work is complete only when all applicable items are true:
+
+- Production UI uses Vide correctly unless an explicit exception applies.
+- Existing logic, reactive state, signals, callbacks, ownership, and cleanup still work.
+- The hierarchy, styling, and interaction match the requested direction.
+- Repeated controls reuse appropriate shared components.
+- Layout remains contained and usable across intended viewports and aspect ratios.
+- Text is readable and unclipped, and interaction states are clear.
+- New or substantial visual work completed the required Pinevex iteration.
+- Material defects found during validation were corrected.
+- No unnecessary duplicate UI system or component was introduced.

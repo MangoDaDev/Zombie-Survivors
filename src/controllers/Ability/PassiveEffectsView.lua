@@ -2,6 +2,7 @@ local Debris = game:GetService("Debris")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
+local EffectLightingConfig = require(ReplicatedStorage.Modules.UI.EffectLightingConfig)
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
 local StudVFX = require(ReplicatedStorage.Modules.UI.StudVFX)
 local ZombieController = require(script.Parent.Parent.ZombieController)
@@ -60,7 +61,7 @@ end
 local function addFadingLight(parent: BasePart, color: Color3, brightness: number, range: number, duration: number)
 	local light = Instance.new("PointLight")
 	light.Color = color
-	light.Brightness = brightness
+	light.Brightness = EffectLightingConfig.Scale(brightness)
 	light.Range = range
 	light.Parent = parent
 	TweenService:Create(light, TweenInfo.new(duration, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
@@ -112,7 +113,7 @@ function PassiveEffectsView.BurnApplied(packet)
 		flame.Parent = holder
 		local light = Instance.new("PointLight")
 		light.Color = flame.Color
-		light.Brightness = 0.7
+		light.Brightness = EffectLightingConfig.Scale(0.7)
 		light.Range = 5
 		light.Parent = holder
 		Sounds.Play("FireDamage", holder, 75)
@@ -174,6 +175,7 @@ function PassiveEffectsView.CriticalHit(packet)
 			for _, child in ReplicatedStorage.Assets.VFX.CriticalHit.Impact:GetChildren() do
 				if child:IsA("ParticleEmitter") then
 					local emitter = child:Clone()
+					EffectLightingConfig.Apply(emitter)
 					emitter.Color = ColorSequence.new(Color3.fromRGB(255, 244, 151), Color3.fromRGB(255, 143, 36))
 					emitter.Parent = holder
 					emitter:Emit(if child.Name == "Flash" then 1 else 7)
@@ -316,7 +318,9 @@ function PassiveEffectsView.Render()
 		else
 			burn.holder.Position = position + Vector3.new(0, 1.4, 0)
 			-- A gentle light pulse adds life to the status without adding particles or another update connection.
-			burn.light.Brightness = 0.55 + math.max(0, math.sin(now * 7 + burn.phase)) * 0.55
+			burn.light.Brightness = EffectLightingConfig.Scale(
+				0.55 + math.max(0, math.sin(now * 7 + burn.phase)) * 0.55
+			)
 		end
 	end
 end

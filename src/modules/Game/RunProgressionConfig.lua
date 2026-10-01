@@ -18,6 +18,11 @@ local RunProgressionConfig = {
 		-- World rewards are single shared objects: the first player to claim one consumes it for the party.
 		-- XP keeps most of its value on the collector while this pool is divided between their teammates.
 		SharedXPPercent = 0.25,
+		-- Pickup lifetime advances three times as fast only while every eligible player's fresh camera
+		-- report places the pickup offscreen. Missing/stale reports deliberately retain the normal rate.
+		OffscreenLifetimeMultiplier = 3,
+		VisibilityReportInterval = 0.5,
+		VisibilityReportStaleAfter = 1.5,
 		XP = {
 			PickupRadius = 2.4,
 			MagnetRadius = 15,
@@ -46,6 +51,10 @@ local RunProgressionConfig = {
 
 	Abilities = {
 		ChoiceCount = 3,
+		-- Abilities already owned in the current run remain more likely to be offered for upgrades.
+		-- The choice roller applies this preference between groups, never as different per-ability weights.
+		NewOfferChanceAtEmpty = 0.4,
+		NewOfferChanceAtFull = 0.08,
 		-- Permanent ownership is the authoritative gate for new run choices. Keep this escape hatch empty
 		-- unless a future global event deliberately makes an ability available without unlocking it.
 		AlwaysAvailable = {},

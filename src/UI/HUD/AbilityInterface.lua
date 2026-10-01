@@ -241,6 +241,7 @@ return function()
 	local balance = source(CoinsController.Get())
 	local runState = source(RunProgressionController.GetState())
 	local open = source(AbilityController.IsInventoryOpen())
+	local shopOpen = source(MonetizationController.IsShopOpen())
 	local partyActive = source(PartyTeleporterController.GetState() ~= nil)
 	local category = source(AbilityDefinitions.Categories.Weapon)
 	local selectedId = source(firstAbilityId(AbilityDefinitions.Categories.Weapon))
@@ -286,6 +287,9 @@ return function()
 	end))
 	table.insert(connections, AbilityController.GetInventoryOpenChangedSignal():Connect(function(isOpen)
 		open(isOpen)
+	end))
+	table.insert(connections, MonetizationController.GetShopChangedSignal():Connect(function(isOpen)
+		shopOpen(isOpen)
 	end))
 	table.insert(connections, PartyTeleporterController.GetStateChangedSignal():Connect(function(newState)
 		partyActive(newState ~= nil)
@@ -414,7 +418,8 @@ return function()
 				return if compactLauncher() then UDim2.new(1, -20, 0, 60) else UDim2.fromOffset(556, 62)
 			end,
 			Visible = function()
-				return not inRun() and not open() and not partyActive()
+				-- The shared lobby launcher dock must sit behind the modal shop, not over its catalog.
+				return not inRun() and not open() and not shopOpen() and not partyActive()
 			end,
 			ZIndex = 50,
 			create "UICorner" { CornerRadius = UDim.new(0, 5) },
@@ -433,7 +438,7 @@ return function()
 				return if compactLauncher() then UDim2.new(1 / 3, -12, 0, 48) else UDim2.fromOffset(176, 50)
 			end,
 			Visible = function()
-				return not inRun() and not open() and not partyActive()
+				return not inRun() and not open() and not shopOpen() and not partyActive()
 			end,
 			ZIndex = 55,
 			Button({
@@ -503,6 +508,7 @@ return function()
 					-- Fit inside both responsive axes. A fixed dominant axis can overflow on phones or ultrawide screens.
 					AspectType = Enum.AspectType.FitWithinMaxSize,
 				},
+				create "UIScale" { Scale = UIStyle.NonClassMenuScale },
 				create "UIStroke" { ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Color = Color3.fromRGB(0, 5, 10), Thickness = 7 },
 				create "UIStroke" { ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Color = CYAN, Thickness = 3 },
 				create "Frame" {

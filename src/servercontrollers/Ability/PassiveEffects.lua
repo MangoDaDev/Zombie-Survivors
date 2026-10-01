@@ -4,6 +4,7 @@ local RunService = game:GetService("RunService")
 local ServerStorage = game:GetService("ServerStorage")
 
 local AbilityDefinitions = require(ReplicatedStorage.Modules.Game.Abilities.AbilityDefinitions)
+local EffectLightingConfig = require(ReplicatedStorage.Modules.UI.EffectLightingConfig)
 local RuntimeState = require(ReplicatedStorage.Modules.Game.RuntimeState)
 local RageController = require(ServerStorage.Controllers.RageController)
 local ClassController = require(ServerStorage.Controllers.ClassController)
@@ -348,7 +349,7 @@ local function createSprintTrail(runtime: PlayerRuntime)
 	trail.Attachment0 = left
 	trail.Attachment1 = right
 	trail.Color = ColorSequence.new(Color3.fromRGB(162, 224, 255), Color3.fromRGB(91, 153, 255))
-	trail.LightEmission = 0.45
+	trail.LightEmission = EffectLightingConfig.Scale(0.45)
 	trail.Lifetime = 0.12
 	trail.MinLength = 0.15
 	trail.Transparency = NumberSequence.new({

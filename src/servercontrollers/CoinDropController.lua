@@ -23,6 +23,7 @@ local MIN_SCATTER_DISTANCE = 5
 local MAX_SCATTER_DISTANCE = 10
 local MAX_ACTIVE_COINS = 120
 local MAX_MERGE_PARTNERS = 7
+local MAX_VISIBILITY_REPORT_IDS = 512
 local CLIENT_CLAIM_DISTANCE_TOLERANCE = 2.5
 local CLIENT_CLAIM_REQUEST_INTERVAL = 0.04
 
@@ -32,8 +33,14 @@ type CoinState = {
 	position: Vector3,
 	collectibleAt: number,
 	despawnAt: number,
+	visibilityCheckAfter: number,
 	eligibleUserIds: { [number]: boolean },
 	collectAtByPlayer: { [Player]: number },
+}
+
+type VisibilityReport = {
+	reportedAt: number,
+	offscreenIds: { [number]: boolean },
 }
 
 local CoinDropController = {}
@@ -47,6 +54,7 @@ local accumulator = 0
 local mergeAccumulator = 0
 local coins: { [number]: CoinState } = {}
 local lastClientClaimAt: { [Player]: number } = {}
+local visibilityReports: { [Player]: VisibilityReport } = {}
 local coinCollected = Signal.new()
 
 local function getCoinMagnetMultiplier(player: Player): number
@@ -215,6 +223,7 @@ function CoinDropController.SpawnBurst(position: Vector3, totalValue: number, la
 			position = targetPosition,
 			collectibleAt = now + duration * 0.72,
 			despawnAt = now + CoinDropConfig.Lifetime,
+			visibilityCheckAfter = now + CoinDropConfig.VisibilityReportInterval,
 			eligibleUserIds = table.clone(eligibleUserIds),
 			collectAtByPlayer = {},
 		}
@@ -310,6 +319,8 @@ local function mergeNearbyCoins(now: number)
 			coin.position = weightedPosition / totalValue
 			coin.collectibleAt = now + 0.24
 			coin.despawnAt = despawnAt
+			-- The merged coin moved, so wait for a fresh camera sample of its new position.
+			coin.visibilityCheckAfter = now + CoinDropConfig.VisibilityReportInterval
 			for _, mergedId in mergedIds do
 				coins[mergedId] = nil
 				activeCount -= 1
@@ -326,9 +337,30 @@ local function mergeNearbyCoins(now: number)
 	end
 end
 
-local function despawnExpiredCoins(now: number)
+local function isOffscreenForAllEligiblePlayers(coin: CoinState, now: number): boolean
+	local hasEligiblePlayer = false
+	for userId in coin.eligibleUserIds do
+		local player = Players:GetPlayerByUserId(userId)
+		local report = player and visibilityReports[player]
+		hasEligiblePlayer = true
+		if not report
+			or report.reportedAt < coin.visibilityCheckAfter
+			or now - report.reportedAt > CoinDropConfig.VisibilityReportStaleAfter
+			or not report.offscreenIds[coin.id]
+		then
+			return false
+		end
+	end
+	return hasEligiblePlayer
+end
+
+local function despawnExpiredCoins(now: number, elapsed: number)
 	local expiredIds = {}
 	for id, coin in coins do
+		if isOffscreenForAllEligiblePlayers(coin, now) then
+			-- Normal wall-clock time already advances despawnAt by one rate; subtract only the extra rate.
+			coin.despawnAt -= elapsed * (CoinDropConfig.OffscreenLifetimeMultiplier - 1)
+		end
 		if next(coin.collectAtByPlayer) == nil and now >= coin.despawnAt then
 			coins[id] = nil
 			activeCount -= 1
@@ -339,6 +371,30 @@ local function despawnExpiredCoins(now: number)
 		-- Expiration is authoritative and batched so every client removes the same drops with one message.
 		coinNetwork:fireAll("DespawnCoins", expiredIds)
 	end
+end
+
+function CoinDropController.ReportVisibility(_, player: Player, offscreenIds)
+	if type(offscreenIds) ~= "table" then
+		return
+	end
+	local now = workspace:GetServerTimeNow()
+	local previous = visibilityReports[player]
+	if previous and now - previous.reportedAt < CoinDropConfig.VisibilityReportInterval * 0.5 then
+		return
+	end
+	local offscreenSet = {}
+	local acceptedCount = 0
+	for _, id in offscreenIds do
+		local coin = type(id) == "number" and id == id and id % 1 == 0 and coins[id] or nil
+		if coin and coin.eligibleUserIds[player.UserId] then
+			offscreenSet[id] = true
+			acceptedCount += 1
+			if acceptedCount >= MAX_VISIBILITY_REPORT_IDS then
+				break
+			end
+		end
+	end
+	visibilityReports[player] = { reportedAt = now, offscreenIds = offscreenSet }
 end
 
 local function finishCollections(now: number)
@@ -568,10 +624,11 @@ local function step(deltaTime: number)
 	if accumulator < UPDATE_INTERVAL then
 		return
 	end
+	local elapsed = accumulator
 	accumulator = 0
 	local now = workspace:GetServerTimeNow()
 	finishCollections(now)
-	despawnExpiredCoins(now)
+	despawnExpiredCoins(now, elapsed)
 	startCollections(now)
 	if mergeAccumulator >= MERGE_INTERVAL then
 		mergeAccumulator = 0
@@ -601,6 +658,7 @@ function CoinDropController.Init()
 	coinNetwork = Networker.server.new("CoinDropController", CoinDropController, {
 		CoinDropController.GetSnapshot,
 		CoinDropController.RequestCollect,
+		CoinDropController.ReportVisibility,
 	})
 	if ServerContext.IsGameServer() then
 		heartbeatConnection = RunService.Heartbeat:Connect(step)
@@ -615,6 +673,7 @@ end
 
 function CoinDropController.OnPlayerRemoving(player: Player)
 	lastClientClaimAt[player] = nil
+	visibilityReports[player] = nil
 	for id, coin in coins do
 		local wasCollecting = coin.collectAtByPlayer[player] ~= nil
 		coin.collectAtByPlayer[player] = nil

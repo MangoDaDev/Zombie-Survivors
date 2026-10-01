@@ -1,0 +1,79 @@
+{
+  "pinevex_object": {
+    "type": "Frame",
+    "name": "Preview",
+    "size": [1, 0, 1, 0],
+    "bg": [24, 35, 42],
+    "children": [
+      {
+        "type": "Frame",
+        "name": "Banner",
+        "size": [0, 425, 0, 100],
+        "position": [0.5, 0, 0.82, 0],
+        "anchor": [0.5, 0.5],
+        "bg": [241, 180, 67],
+        "corner": 7,
+        "gradient": {
+          "rotation": 90,
+          "colors": [[0, "#FFE07E"], [1, "#D38419"]]
+        },
+        "strokes": [
+          { "thickness": 3, "color": [255, 224, 126], "applyMode": "Border" }
+        ],
+        "children": [
+          {
+            "type": "Frame",
+            "name": "Status",
+            "size": [0.25, 0, 0.74, 0],
+            "position": [0.025, 0, 0.13, 0],
+            "bg": [102, 57, 8],
+            "corner": 4,
+            "children": [
+              {
+                "type": "TextLabel",
+                "name": "StatusText",
+                "size": [0.84, 0, 0.76, 0],
+                "position": [0.08, 0, 0.12, 0],
+                "bgTransparency": 1,
+                "text": "SUCCESS",
+                "textColor": [255, 224, 126],
+                "textScaled": true,
+                "font": "Ubuntu",
+                "fontWeight": "Heavy"
+              }
+            ]
+          },
+          {
+            "type": "TextLabel",
+            "name": "ProductName",
+            "size": [0.67, 0, 0.43, 0],
+            "position": [0.3, 0, 0.14, 0],
+            "bgTransparency": 1,
+            "text": "DOUBLE COINS",
+            "textColor": [255, 252, 238],
+            "textScaled": true,
+            "textXAlignment": "Left",
+            "font": "Ubuntu",
+            "fontWeight": "Heavy",
+            "strokes": [{ "thickness": 1, "color": [102, 57, 8] }]
+          },
+          {
+            "type": "TextLabel",
+            "name": "BenefitType",
+            "size": [0.67, 0, 0.22, 0],
+            "position": [0.3, 0, 0.6, 0],
+            "bgTransparency": 1,
+            "text": "PERMANENT UNLOCK",
+            "textColor": [102, 57, 8],
+            "textScaled": true,
+            "textXAlignment": "Left",
+            "font": "Ubuntu",
+            "fontWeight": "Bold"
+          }
+        ]
+      }
+    ]
+  },
+  "viewport_size": [1280, 720],
+  "transparent_background": false
+}

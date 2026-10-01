@@ -27,19 +27,7 @@
           { "type": "Frame", "name": "Summary", "size": [1, -18, 0, 20], "position": [0.5, 0, 1, -27], "anchor": [0.5, 0], "bg": [1, 12, 20], "children": [{ "type": "TextLabel", "name": "Value", "size": [1, -8, 1, -4], "position": [0.5, 0, 0.5, 0], "anchor": [0.5, 0.5], "bgTransparency": 1, "text": "EXPLODING FIREBALLS", "textColor": [255, 190, 91], "textScaled": true, "font": "Ubuntu", "fontWeight": "Bold" }] }
         ]}
       ]},
-      {
-        "type": "TextButton", "name": "TakeAll", "size": [0, 510, 0, 58], "position": [0.5, 0, 0, 292], "anchor": [0.5, 0], "bg": [4, 29, 45], "text": "",
-        "strokes": [{ "thickness": 3, "color": [225, 157, 40], "applyMode": "Border" }],
-        "children": [
-          { "type": "ImageLabel", "name": "Artwork", "size": [0, 48, 0, 48], "position": [0, 6, 0, 5], "bg": [1, 12, 20], "icon": "rbxassetid://78132252015827" },
-          { "type": "TextLabel", "name": "Title", "size": [0, 128, 0, 27], "position": [0, 66, 0, 6], "bgTransparency": 1, "text": "TAKE ALL", "textColor": [255, 255, 255], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Heavy" },
-          { "type": "TextLabel", "name": "Detail", "size": [0, 260, 0, 16], "position": [0, 66, 0, 35], "bgTransparency": 1, "text": "COLLECT ALL 3 RESULTS FROM THIS ROLL", "textColor": [142, 178, 196], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Bold" },
-          { "type": "Frame", "name": "Price", "size": [0, 118, 0, 40], "position": [1, -9, 0.5, 0], "anchor": [1, 0.5], "bg": [225, 157, 40], "strokes": [{ "thickness": 2, "color": [99, 57, 8], "applyMode": "Border" }], "children": [
-            { "type": "ImageLabel", "name": "Robux", "size": [0, 24, 0, 24], "position": [0, 24, 0.5, 0], "anchor": [0, 0.5], "bgTransparency": 1, "icon": "rbxassetid://89121052656533" },
-            { "type": "TextLabel", "name": "Value", "size": [0, 48, 1, -8], "position": [0, 58, 0, 4], "bgTransparency": 1, "text": "3", "textColor": [255, 255, 255], "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy" }
-          ] }
-        ]
-      }
+      { "type": "TextButton", "name": "TakeAll", "size": [0, 128, 0, 30], "position": [0.5, 0, 0, 292], "anchor": [0.5, 0], "bg": [241, 180, 67], "corner": 0.15, "text": "Take all", "textColor": [255, 255, 255], "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy", "strokes": [{ "thickness": 2, "color": [105, 64, 10], "applyMode": "Border" }, { "thickness": 1.5, "color": [4, 7, 10] }] }
     ]
   },
   "viewport_size": [1280, 720],

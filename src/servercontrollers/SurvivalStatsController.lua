@@ -51,12 +51,14 @@ local function broadcastPlayer(player: Player)
 	end
 end
 
-local function awardSurvivedRound(playersWhoSurvived: { Player })
+local function recordHighestRound(completedRound: number, playersWhoSurvived: { Player })
 	for _, player in playersWhoSurvived do
 		local runtime = runtimes[player]
-		if runtime and player.Parent == Players then
-			-- A round is credited only at its authoritative boundary while the player is alive.
-			runtime.roundsSurvived += 1
+		if runtime and player.Parent == Players and completedRound > runtime.roundsSurvived then
+			-- This public stat is the player's personal best, not a lifetime total. Only an
+			-- authoritative round completion while alive can raise it, so replaying earlier
+			-- rounds or joining another run cannot inflate the saved value.
+			runtime.roundsSurvived = completedRound
 			dataService:set(player, SurvivalStatsConfig.DataKey, runtime.roundsSurvived)
 			AnalyticsController.TrackLifetimeProgression(player, runtime.roundsSurvived)
 		end
@@ -85,8 +87,8 @@ function SurvivalStatsController.Init()
 	statsNetwork = Networker.server.new("SurvivalStatsController", SurvivalStatsController, {
 		SurvivalStatsController.GetPublicStats,
 	})
-	RoundController.GetRoundCompletedSignal():Connect(function(_, playersWhoSurvived)
-		awardSurvivedRound(playersWhoSurvived)
+	RoundController.GetRoundCompletedSignal():Connect(function(completedRound, playersWhoSurvived)
+		recordHighestRound(completedRound, playersWhoSurvived)
 	end)
 end
 

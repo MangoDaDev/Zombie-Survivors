@@ -113,12 +113,37 @@ local function buildCandidates(player: Player)
 	return candidates
 end
 
-local function chooseWithoutReplacement(candidates, count: number): { Choice }
+local function takeUniform(candidates)
+	return table.remove(candidates, random:NextInteger(1, #candidates))
+end
+
+local function chooseWithoutReplacement(candidates, count: number, slotFillRatio: number): { Choice }
 	local choices = {}
-	while #choices < count and #candidates > 0 do
-		-- Every eligible unlocked ability must have exactly the same chance per draw. Drawing by a
-		-- uniform index also keeps one ability from occupying multiple cards in the same choice set.
-		local selected = table.remove(candidates, random:NextInteger(1, #candidates))
+	local upgrades = {}
+	local newAbilities = {}
+	for _, candidate in candidates do
+		table.insert(if candidate.kind == "Upgrade" then upgrades else newAbilities, candidate)
+	end
+	local newOfferChance = RunProgressionConfig.Abilities.NewOfferChanceAtEmpty
+		+ (RunProgressionConfig.Abilities.NewOfferChanceAtFull
+			- RunProgressionConfig.Abilities.NewOfferChanceAtEmpty) * math.clamp(slotFillRatio, 0, 1)
+	local offeredNew = false
+	local guaranteedUpgradeCount = math.min(2, #upgrades)
+	while #choices < count and (#upgrades > 0 or #newAbilities > 0) do
+		-- Preserve the authored preference for abilities already owned in this run, while selecting
+		-- uniformly inside each group so rarity and current level never change an ability's weight.
+		local selected
+		if #upgrades > 0 and (#choices < guaranteedUpgradeCount or #newAbilities == 0) then
+			selected = takeUniform(upgrades)
+		elseif not offeredNew and #newAbilities > 0 and (#upgrades == 0 or random:NextNumber() < newOfferChance) then
+			selected = takeUniform(newAbilities)
+			offeredNew = true
+		elseif #upgrades > 0 then
+			selected = takeUniform(upgrades)
+		else
+			selected = takeUniform(newAbilities)
+			offeredNew = true
+		end
 		table.insert(choices, {
 			abilityId = selected.abilityId,
 			kind = selected.kind,
@@ -138,9 +163,14 @@ local function offerNextChoice(player: Player, state: PlayerRunState)
 		-- ability run state is ready instead of incorrectly treating the temporary empty pool as final.
 		return
 	end
+	local runData = AbilityController.GetRunData(player)
+	local equippedCount = #runData.Equipped.Weapon + #runData.Equipped.Passive
+	local totalSlots = AbilityController.GetEquipLimit(player, "Weapon")
+		+ AbilityController.GetEquipLimit(player, "Passive")
 	local choices = chooseWithoutReplacement(
 		buildCandidates(player),
-		RunProgressionConfig.Abilities.ChoiceCount
+		RunProgressionConfig.Abilities.ChoiceCount,
+		equippedCount / totalSlots
 	)
 	if #choices == 0 then
 		-- This only occurs after every legal run ability reaches its configured maximum.

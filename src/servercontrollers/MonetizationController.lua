@@ -325,7 +325,11 @@ function MonetizationController.PrepareProductPurchase(_, player: Player, produc
 	if data and (data.Credits[productKey] or 0) > 0 and consumeOneCredit(player, productKey) then
 		-- A previously paid contextual credit is always used before offering another charge. This covers
 		-- teleport/disconnect timing without ever granting a stale roll or reviving an arbitrary player.
-		return { allowed = false, reason = "Your saved purchase was applied. No additional charge was made." }
+		return {
+			allowed = false,
+			applied = true,
+			reason = "Your saved purchase was applied. No additional charge was made.",
+		}
 	end
 	AnalyticsController.StartMonetizationCheckout(player, productKey, "Developer Product")
 	return { allowed = true, productId = definition.ProductId, contextualCount = contextualCount }

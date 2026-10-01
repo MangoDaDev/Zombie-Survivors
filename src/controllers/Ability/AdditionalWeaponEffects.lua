@@ -4,6 +4,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 
+local EffectLightingConfig = require(ReplicatedStorage.Modules.UI.EffectLightingConfig)
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
 local StudVFX = require(ReplicatedStorage.Modules.UI.StudVFX)
 
@@ -408,7 +409,7 @@ function AdditionalWeaponEffects.VortexCreated(packet)
 	local coreLight = Instance.new("PointLight")
 	coreLight.Name = "GravityGlow"
 	coreLight.Color = innerColor
-	coreLight.Brightness = if packet.rage then 2.4 else 1.6
+	coreLight.Brightness = EffectLightingConfig.Scale(if packet.rage then 2.4 else 1.6)
 	coreLight.Range = math.clamp(packet.radius * 1.15, 7, 18)
 	coreLight.Parent = core
 

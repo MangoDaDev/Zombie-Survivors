@@ -6,6 +6,9 @@ local CoinDropConfig = {
 	MagnetRadius = RunProgressionConfig.Pickups.Coin.MagnetRadius,
 	CollectionDuration = RunProgressionConfig.Pickups.Coin.MagnetDuration,
 	Lifetime = RunProgressionConfig.Pickups.Coin.Lifetime,
+	OffscreenLifetimeMultiplier = RunProgressionConfig.Pickups.OffscreenLifetimeMultiplier,
+	VisibilityReportInterval = RunProgressionConfig.Pickups.VisibilityReportInterval,
+	VisibilityReportStaleAfter = RunProgressionConfig.Pickups.VisibilityReportStaleAfter,
 	PredictionInterval = 0.05,
 	MaxPredictionBatch = 12,
 }

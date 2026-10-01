@@ -2,6 +2,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
+local EffectLightingConfig = require(ReplicatedStorage.Modules.UI.EffectLightingConfig)
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
 local StudVFX = require(ReplicatedStorage.Modules.UI.StudVFX)
 local AbilityDefinitions = require(ReplicatedStorage.Modules.Game.Abilities.AbilityDefinitions)
@@ -246,6 +247,7 @@ local function cloneAbilityModel(assetName: string, fallbackFactory, scale: numb
 	end
 	local template = ReplicatedStorage.Assets.Models.Abilities:FindFirstChild(assetName)
 	local model = if template and template:IsA("Model") then template:Clone() else fallbackFactory()
+	EffectLightingConfig.ApplyTree(model)
 	prepareModel(model)
 	if not getFirstPart(model) then
 		model:Destroy()
@@ -275,6 +277,7 @@ local function createMineModel(rage: boolean): Model?
 		trigger.CFrame = CFrame.new(0, 0.38, 0)
 		trigger.Parent = model
 	end
+	EffectLightingConfig.ApplyTree(model)
 	model.Name = "Mine"
 	prepareModel(model)
 	local primary = getFirstPart(model)

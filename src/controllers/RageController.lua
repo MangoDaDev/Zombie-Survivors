@@ -8,6 +8,7 @@ local Workspace = game:GetService("Workspace")
 local Networker = require(ReplicatedStorage.Packages.networker)
 local Signal = require(ReplicatedStorage.Packages.signal)
 local GameReadyController = require(ReplicatedStorage.Controllers.GameReadyController)
+local EffectLightingConfig = require(ReplicatedStorage.Modules.UI.EffectLightingConfig)
 local RageConfig = require(ReplicatedStorage.Modules.Game.Rage.RageConfig)
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
 local StudVFX = require(ReplicatedStorage.Modules.UI.StudVFX)
@@ -121,7 +122,7 @@ local function addCharacterEffect()
 			local emitter = child:Clone()
 			emitter.Name = "Rage" .. child.Name
 			emitter.Color = ColorSequence.new(Color3.fromRGB(255, 220, 85), Color3.fromRGB(255, 64, 28))
-			emitter.LightEmission = 0.7
+			emitter.LightEmission = EffectLightingConfig.Scale(0.7)
 			emitter.Rate = 4
 			emitter.Speed = NumberRange.new(1.4, 3.6)
 			emitter.Lifetime = NumberRange.new(0.35, 0.75)

@@ -837,6 +837,14 @@ end
 
 local function buildGroundOffsets()
 	local templates = ReplicatedStorage.Assets.Models.Zombies
+	local groundingPartNames = {
+		leftfoot = true,
+		leftleg = true,
+		leftlowerleg = true,
+		rightfoot = true,
+		rightleg = true,
+		rightlowerleg = true,
+	}
 	for typeName, definition in ZombieDefinitions do
 		local template = templates:FindFirstChild(definition.AssetName)
 		if template and template:IsA "Model" then
@@ -844,9 +852,29 @@ local function buildGroundOffsets()
 			local boundingCFrame, boundingSize = template:GetBoundingBox()
 			local localBoundingCFrame = pivot:ToObjectSpace(boundingCFrame)
 			local authoredScale = template:GetScale()
+			local lowestFootY = math.huge
+			for _, descendant in template:GetDescendants() do
+				if descendant:IsA("BasePart") then
+					local normalizedName = string.lower(descendant.Name):gsub("[%s_%-]", "")
+					if groundingPartNames[normalizedName] then
+						local localCFrame = pivot:ToObjectSpace(descendant.CFrame)
+						local halfSize = descendant.Size * 0.5
+						-- Project the oriented part's half extents onto model-local Y. This remains exact
+						-- if an authored foot or leg is rotated instead of axis-aligned.
+						local verticalHalfExtent = math.abs(localCFrame.RightVector.Y) * halfSize.X
+							+ math.abs(localCFrame.UpVector.Y) * halfSize.Y
+							+ math.abs(localCFrame.LookVector.Y) * halfSize.Z
+						lowestFootY = math.min(lowestFootY, localCFrame.Position.Y - verticalHalfExtent)
+					end
+				end
+			end
 			-- ZombieView uses ScaleTo with the variation as an absolute scale. Normalize Studio-authored
-			-- template scale first so every type rests on the floor at its actual rendered size.
-			groundOffsets[typeName] = -(localBoundingCFrame.Position.Y - boundingSize.Y * 0.5) / authoredScale
+			-- template scale first so every type rests on the floor at its actual rendered size. Ground
+			-- from feet/legs so roots, accessories, and effect geometry below them cannot make zombies hover.
+			local authoredBottomY = if lowestFootY < math.huge
+				then lowestFootY
+				else localBoundingCFrame.Position.Y - boundingSize.Y * 0.5
+			groundOffsets[typeName] = -authoredBottomY / authoredScale
 			-- A normalized horizontal bounding circle stays valid for every randomized spawn yaw and
 			-- keeps the complete rendered model inside its assigned combat floor.
 			local boundaryRadius = Vector2.new(boundingSize.X, boundingSize.Z).Magnitude * 0.5 / authoredScale

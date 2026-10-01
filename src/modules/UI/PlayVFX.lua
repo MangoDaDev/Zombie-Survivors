@@ -1,4 +1,7 @@
 local Debris = game:GetService("Debris")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local EffectLightingConfig = require(ReplicatedStorage.Modules.UI.EffectLightingConfig)
 
 local DEFAULT_LIFETIME = 5
 
@@ -25,6 +28,7 @@ local function PlayVFX(template: Instance, parent: Instance): { Instance }
 	local clones = {}
 	for _, child in templates do
 		local clone = child:Clone()
+		EffectLightingConfig.ApplyTree(clone)
 		clone.Parent = parent
 		table.insert(clones, clone)
 

@@ -685,9 +685,9 @@ return function()
 			},
 			create "UIScale" {
 				-- Reserve the bottom-center exit affordance on short landscape screens without
-				-- changing the menu's internal proportions.
+				-- changing the menu's internal proportions, while retaining the shared menu reduction.
 				Scale = function()
-					return if short() then 0.75 else 1
+					return UIStyle.NonClassMenuScale * (if short() then 0.75 else 1)
 				end,
 			},
 			create "UIStroke" {

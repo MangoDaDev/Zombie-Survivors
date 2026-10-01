@@ -6,7 +6,6 @@ local Button = require(script.Parent.Parent.Classes.Button)
 local StudTexture = require(script.Parent.Parent.Classes.StudTexture)
 local MonetizationController = require(ReplicatedStorage.Controllers.MonetizationController)
 local RunSessionController = require(ReplicatedStorage.Controllers.RunSessionController)
-local Images = require(ReplicatedStorage.Modules.UI.Images)
 local UIStyle = require(ReplicatedStorage.Modules.UI.UIStyle)
 local Vide = require(ReplicatedStorage.Packages.vide)
 
@@ -94,9 +93,8 @@ local function offer(productKey: string, label, detail: string, visible, infoRev
 				Button({
 					Text = function()
 						infoRevision()
-						return MonetizationController.GetPriceText(productKey)
+						return UIStyle.RobuxSymbol .. " " .. MonetizationController.GetPriceText(productKey)
 					end,
-					LeftIcon = Images.Robux,
 					BackgroundColor3 = if teamOffer then UIStyle.Colors.Green else GOLD,
 					CornerRadius = UDim.new(0, 3),
 					FontFace = HEAVY_FONT,

@@ -6,6 +6,7 @@ local Workspace = game:GetService("Workspace")
 local Networker = require(ReplicatedStorage.Packages.networker)
 local BackpackConfig = require(ReplicatedStorage.Modules.Game.BackpackConfig)
 local CoinDropConfig = require(ReplicatedStorage.Modules.Game.CoinDropConfig)
+local EffectLightingConfig = require(ReplicatedStorage.Modules.UI.EffectLightingConfig)
 local Images = require(ReplicatedStorage.Modules.UI.Images)
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
 
@@ -50,6 +51,7 @@ local coinNetwork
 local renderConnection
 local effectsFolder
 local nextPredictionAt = 0
+local nextVisibilityReportAt = 0
 local coinViews: { [number]: CoinView } = {}
 
 local function easeOutCubic(alpha: number): number
@@ -102,7 +104,7 @@ local function createView(id: number, value: number, position: Vector3, scale: n
 
 	local light = Instance.new("PointLight")
 	light.Name = "CoinLight"
-	light.Brightness = 1.35
+	light.Brightness = EffectLightingConfig.Scale(1.35)
 	light.Color = Color3.fromRGB(255, 190, 55)
 	light.Range = 6
 	light.Shadows = false
@@ -132,7 +134,7 @@ local function createView(id: number, value: number, position: Vector3, scale: n
 		NumberSequenceKeypoint.new(1, 0),
 	})
 	trail.FaceCamera = true
-	trail.LightEmission = 0.8
+	trail.LightEmission = EffectLightingConfig.Scale(0.8)
 	trail.Lifetime = 0.2
 	trail.MinLength = 0.04
 	trail.Enabled = false
@@ -515,12 +517,34 @@ local function predictLocalCollections(now: number)
 	end
 end
 
+local function reportVisibility(now: number)
+	if now < nextVisibilityReportAt or not coinNetwork then
+		return
+	end
+	local camera = Workspace.CurrentCamera
+	if not camera then
+		-- No report is safer than claiming everything is offscreen while the camera is unavailable.
+		return
+	end
+	nextVisibilityReportAt = now + CoinDropConfig.VisibilityReportInterval
+	local offscreenIds = {}
+	for id, view in coinViews do
+		local viewportPoint, onScreen = camera:WorldToViewportPoint(view.holder.Position)
+		if not onScreen or viewportPoint.Z <= 0 then
+			table.insert(offscreenIds, id)
+		end
+	end
+	-- Report only known offscreen views; an unreceived drop can therefore never be mistaken for offscreen.
+	coinNetwork:fire("ReportVisibility", offscreenIds)
+end
+
 local function renderCoins()
 	local now = Workspace:GetServerTimeNow()
 	for _, view in coinViews do
 		renderView(view, now)
 	end
 	predictLocalCollections(now)
+	reportVisibility(now)
 end
 
 function CoinDropController.Init()
@@ -530,6 +554,7 @@ function CoinDropController.Init()
 	end
 	table.clear(coinViews)
 	nextPredictionAt = 0
+	nextVisibilityReportAt = 0
 	local oldFolder = Workspace:FindFirstChild("ClientCoinDrops")
 	if oldFolder then
 		oldFolder:Destroy()

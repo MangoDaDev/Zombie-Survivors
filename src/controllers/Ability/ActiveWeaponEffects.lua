@@ -5,6 +5,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 
+local EffectLightingConfig = require(ReplicatedStorage.Modules.UI.EffectLightingConfig)
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
 local StudVFX = require(ReplicatedStorage.Modules.UI.StudVFX)
 local ZombieController = require(script.Parent.Parent.ZombieController)
@@ -67,7 +68,7 @@ local function addTrail(part: BasePart, rage: boolean, fire: boolean): Trail
 		elseif rage
 		then ColorSequence.new(Color3.fromRGB(255, 242, 116), Color3.fromRGB(255, 105, 38))
 		else ColorSequence.new(Color3.fromRGB(255, 230, 130), Color3.fromRGB(255, 157, 55))
-	trail.LightEmission = if rage then 0.85 else 0.75
+	trail.LightEmission = EffectLightingConfig.Scale(if rage then 0.85 else 0.75)
 	trail.Lifetime = if rage then 0.3 else 0.2
 	trail.MinLength = 0.05
 	trail.Transparency = NumberSequence.new(0.12, 1)
@@ -85,6 +86,7 @@ local function createFireballModel(scale: number, rage: boolean): Model?
 		return nil
 	end
 	local model = template:Clone()
+	EffectLightingConfig.ApplyTree(model)
 	model.Name = "FireballProjectile"
 	prepareModel(model)
 	model:ScaleTo(scale)
@@ -106,7 +108,7 @@ local function createFireballModel(scale: number, rage: boolean): Model?
 	local light = Instance.new("PointLight")
 	light.Name = "FireballLight"
 	light.Color = if rage then Color3.fromRGB(255, 74, 20) else Color3.fromRGB(255, 143, 47)
-	light.Brightness = if rage then 2.2 else 1.35
+	light.Brightness = EffectLightingConfig.Scale(if rage then 2.2 else 1.35)
 	light.Range = math.clamp(5 * scale, 4, 10)
 	light.Parent = primaryPart
 	model.Parent = effectsFolder
@@ -136,6 +138,7 @@ local function createBoomerangModel(scale: number, rage: boolean): Model?
 	end
 	local template = ReplicatedStorage.Assets.Models.Abilities:FindFirstChild("Boomerang")
 	local model = if template and template:IsA("Model") then template:Clone() else createBoomerangFallback()
+	EffectLightingConfig.ApplyTree(model)
 	if not getFirstPart(model) then
 		model:Destroy()
 		model = createBoomerangFallback()
@@ -160,7 +163,7 @@ local function createBoomerangModel(scale: number, rage: boolean): Model?
 	highlight.Parent = model
 	local light = Instance.new("PointLight")
 	light.Color = if rage then Color3.fromRGB(255, 126, 35) else Color3.fromRGB(255, 193, 87)
-	light.Brightness = if rage then 1.2 else 0.65
+	light.Brightness = EffectLightingConfig.Scale(if rage then 1.2 else 0.65)
 	light.Range = if rage then 5.5 else 4
 	light.Parent = primaryPart
 	model.Parent = effectsFolder
@@ -205,6 +208,7 @@ local function emitImpactParticles(position: Vector3, startColor: Color3, endCol
 	for _, child in ReplicatedStorage.Assets.VFX.CriticalHit.Impact:GetChildren() do
 		if child:IsA("ParticleEmitter") then
 			local emitter = child:Clone()
+			EffectLightingConfig.Apply(emitter)
 			emitter.Color = ColorSequence.new(startColor, endColor)
 			emitter.Parent = holder
 			emitter:Emit(if child.Name == "Flash" then 1 else sparkCount)
@@ -218,7 +222,7 @@ local function pulseScreen()
 	blur.Name = "FireballImpactBlur"
 	blur.Size = 0
 	blur.Parent = Lighting
-	local grow = TweenService:Create(blur, TweenInfo.new(0.06), { Size = 1.35 })
+	local grow = TweenService:Create(blur, TweenInfo.new(0.06), { Size = EffectLightingConfig.Scale(1.35) })
 	local fade = TweenService:Create(blur, TweenInfo.new(0.14), { Size = 0 })
 	grow.Completed:Connect(function()
 		if blur.Parent then
@@ -237,7 +241,7 @@ local function playExplosion(position: Vector3, radius: number, rage: boolean, e
 	if flash then
 		local light = Instance.new("PointLight")
 		light.Color = color
-		light.Brightness = if rage or empowered then 3.2 else 2
+		light.Brightness = EffectLightingConfig.Scale(if rage or empowered then 3.2 else 2)
 		light.Range = radius * 1.5
 		light.Parent = flash
 		Sounds.Play("FlameBurst", flash, 130)
@@ -380,7 +384,7 @@ local function playLightningImpact(position: Vector3, rage: boolean, final: bool
 	if flash then
 		local light = Instance.new("PointLight")
 		light.Color = flash.Color
-		light.Brightness = if final then 3.4 else if rage then 2.6 else 2
+		light.Brightness = EffectLightingConfig.Scale(if final then 3.4 else if rage then 2.6 else 2)
 		light.Range = if final then 8.5 else 6.5
 		light.Parent = flash
 	end
@@ -609,7 +613,7 @@ function ActiveWeaponEffects.FireballGroundCreated(packet)
 	StudVFX.Ring(effectsFolder, packet.position + Vector3.yAxis * 0.12, color, packet.radius, 0.34, 18)
 	local light = Instance.new("PointLight")
 	light.Color = color
-	light.Brightness = if packet.rage then 1.15 else 0.65
+	light.Brightness = EffectLightingConfig.Scale(if packet.rage then 1.15 else 0.65)
 	light.Range = packet.radius * (if packet.rage then 1.15 else 1)
 	light.Parent = area
 	grounds[packet.id] = {

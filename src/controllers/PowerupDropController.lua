@@ -6,6 +6,7 @@ local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 
 local Networker = require(ReplicatedStorage.Packages.networker)
+local EffectLightingConfig = require(ReplicatedStorage.Modules.UI.EffectLightingConfig)
 local PowerupConfig = require(ReplicatedStorage.Modules.Game.PowerupConfig)
 local NotificationManager = require(ReplicatedStorage.Modules.UI.NotificationManager)
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
@@ -95,6 +96,7 @@ local function createView(id: number, powerupId: string, position: Vector3, desp
 	end
 
 	local model = template:Clone()
+	EffectLightingConfig.ApplyTree(model)
 	model.Name = string.format("%s_%d", powerupId, id)
 	prepareModel(model)
 	local rootPart = model.PrimaryPart or model:FindFirstChildWhichIsA("BasePart", true)
@@ -102,7 +104,7 @@ local function createView(id: number, powerupId: string, position: Vector3, desp
 		local light = Instance.new("PointLight")
 		light.Name = "PowerupGlow"
 		light.Color = definition.Color
-		light.Brightness = 2.2
+		light.Brightness = EffectLightingConfig.Scale(2.2)
 		light.Range = 13
 		light.Shadows = false
 		light.Parent = rootPart
@@ -225,6 +227,7 @@ local function addActiveEffect(powerupId: string, userId: number, endsAt: number
 		return
 	end
 	local model = template:Clone()
+	EffectLightingConfig.ApplyTree(model)
 	model.Name = powerupId .. "Active"
 	model:ScaleTo(if powerupId == "GuardianHalo" then 0.75 else 0.55)
 	prepareModel(model)

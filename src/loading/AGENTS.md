@@ -1,9 +1,5 @@
-# Loading screen guidance
+# Loading UI routing
 
-- This script runs from ReplicatedFirst before the normal client bootstrap has completed.
-- Keep the loading screen deliberately simple and image-free: use Frames, text, and the existing progress bar rather than asset-backed ImageLabels or ImageButtons.
-- Do not depend on Vide here. The loading screen uses direct Instance creation so it can appear before replicated application UI is ready.
-- The flow waits for `PlayerGui.App`, then `CharacterController:WaitUntilReady()`, and finally requests a character because CharacterAutoLoads is disabled.
-- If the UI root name, character startup API, or CharacterAutoLoads policy changes, update this script in the same change.
-- Avoid scanning or preloading the entire DataModel. Load only assets that a future design explicitly requires.
-- Disconnect or complete animations before destroying the ScreenGui, and do not leave loading tasks running after dismissal.
+- Before changing the ReplicatedFirst loading UI, read and follow `../UI/AGENTSCREATINGUI.md`, including its loading-screen exception, in full.
+- Keep UI-specific policy in that authoritative guide rather than duplicating it here.
+- The repository-wide rules in the root `AGENTS.md` and the parent `src/AGENTS.md` also apply.

@@ -1,5 +1,8 @@
 local Debris = game:GetService("Debris")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
+
+local EffectLightingConfig = require(ReplicatedStorage.Modules.UI.EffectLightingConfig)
 
 local StudVFX = {}
 
@@ -98,7 +101,7 @@ function StudVFX.Flash(
 	local light = Instance.new("PointLight")
 	light.Name = "StudFlashLight"
 	light.Color = color
-	light.Brightness = math.clamp(radius * 0.5, 0.8, 4)
+	light.Brightness = EffectLightingConfig.Scale(math.clamp(radius * 0.5, 0.8, 4))
 	light.Range = math.clamp(radius * 1.8, 4, 18)
 	light.Parent = core
 

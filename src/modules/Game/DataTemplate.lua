@@ -44,7 +44,7 @@ return {
 		Owned = { [ClassDefinitions.DefaultId] = true },
 		Equipped = ClassDefinitions.DefaultId,
 	},
-	-- Lifetime cleared-round credit is server-awarded at each round boundary and shown above players in the lobby.
+	-- The highest round completed while alive is server-awarded and shown in public player statistics.
 	[SurvivalStatsConfig.DataKey] = SurvivalStatsConfig.DefaultRoundsSurvived,
 	-- This becomes true only after the returning-player Classes tutorial's authoritative free claim succeeds.
 	[ClassesAbilitiesTutorialConfig.DataKey] = false,

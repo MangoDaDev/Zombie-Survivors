@@ -11,13 +11,13 @@
         { "type": "ImageLabel", "name": "Artwork", "size": [0, 46, 0, 46], "position": [0, 6, 0, 6], "bg": [2, 15, 25], "icon": "rbxassetid://115042318829702" },
         { "type": "TextLabel", "name": "Name", "size": [1, -138, 0, 24], "position": [0, 60, 0, 7], "bgTransparency": 1, "text": "RUN BOOST", "textColor": [255, 255, 255], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Heavy" },
         { "type": "TextLabel", "name": "Detail", "size": [1, -138, 0, 14], "position": [0, 60, 0, 34], "bgTransparency": 1, "text": "THIS RUN ONLY", "textColor": [255, 191, 91], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Bold" },
-        { "type": "TextButton", "name": "Price", "size": [0, 66, 1, -12], "position": [1, -6, 0, 6], "anchor": [1, 0], "bg": [225, 157, 40], "text": "49", "textColor": [255, 255, 255], "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy", "children": [{ "type": "ImageLabel", "name": "Robux", "size": [0, 18, 0, 18], "position": [0, 8, 0.5, 0], "anchor": [0, 0.5], "bgTransparency": 1, "icon": "rbxassetid://89121052656533" }] }
+        { "type": "TextButton", "name": "Price", "size": [0, 66, 1, -12], "position": [1, -6, 0, 6], "anchor": [1, 0], "bg": [225, 157, 40], "text": " 49", "textColor": [255, 255, 255], "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy" }
       ] },
       { "type": "Frame", "name": "ReviveTeamOffer", "size": [0, 220, 0, 58], "position": [0, 20, 0.5, 96], "bg": [10, 41, 57], "strokes": [{ "thickness": 2, "color": [67, 154, 105], "applyMode": "Border" }], "children": [
         { "type": "ImageLabel", "name": "Artwork", "size": [0, 46, 0, 46], "position": [0, 6, 0, 6], "bg": [2, 15, 25], "icon": "rbxassetid://99546721866961" },
         { "type": "TextLabel", "name": "Name", "size": [1, -138, 0, 24], "position": [0, 60, 0, 7], "bgTransparency": 1, "text": "REVIVE 2", "textColor": [255, 255, 255], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Heavy" },
         { "type": "TextLabel", "name": "Detail", "size": [1, -138, 0, 14], "position": [0, 60, 0, 34], "bgTransparency": 1, "text": "TEAMMATES", "textColor": [124, 211, 151], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Bold" },
-        { "type": "TextButton", "name": "Price", "size": [0, 66, 1, -12], "position": [1, -6, 0, 6], "anchor": [1, 0], "bg": [71, 190, 104], "text": "79", "textColor": [255, 255, 255], "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy", "children": [{ "type": "ImageLabel", "name": "Robux", "size": [0, 18, 0, 18], "position": [0, 8, 0.5, 0], "anchor": [0, 0.5], "bgTransparency": 1, "icon": "rbxassetid://89121052656533" }] }
+        { "type": "TextButton", "name": "Price", "size": [0, 66, 1, -12], "position": [1, -6, 0, 6], "anchor": [1, 0], "bg": [71, 190, 104], "text": " 79", "textColor": [255, 255, 255], "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy" }
       ] },
       {
         "type": "Frame", "name": "AbilitySlots", "size": [0, 510, 0, 74], "position": [0.5, 0, 1, -28], "anchor": [0.5, 1], "bgTransparency": 1,

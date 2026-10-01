@@ -19,9 +19,11 @@ local shopCategory = MonetizationConfig.Shop.DefaultCategory
 local productInfo = {}
 local loadingInfo = {}
 local pendingDeveloperProducts = {}
+local pendingGamepasses = {}
 local stateChanged = Signal.new()
 local shopChanged = Signal.new()
 local productInfoChanged = Signal.new()
+local purchaseApplied = Signal.new()
 
 local function findDeveloperProductKey(productId: number): string?
 	for productKey, definition in MonetizationConfig.DeveloperProducts do
@@ -77,13 +79,22 @@ function MonetizationController.StateChanged(_, packet)
 	if type(packet) == "table" and type(packet.ownership) == "table" and type(packet.runBoostActive) == "boolean" then
 		state = packet
 		stateChanged:Fire(state)
+		for gamepassKey in pendingGamepasses do
+			if packet.ownership[gamepassKey] == true then
+				pendingGamepasses[gamepassKey] = nil
+				-- Celebrate only ownership confirmed after this client opened a purchase prompt. Existing
+				-- passes discovered during join-time verification must not replay purchase feedback.
+				purchaseApplied:Fire(gamepassKey)
+			end
+		end
 	end
 end
 
 function MonetizationController.PurchaseApplied(_, productKey)
 	local definition = type(productKey) == "string" and MonetizationConfig.DeveloperProducts[productKey]
 	if definition then
-		NotificationManager.Notify(definition.DisplayName .. " applied!", 2.5, UIStyle.Colors.Gold)
+		-- Developer products celebrate only after ProcessReceipt has durably recorded and applied them.
+		purchaseApplied:Fire(productKey)
 	end
 end
 
@@ -117,11 +128,16 @@ function MonetizationController.Init()
 		end
 	end)
 	MarketplaceService.PromptGamePassPurchaseFinished:Connect(function(player, gamepassId, purchased)
-		if player ~= localPlayer or not purchased then
+		if player ~= localPlayer then
 			return
 		end
 		local gamepassKey = findGamepassKey(gamepassId)
-		if gamepassKey and monetizationNetwork then
+		if not gamepassKey then
+			return
+		end
+		if not purchased then
+			pendingGamepasses[gamepassKey] = nil
+		elseif monetizationNetwork then
 			monetizationNetwork:fire("RefreshGamepass", gamepassKey)
 		end
 	end)
@@ -162,6 +178,10 @@ function MonetizationController.GetProductInfoChangedSignal()
 	return productInfoChanged
 end
 
+function MonetizationController.GetPurchaseAppliedSignal()
+	return purchaseApplied
+end
+
 function MonetizationController.GetPriceText(productKey: string): string
 	local definition = MonetizationConfig.GetProduct(productKey)
 	if definition and definition.GamepassId and MonetizationController.OwnsGamepass(productKey) then
@@ -193,6 +213,9 @@ function MonetizationController.PromptDeveloperProduct(productKey: string)
 	end
 	local authorization = monetizationNetwork:fetch("PrepareProductPurchase", productKey)
 	if type(authorization) ~= "table" or authorization.allowed ~= true then
+		if type(authorization) == "table" and authorization.applied == true then
+			return
+		end
 		NotificationManager.Notify(
 			type(authorization) == "table" and authorization.reason or "This purchase is unavailable.",
 			2.5,
@@ -222,6 +245,7 @@ function MonetizationController.PromptGamepass(gamepassKey: string)
 		)
 		return
 	end
+	pendingGamepasses[gamepassKey] = true
 	MarketplaceService:PromptGamePassPurchase(localPlayer, authorization.gamepassId)
 end
 

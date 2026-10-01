@@ -146,10 +146,10 @@ local function productCard(productKey: string, definition, shopState, infoRevisi
 					Text = function()
 						infoRevision()
 						shopState()
-						return if owned() then "OWNED" else MonetizationController.GetPriceText(productKey)
+						return if owned()
+							then "OWNED"
+							else UIStyle.RobuxSymbol .. " " .. MonetizationController.GetPriceText(productKey)
 					end,
-					LeftIcon = Images.Robux,
-					LeftIconVisible = function() return not owned() end,
 					Enabled = function() return not owned() end,
 					BackgroundColor3 = function() return if owned() then UIStyle.Colors.Green else GOLD end,
 					CornerRadius = UDim.new(0, 3),
@@ -352,6 +352,7 @@ return function()
 					AspectRatio = function() return if portrait() then 0.72 else 1.7 end,
 					AspectType = Enum.AspectType.FitWithinMaxSize,
 				},
+				create "UIScale" { Scale = UIStyle.NonClassMenuScale },
 				create "UICorner" { CornerRadius = UDim.new(0, 7) },
 				create "UIStroke" { ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Color = GOLD, Thickness = 3 },
 				create "Frame" {

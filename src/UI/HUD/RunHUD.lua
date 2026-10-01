@@ -56,6 +56,11 @@ local function contextualOffer(productKey: string, title, detail: string, yOffse
 		Size = function() return if narrowViewport() then UDim2.fromOffset(200, 54) else UDim2.fromOffset(220, 58) end,
 		Visible = visible,
 		ZIndex = 80,
+		create "UIAspectRatioConstraint" {
+			-- Offer cards have breakpoint-specific authored dimensions; preserve each silhouette.
+			AspectRatio = function() return if narrowViewport() then 200 / 54 else 220 / 58 end,
+			AspectType = Enum.AspectType.FitWithinMaxSize,
+		},
 		create "UICorner" { CornerRadius = UDim.new(0, 4) },
 		stroke(accentColor, 2),
 		create "Frame" {
@@ -111,9 +116,8 @@ local function contextualOffer(productKey: string, title, detail: string, yOffse
 			Button({
 				Text = function()
 					productInfoRevision()
-					return MonetizationController.GetPriceText(productKey)
+					return UIStyle.RobuxSymbol .. " " .. MonetizationController.GetPriceText(productKey)
 				end,
-				LeftIcon = Images.Robux,
 				BackgroundColor3 = accentColor,
 				CornerRadius = UDim.new(0, 3),
 				FontFace = Font.new(UIStyle.Font.Family, Enum.FontWeight.Heavy),
@@ -507,6 +511,11 @@ return function()
 				return if narrowViewport() then UDim2.fromOffset(200, 42) else UDim2.fromOffset(220, 44)
 			end,
 			ZIndex = 80,
+			create "UIAspectRatioConstraint" {
+				-- Permanent currency must retain its compact chip shape at every HUD breakpoint.
+				AspectRatio = function() return if narrowViewport() then 200 / 42 else 220 / 44 end,
+				AspectType = Enum.AspectType.FitWithinMaxSize,
+			},
 			create "UICorner" { CornerRadius = UDim.new(0, 5) },
 			stroke(Color3.fromRGB(216, 163, 62), 2),
 			StudTexture({ ZIndex = 81, ImageTransparency = 0.84 }),
@@ -517,6 +526,7 @@ return function()
 				Position = UDim2.new(0, 8, 0.5, 0),
 				Size = UDim2.fromOffset(30, 30),
 				ZIndex = 82,
+				create "UIAspectRatioConstraint" { AspectRatio = 1 },
 			},
 			create "TextLabel" {
 				BackgroundTransparency = 1,
@@ -661,7 +671,10 @@ return function()
 			end,
 			ZIndex = 80,
 			create "UIAspectRatioConstraint" {
-				AspectRatio = 396 / 68,
+				-- Keep the in-game top bar deliberately wider on desktop so its round, timer,
+				-- and skip-vote regions each have clear horizontal space. Preserve the proven
+				-- compact envelope on narrow screens instead of forcing the desktop width there.
+				AspectRatio = function() return if narrowViewport() then 396 / 68 else 460 / 68 end,
 				AspectType = Enum.AspectType.FitWithinMaxSize,
 			},
 			create "UIScale" { Scale = roundScale },
@@ -686,7 +699,7 @@ return function()
 				BackgroundTransparency = 1,
 				FontFace = Font.new(UIStyle.Font.Family, Enum.FontWeight.Bold),
 				Position = UDim2.fromOffset(132, 9),
-				Size = UDim2.fromOffset(88, 22),
+				Size = function() return UDim2.fromOffset(if narrowViewport() then 88 else 152, 22) end,
 				Text = function()
 					return tostring(roundState().remaining) .. " THIS ROUND"
 				end,
@@ -699,7 +712,7 @@ return function()
 				BackgroundTransparency = 1,
 				FontFace = UIStyle.Font,
 				Position = UDim2.fromOffset(132, 37),
-				Size = UDim2.fromOffset(88, 18),
+				Size = function() return UDim2.fromOffset(if narrowViewport() then 88 else 152, 18) end,
 				Text = function()
 					return formatSurvivalTime(survivedSeconds())
 				end,
@@ -755,6 +768,16 @@ return function()
 			end,
 			Visible = inGame,
 			ZIndex = 90,
+			create "UIAspectRatioConstraint" {
+				-- The XP panel intentionally has fluid width, so derive the authored ratio from its
+				-- breakpoint size instead of forcing desktop proportions onto a narrow viewport.
+				AspectRatio = function()
+					return if narrowViewport()
+						then math.max(viewportSize().X - 24, 1) / 50
+						else (viewportSize().X * 0.46 + 80) / 52
+				end,
+				AspectType = Enum.AspectType.FitWithinMaxSize,
+			},
 			create "UICorner" { CornerRadius = UDim.new(0, 4) },
 			stroke(Color3.fromRGB(0, 139, 168), 2),
 			StudTexture({ ZIndex = 91, ImageTransparency = 0.88 }),
@@ -827,6 +850,10 @@ return function()
 			end,
 			Visible = inGame,
 			ZIndex = 100,
+			create "UIAspectRatioConstraint" {
+				AspectRatio = function() return if compactAbilityHud() then 370 / 106 else 402 / 106 end,
+				AspectType = Enum.AspectType.FitWithinMaxSize,
+			},
 			create "UIListLayout" {
 				FillDirection = Enum.FillDirection.Vertical,
 				HorizontalAlignment = Enum.HorizontalAlignment.Right,
@@ -908,6 +935,14 @@ return function()
 				return inGame() and tooltipDefinition() ~= nil and tooltipAbility() ~= nil
 			end,
 			ZIndex = 120,
+			create "UIAspectRatioConstraint" {
+				-- Mobile gives this tooltip fluid width; matching that responsive envelope keeps
+				-- its text regions proportional without narrowing the desktop card.
+				AspectRatio = function()
+					return if narrowViewport() then math.max(viewportSize().X * 0.82, 1) / 142 else 290 / 142
+				end,
+				AspectType = Enum.AspectType.FitWithinMaxSize,
+			},
 			create "UICorner" { CornerRadius = UDim.new(0, 5) },
 			StudTexture({ ZIndex = 121, ImageTransparency = 0.86 }),
 			create "UIStroke" {

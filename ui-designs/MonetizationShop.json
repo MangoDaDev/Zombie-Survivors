@@ -46,7 +46,7 @@
                   { "type": "TextLabel", "name": "Name", "size": [1, -182, 0, 31], "position": [0, 174, 0, 12], "bgTransparency": 1, "text": "BACKPACK", "textColor": [255, 255, 255], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Heavy" },
                   { "type": "TextLabel", "name": "Type", "size": [1, -182, 0, 17], "position": [0, 174, 0, 47], "bgTransparency": 1, "text": "INSTANT COINS", "textColor": [110, 203, 236], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Bold" },
                   { "type": "TextLabel", "name": "Benefit", "size": [1, -182, 0, 42], "position": [0, 174, 0, 69], "bgTransparency": 1, "text": "Receive 5,000 Coins immediately.", "textColor": [184, 202, 211], "textScaled": true, "textWrapped": true, "textXAlignment": "Left", "font": "Ubuntu" },
-                  { "type": "TextButton", "name": "Buy", "size": [1, -182, 0, 42], "position": [0, 174, 1, -51], "bg": [225, 157, 40], "corner": 0.12, "text": "      99", "textColor": [255, 255, 255], "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy", "strokes": [{ "thickness": 3, "color": [100, 57, 8], "applyMode": "Border" }], "children": [{ "type": "ImageLabel", "name": "Robux", "size": [0, 24, 0, 24], "position": [0.5, -31, 0.5, 0], "anchor": [0.5, 0.5], "bgTransparency": 1, "icon": "rbxassetid://89121052656533" }] }
+                  { "type": "TextButton", "name": "Buy", "size": [1, -182, 0, 42], "position": [0, 174, 1, -51], "bg": [225, 157, 40], "corner": 0.12, "text": " 99", "textColor": [255, 255, 255], "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy", "strokes": [{ "thickness": 3, "color": [100, 57, 8], "applyMode": "Border" }] }
                 ]
               },
               {
@@ -60,7 +60,7 @@
                   { "type": "TextLabel", "name": "Name", "size": [1, -182, 0, 31], "position": [0, 174, 0, 12], "bgTransparency": 1, "text": "RUN BOOST", "textColor": [255, 255, 255], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Heavy" },
                   { "type": "TextLabel", "name": "Type", "size": [1, -182, 0, 17], "position": [0, 174, 0, 47], "bgTransparency": 1, "text": "CURRENT RUN ONLY", "textColor": [255, 191, 91], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Bold" },
                   { "type": "TextLabel", "name": "Benefit", "size": [1, -182, 0, 42], "position": [0, 174, 0, 69], "bgTransparency": 1, "text": "x2 run Coins and x1.5 XP.", "textColor": [184, 202, 211], "textScaled": true, "textWrapped": true, "textXAlignment": "Left", "font": "Ubuntu" },
-                  { "type": "TextButton", "name": "Buy", "size": [1, -182, 0, 42], "position": [0, 174, 1, -51], "bg": [225, 157, 40], "corner": 0.12, "text": "      49", "textColor": [255, 255, 255], "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy", "strokes": [{ "thickness": 3, "color": [100, 57, 8], "applyMode": "Border" }], "children": [{ "type": "ImageLabel", "name": "Robux", "size": [0, 24, 0, 24], "position": [0.5, -31, 0.5, 0], "anchor": [0.5, 0.5], "bgTransparency": 1, "icon": "rbxassetid://89121052656533" }] }
+                  { "type": "TextButton", "name": "Buy", "size": [1, -182, 0, 42], "position": [0, 174, 1, -51], "bg": [225, 157, 40], "corner": 0.12, "text": " 49", "textColor": [255, 255, 255], "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy", "strokes": [{ "thickness": 3, "color": [100, 57, 8], "applyMode": "Border" }] }
                 ]
               },
               { "type": "Frame", "name": "Divider", "size": [1, -32, 0, 2], "position": [0, 16, 0, 236], "bg": [39, 73, 91], "children": [] },
@@ -68,12 +68,12 @@
               { "type": "Frame", "name": "CoinPreviewA", "size": [0.5, -22, 0, 118], "position": [0, 14, 0, 291], "bg": [10, 35, 50], "strokes": [{ "thickness": 2, "color": [62, 99, 118], "applyMode": "Border" }], "children": [
                 { "type": "ImageLabel", "name": "Artwork", "size": [0, 98, 0, 98], "position": [0, 10, 0, 10], "bg": [2, 15, 25], "icon": "rbxassetid://89123200158797" },
                 { "type": "TextLabel", "name": "Name", "size": [1, -130, 0, 30], "position": [0, 120, 0, 12], "bgTransparency": 1, "text": "COIN POUCH", "textColor": [255, 255, 255], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Heavy" },
-                { "type": "TextButton", "name": "Buy", "size": [1, -132, 0, 38], "position": [0, 120, 1, -48], "bg": [225, 157, 40], "text": "      19", "textColor": [255, 255, 255], "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy", "children": [{ "type": "ImageLabel", "name": "Robux", "size": [0, 22, 0, 22], "position": [0.5, -28, 0.5, 0], "anchor": [0.5, 0.5], "bgTransparency": 1, "icon": "rbxassetid://89121052656533" }] }
+                { "type": "TextButton", "name": "Buy", "size": [1, -132, 0, 38], "position": [0, 120, 1, -48], "bg": [225, 157, 40], "text": " 19", "textColor": [255, 255, 255], "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy" }
               ] },
               { "type": "Frame", "name": "CoinPreviewB", "size": [0.5, -22, 0, 118], "position": [0.5, 8, 0, 291], "bg": [10, 35, 50], "strokes": [{ "thickness": 2, "color": [62, 99, 118], "applyMode": "Border" }], "children": [
                 { "type": "ImageLabel", "name": "Artwork", "size": [0, 98, 0, 98], "position": [0, 10, 0, 10], "bg": [2, 15, 25], "icon": "rbxassetid://106239575713076" },
                 { "type": "TextLabel", "name": "Name", "size": [1, -130, 0, 30], "position": [0, 120, 0, 12], "bgTransparency": 1, "text": "SATCHEL", "textColor": [255, 255, 255], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Heavy" },
-                { "type": "TextButton", "name": "Buy", "size": [1, -132, 0, 38], "position": [0, 120, 1, -48], "bg": [225, 157, 40], "text": "      49", "textColor": [255, 255, 255], "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy", "children": [{ "type": "ImageLabel", "name": "Robux", "size": [0, 22, 0, 22], "position": [0.5, -28, 0.5, 0], "anchor": [0.5, 0.5], "bgTransparency": 1, "icon": "rbxassetid://89121052656533" }] }
+                { "type": "TextButton", "name": "Buy", "size": [1, -132, 0, 38], "position": [0, 120, 1, -48], "bg": [225, 157, 40], "text": " 49", "textColor": [255, 255, 255], "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy" }
               ] }
             ]
           }

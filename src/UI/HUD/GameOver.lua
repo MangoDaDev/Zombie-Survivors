@@ -165,6 +165,7 @@ return function()
 				-- A square driven only by viewport width overflows vertically on ultrawide displays.
 				AspectType = Enum.AspectType.FitWithinMaxSize,
 			},
+			create "UIScale" { Scale = UIStyle.NonClassMenuScale },
 			create "UICorner" { CornerRadius = UDim.new(0, 10) },
 			StudTexture({ ZIndex = 403, ImageTransparency = 0.9, TileSize = UDim2.fromOffset(56, 56) }),
 			create "UIStroke" {

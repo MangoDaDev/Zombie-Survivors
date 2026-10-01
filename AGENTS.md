@@ -1,103 +1,85 @@
-# Roblox Game Template Agent Guide
+# Zombie Survivors Agent Guide
 
-## Project
+## Scope and sources of truth
 
-- Do not create permanent scripts inside of studio.
-- `default.project.json` defines the source-to-DataModel mapping; `Index.md` is the concise first-party code map.
-- Review `PROJECT_NOTES.md` before changes and keep its project-specific decisions concise and current.
+- These instructions apply repository-wide and contain only general workflow, architecture, and coding rules.
+- Read `PROJECT_NOTES.md` before making changes. Keep project-specific decisions, corrections, invariants, and patterns concise and current there or beside their authoritative code.
+- `default.project.json` defines the source-to-DataModel mapping. `Index.md` is the concise first-party code map.
+- Update `Index.md` when a script or system responsibility is added, removed, renamed, moved, or materially changed.
+- Do not put game mechanics, feature requirements, or balancing rules in this file. Put them in the relevant script/module or `PROJECT_NOTES.md`.
+- Add a rule here only when it applies across the whole project. Put narrower guidance in the nearest scoped `AGENTS.md`.
 
-## Requirements / Rules
+## UI routing
 
-- Add detailed comments beside non-obvious logic explaining its intended behaviour, constraints, and balancing purpose so future changes preserve the requirement.
-- Inspect the repository and similar implementations before editing; reuse existing utilities, patterns, and assets.
-- Use Roblox Studio MCP for live DataModel or Studio-owned assets. Do not use computer control, invent instance paths, or run playtests unless requested.
+- Before creating, modifying, restyling, reviewing, or fixing Roblox UI, read and follow `src/UI/AGENTSCREATINGUI.md` in full.
+- `src/UI/AGENTSCREATINGUI.md` is the sole authoritative location for UI-specific development, responsiveness, Vide, asset, and visual-validation rules. Do not duplicate UI policy here.
+
+## Working method and scope
+
+- Inspect the repository and similar implementations before editing. Reuse existing utilities, patterns, and assets.
+- Ask for clarification only when it is necessary to proceed safely or when a choice would materially change the result.
+- Keep work scoped to the request. Do not change unrelated or adjacent systems unless the requested change cannot work without it; explain any necessary expansion.
+- For potentially broad work, state the intended scope early so the user can correct it.
+- Apply user corrections to the current work immediately instead of restarting from scratch.
+- Treat repeated corrections as workflow feedback. Add or improve one concise preventive rule in the correctly scoped instruction file when appropriate.
+- If the user explicitly prohibits behavior, leave a short comment beside the authoritative code so future work does not reintroduce it.
+- Record user-specified standards, corrected mistakes, important implementation decisions, protected behavior, and recurring project patterns in the appropriate persistent location. Keep those notes organized and useful, and do not mix general guidance with game-specific facts.
+
+## Repository and Studio workflow
+
+- Do not create permanent scripts inside Roblox Studio. Source-controlled runtime code belongs in the mapped repository paths.
+- Use Roblox Studio MCP for live DataModel inspection or Studio-owned assets. Do not use computer control, invent Instance paths, or run playtests unless the user asks.
+- Do not use screen capture, screenshots, or similar capture-based inspection tools; they do not work for this project.
+- If Studio is already in play mode, do not stop it unless the request requires that.
+- Inspect `ReplicatedStorage.Assets` and use exact existing names instead of guessing asset paths.
+- Before using `WaitForChild` in Studio tooling or validation code, verify the path and provide a timeout so a wrong path cannot stall the task. Runtime code may use `WaitForChild` normally where replication timing requires it.
+- When reacting to a replicated parent, wait for required descendants or subscribe for them; replication does not guarantee that a hierarchy arrives atomically.
+- If a required asset does not exist, create a blank Instance in the appropriate folder and tell the user.
+- Do not repair the intentionally missing local Rojo/Rokit target.
+
+## Code organization and style
+
 - Keep code simple, modular, mostly event-driven, and consistent with nearby Luau.
-- Use `camelCase` for locals/private functions, `UPPER_SNAKE_CASE` for constants, and `PascalCase` for public APIs, controllers, classes, and modules.
-- Put client controllers in `src/controllers`, server controllers in `src/servercontrollers`, shared modules in `src/modules`, and register controllers in the appropriate bootstrap.
+- Use `camelCase` for locals and private functions, `UPPER_SNAKE_CASE` for constants, and `PascalCase` for public APIs, controllers, classes, and modules.
+- Put client controllers in `src/controllers`, server controllers in `src/servercontrollers`, and shared modules in `src/modules`. Register controllers in the appropriate bootstrap.
 - Keep bootstraps orchestration-only. Keep server-only logic and secrets out of replicated modules.
+- Add detailed comments beside non-obvious logic to preserve its intended behavior, constraints, and balancing purpose.
+- When implementing a user-requested invariant, leave a short comment beside its authoritative logic or configuration and update the comment if the requirement changes.
+- Do not hide ordinary code errors with `pcall`, add unnecessary assertions, overengineer one-off behavior, or hardcode the same data in multiple places.
+- Manage dependencies through `wally.toml`. Never edit generated packages, lockfiles, place files, or build output manually.
+
+## Networking, authority, and persistence
+
 - Use Networker for client/server communication, GoodSignal for in-process events, and DataService for player persistence.
-- Keep currency, inventory, rewards, progression, purchases, and damage server-authoritative. Validate every client request and store only JSON-compatible data.
-- Never use Roblox Attributes. Keep configuration and runtime metadata in Luau tables; do not substitute unnecessary ValueObjects.
-- Preserve existing UI hierarchy when working with pre-existing UI.
-- Manage dependencies through `wally.toml`; never edit generated packages, lockfiles, place files, or build output manually.
-- Clean up connections, tasks, temporary instances, and cached state. Avoid polling, repeated scans, duplicate systems, and per-object frame loops.
-- Update `Index.md` when scripts or system responsibilities are added, removed, renamed, moved, or materially changed.
-- Before creating thumbnails, icons, promotional art, or other visuals that depend on Roblox avatars or game-specific appearance, inspect `references/` and use the relevant files there as the authoritative visual references.
-- Server authority is not needed for everything. Be reasonable with what you use server authority with. It should still be used to counter hackers though.
+- Do not create raw remotes for ordinary gameplay or duplicate the legacy `SharedClass` replication pattern.
+- Keep currency, inventory, rewards, progression, purchases, and damage server-authoritative. Validate every client request and persist only JSON-compatible data.
+- Use server authority where it prevents exploitation, but do not move harmless presentation or client-local behavior to the server unnecessarily.
+- Never use Roblox Attributes. Store configuration and runtime metadata in Luau tables; do not substitute unnecessary ValueObjects.
 
-## Recurring Mistakes To Avoid
+## Runtime ownership and cleanup
 
-- Do not guess Studio asset paths; inspect `ReplicatedStorage.Assets` and use exact existing names.
-- When a sound effect needs a new name, duplicate it and rename the copy; do not rename the original, because existing references may rely on its current name.
-- Before using `WaitForChild` in Studio tooling or validation code, verify the instance path and always provide a timeout so a wrong path cannot stall the task indefinitely. Try to avoid the function as everything is completely loaded in the MCP. However you can use it normally in runtime scripts.
-- Do not overscope simple tasks. Choose the right scope for a task. Make sure to think about the scope and send it so that the user can see and stop if needed.
-- Do not modify adjacent systems or existing behavior unless the user explicitly asks for it or the requested change cannot work without it; keep fixes correctly scoped. However if it is better to change it then do it.
-- Keep verification proportional to the change; for simple configuration or balance edits, use targeted source checks and compilation rather than broad Studio or DataModel validation unless runtime data is directly involved.
-- When reacting to a replicated parent, wait for required descendants or listen for them; replication does not guarantee the full hierarchy arrives atomically.
-- Do not create raw remotes for normal gameplay or duplicate the legacy `SharedClass` replication pattern.
-- Do not mutate shared Studio-owned asset templates; clone them when runtime ownership or cleanup is needed.
-- Do not hide ordinary code errors with `pcall`, overengineer one-off behavior, or hardcode the same data in multiple places.
-- Do not repair the intentionally missing local Rojo/Rokit target or run automated playtests without an explicit request.
-- When a recurring mistake is discovered and fixed, add one short preventive rule here without expanding this file into documentation.
-* If the user explicitly says **not** to do something, leave a clear code comment so future agents do not reintroduce it.
-* When implementing a user-requested invariant, leave a short code comment beside its authoritative logic or configuration so future agents preserve it. Update the comment if the requirement changes.
-* **DO NOT use screen capture, screenshots, or similar visual inspection tools. They do not work for this project.**
-Do not change anything unrelated to the user's request.
-Before handing off source changes, search mapped runtime files for unresolved merge markers; never leave conflict markers in Luau because Studio parses them as syntax.
-When debugging replicated interactions, trace which side writes each value every frame and remove competing writers before adding synchronization.
-Keep the main App `ScreenGui.IgnoreGuiInset` enabled; clear the Roblox topbar with explicit dynamic safe offsets.
-Do not generate images unless EXPLICITLY asked to.
-Before uploading any generated or edited image to Roblox, inspect the actual final image for content that could violate Roblox Community Standards or trigger moderation, including sexual or suggestive details, graphic gore, hateful or extremist imagery, profanity, illegal drugs, accidental text or watermarks, real-person likenesses, and third-party brands, and copyright infringing material. REFUSE to upload anything questionable; DO NOT upload anything questionable. regenerate a clearly safer version or ask the user before proceeding. DO NOT UPLOAD THE IMAGE OR GENERATE THE IMAGE IF IT HAS ANY OF THESE OR SUGGEST ANY OF THESE! ALWAYS ASK FOR HUMAN REVIEW BEFORE UPLOADING!
-If I correct you, immediately apply the correction to the current task instead of restarting from scratch.
-When an agent makes a recurring mistake and the user corrects it, add or improve a concise AGENTS.md rule so future agents avoid the same mistake.
-- Treat repeated user corrections as feedback about the agent workflow. When appropriate, update AGENTS.md with a short general rule that prevents the same problem from happening again.
-Ask for any clarifications before beginning only if nesscecary
-* **DO NOT put game-specific logic, mechanics, behavior specifications, balancing rules, or feature requirements in `AGENTS.md`.** Put those requirements in the relevant scripts or modules instead. This `AGENTS.md` should only contain general development rules, coding standards, workflow instructions, architectural conventions, and best practices that apply across the project.
-Dont do unnesscecary assert
-If studio is in play mode, don't stop it unless it is needed to do the request.
-ONLY IF IT APPLIES TO ALL SYSTEMS IN THE GAME write something in THIS Agents.md. 
-Dont put stuff that is too niche in Agents.md. You can put it in/create an Agents.md or a script in the niche if needed but not in this one.
-Put UI-specific development rules in `src/UI/AGENTSCREATINGUI.md`, not in this root `AGENTS.md`.
-If in need of an asset that does not exist, create a blank instance in the appropriate folder and inform the user.
+- Clean up connections, tasks, temporary Instances, and cached state.
+- Avoid polling, repeated hierarchy scans, duplicate systems, and per-object frame loops.
+- Do not mutate shared Studio-owned asset templates. Clone templates that need runtime ownership, mutation, or cleanup.
+- When debugging replicated interactions, identify which side writes each value every frame and remove competing writers before adding synchronization.
 
-## UI Development
+## Asset safety and references
 
-For any task that creates, modifies, restyles, reviews, or fixes Roblox UI, you MUST read and follow `AgentsCreatingUI.md` before making changes.
+- When a sound effect needs a new name, duplicate and rename the copy; never rename the original because existing references may depend on it.
+- Before creating avatar-dependent thumbnails, icons, promotional art, or other visuals, inspect `references/` and use the relevant files as authoritative appearance references.
+- Do not generate images unless the user explicitly asks.
+- Before uploading generated or edited imagery to Roblox, inspect the final image for Roblox Community Standards and moderation risks, including sexual or suggestive material, graphic gore, hateful or extremist imagery, profanity, illegal drugs, accidental text or watermarks, real-person likenesses, third-party brands, and copyright-infringing material.
+- Never generate or upload questionable imagery. Regenerate a clearly safe version or ask the user, and always require human review before upload.
 
-UI CREATION:
-`AgentsCreatingUI.md` defines:
-- task-directed visual design guidance without imposing a global aesthetic
-- Vide UI requirements
-- reusable UI component rules
-- Pinevex rendering and visual iteration workflow
-- responsive UI requirements
-- UI completion criteria
+## Model and VFX authoring
 
-Do not treat `AgentsCreatingUI.md` as optional guidance. It is the authoritative instruction file for UI work in this repository.
+- When the user asks for a model, use a classic Roblox stud-building style: simple rectangular Parts, chunky proportions, strong silhouettes, visible studs on appropriate surfaces, simple colors, and purposeful structural layering.
+- Approximate curves, slopes, and complex forms with layered, stepped, or rotated blocks. Do not use MeshParts, SpecialMeshes, Cylinders, Balls, Wedges, or CornerWedges.
+- Author requested models in the appropriate folder rather than generating them at runtime. Use Plastic, not SmoothPlastic, and set every surface to studs.
+- If the user asks you to create missing VFX, build satisfying client-animated runtime effects from studded Parts.
 
-For substantial visual UI work, do not consider the task complete until the Pinevex render → inspect → revise workflow defined in `AgentsCreatingUI.md` has been followed.
+## Verification and handoff
 
-
-If the user PROMPTS you to create models, create them in the stud style:
-Use a classic Roblox Stud Building Style: construct assets entirely from simple rectangular Parts, with chunky proportions, strong silhouettes, and visible studs on appropriate surfaces. Approximate curves, slopes, and complex forms using layered, stepped, or rotated blocks rather than smooth geometry. Keep colors and materials simple, use purposeful structural layering, and avoid excessive micro-detail. Assets should feel deliberately hand-built in Roblox Studio, readable from gameplay distance, and consistent with classic Roblox construction. Do not use MeshParts, SpecialMeshes, Cylinders, Balls, Wedges, or CornerWedges. Make sure to put the models in the appropriate folder. Do not generate on runtime. Make sure the material is set to plastic (not smooth) and ALL the surfaces are studs.
-
-If vfx does not exist and the player has prompted you to create it yourself:
-
-Create it out of stud parts that are animated on the client. Should feel satisfying and well put together. Generate on runtime.
-
-Do not repeat any previous mistakes, and do not violate any standards or conventions I have already established.
-
-Create a persistent place to track this information so it is carried forward throughout development. This can be a dedicated project notes file/folder or clearly structured notes within the codebase.
-
-Record:
-- Standards and conventions I specify.
-- Mistakes you have made and how they were corrected.
-- Important implementation decisions.
-- Things that must not be changed or reintroduced.
-- Project-specific patterns that should be followed consistently.
-
-Before making future changes, review these notes and use them as constraints. If you discover a new mistake or I correct something, update the notes so the same issue is not repeated later.
-
-Keep the notes concise, organized, and useful rather than filling them with unnecessary information.
-
-Do not mix game specific stuff with general stuff.
+- Keep verification proportional to risk. For simple configuration or balance changes, prefer targeted source checks and compilation over broad Studio/DataModel validation.
+- Do not run automated playtests unless the user explicitly requests them.
+- Before handing off source changes, search all mapped runtime files for unresolved merge markers. Never leave conflict markers in Luau because Studio parses them as syntax.

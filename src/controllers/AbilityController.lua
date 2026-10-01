@@ -7,6 +7,7 @@ local Workspace = game:GetService("Workspace")
 local Networker = require(ReplicatedStorage.Packages.networker)
 local Signal = require(ReplicatedStorage.Packages.signal)
 local AbilityDefinitions = require(ReplicatedStorage.Modules.Game.Abilities.AbilityDefinitions)
+local EffectLightingConfig = require(ReplicatedStorage.Modules.UI.EffectLightingConfig)
 local NotificationManager = require(ReplicatedStorage.Modules.UI.NotificationManager)
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
 local StudVFX = require(ReplicatedStorage.Modules.UI.StudVFX)
@@ -54,6 +55,9 @@ local function bindAbilitiesShopPrompt(candidate: Instance)
 		shopPromptConnection:Disconnect()
 	end
 	shopPrompt = candidate :: ProximityPrompt
+	-- The Abilities booth may be duplicated from Classes, so keep its player-facing labels authoritative here.
+	shopPrompt.ObjectText = "Abilities"
+	shopPrompt.ActionText = "Open Abilities"
 	-- The authored booth prompt opens the same persistent unlock menu as the HUD launcher.
 	shopPromptConnection = shopPrompt.Triggered:Connect(function()
 		AbilityController.SetInventoryOpen(true)
@@ -95,9 +99,10 @@ local function emitAt(position: Vector3, flashCount: number, sparkCount: number,
 	for _, child in template:GetChildren() do
 		if child:IsA("ParticleEmitter") then
 			local emitter = child:Clone()
+			EffectLightingConfig.Apply(emitter)
 			if rage then
 				emitter.Color = ColorSequence.new(Color3.fromRGB(255, 225, 92), Color3.fromRGB(255, 67, 28))
-				emitter.LightEmission = 0.65
+				emitter.LightEmission = EffectLightingConfig.Scale(0.65)
 			end
 			emitter.Parent = holder
 			emitter:Emit(if child.Name == "Flash" then flashCount else sparkCount)
@@ -105,7 +110,7 @@ local function emitAt(position: Vector3, flashCount: number, sparkCount: number,
 	end
 	local light = Instance.new("PointLight")
 	light.Color = if rage then Color3.fromRGB(255, 101, 42) else Color3.fromRGB(132, 205, 255)
-	light.Brightness = if rage then 1.6 else 0.8
+	light.Brightness = EffectLightingConfig.Scale(if rage then 1.6 else 0.8)
 	light.Range = if rage then 6.5 else 4.5
 	light.Parent = holder
 	StudVFX.Burst(
@@ -151,7 +156,7 @@ local function addTrail(model: Model, rage: boolean)
 	trail.Color = if rage
 		then ColorSequence.new(Color3.fromRGB(255, 238, 105), Color3.fromRGB(255, 58, 25))
 		else ColorSequence.new(Color3.fromRGB(205, 236, 255), Color3.fromRGB(95, 183, 255))
-	trail.LightEmission = if rage then 0.82 else 0.8
+	trail.LightEmission = EffectLightingConfig.Scale(if rage then 0.82 else 0.8)
 	trail.Lifetime = if rage then 0.2 else 0.12
 	trail.MinLength = 0.05
 	trail.Transparency = NumberSequence.new(0.18, 1)
@@ -169,6 +174,7 @@ local function spawnDagger(packet)
 	end
 
 	local model = template:Clone()
+	EffectLightingConfig.ApplyTree(model)
 	model.Name = "DaggerProjectile"
 	for _, descendant in model:GetDescendants() do
 		if descendant:IsA("BasePart") then

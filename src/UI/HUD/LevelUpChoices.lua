@@ -9,8 +9,8 @@ local Workspace = game:GetService("Workspace")
 local AbilityDefinitions = require(ReplicatedStorage.Modules.Game.Abilities.AbilityDefinitions)
 local MonetizationController = require(ReplicatedStorage.Controllers.MonetizationController)
 local RunProgressionController = require(ReplicatedStorage.Controllers.RunProgressionController)
+local EffectLightingConfig = require(ReplicatedStorage.Modules.UI.EffectLightingConfig)
 local Images = require(ReplicatedStorage.Modules.UI.Images)
-local SafeArea = require(ReplicatedStorage.Modules.UI.SafeArea)
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
 local UIStyle = require(ReplicatedStorage.Modules.UI.UIStyle)
 local Vide = require(ReplicatedStorage.Packages.vide)
@@ -464,15 +464,13 @@ return function()
 	local rowScale: UIScale?
 	local prompt: TextLabel?
 	local impactFlash: Frame?
-	local takeAllFrame: Frame?
-	local takeAllPrice: TextLabel?
+	local takeAllFrame: TextButton?
 	local cards: { CardView } = {}
 	local activeSetId = 0
 	local landedCount = 0
 	local generation = 0
 	local presentationPhase = "Idle"
 	local pendingPresentationState = nil
-	local topOffset = SafeArea.GetTopOffset(LEVEL_UP_TOP_PADDING)
 	local shakeMagnitude = 0
 	local shakeBound = false
 	local baseFieldOfView: number? = nil
@@ -552,7 +550,7 @@ return function()
 			blur.Name = "LevelUpLandingBlur"
 			blur.Size = 0
 			blur.Parent = Lighting
-			local grow = TweenService:Create(blur, TweenInfo.new(0.05), { Size = 2.4 })
+			local grow = TweenService:Create(blur, TweenInfo.new(0.05), { Size = EffectLightingConfig.Scale(2.4) })
 			grow.Completed:Once(function()
 				if blur.Parent then
 					TweenService:Create(blur, TweenInfo.new(0.14), { Size = 0 }):Play()
@@ -578,10 +576,6 @@ return function()
 		if takeAllFrame then takeAllFrame.Visible = false end
 	end
 
-	local function refreshTakeAllPrice()
-		if takeAllPrice then takeAllPrice.Text = MonetizationController.GetPriceText("TakeAll") end
-	end
-
 	local startPresentation
 	local function advancePresentation()
 		local nextState = pendingPresentationState or RunProgressionController.GetState()
@@ -592,6 +586,38 @@ return function()
 			presentationPhase = "Idle"
 			hidePresentation()
 		end
+	end
+
+	local function resolveTakeAllPresentation(nextState)
+		if presentationPhase ~= "Choosing" then
+			return
+		end
+		presentationPhase = "Selecting"
+		pendingPresentationState = nextState
+		setSensors(false)
+		if takeAllFrame then takeAllFrame.Visible = false end
+		if prompt then prompt.Text = "ALL CHOICES CLAIMED" end
+
+		Sounds.Play("Reward3", localPlayer.PlayerGui)
+		Sounds.Play("NewRarest", localPlayer.PlayerGui)
+		playLandingFeedback(UIStyle.Colors.Gold, true)
+		for index, card in cards do
+			if card.choice then
+				emitCardBurst(card, CARD_COLORS[index], true)
+				TweenService:Create(
+					card.visualScale,
+					TweenInfo.new(0.22, Enum.EasingStyle.Back, Enum.EasingDirection.Out, 0, true),
+					{ Scale = 1.08 }
+				):Play()
+			end
+		end
+
+		local thisGeneration = generation
+		task.delay(0.52, function()
+			if generation == thisGeneration then
+				advancePresentation()
+			end
+		end)
 	end
 
 	startPresentation = function(runState)
@@ -606,7 +632,7 @@ return function()
 		pendingPresentationState = nil
 		baseFieldOfView = Workspace.CurrentCamera and Workspace.CurrentCamera.FieldOfView or nil
 		root.Visible = true
-		chain.Position = UDim2.new(0.5, 0, 0, topOffset)
+		chain.Position = UDim2.new(0.5, 0, 0, LEVEL_UP_TOP_PADDING)
 		if rowScale then
 			-- Enlarge the complete reel so card spacing scales with it; scaling individual layout children
 			-- would make the three rolling cards overlap and remain difficult to read.
@@ -766,27 +792,27 @@ return function()
 				startPresentation(runState)
 			elseif runState.choiceSetId ~= activeSetId or presentationPhase == "Selecting" then
 				-- Preserve the newest authoritative set while the current reel or selection animation finishes.
-				pendingPresentationState = runState
+				if presentationPhase == "Choosing" then
+					-- Take All resolves on the receipt path, so there is no local card-click phase to advance
+					-- this reel. Treat the authoritative set change as the all-card selection completion.
+					resolveTakeAllPresentation(runState)
+				else
+					pendingPresentationState = runState
+				end
 			elseif prompt then
 				prompt.Text = if runState.pendingChoices > 1
 					then string.format("LEVEL UP  -  CHOOSE ONE  -  %d QUEUED", runState.pendingChoices)
 					else "LEVEL UP  -  CHOOSE ONE"
 			end
+		elseif presentationPhase == "Choosing" then
+			-- The final queued Take All has no next choice set, but must still dismiss the current cards.
+			resolveTakeAllPresentation(runState)
 		elseif presentationPhase == "Selecting" then
 			-- An accepted choice with no next token clears any stale same-set packet received before the response.
 			pendingPresentationState = nil
 		elseif presentationPhase == "Idle" then
 			hidePresentation()
 		end
-	end)
-	local safeAreaConnection = SafeArea.GetChangedSignal():Connect(function()
-		topOffset = SafeArea.GetTopOffset(LEVEL_UP_TOP_PADDING)
-		if chain then
-			chain.Position = UDim2.new(0.5, 0, 0, topOffset)
-		end
-	end)
-	local productInfoConnection = MonetizationController.GetProductInfoChangedSignal():Connect(function(productKey)
-		if productKey == "TakeAll" then refreshTakeAllPrice() end
 	end)
 	cleanup(function()
 		generation += 1
@@ -798,8 +824,6 @@ return function()
 			Workspace.CurrentCamera.FieldOfView = baseFieldOfView
 		end
 		stateConnection:Disconnect()
-		safeAreaConnection:Disconnect()
-		productInfoConnection:Disconnect()
 		for _, card in cards do
 			disconnectCard(card)
 		end
@@ -850,7 +874,9 @@ return function()
 			Name = "ChoiceChain",
 			AnchorPoint = Vector2.new(0.5, 0),
 			BackgroundTransparency = 1,
-			Position = UDim2.fromScale(0.5, 0.07),
+			-- This centered overlay deliberately uses a fixed screen-edge gap; adding the topbar inset
+			-- leaves excessive empty space above the cards on desktop.
+			Position = UDim2.new(0.5, 0, 0, LEVEL_UP_TOP_PADDING),
 			-- A wide responsive slot keeps mobile cards tappable while the aspect constraint caps its height.
 			Size = UDim2.new(0.92, 0, 0.32, 0),
 			ZIndex = 300,
@@ -894,88 +920,33 @@ return function()
 					table.insert(cards, createCard(row, index))
 				end
 
-				local takeAll = Instance.new("Frame")
+				local takeAll = Instance.new("TextButton")
 				takeAll.Name = "TakeAll"
 				takeAll.AnchorPoint = Vector2.new(0.5, 0)
-				takeAll.BackgroundColor3 = Color3.fromRGB(4, 29, 45)
+				takeAll.AutoButtonColor = true
+				-- Keep the paid action visibly button-shaped without adding a separate backing panel.
+				takeAll.BackgroundColor3 = UIStyle.Colors.Gold
+				takeAll.BackgroundTransparency = 0
 				takeAll.BorderSizePixel = 0
 				takeAll.Position = UDim2.fromScale(0.5, 1.04)
-				takeAll.Size = UDim2.fromScale(1, 0.25)
+				takeAll.Size = UDim2.fromScale(0.25, 0.13)
+				takeAll.FontFace = Font.new(UIStyle.Font.Family, Enum.FontWeight.Heavy)
+				takeAll.Text = "Take all"
+				takeAll.TextColor3 = Color3.new(1, 1, 1)
+				takeAll.TextScaled = true
+				takeAll.TextStrokeColor3 = Color3.fromRGB(4, 7, 10)
+				takeAll.TextStrokeTransparency = 0
 				takeAll.Visible = false
 				takeAll.ZIndex = 330
 				takeAll.Parent = chain
-				makeCorner(takeAll, 4)
-				makeStroke(takeAll, Color3.fromRGB(225, 157, 40), 3)
+				makeCorner(takeAll, 5)
+				makeStroke(takeAll, Color3.fromRGB(105, 64, 10), 2)
+				local textSizeConstraint = Instance.new("UITextSizeConstraint")
+				textSizeConstraint.MaxTextSize = 22
+				textSizeConstraint.MinTextSize = 12
+				textSizeConstraint.Parent = takeAll
 				takeAllFrame = takeAll
-
-				local artworkPanel = Instance.new("Frame")
-				artworkPanel.Name = "ArtworkPanel"
-				artworkPanel.BackgroundColor3 = Color3.fromRGB(1, 12, 20)
-				artworkPanel.BorderSizePixel = 0
-				artworkPanel.Position = UDim2.new(0, 6, 0, 5)
-				artworkPanel.Size = UDim2.new(0, 48, 1, -10)
-				artworkPanel.ZIndex = 331
-				artworkPanel.Parent = takeAll
-
-				local artwork = Instance.new("ImageLabel")
-				artwork.Name = "Artwork"
-				artwork.BackgroundTransparency = 1
-				artwork.Image = MonetizationController.GetImage("TakeAll")
-				artwork.Position = UDim2.fromScale(0.08, 0.08)
-				artwork.ScaleType = Enum.ScaleType.Fit
-				artwork.Size = UDim2.fromScale(0.84, 0.84)
-				artwork.ZIndex = 332
-				artwork.Parent = artworkPanel
-
-				local title = makeLabel(takeAll, "Title", UDim2.new(0, 66, 0, 6), UDim2.new(0.25, 0, 0, 27), 332)
-				title.FontFace = Font.new(UIStyle.Font.Family, Enum.FontWeight.Heavy)
-				title.Text = "TAKE ALL"
-				title.TextColor3 = Color3.new(1, 1, 1)
-				title.TextXAlignment = Enum.TextXAlignment.Left
-
-				local detail = makeLabel(takeAll, "Detail", UDim2.new(0, 66, 0, 35), UDim2.new(0.52, 0, 0, 16), 332)
-				detail.FontFace = Font.new(UIStyle.Font.Family, Enum.FontWeight.Bold)
-				detail.Text = "COLLECT ALL RESULTS FROM THIS ROLL"
-				detail.TextColor3 = Color3.fromRGB(142, 178, 196)
-				detail.TextXAlignment = Enum.TextXAlignment.Left
-
-				local pricePanel = Instance.new("Frame")
-				pricePanel.Name = "PricePanel"
-				pricePanel.AnchorPoint = Vector2.new(1, 0.5)
-				pricePanel.BackgroundColor3 = Color3.fromRGB(225, 157, 40)
-				pricePanel.BorderSizePixel = 0
-				pricePanel.Position = UDim2.new(1, -9, 0.5, 0)
-				pricePanel.Size = UDim2.new(0.23, 0, 0.7, 0)
-				pricePanel.ZIndex = 331
-				pricePanel.Parent = takeAll
-				makeCorner(pricePanel, 3)
-				makeStroke(pricePanel, Color3.fromRGB(99, 57, 8), 2)
-				makeStudTexture(pricePanel, 332, 0.88)
-
-				local robux = Instance.new("ImageLabel")
-				robux.BackgroundTransparency = 1
-				robux.Image = Images.Robux
-				robux.Position = UDim2.fromScale(0.18, 0.2)
-				robux.Size = UDim2.fromScale(0.24, 0.6)
-				robux.ScaleType = Enum.ScaleType.Fit
-				robux.ZIndex = 333
-				robux.Parent = pricePanel
-				local price = makeLabel(pricePanel, "Price", UDim2.fromScale(0.45, 0.12), UDim2.fromScale(0.42, 0.72), 333)
-				price.FontFace = Font.new(UIStyle.Font.Family, Enum.FontWeight.Heavy)
-				price.TextColor3 = Color3.new(1, 1, 1)
-				price.TextXAlignment = Enum.TextXAlignment.Left
-				takeAllPrice = price
-				refreshTakeAllPrice()
-
-				local sensor = Instance.new("TextButton")
-				sensor.Name = "Sensor"
-				sensor.AutoButtonColor = false
-				sensor.BackgroundTransparency = 1
-				sensor.Size = UDim2.fromScale(1, 1)
-				sensor.Text = ""
-				sensor.ZIndex = 335
-				sensor.Parent = takeAll
-				sensor.Activated:Connect(function()
+				takeAll.Activated:Connect(function()
 					if presentationPhase == "Choosing" then
 						Sounds.Play("Click", localPlayer.PlayerGui)
 						MonetizationController.PromptDeveloperProduct("TakeAll")

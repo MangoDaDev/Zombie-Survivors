@@ -6,6 +6,7 @@ local TeleportService = game:GetService("TeleportService")
 local Workspace = game:GetService("Workspace")
 
 local Networker = require(ReplicatedStorage.Packages.networker)
+local EffectLightingConfig = require(ReplicatedStorage.Modules.UI.EffectLightingConfig)
 local PartyTeleporterConfig = require(ReplicatedStorage.Modules.Game.PartyTeleporterConfig)
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
 local PartyTeleportService = require(script.Parent.PartyTeleportService)
@@ -122,7 +123,7 @@ local function createWorldView(billboardLocation: BasePart): WorldView
 
 	local light = Instance.new("PointLight")
 	light.Name = "PartyLight"
-	light.Brightness = 0.8
+	light.Brightness = EffectLightingConfig.Scale(0.8)
 	light.Color = AVAILABLE_COLOR
 	light.Range = 13
 	light.Parent = billboardLocation
@@ -175,7 +176,9 @@ local function updateWorldView(state: TeleporterState, now: number)
 		else "ENTER TO JOIN"
 	state.view.leader.Text = if state.leader then "LEADER  " .. state.leader.DisplayName else ""
 	state.view.light.Color = color
-	state.view.light.Brightness = if state.locked then 2.8 elseif memberCount > 0 then 1.55 else 0.8
+	state.view.light.Brightness = EffectLightingConfig.Scale(
+		if state.locked then 2.8 elseif memberCount > 0 then 1.55 else 0.8
+	)
 	local baseTint = state.baseColor:Lerp(color, if memberCount > 0 then 0.62 else 0.15)
 	state.base.Color = baseTint
 	-- Keep the authored base decals synchronized with the teleporter's state color.

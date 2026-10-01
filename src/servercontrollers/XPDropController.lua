@@ -25,9 +25,15 @@ type XPDropState = {
 	value: number,
 	position: Vector3,
 	despawnAt: number,
+	visibilityCheckAfter: number,
 	collectibleAt: number,
 	eligibleUserIds: { [number]: boolean },
 	collections: { [Player]: XPCollection },
+}
+
+type VisibilityReport = {
+	reportedAt: number,
+	offscreenIds: { [number]: boolean },
 }
 
 local XPDropController = {}
@@ -39,6 +45,7 @@ local nextDropId = 0
 local activeCount = 0
 local accumulator = 0
 local drops: { [number]: XPDropState } = {}
+local visibilityReports: { [Player]: VisibilityReport } = {}
 
 local function getMagnetStats(player: Player)
 	local level = RuntimeState.Get(player, "MagnetAbilityLevel", nil)
@@ -174,6 +181,7 @@ function XPDropController.Spawn(position: Vector3, value: number, _owner: Player
 		value = value,
 		position = target,
 		despawnAt = now + config.Lifetime,
+		visibilityCheckAfter = now + RunProgressionConfig.Pickups.VisibilityReportInterval,
 		collectibleAt = now + duration * 0.72,
 		eligibleUserIds = eligibleUserIds,
 		collections = {},
@@ -247,6 +255,24 @@ local function collectDrop(id: number, drop: XPDropState, player: Player)
 	activeCount -= 1
 end
 
+local function isOffscreenForAllEligiblePlayers(drop: XPDropState, now: number): boolean
+	local pickupConfig = RunProgressionConfig.Pickups
+	local hasEligiblePlayer = false
+	for userId in drop.eligibleUserIds do
+		local player = Players:GetPlayerByUserId(userId)
+		local report = player and visibilityReports[player]
+		hasEligiblePlayer = true
+		if not report
+			or report.reportedAt < drop.visibilityCheckAfter
+			or now - report.reportedAt > pickupConfig.VisibilityReportStaleAfter
+			or not report.offscreenIds[drop.id]
+		then
+			return false
+		end
+	end
+	return hasEligiblePlayer
+end
+
 local function stepDrops(deltaTime: number, now: number)
 	local config = RunProgressionConfig.Pickups.XP
 	local candidates = {}
@@ -280,7 +306,12 @@ local function stepDrops(deltaTime: number, now: number)
 		end
 		if not drops[id] then
 			continue
-		elseif next(drop.collections) == nil and now >= drop.despawnAt then
+		end
+		if isOffscreenForAllEligiblePlayers(drop, now) then
+			-- Normal wall-clock time already advances despawnAt by one rate; subtract only the extra rate.
+			drop.despawnAt -= deltaTime * (RunProgressionConfig.Pickups.OffscreenLifetimeMultiplier - 1)
+		end
+		if next(drop.collections) == nil and now >= drop.despawnAt then
 			drops[id] = nil
 			activeCount -= 1
 			table.insert(expiredIds, id)
@@ -314,6 +345,31 @@ local function stepDrops(deltaTime: number, now: number)
 	if #expiredIds > 0 then
 		xpNetwork:fireAll("DespawnXP", expiredIds)
 	end
+end
+
+function XPDropController.ReportVisibility(_, player: Player, offscreenIds)
+	if type(offscreenIds) ~= "table" then
+		return
+	end
+	local pickupConfig = RunProgressionConfig.Pickups
+	local now = workspace:GetServerTimeNow()
+	local previous = visibilityReports[player]
+	if previous and now - previous.reportedAt < pickupConfig.VisibilityReportInterval * 0.5 then
+		return
+	end
+	local offscreenSet = {}
+	local acceptedCount = 0
+	for _, id in offscreenIds do
+		local drop = type(id) == "number" and id == id and id % 1 == 0 and drops[id] or nil
+		if drop and drop.eligibleUserIds[player.UserId] then
+			offscreenSet[id] = true
+			acceptedCount += 1
+			if acceptedCount >= pickupConfig.XP.MaximumActive then
+				break
+			end
+		end
+	end
+	visibilityReports[player] = { reportedAt = now, offscreenIds = offscreenSet }
 end
 
 function XPDropController.StealNearest(position: Vector3, radius: number, maximumCount: number): number
@@ -441,6 +497,7 @@ end
 function XPDropController.Init()
 	xpNetwork = Networker.server.new("XPDropController", XPDropController, {
 		XPDropController.GetSnapshot,
+		XPDropController.ReportVisibility,
 	})
 	if ServerContext.IsGameServer() then
 		start()
@@ -454,6 +511,7 @@ function XPDropController.Init()
 end
 
 function XPDropController.OnPlayerRemoving(player: Player)
+	visibilityReports[player] = nil
 	for id, drop in drops do
 		local wasCollecting = drop.collections[player] ~= nil
 		drop.collections[player] = nil
