@@ -1021,6 +1021,12 @@ damageZombieInternal = function(
 		)
 		-- Armor, shields, and dodges consume the authoritative hit but must not trigger on-damage passives.
 		if actualDamage > 0 then
+			local owner = type(damageContext) == "table" and damageContext.player or nil
+			if typeof(owner) == "Instance" and owner:IsA("Player") and owner.Parent == Players then
+				-- Send the post-mitigation health loss only to the dealer. Other players still receive the
+				-- shared health/impact packet above, but never see another player's floating number.
+				zombieNetwork:fire(owner, "ZombieDamageNumber", id, actualDamage)
+			end
 			zombieDamaged:Fire(id, position, actualDamage, killed, damageContext)
 		end
 		return true, killed

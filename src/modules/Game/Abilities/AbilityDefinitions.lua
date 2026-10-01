@@ -49,11 +49,17 @@ AbilityDefinitions.UnlockCostsByRarity = {
 	Mythic = 2_400,
 	Divine = 3_200,
 }
--- Every player owns exactly five active and five passive ability slots. All mutation paths use these
--- server-authoritative per-category limits so one player's loadout can never affect another player's.
+-- Five is the free base capacity. Mutation paths ask the monetization controller for the player's
+-- verified limit, while these values remain the safe baseline for old data and non-owning players.
 AbilityDefinitions.EquipLimits = {
 	Weapon = 5,
 	Passive = 5,
+}
+-- The extra-slot Gamepass expands each category by exactly one. Runtime authority asks the
+-- monetization controller for the owning player's limit; this maximum exists only for normalization/UI.
+AbilityDefinitions.MaximumEquipLimits = {
+	Weapon = 6,
+	Passive = 6,
 }
 
 local function getDaggerCount(level: number): number
@@ -1385,6 +1391,11 @@ function AbilityDefinitions.GetUnlockCost(ability): number?
 	end
 	if table.find(AbilityDefinitions.StarterUnlocks, ability.Id) then
 		return 0
+	end
+	-- Permanent unlocks use an authored simulator-progression ladder instead of in-run rarity alone.
+	-- Rarity remains a fallback for future definitions so one missing price cannot break the shop.
+	if type(ability.UnlockCost) == "number" and ability.UnlockCost > 0 and ability.UnlockCost % 1 == 0 then
+		return ability.UnlockCost
 	end
 	return AbilityDefinitions.UnlockCostsByRarity[ability.Roll.Rarity]
 end

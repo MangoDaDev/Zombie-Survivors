@@ -5,6 +5,12 @@ local TweenService = game:GetService("TweenService")
 local ZombieProtocol = require(ReplicatedStorage.Modules.Game.Zombies.ZombieProtocol)
 local ProceduralAnimator = require(script.Parent.ProceduralAnimator)
 
+local DAMAGE_NUMBER_COLOR = Color3.fromRGB(255, 48, 48)
+local DAMAGE_NUMBER_DURATION = 0.8
+local DAMAGE_NUMBER_FLOAT_DISTANCE = 1.6
+local DAMAGE_NUMBER_HORIZONTAL_RANGE = 0.7
+local damageNumberRandom = Random.new()
+
 local CORNER_SIGNS = {
 	Vector3.new(-1, -1, -1),
 	Vector3.new(-1, -1, 1),
@@ -123,6 +129,10 @@ function ZombieView.new(
 	model.Parent = parent
 
 	local anchorPart = model.PrimaryPart or model:FindFirstChildWhichIsA("BasePart", true)
+	local damageNumberAnchor = model:FindFirstChild("Head", true)
+		or model:FindFirstChild("UpperTorso", true)
+		or model:FindFirstChild("Torso", true)
+		or anchorPart
 	local healthBar
 	local healthFill
 	if anchorPart then
@@ -202,12 +212,68 @@ function ZombieView.new(
 	self.healthBar = healthBar
 	self.healthFill = healthFill
 	self.healthTween = nil
+	self.damageNumberAnchor = damageNumberAnchor
 	self.hitHighlight = hitHighlight
 	self.hitFlashTween = nil
 	self.lastHitDirection = Vector3.zero
 	self.lastKnockbackImpulse = 0
 
 	return self
+end
+
+function ZombieView:ShowDamageNumber(damageAmount)
+	if type(damageAmount) ~= "number"
+		or damageAmount <= 0
+		or not self.damageNumberAnchor
+		or not self.damageNumberAnchor.Parent
+	then
+		return
+	end
+
+	local horizontalOffset = damageNumberRandom:NextNumber(
+		-DAMAGE_NUMBER_HORIZONTAL_RANGE,
+		DAMAGE_NUMBER_HORIZONTAL_RANGE
+	)
+	local startingHeight = self.boundingSize.Y * 0.32 + 0.3
+	local startingOffset = Vector3.new(horizontalOffset, startingHeight, 0)
+
+	local damageGui = Instance.new("BillboardGui")
+	damageGui.Name = "DamageNumber"
+	damageGui.Adornee = self.damageNumberAnchor
+	damageGui.AlwaysOnTop = true
+	damageGui.LightInfluence = 0
+	damageGui.MaxDistance = 120
+	-- Billboard scale components are world studs. Keeping both the size and motion stud-based makes
+	-- the indicator feel attached to the zombie instead of changing size with the player's viewport.
+	damageGui.Size = UDim2.fromScale(3.2, 1.25)
+	damageGui.StudsOffset = startingOffset
+	damageGui.Parent = self.model
+
+	local label = Instance.new("TextLabel")
+	label.Name = "Amount"
+	label.BackgroundTransparency = 1
+	label.Size = UDim2.fromScale(1, 1)
+	label.Font = Enum.Font.GothamBold
+	label.Text = tostring(damageAmount)
+	label.TextColor3 = DAMAGE_NUMBER_COLOR
+	label.TextScaled = true
+	label.TextStrokeColor3 = Color3.fromRGB(72, 0, 0)
+	label.TextStrokeTransparency = 0.08
+	label.Parent = damageGui
+
+	-- Every hit owns a fresh BillboardGui and tween, so burst damage remains legible without one hit
+	-- cancelling or replacing another. Horizontal jitter reduces overlap without moving the health bar.
+	TweenService:Create(
+		damageGui,
+		TweenInfo.new(DAMAGE_NUMBER_DURATION, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+		{ StudsOffset = startingOffset + Vector3.yAxis * DAMAGE_NUMBER_FLOAT_DISTANCE }
+	):Play()
+	TweenService:Create(
+		label,
+		TweenInfo.new(DAMAGE_NUMBER_DURATION, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+		{ TextTransparency = 1, TextStrokeTransparency = 1 }
+	):Play()
+	Debris:AddItem(damageGui, DAMAGE_NUMBER_DURATION + 0.1)
 end
 
 function ZombieView:GetRenderCFrame(now)

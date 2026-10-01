@@ -162,7 +162,8 @@ return function()
 			-- The results menu is authored as a square so its proportional sections cannot stretch.
 			create "UIAspectRatioConstraint" {
 				AspectRatio = 1,
-				DominantAxis = Enum.DominantAxis.Width,
+				-- A square driven only by viewport width overflows vertically on ultrawide displays.
+				AspectType = Enum.AspectType.FitWithinMaxSize,
 			},
 			create "UICorner" { CornerRadius = UDim.new(0, 10) },
 			StudTexture({ ZIndex = 403, ImageTransparency = 0.9, TileSize = UDim2.fromOffset(56, 56) }),

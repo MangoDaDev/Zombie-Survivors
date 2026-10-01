@@ -9,6 +9,8 @@ local UIStyle = require(ReplicatedStorage.Modules.UI.UIStyle)
 local AbilityController = require(script.Parent.AbilityController)
 local RunProgressionController = require(script.Parent.RunProgressionController)
 local AdditionalWeaponEffects = require(script.Parent.Ability.AdditionalWeaponEffects)
+local AnalyticsController = require(script.Parent.AnalyticsController)
+local ClassesAbilitiesTutorialController = require(script.Parent.ClassesAbilitiesTutorialController)
 
 local ClassController = {}
 
@@ -27,12 +29,11 @@ local function isClassesPrompt(instance: Instance): boolean
 	local promptPart = instance.Parent
 	local structure = promptPart and promptPart.Parent
 	return instance:IsA("ProximityPrompt")
-		and instance.Name == "ClassesPrompt"
 		and promptPart ~= nil
 		and promptPart.Name == "PromptPart"
 		and structure ~= nil
 		and structure.Name == "Classes"
-		and structure.Parent == Workspace
+		and structure:IsDescendantOf(Workspace)
 end
 
 local function bindPrompt(candidate: Instance)
@@ -92,13 +93,19 @@ function ClassController.Init()
 			ClassController.SetOpen(false)
 		end
 	end)
-	local structure = Workspace:FindFirstChild("Classes")
-	local promptPart = structure and structure:FindFirstChild("PromptPart")
-	local existingPrompt = promptPart and promptPart:FindFirstChild("ClassesPrompt")
-	if existingPrompt then
-		bindPrompt(existingPrompt)
+	ClassesAbilitiesTutorialController.GetStateChangedSignal():Connect(function(tutorialState)
+		if tutorialState.active and open then
+			ClassController.SetPreviewClassId(tutorialState.targetClassId)
+		end
+	end)
+	for _, descendant in Workspace:GetDescendants() do
+		if isClassesPrompt(descendant) then
+			bindPrompt(descendant)
+			break
+		end
 	end
-	-- The prompt can replicate after its parent or be recreated when Studio swaps maps.
+	-- The lobby is parented as a complete map beneath Workspace, and the authored prompt's display
+	-- name may change. Bind by the stable Classes > PromptPart hierarchy instead of a root/name guess.
 	Workspace.DescendantAdded:Connect(bindPrompt)
 end
 
@@ -123,11 +130,16 @@ function ClassController.SetOpen(isOpen: boolean)
 	end
 	if isOpen then
 		AbilityController.SetInventoryOpen(false)
-		-- Each visit starts on the equipped class; browsing locked classes is only a local preview.
-		ClassController.SetPreviewClassId(ClassController.GetState().Equipped)
+		local tutorialState = ClassesAbilitiesTutorialController.GetState()
+		-- The returning-player tutorial owns selection until its free claim succeeds; ordinary visits
+		-- continue to start on the equipped class and keep other browsing purely local.
+		ClassController.SetPreviewClassId(if tutorialState.active then tutorialState.targetClassId else ClassController.GetState().Equipped)
 	end
 	open = isOpen
 	openChanged:Fire(open)
+	if open then
+		AnalyticsController.OpenShop("Class")
+	end
 end
 
 function ClassController.GetPreviewClassId(): string
@@ -138,8 +150,15 @@ function ClassController.SetPreviewClassId(classId: string)
 	if not ClassDefinitions.ById[classId] or previewClassId == classId then
 		return
 	end
+	local tutorialState = ClassesAbilitiesTutorialController.GetState()
+	if tutorialState.active and classId ~= tutorialState.targetClassId then
+		return
+	end
 	previewClassId = classId
 	previewChanged:Fire(classId)
+	if open then
+		AnalyticsController.SelectShopItem("Class", classId)
+	end
 end
 
 function ClassController.GetPreviewChangedSignal()

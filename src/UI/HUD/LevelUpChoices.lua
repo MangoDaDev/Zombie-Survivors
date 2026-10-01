@@ -7,6 +7,7 @@ local TweenService = game:GetService("TweenService")
 local Workspace = game:GetService("Workspace")
 
 local AbilityDefinitions = require(ReplicatedStorage.Modules.Game.Abilities.AbilityDefinitions)
+local MonetizationController = require(ReplicatedStorage.Controllers.MonetizationController)
 local RunProgressionController = require(ReplicatedStorage.Controllers.RunProgressionController)
 local Images = require(ReplicatedStorage.Modules.UI.Images)
 local SafeArea = require(ReplicatedStorage.Modules.UI.SafeArea)
@@ -463,6 +464,8 @@ return function()
 	local rowScale: UIScale?
 	local prompt: TextLabel?
 	local impactFlash: Frame?
+	local takeAllFrame: Frame?
+	local takeAllPrice: TextLabel?
 	local cards: { CardView } = {}
 	local activeSetId = 0
 	local landedCount = 0
@@ -572,6 +575,11 @@ return function()
 			root.Visible = false
 		end
 		setSensors(false)
+		if takeAllFrame then takeAllFrame.Visible = false end
+	end
+
+	local function refreshTakeAllPrice()
+		if takeAllPrice then takeAllPrice.Text = MonetizationController.GetPriceText("TakeAll") end
 	end
 
 	local startPresentation
@@ -610,6 +618,7 @@ return function()
 				else "LEVEL UP  -  CHOOSE ONE"
 		end
 		setSensors(false)
+		if takeAllFrame then takeAllFrame.Visible = false end
 
 		for index, card in cards do
 			disconnectCard(card)
@@ -737,6 +746,7 @@ return function()
 					end
 					presentationPhase = "Choosing"
 					setSensors(true)
+					if takeAllFrame then takeAllFrame.Visible = #runState.choices > 1 end
 				end
 			end)
 			reelTween:Play()
@@ -775,6 +785,9 @@ return function()
 			chain.Position = UDim2.new(0.5, 0, 0, topOffset)
 		end
 	end)
+	local productInfoConnection = MonetizationController.GetProductInfoChangedSignal():Connect(function(productKey)
+		if productKey == "TakeAll" then refreshTakeAllPrice() end
+	end)
 	cleanup(function()
 		generation += 1
 		stopCameraShake()
@@ -786,6 +799,7 @@ return function()
 		end
 		stateConnection:Disconnect()
 		safeAreaConnection:Disconnect()
+		productInfoConnection:Disconnect()
 		for _, card in cards do
 			disconnectCard(card)
 		end
@@ -837,13 +851,13 @@ return function()
 			AnchorPoint = Vector2.new(0.5, 0),
 			BackgroundTransparency = 1,
 			Position = UDim2.fromScale(0.5, 0.07),
-			-- A wide responsive slot keeps mobile cards tappable; the pixel cap keeps desktop presentation compact.
+			-- A wide responsive slot keeps mobile cards tappable while the aspect constraint caps its height.
 			Size = UDim2.new(0.92, 0, 0.32, 0),
 			ZIndex = 300,
 			create "UIAspectRatioConstraint" {
 				-- Preserve the three-card menu silhouette instead of stretching cards with the viewport.
 				AspectRatio = 510 / 230,
-				DominantAxis = Enum.DominantAxis.Width,
+				AspectType = Enum.AspectType.FitWithinMaxSize,
 			},
 			action(function(instance)
 				chain = instance :: Frame
@@ -879,6 +893,94 @@ return function()
 				for index = 1, CARD_COUNT do
 					table.insert(cards, createCard(row, index))
 				end
+
+				local takeAll = Instance.new("Frame")
+				takeAll.Name = "TakeAll"
+				takeAll.AnchorPoint = Vector2.new(0.5, 0)
+				takeAll.BackgroundColor3 = Color3.fromRGB(4, 29, 45)
+				takeAll.BorderSizePixel = 0
+				takeAll.Position = UDim2.fromScale(0.5, 1.04)
+				takeAll.Size = UDim2.fromScale(1, 0.25)
+				takeAll.Visible = false
+				takeAll.ZIndex = 330
+				takeAll.Parent = chain
+				makeCorner(takeAll, 4)
+				makeStroke(takeAll, Color3.fromRGB(225, 157, 40), 3)
+				takeAllFrame = takeAll
+
+				local artworkPanel = Instance.new("Frame")
+				artworkPanel.Name = "ArtworkPanel"
+				artworkPanel.BackgroundColor3 = Color3.fromRGB(1, 12, 20)
+				artworkPanel.BorderSizePixel = 0
+				artworkPanel.Position = UDim2.new(0, 6, 0, 5)
+				artworkPanel.Size = UDim2.new(0, 48, 1, -10)
+				artworkPanel.ZIndex = 331
+				artworkPanel.Parent = takeAll
+
+				local artwork = Instance.new("ImageLabel")
+				artwork.Name = "Artwork"
+				artwork.BackgroundTransparency = 1
+				artwork.Image = MonetizationController.GetImage("TakeAll")
+				artwork.Position = UDim2.fromScale(0.08, 0.08)
+				artwork.ScaleType = Enum.ScaleType.Fit
+				artwork.Size = UDim2.fromScale(0.84, 0.84)
+				artwork.ZIndex = 332
+				artwork.Parent = artworkPanel
+
+				local title = makeLabel(takeAll, "Title", UDim2.new(0, 66, 0, 6), UDim2.new(0.25, 0, 0, 27), 332)
+				title.FontFace = Font.new(UIStyle.Font.Family, Enum.FontWeight.Heavy)
+				title.Text = "TAKE ALL"
+				title.TextColor3 = Color3.new(1, 1, 1)
+				title.TextXAlignment = Enum.TextXAlignment.Left
+
+				local detail = makeLabel(takeAll, "Detail", UDim2.new(0, 66, 0, 35), UDim2.new(0.52, 0, 0, 16), 332)
+				detail.FontFace = Font.new(UIStyle.Font.Family, Enum.FontWeight.Bold)
+				detail.Text = "COLLECT ALL RESULTS FROM THIS ROLL"
+				detail.TextColor3 = Color3.fromRGB(142, 178, 196)
+				detail.TextXAlignment = Enum.TextXAlignment.Left
+
+				local pricePanel = Instance.new("Frame")
+				pricePanel.Name = "PricePanel"
+				pricePanel.AnchorPoint = Vector2.new(1, 0.5)
+				pricePanel.BackgroundColor3 = Color3.fromRGB(225, 157, 40)
+				pricePanel.BorderSizePixel = 0
+				pricePanel.Position = UDim2.new(1, -9, 0.5, 0)
+				pricePanel.Size = UDim2.new(0.23, 0, 0.7, 0)
+				pricePanel.ZIndex = 331
+				pricePanel.Parent = takeAll
+				makeCorner(pricePanel, 3)
+				makeStroke(pricePanel, Color3.fromRGB(99, 57, 8), 2)
+				makeStudTexture(pricePanel, 332, 0.88)
+
+				local robux = Instance.new("ImageLabel")
+				robux.BackgroundTransparency = 1
+				robux.Image = Images.Robux
+				robux.Position = UDim2.fromScale(0.18, 0.2)
+				robux.Size = UDim2.fromScale(0.24, 0.6)
+				robux.ScaleType = Enum.ScaleType.Fit
+				robux.ZIndex = 333
+				robux.Parent = pricePanel
+				local price = makeLabel(pricePanel, "Price", UDim2.fromScale(0.45, 0.12), UDim2.fromScale(0.42, 0.72), 333)
+				price.FontFace = Font.new(UIStyle.Font.Family, Enum.FontWeight.Heavy)
+				price.TextColor3 = Color3.new(1, 1, 1)
+				price.TextXAlignment = Enum.TextXAlignment.Left
+				takeAllPrice = price
+				refreshTakeAllPrice()
+
+				local sensor = Instance.new("TextButton")
+				sensor.Name = "Sensor"
+				sensor.AutoButtonColor = false
+				sensor.BackgroundTransparency = 1
+				sensor.Size = UDim2.fromScale(1, 1)
+				sensor.Text = ""
+				sensor.ZIndex = 335
+				sensor.Parent = takeAll
+				sensor.Activated:Connect(function()
+					if presentationPhase == "Choosing" then
+						Sounds.Play("Click", localPlayer.PlayerGui)
+						MonetizationController.PromptDeveloperProduct("TakeAll")
+					end
+				end)
 			end),
 		},
 	}

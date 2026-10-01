@@ -8,7 +8,9 @@ local AbilityDefinitions = require(ReplicatedStorage.Modules.Game.Abilities.Abil
 local RunProgressionConfig = require(ReplicatedStorage.Modules.Game.RunProgressionConfig)
 local RollDefinitions = require(ReplicatedStorage.Modules.Game.Rolls.RollDefinitions)
 local CoinsController = require(ServerStorage.Controllers.CoinsController)
+local AnalyticsController = require(ServerStorage.Controllers.AnalyticsController)
 local ClassController = require(ServerStorage.Controllers.ClassController)
+local MonetizationController = require(ServerStorage.Controllers.MonetizationController)
 local RageController = require(ServerStorage.Controllers.RageController)
 local ServerContext = require(ServerStorage.Controllers.ServerContext)
 local ActiveWeapons = require(script.Parent.Ability.ActiveWeapons)
@@ -85,7 +87,7 @@ local function normalizeData(rawData)
 					and definition.Category == category
 					and normalized.Owned[abilityId]
 					and not seen[abilityId]
-					and #equipped < AbilityDefinitions.EquipLimits[category]
+					and #equipped < AbilityDefinitions.MaximumEquipLimits[category]
 				then
 					seen[abilityId] = true
 					table.insert(equipped, abilityId)
@@ -142,7 +144,7 @@ local function initializeRunData(player: Player)
 	for _, abilityId in { ClassController.GetStartingAbilityId(player) } do
 		local definition = AbilityDefinitions.ById[abilityId]
 		local equipped = definition and runData.Equipped[definition.Category]
-		if definition and equipped and #equipped < AbilityDefinitions.EquipLimits[definition.Category] then
+		if definition and equipped and #equipped < MonetizationController.GetAbilitySlotLimit(player, definition.Category) then
 			runData.Owned[abilityId] = true
 			runData.Levels[abilityId] = 1
 			table.insert(equipped, abilityId)
@@ -394,7 +396,7 @@ function AbilityController.AddRunAbility(player: Player, abilityId: string): boo
 	end
 
 	local equipped = runData.Equipped[definition.Category]
-	if #equipped >= AbilityDefinitions.EquipLimits[definition.Category] then
+	if #equipped >= MonetizationController.GetAbilitySlotLimit(player, definition.Category) then
 		return false
 	end
 	runData.Owned[abilityId] = true
@@ -453,7 +455,7 @@ function AbilityController.SetRunAbilityLevelForAdmin(player: Player, abilityId:
 
 	if not runData.Owned[abilityId] then
 		local equipped = runData.Equipped[definition.Category]
-		if #equipped >= AbilityDefinitions.EquipLimits[definition.Category] then
+		if #equipped >= MonetizationController.GetAbilitySlotLimit(player, definition.Category) then
 			return false
 		end
 		-- This is deliberately run-only: admin testing can inject a build without granting permanent
@@ -478,6 +480,27 @@ function AbilityController.SetDiscoveryAcknowledgedCallback(callback)
 	discoveryAcknowledgedCallback = callback
 end
 
+function AbilityController.GetEquipLimit(player: Player, category: string): number
+	return MonetizationController.GetAbilitySlotLimit(player, category)
+end
+
+function AbilityController.GrantPermanentAbility(player: Player, abilityId: string): boolean
+	local definition = AbilityDefinitions.ById[abilityId]
+	if not definition or player.Parent ~= Players then
+		return false
+	end
+	local data = getData(player)
+	if data.Owned[abilityId] then
+		return true
+	end
+	-- A premium class includes its required starting ability so the verified purchase is usable
+	-- immediately while still sharing the ordinary persistent ability ownership table.
+	data.Owned[abilityId] = true
+	data.Levels[abilityId] = 1
+	dataService:set(player, AbilityDefinitions.DataKey, data)
+	return true
+end
+
 function AbilityController.EquipAbility(_, player: Player, abilityId: any)
 	if not canRequest(player) or type(abilityId) ~= "string" then
 		return
@@ -493,8 +516,9 @@ function AbilityController.EquipAbility(_, player: Player, abilityId: any)
 	if table.find(equipped, abilityId) then
 		return
 	end
-	if #equipped >= AbilityDefinitions.EquipLimits[definition.Category] then
-		sendResult(player, false, string.format("All %d %s slots are full.", #equipped, definition.Category:lower()))
+	local slotLimit = MonetizationController.GetAbilitySlotLimit(player, definition.Category)
+	if #equipped >= slotLimit then
+		sendResult(player, false, string.format("All %d %s slots are full.", slotLimit, definition.Category:lower()))
 		return
 	end
 
@@ -564,6 +588,7 @@ function AbilityController.UnlockAbility(_, player: Player, abilityId: any)
 		return
 	end
 
+	AnalyticsController.TrackShopPurchaseAttempt(player, "Ability", abilityId)
 	local spent = CoinsController.Remove(player, cost)
 	if not spent then
 		sendResult(player, false, string.format("You need %d Coins to unlock %s.", cost, definition.Name))
@@ -574,6 +599,7 @@ function AbilityController.UnlockAbility(_, player: Player, abilityId: any)
 	data.Owned[abilityId] = true
 	data.Levels[abilityId] = 1
 	dataService:set(player, AbilityDefinitions.DataKey, data)
+	AnalyticsController.TrackShopPurchaseCompleted(player, "Ability", abilityId)
 	sendResult(player, true, definition.Name .. " unlocked for future runs!")
 end
 

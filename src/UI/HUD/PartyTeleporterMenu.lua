@@ -644,11 +644,11 @@ return function()
 			end,
 			Size = function()
 				if portrait() then
-					return UDim2.new(1, -20, 1, -24)
+					return UDim2.fromScale(0.95, 0.97)
 				elseif short() then
-					return UDim2.new(0.88, 0, 1, -20)
+					return UDim2.fromScale(0.88, 0.96)
 				end
-				return UDim2.new(0.54, 0, 0.78, 0)
+				return UDim2.fromScale(0.54, 0.78)
 			end,
 			Visible = showConfiguration,
 			ZIndex = 61,
@@ -658,7 +658,7 @@ return function()
 				-- Keep the party header, settings body, and confirm action in their authored
 				-- proportions instead of allowing short or narrow screens to squash the panel.
 				AspectRatio = 1.25,
-				DominantAxis = Enum.DominantAxis.Height,
+				AspectType = Enum.AspectType.FitWithinMaxSize,
 			},
 			create "UIScale" {
 				-- Reserve the bottom-center exit affordance on short landscape screens without

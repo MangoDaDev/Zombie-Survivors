@@ -45,6 +45,7 @@ end
 
 local shotgun = {
 	Id = "Shotgun", Name = "Shotgun", Category = "Weapon",
+	UnlockCost = 5_000,
 	Description = "Fires a cone of pellets into a nearby crowd. Multiple pellets can strike the same zombie.",
 	UpgradeDescription = "Levels improve pellet damage, size, range, and fire rate. Milestones add barrels, stagger, and piercing.",
 	RageDescription = "Fires faster with extra pellets, stronger knockback, and a follow-up blast after every shot.",
@@ -99,6 +100,7 @@ end
 
 local frostNova = {
 	Id = "FrostNova", Name = "Frost Nova", Category = "Weapon",
+	UnlockCost = 15_000,
 	Description = "Releases an expanding ice ring that damages and slows zombies it crosses.",
 	UpgradeDescription = "Levels improve damage, radius, Chill, and pulse rate. Milestones add shatter, aftershocks, and freezing.",
 	RageDescription = "Fast Frost Novas surround the player. Repeated hits briefly freeze regular zombies and deeply Chill resistant enemies.",
@@ -152,6 +154,7 @@ end
 
 local meteor = {
 	Id = "Meteor", Name = "Meteor", Category = "Weapon",
+	UnlockCost = 50_000,
 	Description = "Marks a dense zombie group, then drops a delayed meteor from above for heavy area damage.",
 	UpgradeDescription = "Levels improve impact damage, radius, targeting, and cast rate. Milestones add shockwaves, fragments, and more meteors.",
 	RageDescription = "Each cast showers separate groups with smaller meteors before a powerful central impact.",
@@ -204,6 +207,7 @@ end
 
 local turret = {
 	Id = "Turret", Name = "Turret", Category = "Weapon",
+	UnlockCost = 200_000,
 	Description = "Deploys a temporary sentry that automatically shoots nearby zombies.",
 	UpgradeDescription = "Levels improve bullet damage, fire rate, range, and duration. Milestones add barrels, turrets, and piercing shots.",
 	RageDescription = "Immediately deploys two overclocked sentries. All active turrets fire faster and release periodic piercing shots.",
@@ -258,6 +262,7 @@ end
 
 local vortex = {
 	Id = "Vortex", Name = "Vortex", Category = "Weapon",
+	UnlockCost = 750_000,
 	Description = "Creates a gravity well that pulls nearby zombies inward and damages them over time.",
 	UpgradeDescription = "Levels improve damage, radius, pull, duration, and cooldown. Milestones add wells, compression, and collapse.",
 	RageDescription = "A large mobile gravity well follows the player for the whole Rage window while normal wells continue spawning.",
@@ -310,6 +315,7 @@ end
 
 local giant = {
 	Id = "Giant", Name = "Giant", Category = "Passive",
+	UnlockCost = 5_000,
 	Description = "Moderately increases damaging weapon size and coverage, with matching visual and hitbox growth.",
 	UpgradeDescription = "Each level improves size slightly. Milestones add small capped boosts; Rage doubles the bonus.",
 	RageDescription = "Doubles Giant's capped size bonus during Rage without increasing damage, range, or weapon count.",
@@ -362,6 +368,7 @@ end
 
 local greed = {
 	Id = "Greed", Name = "Greed", Category = "Passive",
+	UnlockCost = 15_000,
 	Description = "Zombies have a chance to drop bonus Coins when defeated.",
 	UpgradeDescription = "Levels improve bonus Coin chance. Milestones add extra value, jackpots, and stronger-zombie rewards.",
 	RageDescription = "Zombies defeated during Rage have a substantially higher chance to award bonus Coins and jackpots.",
@@ -412,6 +419,7 @@ end
 
 local critical = {
 	Id = "Critical", Name = "Critical", Category = "Passive",
+	UnlockCost = 50_000,
 	Description = "Direct ability hits sometimes deal increased damage.",
 	UpgradeDescription = "Levels improve critical chance and damage. Milestones provide larger boosts to each.",
 	RageDescription = "Critical chance and damage rise substantially during Rage; level 25 adds an even stronger Rage critical.",
@@ -456,6 +464,7 @@ end
 
 local adrenaline = {
 	Id = "Adrenaline", Name = "Adrenaline", Category = "Passive",
+	UnlockCost = 150_000,
 	Description = "Weapons activate faster while your health is low.",
 	UpgradeDescription = "Levels improve attack speed. Milestones strengthen it and raise the health threshold.",
 	RageDescription = "Adrenaline stays active throughout Rage, even at full health, with a stronger speed bonus.",
@@ -499,6 +508,7 @@ end
 
 local impact = {
 	Id = "Impact", Name = "Impact", Category = "Passive",
+	UnlockCost = 300_000,
 	Description = "Damaging abilities push zombies farther away, including attacks with no natural knockback.",
 	UpgradeDescription = "Levels improve knockback. Milestones strengthen weak pushes and slow resistant zombies.",
 	RageDescription = "Rage greatly increases Impact's knockback; Vortex converts the force into stronger inward pull.",

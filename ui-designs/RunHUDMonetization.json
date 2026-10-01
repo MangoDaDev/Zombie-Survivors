@@ -1,0 +1,44 @@
+{
+  "pinevex_object": {
+    "type": "Frame", "name": "Preview", "size": [1, 0, 1, 0], "bg": [28, 47, 39],
+    "children": [
+      { "type": "Frame", "name": "HudFade", "size": [1, 0, 0, 160], "position": [0, 0, 1, 0], "anchor": [0, 1], "bg": [1, 7, 13], "bgTransparency": 0.25, "gradient": { "rotation": 90, "colors": [[0, "#01070D"], [1, "#01070D"]], "transparency": [[0, 1], [1, 0.15]] } },
+      { "type": "Frame", "name": "Coins", "size": [0, 220, 0, 44], "position": [0, 20, 0.5, -25], "bg": [10, 41, 57], "strokes": [{ "thickness": 2, "color": [225, 157, 40], "applyMode": "Border" }], "children": [
+        { "type": "ImageLabel", "name": "Coin", "size": [0, 30, 0, 30], "position": [0, 8, 0.5, 0], "anchor": [0, 0.5], "bgTransparency": 1, "icon": "rbxassetid://124559863903122" },
+        { "type": "TextLabel", "name": "Balance", "size": [1, -54, 1, -10], "position": [0, 46, 0, 5], "bgTransparency": 1, "text": "12,450", "textColor": [255, 231, 158], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Heavy" }
+      ] },
+      { "type": "Frame", "name": "RunBoostOffer", "size": [0, 220, 0, 58], "position": [0, 20, 0.5, 30], "bg": [10, 41, 57], "strokes": [{ "thickness": 2, "color": [225, 157, 40], "applyMode": "Border" }], "children": [
+        { "type": "ImageLabel", "name": "Artwork", "size": [0, 46, 0, 46], "position": [0, 6, 0, 6], "bg": [2, 15, 25], "icon": "rbxassetid://115042318829702" },
+        { "type": "TextLabel", "name": "Name", "size": [1, -138, 0, 24], "position": [0, 60, 0, 7], "bgTransparency": 1, "text": "RUN BOOST", "textColor": [255, 255, 255], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Heavy" },
+        { "type": "TextLabel", "name": "Detail", "size": [1, -138, 0, 14], "position": [0, 60, 0, 34], "bgTransparency": 1, "text": "THIS RUN ONLY", "textColor": [255, 191, 91], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Bold" },
+        { "type": "TextButton", "name": "Price", "size": [0, 66, 1, -12], "position": [1, -6, 0, 6], "anchor": [1, 0], "bg": [225, 157, 40], "text": "49", "textColor": [255, 255, 255], "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy", "children": [{ "type": "ImageLabel", "name": "Robux", "size": [0, 18, 0, 18], "position": [0, 8, 0.5, 0], "anchor": [0, 0.5], "bgTransparency": 1, "icon": "rbxassetid://89121052656533" }] }
+      ] },
+      { "type": "Frame", "name": "ReviveTeamOffer", "size": [0, 220, 0, 58], "position": [0, 20, 0.5, 96], "bg": [10, 41, 57], "strokes": [{ "thickness": 2, "color": [67, 154, 105], "applyMode": "Border" }], "children": [
+        { "type": "ImageLabel", "name": "Artwork", "size": [0, 46, 0, 46], "position": [0, 6, 0, 6], "bg": [2, 15, 25], "icon": "rbxassetid://99546721866961" },
+        { "type": "TextLabel", "name": "Name", "size": [1, -138, 0, 24], "position": [0, 60, 0, 7], "bgTransparency": 1, "text": "REVIVE 2", "textColor": [255, 255, 255], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Heavy" },
+        { "type": "TextLabel", "name": "Detail", "size": [1, -138, 0, 14], "position": [0, 60, 0, 34], "bgTransparency": 1, "text": "TEAMMATES", "textColor": [124, 211, 151], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Bold" },
+        { "type": "TextButton", "name": "Price", "size": [0, 66, 1, -12], "position": [1, -6, 0, 6], "anchor": [1, 0], "bg": [71, 190, 104], "text": "79", "textColor": [255, 255, 255], "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy", "children": [{ "type": "ImageLabel", "name": "Robux", "size": [0, 18, 0, 18], "position": [0, 8, 0.5, 0], "anchor": [0, 0.5], "bgTransparency": 1, "icon": "rbxassetid://89121052656533" }] }
+      ] },
+      {
+        "type": "Frame", "name": "AbilitySlots", "size": [0, 510, 0, 74], "position": [0.5, 0, 1, -28], "anchor": [0.5, 1], "bgTransparency": 1,
+        "children": [
+          { "type": "Frame", "name": "WeaponOne", "size": [0, 62, 0, 62], "position": [0, 0, 0.5, 0], "anchor": [0, 0.5], "bg": [3, 24, 39], "strokes": [{ "thickness": 3, "color": [67, 190, 255], "applyMode": "Border" }], "children": [{ "type": "ImageLabel", "name": "Artwork", "size": [1, -10, 1, -10], "position": [0.5, 0, 0.5, 0], "anchor": [0.5, 0.5], "bgTransparency": 1, "icon": "rbxassetid://74070337315898" }] },
+          { "type": "Frame", "name": "WeaponTwo", "size": [0, 62, 0, 62], "position": [0, 72, 0.5, 0], "anchor": [0, 0.5], "bg": [3, 24, 39], "strokes": [{ "thickness": 3, "color": [67, 190, 255], "applyMode": "Border" }], "children": [{ "type": "ImageLabel", "name": "Artwork", "size": [1, -10, 1, -10], "position": [0.5, 0, 0.5, 0], "anchor": [0.5, 0.5], "bgTransparency": 1, "icon": "rbxassetid://86050971312005" }] },
+          { "type": "TextButton", "name": "LockedWeapon", "size": [0, 62, 0, 62], "position": [0, 144, 0.5, 0], "anchor": [0, 0.5], "bg": [10, 41, 57], "text": "", "strokes": [{ "thickness": 3, "color": [225, 157, 40], "applyMode": "Border" }], "children": [
+            { "type": "ImageLabel", "name": "Lock", "size": [0, 26, 0, 26], "position": [0.5, 0, 0, 8], "anchor": [0.5, 0], "bgTransparency": 1, "icon": "rbxassetid://113246023173759", "imageColor": [255, 207, 91] },
+            { "type": "TextLabel", "name": "Unlock", "size": [1, -6, 0, 15], "position": [0.5, 0, 1, -19], "anchor": [0.5, 0], "bgTransparency": 1, "text": "+ SLOT", "textColor": [255, 223, 139], "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy" }
+          ] },
+          { "type": "Frame", "name": "Divider", "size": [0, 4, 0, 52], "position": [0.5, 0, 0.5, 0], "anchor": [0.5, 0.5], "bg": [68, 101, 117], "children": [] },
+          { "type": "Frame", "name": "PassiveOne", "size": [0, 62, 0, 62], "position": [1, -206, 0.5, 0], "anchor": [0, 0.5], "bg": [3, 24, 39], "strokes": [{ "thickness": 3, "color": [177, 91, 255], "applyMode": "Border" }], "children": [{ "type": "ImageLabel", "name": "Artwork", "size": [1, -10, 1, -10], "position": [0.5, 0, 0.5, 0], "anchor": [0.5, 0.5], "bgTransparency": 1, "icon": "rbxassetid://84367243209042" }] },
+          { "type": "Frame", "name": "PassiveTwo", "size": [0, 62, 0, 62], "position": [1, -134, 0.5, 0], "anchor": [0, 0.5], "bg": [3, 24, 39], "strokes": [{ "thickness": 3, "color": [177, 91, 255], "applyMode": "Border" }], "children": [{ "type": "ImageLabel", "name": "Artwork", "size": [1, -10, 1, -10], "position": [0.5, 0, 0.5, 0], "anchor": [0.5, 0.5], "bgTransparency": 1, "icon": "rbxassetid://74070337315898" }] },
+          { "type": "TextButton", "name": "LockedPassive", "size": [0, 62, 0, 62], "position": [1, -62, 0.5, 0], "anchor": [0, 0.5], "bg": [10, 41, 57], "text": "", "strokes": [{ "thickness": 3, "color": [225, 157, 40], "applyMode": "Border" }], "children": [
+            { "type": "ImageLabel", "name": "Lock", "size": [0, 26, 0, 26], "position": [0.5, 0, 0, 8], "anchor": [0.5, 0], "bgTransparency": 1, "icon": "rbxassetid://113246023173759", "imageColor": [255, 207, 91] },
+            { "type": "TextLabel", "name": "Unlock", "size": [1, -6, 0, 15], "position": [0.5, 0, 1, -19], "anchor": [0.5, 0], "bgTransparency": 1, "text": "+ SLOT", "textColor": [255, 223, 139], "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy" }
+          ] }
+        ]
+      }
+    ]
+  },
+  "viewport_size": [1280, 720],
+  "transparent_background": false
+}

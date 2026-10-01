@@ -179,59 +179,9 @@ local function renderView(view: PowerupView, now: number, deltaTime: number)
 end
 
 local function createPulse(position: Vector3, color: Color3, radius: number)
-	-- The broad translucent pulse preserves the pickup radius while studded accents add a crisp activation beat.
-	StudVFX.Ring(effectsFolder, position + Vector3.yAxis * 0.14, color, radius, 0.48, 18)
-	StudVFX.Flash(effectsFolder, position + Vector3.yAxis * 1.35, color, math.min(radius * 0.58, 6), 0.3)
-	StudVFX.Burst(
-		effectsFolder,
-		position + Vector3.yAxis * 0.45,
-		color,
-		math.clamp(math.floor(radius * 0.7), 6, 12),
-		math.min(radius * 0.55, 7),
-		0.38,
-		color:Lerp(Color3.new(1, 1, 1), 0.5)
-	)
-	local ring = Instance.new("Part")
-	ring.Name = "PowerupPulse"
-	ring.Anchored = true
-	ring.CanCollide = false
-	ring.CanQuery = false
-	ring.CanTouch = false
-	ring.CastShadow = false
-	ring.Shape = Enum.PartType.Cylinder
-	ring.Material = Enum.Material.Neon
-	ring.Color = color
-	ring.Transparency = 0.12
-	ring.Size = Vector3.new(0.16, 1, 1)
-	ring.CFrame = CFrame.new(position + Vector3.new(0, 0.12, 0)) * CFrame.Angles(0, 0, math.pi * 0.5)
-	ring.Parent = effectsFolder
-	TweenService:Create(
-		ring,
-		TweenInfo.new(0.48, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-		{ Size = Vector3.new(0.16, radius * 2, radius * 2), Transparency = 1 }
-	):Play()
-	Debris:AddItem(ring, 0.55)
-
-	local burst = Instance.new("Part")
-	burst.Name = "PowerupBurst"
-	burst.Anchored = true
-	burst.CanCollide = false
-	burst.CanQuery = false
-	burst.CanTouch = false
-	burst.CastShadow = false
-	burst.Shape = Enum.PartType.Ball
-	burst.Material = Enum.Material.Neon
-	burst.Color = color
-	burst.Transparency = 0.38
-	burst.Size = Vector3.one * 1.5
-	burst.CFrame = CFrame.new(position + Vector3.new(0, 1.5, 0))
-	burst.Parent = effectsFolder
-	TweenService:Create(
-		burst,
-		TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-		{ Size = Vector3.one * math.min(radius, 14), Transparency = 1 }
-	):Play()
-	Debris:AddItem(burst, 0.38)
+	-- Power-ups now resolve as a layered stud impact rather than one flat disc plus one swelling sphere.
+	-- The shared helper bounds its part count even when a bomb or magnet activates across a large radius.
+	StudVFX.Impact(effectsFolder, position, color, radius, 0.48, 1.25)
 end
 
 local function flashCharacter(character: Model, color: Color3)

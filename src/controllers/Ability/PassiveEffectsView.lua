@@ -12,25 +12,12 @@ local effectsFolder: Folder?
 local burns = {}
 local random = Random.new()
 
-local function makePart(name: string, position: Vector3, color: Color3, shape: Enum.PartType): Part?
+local function makePart(name: string, position: Vector3, color: Color3): Part?
 	if not effectsFolder then
 		return nil
 	end
-	local part = Instance.new("Part")
-	part.Name = name
-	part.Shape = shape
-	part.Material = Enum.Material.Neon
-	part.Color = color
-	part.Anchored = true
-	part.CanCollide = false
-	part.CanQuery = false
-	part.CanTouch = false
-	part.CastShadow = false
+	local part = StudVFX.CreateBlock(effectsFolder, name, Vector3.one, color)
 	part.Position = position
-	if shape == Enum.PartType.Block then
-		StudVFX.PreparePart(part)
-	end
-	part.Parent = effectsFolder
 	return part
 end
 
@@ -49,7 +36,7 @@ local function radialStudBurst(position: Vector3, color: Color3, count: number, 
 	for index = 1, count do
 		local angle = (index - 1) / count * math.pi * 2 + random:NextNumber(-0.14, 0.14)
 		local direction = Vector3.new(math.cos(angle), random:NextNumber(0.12, 0.42), math.sin(angle)).Unit
-		local block = makePart("PassiveImpactStud", position + direction * 0.3, color, Enum.PartType.Block)
+		local block = makePart("PassiveImpactStud", position + direction * 0.3, color)
 		if block then
 			block.Material = Enum.Material.Plastic
 			block.Size = Vector3.new(0.24, 0.24, random:NextNumber(0.65, 1.05))
@@ -87,40 +74,20 @@ end
 
 function PassiveEffectsView.BlastTriggered(packet)
 	local color = if packet.secondary then Color3.fromRGB(255, 76, 29) else Color3.fromRGB(255, 157, 47)
-	StudVFX.Ring(effectsFolder, packet.position + Vector3.yAxis * 0.12, color, packet.radius, 0.28, 18)
-	local ring = makePart("BlastRadius", packet.position, color, Enum.PartType.Cylinder)
-	if ring then
-		ring.Size = Vector3.new(0.12, 0.2, 0.2)
-		ring.Transparency = 0.28
-		ring.CFrame = CFrame.new(packet.position) * CFrame.Angles(0, 0, math.pi / 2)
-		TweenService:Create(
-			ring,
-			TweenInfo.new(0.22, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-			{ Size = Vector3.new(0.12, packet.radius * 2, packet.radius * 2), Transparency = 1 }
-		):Play()
-		Sounds.Play("FlameBurst", ring, 95)
-		addFadingLight(ring, color, if packet.secondary then 3 else 2, packet.radius * 1.2, 0.22)
-		Debris:AddItem(ring, 0.35)
-	end
-
-	local flash = makePart("BlastFlash", packet.position, Color3.fromRGB(255, 239, 129), Enum.PartType.Ball)
-	if flash then
-		flash.Size = Vector3.one * 0.8
-		flash.Transparency = 0.05
-		TweenService:Create(
-			flash,
-			TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-			{ Size = Vector3.one * packet.radius * 1.15, Transparency = 1 }
-		):Play()
-		Debris:AddItem(flash, 0.3)
-	end
-	radialStudBurst(
-		packet.position + Vector3.yAxis * 0.2,
-		color:Lerp(Color3.fromRGB(255, 239, 129), 0.35),
-		if packet.secondary then 12 else 8,
-		math.min(packet.radius * 0.7, 7),
-		0.28
+	-- Blast is one of the most frequent passive procs, so use the bounded shared impact instead of a
+	-- single neon sphere. The layered rings, crossed flash, and chips communicate both force and radius.
+	local anchor = StudVFX.Impact(
+		effectsFolder,
+		packet.position,
+		color,
+		packet.radius,
+		0.3,
+		if packet.secondary then 1.35 else 1
 	)
+	if anchor then
+		Sounds.Play("FlameBurst", anchor, 95)
+		addFadingLight(anchor, color, if packet.secondary then 3 else 2, packet.radius * 1.2, 0.22)
+	end
 end
 
 function PassiveEffectsView.BurnApplied(packet)
@@ -130,7 +97,7 @@ function PassiveEffectsView.BurnApplied(packet)
 		if not position then
 			return
 		end
-		local holder = makePart("PassiveBurn", position + Vector3.new(0, 1.4, 0), Color3.new(1, 1, 1), Enum.PartType.Block)
+		local holder = makePart("PassiveBurn", position + Vector3.new(0, 1.4, 0), Color3.new(1, 1, 1))
 		if not holder then
 			return
 		end
@@ -161,34 +128,26 @@ end
 
 function PassiveEffectsView.ThornsTriggered(packet)
 	local pulseRadius = if packet.burstRadius > 0 then packet.burstRadius else 2.5
-	local pulse = makePart("ThornsPulse", packet.playerPosition, Color3.fromRGB(108, 231, 137), Enum.PartType.Ball)
-	if pulse then
-		pulse.Size = Vector3.one * 0.6
-		pulse.Transparency = 0.5
-		TweenService:Create(
-			pulse,
-			TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-			{ Size = Vector3.one * pulseRadius * 2, Transparency = 1 }
-		):Play()
-		Debris:AddItem(pulse, 0.3)
-	end
-
-	local impact = makePart("ThornsImpact", packet.attackerPosition, Color3.fromRGB(202, 255, 187), Enum.PartType.Ball)
+	StudVFX.Ring(effectsFolder, packet.playerPosition + Vector3.yAxis * 0.1,
+		Color3.fromRGB(108, 231, 137), pulseRadius, 0.24, 12)
+	local impact = StudVFX.Flash(
+		effectsFolder,
+		packet.attackerPosition + Vector3.yAxis * 0.35,
+		Color3.fromRGB(202, 255, 187),
+		2.4,
+		0.18
+	)
 	if impact then
-		impact.Size = Vector3.one * 0.45
-		impact.Transparency = 0.05
-		TweenService:Create(impact, TweenInfo.new(0.14), { Size = Vector3.one * 2.4, Transparency = 1 }):Play()
 		-- Thorns use an organic snap so the retaliation reads differently from armored impacts.
 		Sounds.Play("AbilityThornsImpact", impact, 80)
 		addFadingLight(impact, impact.Color, 1.8, 5.5, 0.14)
-		Debris:AddItem(impact, 0.25)
 	end
 	local recoilDirection = packet.attackerPosition - packet.playerPosition
 	if recoilDirection.Magnitude > 0.01 then
 		local facing = recoilDirection.Unit
 		for index = -1, 1 do
 			local spread = (CFrame.fromAxisAngle(Vector3.yAxis, math.rad(index * 24)) * facing)
-			local thorn = makePart("ThornSpike", packet.playerPosition + Vector3.yAxis, Color3.fromRGB(151, 244, 157), Enum.PartType.Block)
+			local thorn = makePart("ThornSpike", packet.playerPosition + Vector3.yAxis, Color3.fromRGB(151, 244, 157))
 			if thorn then
 				thorn.Material = Enum.Material.Plastic
 				thorn.Size = Vector3.new(0.28, 0.28, 1.1)
@@ -208,7 +167,7 @@ function PassiveEffectsView.CriticalHit(packet)
 		return
 	end
 	if effectsFolder then
-		local holder = makePart("CriticalHitFlash", packet.position + Vector3.yAxis * 1.4, Color3.new(1, 1, 1), Enum.PartType.Block)
+		local holder = makePart("CriticalHitFlash", packet.position + Vector3.yAxis * 1.4, Color3.new(1, 1, 1))
 		if holder then
 			holder.Size = Vector3.one * 0.1
 			holder.Transparency = 1
@@ -229,7 +188,7 @@ function PassiveEffectsView.CriticalHit(packet)
 		local angle = index * math.pi / 2
 		local offset = Vector3.new(math.cos(angle), 0.35, math.sin(angle))
 		local block = makePart("CriticalSpark", packet.position + Vector3.yAxis * 1.4,
-			Color3.fromRGB(255, 201, 70), Enum.PartType.Block)
+			Color3.fromRGB(255, 201, 70))
 		if block then
 			block.Material = Enum.Material.Plastic
 			block.Size = Vector3.new(0.28, 0.28, 0.7)
@@ -255,7 +214,7 @@ function PassiveEffectsView.ArmorBlocked(packet)
 	local soundAnchor
 	for index = 1, 7 do
 		local angle = (index - 1) / 7 * math.pi * 2
-		local panel = makePart("ArmorPanel", packet.position, color, Enum.PartType.Block)
+		local panel = makePart("ArmorPanel", packet.position, color)
 		if panel then
 			soundAnchor = soundAnchor or panel
 			panel.Material = Enum.Material.Plastic
@@ -289,7 +248,7 @@ function PassiveEffectsView.MagnetBurst(packet)
 		local angle = (index - 1) / 16 * math.pi * 2
 		local direction = Vector3.new(math.cos(angle), 0, math.sin(angle))
 		local start = packet.position + direction * math.min(packet.radius, 22)
-		local block = makePart("MagnetPullStud", start, if index % 2 == 0 then color else Color3.fromRGB(255, 93, 93), Enum.PartType.Block)
+		local block = makePart("MagnetPullStud", start, if index % 2 == 0 then color else Color3.fromRGB(255, 93, 93))
 		if block then
 			soundAnchor = soundAnchor or block
 			block.Material = Enum.Material.Plastic
@@ -310,7 +269,7 @@ function PassiveEffectsView.ExecutionerHit(packet)
 	local position = packet.position + Vector3.yAxis * 1.35
 	local soundAnchor
 	for index = -1, 1 do
-		local slash = makePart("ExecutionerSlash", position, Color3.fromRGB(255, 63, 63), Enum.PartType.Block)
+		local slash = makePart("ExecutionerSlash", position, Color3.fromRGB(255, 63, 63))
 		if slash then
 			soundAnchor = soundAnchor or slash
 			slash.Material = Enum.Material.Plastic
@@ -335,7 +294,7 @@ function PassiveEffectsView.OverchargeTriggered(packet)
 	radialStudBurst(packet.position, color, 12, 4.5, 0.28)
 	local soundAnchor
 	for index = 1, 2 do
-		local bolt = makePart("OverchargeBolt", packet.position, color:Lerp(Color3.new(1, 1, 1), 0.45), Enum.PartType.Block)
+		local bolt = makePart("OverchargeBolt", packet.position, color:Lerp(Color3.new(1, 1, 1), 0.45))
 		if bolt then
 			soundAnchor = soundAnchor or bolt
 			bolt.Material = Enum.Material.Plastic

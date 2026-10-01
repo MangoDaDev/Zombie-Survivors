@@ -8,6 +8,7 @@ local ZombieDefinitions = require(ReplicatedStorage.Modules.Game.Zombies.ZombieD
 local Signal = require(ReplicatedStorage.Packages.signal)
 local ServerContext = require(ServerStorage.Controllers.ServerContext)
 local ZombieController = require(ServerStorage.Controllers.ZombieController)
+local AnalyticsController = require(ServerStorage.Controllers.AnalyticsController)
 
 local RoundController = {}
 
@@ -161,6 +162,12 @@ advanceRound = function()
 		end
 		-- Completing or majority-skipping the active round credits only party members alive at this boundary.
 		roundCompleted:Fire(currentRound, playersWhoSurvived)
+		for _, player in playersWhoSurvived do
+			if currentRound == 1 then
+				AnalyticsController.TrackGameplayStep(player, 6, { "Round - 1" })
+				AnalyticsController.TrackOnboardingStep(player, 7)
+			end
+		end
 	end
 	currentRound += 1
 	table.clear(votes)

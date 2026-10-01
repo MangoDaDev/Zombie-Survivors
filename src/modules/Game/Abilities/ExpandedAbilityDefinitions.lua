@@ -45,6 +45,7 @@ end
 
 local crowbar = {
 	Id = "Crowbar", Name = "Crowbar", Category = "Weapon",
+	UnlockCost = 1_000,
 	Description = "Swings a heavy Crowbar through the nearest crowd and knocks zombies away.",
 	UpgradeDescription = "Levels improve damage, reach, arc, and swing rate. Milestones add follow-up swings and crowd control.",
 	RageDescription = "Rapid alternating swings surround you, with stronger knockback and a guaranteed three-hit combo.",
@@ -96,6 +97,7 @@ end
 
 local crossfire = {
 	Id = "Crossfire", Name = "Crossfire", Category = "Weapon",
+	UnlockCost = 2_500,
 	Description = "Fires piercing bolts in fixed directions around you, rewarding careful positioning.",
 	UpgradeDescription = "Levels improve damage, width, range, and fire rate. Milestones add diagonals and rotating follow-up volleys.",
 	RageDescription = "Fires rapid eight-way volleys followed by a rotated second burst, covering every approach.",
@@ -149,6 +151,7 @@ end
 
 local buzzsaw = {
 	Id = "Buzzsaw", Name = "Buzzsaw", Category = "Weapon",
+	UnlockCost = 8_000,
 	Description = "Throws a Buzzsaw into a nearby crowd, where it spins and repeatedly damages zombies.",
 	UpgradeDescription = "Levels improve tick damage, size, duration, and deployment rate. Milestones add ricochets and extra saws.",
 	RageDescription = "Deploys larger, faster-ticking Buzzsaws that chase fresh crowds after clearing their current area.",
@@ -202,6 +205,7 @@ end
 
 local crusher = {
 	Id = "Crusher", Name = "Crusher", Category = "Weapon",
+	UnlockCost = 30_000,
 	Description = "Summons two blocky walls that warn, then slam together around a nearby crowd.",
 	UpgradeDescription = "Levels improve damage, wall size, warning speed, and cooldown. Milestones add stun and repeated slams.",
 	RageDescription = "Rapid Crushers strike wider groups with shorter warnings and a crushing second slam.",
@@ -256,6 +260,7 @@ end
 
 local laserSweep = {
 	Id = "LaserSweep", Name = "Laser Sweep", Category = "Weapon",
+	UnlockCost = 100_000,
 	Description = "Rotates a long Laser around you, damaging each zombie it crosses.",
 	UpgradeDescription = "Levels improve beam damage, width, reach, and sweep rate. Milestones add burns and a second beam.",
 	RageDescription = "Two wide, fast beams sweep repeatedly in opposite directions throughout the attack.",
@@ -309,6 +314,7 @@ end
 
 local armor = {
 	Id = "Armor", Name = "Armor", Category = "Passive",
+	UnlockCost = 2_500,
 	Description = "Reduces damage taken from zombies.",
 	UpgradeDescription = "Levels improve damage reduction. Milestones soften heavy hits and briefly reinforce Armor after taking one.",
 	RageDescription = "Rage reinforces Armor, greatly reducing incoming damage and guaranteeing heavy-hit protection.",
@@ -354,6 +360,7 @@ end
 
 local magnet = {
 	Id = "Magnet", Name = "Magnet", Category = "Passive",
+	UnlockCost = 1_000,
 	Description = "Pulls XP and Coins toward you from farther away.",
 	UpgradeDescription = "Levels improve pickup range and pull speed. Milestones add bursts that collect nearby rewards instantly.",
 	RageDescription = "Massively expands pickup range and periodically pulls every available reward toward you during Rage.",
@@ -398,6 +405,7 @@ end
 
 local executioner = {
 	Id = "Executioner", Name = "Executioner", Category = "Passive",
+	UnlockCost = 25_000,
 	Description = "Deals bonus damage to wounded zombies.",
 	UpgradeDescription = "Levels improve finishing damage and its health threshold. Milestones add larger bonuses against strong enemies.",
 	RageDescription = "Executioner activates much earlier and strikes wounded zombies with a substantially stronger bonus.",
@@ -439,6 +447,7 @@ end
 
 local trainingManual = {
 	Id = "TrainingManual", Name = "Training Manual", Category = "Passive",
+	UnlockCost = 75_000,
 	Description = "Increases XP gained from crystals.",
 	UpgradeDescription = "Levels improve XP gained. Milestones add bonus XP from valuable crystals and level-up momentum.",
 	RageDescription = "Greatly increases all XP gained during Rage, with stronger bonuses from valuable crystals.",
@@ -481,6 +490,7 @@ end
 
 local overcharge = {
 	Id = "Overcharge", Name = "Overcharge", Category = "Passive",
+	UnlockCost = 500_000,
 	Description = "Weapon activations build charge. At full charge, the next activation repeats at reduced power.",
 	UpgradeDescription = "Levels reduce activations required and improve repeat damage. Milestones add faster repeats and chain charge.",
 	RageDescription = "Charge builds much faster and repeated activations strike at full power during Rage.",

@@ -1,0 +1,86 @@
+{
+  "pinevex_object": {
+    "type": "Frame", "name": "Preview", "size": [1, 0, 1, 0], "bg": [13, 23, 31],
+    "children": [
+      { "type": "Frame", "name": "Dim", "size": [1, 0, 1, 0], "bg": [1, 7, 13], "bgTransparency": 0.28, "children": [] },
+      { "type": "Frame", "name": "Shadow", "size": [0, 1050, 0, 620], "position": [0.5, 8, 0.5, 10], "anchor": [0.5, 0.5], "bg": [0, 4, 8], "corner": 0.018, "children": [] },
+      {
+        "type": "Frame", "name": "Panel", "size": [0, 1050, 0, 620], "position": [0.5, 0, 0.5, 0], "anchor": [0.5, 0.5], "bg": [3, 18, 30], "corner": 0.018,
+        "strokes": [{ "thickness": 7, "color": [0, 5, 10], "applyMode": "Border" }, { "thickness": 3, "color": [221, 151, 37], "applyMode": "Border" }],
+        "children": [
+          {
+            "type": "Frame", "name": "Header", "size": [1, -94, 0, 88], "position": [0, 12, 0, 12], "bg": [224, 157, 40],
+            "gradient": { "rotation": 90, "colors": [[0, "#FFD45A"], [1, "#D78E1D"]], "transparency": [[0, 0], [1, 0]] },
+            "strokes": [{ "thickness": 3, "color": [255, 224, 112], "applyMode": "Border" }],
+            "children": [
+              { "type": "ImageLabel", "name": "StudTexture", "size": [1, 0, 1, 0], "bgTransparency": 1, "icon": "rbxassetid://6927295847", "imageTransparency": 0.84, "scaleType": "Tile", "tileSize": [0, 92, 0, 92] },
+              { "type": "TextLabel", "name": "Title", "size": [0.7, 0, 0, 44], "position": [0, 20, 0, 7], "bgTransparency": 1, "text": "SURVIVOR SHOP", "textColor": [255, 255, 255], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Heavy", "strokes": [{ "thickness": 4, "color": [70, 39, 7] }] },
+              { "type": "TextLabel", "name": "Subtitle", "size": [0.74, 0, 0, 20], "position": [0, 22, 0, 58], "bgTransparency": 1, "text": "COINS, PERMANENT PERKS & RUN UPGRADES", "textColor": [79, 47, 8], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Bold" }
+            ]
+          },
+          { "type": "TextButton", "name": "Close", "size": [0, 64, 0, 88], "position": [1, -12, 0, 12], "anchor": [1, 0], "bg": [221, 57, 67], "corner": 0.08, "text": "X", "textColor": [255, 255, 255], "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy", "strokes": [{ "thickness": 4, "color": [80, 15, 23], "applyMode": "Border" }] },
+          {
+            "type": "Frame", "name": "JumpBar", "size": [1, -24, 0, 50], "position": [0, 12, 0, 110], "bg": [4, 29, 45],
+            "strokes": [{ "thickness": 2, "color": [54, 91, 111], "applyMode": "Border" }],
+            "children": [
+              { "type": "TextButton", "name": "Featured", "size": [0.2, -8, 1, -12], "position": [0, 6, 0, 6], "bg": [225, 157, 40], "corner": 0.09, "text": "FEATURED", "textColor": [255, 255, 255], "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy", "strokes": [{ "thickness": 2, "color": [104, 62, 11], "applyMode": "Border" }] },
+              { "type": "TextButton", "name": "Coins", "size": [0.2, -8, 1, -12], "position": [0.2, 2, 0, 6], "bg": [19, 49, 65], "corner": 0.09, "text": "COINS", "textColor": [192, 210, 219], "textScaled": true, "font": "Ubuntu", "fontWeight": "Bold" },
+              { "type": "TextButton", "name": "Gamepasses", "size": [0.2, -8, 1, -12], "position": [0.4, 2, 0, 6], "bg": [19, 49, 65], "corner": 0.09, "text": "GAMEPASSES", "textColor": [192, 210, 219], "textScaled": true, "font": "Ubuntu", "fontWeight": "Bold" },
+              { "type": "TextButton", "name": "Boosts", "size": [0.2, -8, 1, -12], "position": [0.6, 2, 0, 6], "bg": [19, 49, 65], "corner": 0.09, "text": "BOOSTS", "textColor": [192, 210, 219], "textScaled": true, "font": "Ubuntu", "fontWeight": "Bold" },
+              { "type": "TextButton", "name": "Classes", "size": [0.2, -8, 1, -12], "position": [0.8, 2, 0, 6], "bg": [19, 49, 65], "corner": 0.09, "text": "CLASSES", "textColor": [192, 210, 219], "textScaled": true, "font": "Ubuntu", "fontWeight": "Bold" }
+            ]
+          },
+          {
+            "type": "Frame", "name": "Catalog", "size": [1, -24, 1, -182], "position": [0, 12, 0, 170], "bg": [4, 24, 38],
+            "strokes": [{ "thickness": 2, "color": [38, 80, 101], "applyMode": "Border" }],
+            "children": [
+              { "type": "TextLabel", "name": "FeaturedHeader", "size": [1, -32, 0, 28], "position": [0, 16, 0, 12], "bgTransparency": 1, "text": "FEATURED  •  RECOMMENDED UPGRADES", "textColor": [255, 205, 91], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Heavy" },
+              {
+                "type": "Frame", "name": "Backpack", "size": [0.5, -22, 0, 172], "position": [0, 14, 0, 49], "bg": [11, 43, 59], "corner": 0.035,
+                "strokes": [{ "thickness": 3, "color": [221, 151, 37], "applyMode": "Border" }],
+                "children": [
+                  { "type": "Frame", "name": "ArtworkPanel", "size": [0, 154, 1, -16], "position": [0, 8, 0, 8], "bg": [2, 15, 25], "corner": 0.05, "children": [
+                    { "type": "ImageLabel", "name": "Artwork", "size": [1, -18, 1, -18], "position": [0.5, 0, 0.5, 0], "anchor": [0.5, 0.5], "bgTransparency": 1, "icon": "rbxassetid://106238814627516" },
+                    { "type": "TextLabel", "name": "Badge", "size": [0, 82, 0, 22], "position": [0, 6, 0, 6], "bg": [225, 157, 40], "text": "FEATURED", "textColor": [58, 32, 5], "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy" }
+                  ] },
+                  { "type": "TextLabel", "name": "Name", "size": [1, -182, 0, 31], "position": [0, 174, 0, 12], "bgTransparency": 1, "text": "BACKPACK", "textColor": [255, 255, 255], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Heavy" },
+                  { "type": "TextLabel", "name": "Type", "size": [1, -182, 0, 17], "position": [0, 174, 0, 47], "bgTransparency": 1, "text": "INSTANT COINS", "textColor": [110, 203, 236], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Bold" },
+                  { "type": "TextLabel", "name": "Benefit", "size": [1, -182, 0, 42], "position": [0, 174, 0, 69], "bgTransparency": 1, "text": "Receive 5,000 Coins immediately.", "textColor": [184, 202, 211], "textScaled": true, "textWrapped": true, "textXAlignment": "Left", "font": "Ubuntu" },
+                  { "type": "TextButton", "name": "Buy", "size": [1, -182, 0, 42], "position": [0, 174, 1, -51], "bg": [225, 157, 40], "corner": 0.12, "text": "      99", "textColor": [255, 255, 255], "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy", "strokes": [{ "thickness": 3, "color": [100, 57, 8], "applyMode": "Border" }], "children": [{ "type": "ImageLabel", "name": "Robux", "size": [0, 24, 0, 24], "position": [0.5, -31, 0.5, 0], "anchor": [0.5, 0.5], "bgTransparency": 1, "icon": "rbxassetid://89121052656533" }] }
+                ]
+              },
+              {
+                "type": "Frame", "name": "RunBoost", "size": [0.5, -22, 0, 172], "position": [0.5, 8, 0, 49], "bg": [11, 43, 59], "corner": 0.035,
+                "strokes": [{ "thickness": 3, "color": [221, 151, 37], "applyMode": "Border" }],
+                "children": [
+                  { "type": "Frame", "name": "ArtworkPanel", "size": [0, 154, 1, -16], "position": [0, 8, 0, 8], "bg": [2, 15, 25], "corner": 0.05, "children": [
+                    { "type": "ImageLabel", "name": "Artwork", "size": [1, -18, 1, -18], "position": [0.5, 0, 0.5, 0], "anchor": [0.5, 0.5], "bgTransparency": 1, "icon": "rbxassetid://115042318829702" },
+                    { "type": "TextLabel", "name": "Badge", "size": [0, 82, 0, 22], "position": [0, 6, 0, 6], "bg": [225, 157, 40], "text": "FEATURED", "textColor": [58, 32, 5], "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy" }
+                  ] },
+                  { "type": "TextLabel", "name": "Name", "size": [1, -182, 0, 31], "position": [0, 174, 0, 12], "bgTransparency": 1, "text": "RUN BOOST", "textColor": [255, 255, 255], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Heavy" },
+                  { "type": "TextLabel", "name": "Type", "size": [1, -182, 0, 17], "position": [0, 174, 0, 47], "bgTransparency": 1, "text": "CURRENT RUN ONLY", "textColor": [255, 191, 91], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Bold" },
+                  { "type": "TextLabel", "name": "Benefit", "size": [1, -182, 0, 42], "position": [0, 174, 0, 69], "bgTransparency": 1, "text": "x2 run Coins and x1.5 XP.", "textColor": [184, 202, 211], "textScaled": true, "textWrapped": true, "textXAlignment": "Left", "font": "Ubuntu" },
+                  { "type": "TextButton", "name": "Buy", "size": [1, -182, 0, 42], "position": [0, 174, 1, -51], "bg": [225, 157, 40], "corner": 0.12, "text": "      49", "textColor": [255, 255, 255], "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy", "strokes": [{ "thickness": 3, "color": [100, 57, 8], "applyMode": "Border" }], "children": [{ "type": "ImageLabel", "name": "Robux", "size": [0, 24, 0, 24], "position": [0.5, -31, 0.5, 0], "anchor": [0.5, 0.5], "bgTransparency": 1, "icon": "rbxassetid://89121052656533" }] }
+                ]
+              },
+              { "type": "Frame", "name": "Divider", "size": [1, -32, 0, 2], "position": [0, 16, 0, 236], "bg": [39, 73, 91], "children": [] },
+              { "type": "TextLabel", "name": "CoinsHeader", "size": [1, -32, 0, 31], "position": [0, 16, 0, 248], "bgTransparency": 1, "text": "COINS  •  MORE VALUE AT HIGHER TIERS", "textColor": [255, 205, 91], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Heavy" },
+              { "type": "Frame", "name": "CoinPreviewA", "size": [0.5, -22, 0, 118], "position": [0, 14, 0, 291], "bg": [10, 35, 50], "strokes": [{ "thickness": 2, "color": [62, 99, 118], "applyMode": "Border" }], "children": [
+                { "type": "ImageLabel", "name": "Artwork", "size": [0, 98, 0, 98], "position": [0, 10, 0, 10], "bg": [2, 15, 25], "icon": "rbxassetid://89123200158797" },
+                { "type": "TextLabel", "name": "Name", "size": [1, -130, 0, 30], "position": [0, 120, 0, 12], "bgTransparency": 1, "text": "COIN POUCH", "textColor": [255, 255, 255], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Heavy" },
+                { "type": "TextButton", "name": "Buy", "size": [1, -132, 0, 38], "position": [0, 120, 1, -48], "bg": [225, 157, 40], "text": "      19", "textColor": [255, 255, 255], "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy", "children": [{ "type": "ImageLabel", "name": "Robux", "size": [0, 22, 0, 22], "position": [0.5, -28, 0.5, 0], "anchor": [0.5, 0.5], "bgTransparency": 1, "icon": "rbxassetid://89121052656533" }] }
+              ] },
+              { "type": "Frame", "name": "CoinPreviewB", "size": [0.5, -22, 0, 118], "position": [0.5, 8, 0, 291], "bg": [10, 35, 50], "strokes": [{ "thickness": 2, "color": [62, 99, 118], "applyMode": "Border" }], "children": [
+                { "type": "ImageLabel", "name": "Artwork", "size": [0, 98, 0, 98], "position": [0, 10, 0, 10], "bg": [2, 15, 25], "icon": "rbxassetid://106239575713076" },
+                { "type": "TextLabel", "name": "Name", "size": [1, -130, 0, 30], "position": [0, 120, 0, 12], "bgTransparency": 1, "text": "SATCHEL", "textColor": [255, 255, 255], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Heavy" },
+                { "type": "TextButton", "name": "Buy", "size": [1, -132, 0, 38], "position": [0, 120, 1, -48], "bg": [225, 157, 40], "text": "      49", "textColor": [255, 255, 255], "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy", "children": [{ "type": "ImageLabel", "name": "Robux", "size": [0, 22, 0, 22], "position": [0.5, -28, 0.5, 0], "anchor": [0.5, 0.5], "bgTransparency": 1, "icon": "rbxassetid://89121052656533" }] }
+              ] }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "viewport_size": [1280, 720],
+  "transparent_background": false
+}

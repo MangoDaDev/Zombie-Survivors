@@ -7,11 +7,14 @@ local data_service = require(ReplicatedStorage.Packages.dataservice).client
 data_service:init()
 
 local modules_to_init = {
+	ReplicatedStorage.Controllers.AnalyticsController,
 	ReplicatedStorage.Controllers.ChatCommandController,
 	ReplicatedStorage.Controllers.PlayerStateController,
 	ReplicatedStorage.Controllers.CoinsController,
+	ReplicatedStorage.Controllers.MonetizationController,
 	ReplicatedStorage.Controllers.GameReadyController,
 	ReplicatedStorage.Controllers.RageController,
+	ReplicatedStorage.Controllers.ClassesAbilitiesTutorialController,
 	ReplicatedStorage.Controllers.AbilityController,
 	ReplicatedStorage.Controllers.RunProgressionController,
 	ReplicatedStorage.Controllers.ClassController,

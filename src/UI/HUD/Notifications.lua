@@ -38,7 +38,7 @@ return function()
 		Alert.Name = "Alert"
 		Alert.BackgroundTransparency = 1
 		Alert.LayoutOrder = NextLayoutOrder
-		Alert.Size = UDim2.new(0, ALERT_WIDTH, 0.035, ALERT_HEIGHT)
+		Alert.Size = UDim2.fromScale(1, ALERT_HEIGHT / 260)
 		Alert.ZIndex = 80
 
 		local Label = Instance.new "TextLabel"
@@ -69,7 +69,7 @@ return function()
 
 		local TweenIn = TweenService:Create(Label, ALERT_TWEEN_INFO, { Size = UDim2.fromScale(1, 1) })
 		local TweenOut = TweenService:Create(Alert, ALERT_TWEEN_INFO, {
-			Size = UDim2.fromOffset(ALERT_WIDTH, 0),
+			Size = UDim2.fromScale(1, 0),
 		})
 		local TextFadeOut = TweenService:Create(Label, ALERT_TWEEN_INFO, { TextTransparency = 1 })
 		local StrokeFadeOut = TweenService:Create(TextStroke, ALERT_TWEEN_INFO, { Transparency = 1 })
@@ -118,8 +118,12 @@ return function()
 		Position = function()
 			return UDim2.new(0.5, 0, 0, TopOffset())
 		end,
-		Size = UDim2.fromOffset(ALERT_WIDTH, 260),
+		Size = UDim2.fromScale(0.9, 0.36),
 		ZIndex = 80,
+		Create "UIAspectRatioConstraint" {
+			AspectRatio = ALERT_WIDTH / 260,
+			AspectType = Enum.AspectType.FitWithinMaxSize,
+		},
 		Action(function(Instance)
 			AlertContainer = Instance :: Frame
 			NotificationConnection = NotificationManager.GetNotificationAddedSignal():Connect(Show)

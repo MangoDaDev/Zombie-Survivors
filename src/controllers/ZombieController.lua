@@ -174,30 +174,13 @@ local function updateZombie(packet, serverTime, receivedAt)
 	end
 end
 
-local function makeEffectPart(name, color)
-	local part = Instance.new("Part")
-	part.Name = name
-	part.Anchored = true
-	part.CanCollide = false
-	part.CanTouch = false
-	part.CanQuery = false
-	part.CastShadow = false
-	part.Material = Enum.Material.Neon
-	part.Color = if typeof(color) == "Color3" then color else Color3.fromRGB(255, 100, 75)
-	part.Parent = renderFolder
-	return part
-end
-
 local function makeStudEffectPart(name, color)
-	local part = makeEffectPart(name, color)
-	part.Material = Enum.Material.Plastic
-	part.TopSurface = Enum.SurfaceType.Studs
-	part.BottomSurface = Enum.SurfaceType.Studs
-	part.LeftSurface = Enum.SurfaceType.Studs
-	part.RightSurface = Enum.SurfaceType.Studs
-	part.FrontSurface = Enum.SurfaceType.Studs
-	part.BackSurface = Enum.SurfaceType.Studs
-	return part
+	return StudVFX.CreateBlock(
+		renderFolder,
+		name,
+		Vector3.one,
+		if typeof(color) == "Color3" then color else Color3.fromRGB(255, 100, 75)
+	)
 end
 
 local function playEffectSound(soundName: string, parent: Instance, playbackSpeed: number?)
@@ -440,15 +423,29 @@ function ZombieController.ZombieAbility(_, packet)
 		and typeof(packet.Target) == "Vector3"
 		and type(packet.Duration) == "number"
 	then
-		local projectile = makeEffectPart("SpitProjectile", packet.Color)
-		projectile.Shape = Enum.PartType.Ball
-		projectile.Size = Vector3.one * 1.1
+		local projectile = makeStudEffectPart("SpitProjectileCore", packet.Color)
+		projectile.Size = Vector3.one * 0.82
 		projectile.CFrame = CFrame.new(packet.Origin)
 		local projectileColor = projectile.Color
+		local travelDuration = math.clamp(packet.Duration, 0.05, 2)
+		local travelDirection = packet.Target - packet.Origin
+		for trailIndex = 1, 3 do
+			local trail = makeStudEffectPart("SpitProjectileTrail", projectileColor:Lerp(Color3.new(1, 1, 1), trailIndex * 0.1))
+			local offset = if travelDirection.Magnitude > 0.01
+				then -travelDirection.Unit * trailIndex * 0.48 else Vector3.zero
+			trail.Size = Vector3.one * (0.72 - trailIndex * 0.13)
+			trail.Transparency = 0.18 + trailIndex * 0.18
+			trail.CFrame = CFrame.new(packet.Origin + offset)
+			TweenService:Create(trail, TweenInfo.new(travelDuration, Enum.EasingStyle.Linear), {
+				CFrame = CFrame.new(packet.Target + offset),
+				Transparency = 0.75 + trailIndex * 0.07,
+			}):Play()
+			Debris:AddItem(trail, travelDuration + 0.1)
+		end
 		StudVFX.Flash(renderFolder, packet.Origin, projectileColor, 1.6, 0.16)
 		TweenService:Create(
 			projectile,
-			TweenInfo.new(math.clamp(packet.Duration, 0.05, 2), Enum.EasingStyle.Linear),
+			TweenInfo.new(travelDuration, Enum.EasingStyle.Linear),
 			{ CFrame = CFrame.new(packet.Target) }
 		):Play()
 		task.delay(math.clamp(packet.Duration, 0.05, 2), function()
@@ -477,43 +474,28 @@ function ZombieController.ZombieAbility(_, packet)
 	end
 	local radius = if type(packet.Radius) == "number" then math.clamp(packet.Radius, 1, 30) else 2.5
 	if packet.Kind == "SlowHazard" and type(packet.Duration) == "number" then
-		local hazard = makeStudEffectPart(packet.Kind, packet.Color)
-		hazard.Transparency = 0.48
-		hazard.Size = Vector3.new(radius * 2, 0.18, radius * 2)
-		hazard.CFrame = CFrame.new(packet.Position + Vector3.yAxis * 0.08)
-		StudVFX.Ring(renderFolder, packet.Position + Vector3.yAxis * 0.12, hazard.Color, radius, 0.38, 16)
-		TweenService:Create(
-			hazard,
-			TweenInfo.new(math.clamp(packet.Duration, 0.1, 20), Enum.EasingStyle.Linear),
-			{ Transparency = 0.82 }
-		):Play()
-		Debris:AddItem(hazard, packet.Duration)
+		local hazardDuration = math.clamp(packet.Duration, 0.1, 20)
+		local hazardColor = if typeof(packet.Color) == "Color3" then packet.Color else Color3.fromRGB(255, 100, 75)
+		-- Broken overlapping tiles make hazards feel authored while remaining fully local and non-physical.
+		for tileIndex = 1, 7 do
+			local angle = TAU * (tileIndex - 1) / 6
+			local isCenter = tileIndex == 7
+			local tile = makeStudEffectPart(packet.Kind .. "Tile", hazardColor)
+			local tileSize = radius * (if isCenter then 0.9 else 0.58)
+			local offset = if isCenter then Vector3.zero
+				else Vector3.new(math.cos(angle), 0, math.sin(angle)) * radius * 0.55
+			tile.Transparency = 0.5 + (tileIndex % 2) * 0.08
+			tile.Size = Vector3.new(tileSize, 0.12, tileSize * (if tileIndex % 2 == 0 then 0.72 else 1))
+			tile.CFrame = CFrame.new(packet.Position + offset + Vector3.yAxis * 0.07) * CFrame.Angles(0, angle * 1.4, 0)
+			TweenService:Create(tile, TweenInfo.new(hazardDuration, Enum.EasingStyle.Linear), { Transparency = 0.88 }):Play()
+			Debris:AddItem(tile, hazardDuration)
+		end
+		StudVFX.Ring(renderFolder, packet.Position + Vector3.yAxis * 0.12, hazardColor, radius, 0.38, 16)
 		return
 	end
-	local isStudEffect = STUD_EFFECT_KINDS[packet.Kind] == true
-	local pulse = if isStudEffect then makeStudEffectPart(packet.Kind, packet.Color) else makeEffectPart(packet.Kind, packet.Color)
-	pulse.Transparency = 0.15
-	pulse.Shape = if isStudEffect then Enum.PartType.Block else Enum.PartType.Cylinder
-	pulse.Size = if isStudEffect then Vector3.new(0.5, 0.16, 0.5) else Vector3.new(0.16, 0.5, 0.5)
-	pulse.CFrame = CFrame.new(packet.Position + Vector3.yAxis * 0.12)
-		* (if isStudEffect then CFrame.identity else CFrame.Angles(0, 0, math.pi * 0.5))
-	TweenService:Create(
-		pulse,
-		TweenInfo.new(0.45, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-		{
-			Size = if isStudEffect then Vector3.new(radius * 2, 0.16, radius * 2) else Vector3.new(0.16, radius * 2, radius * 2),
-			Transparency = 1,
-		}
-	):Play()
-	StudVFX.Burst(
-		renderFolder,
-		packet.Position + Vector3.yAxis * 0.3,
-		pulse.Color,
-		math.clamp(math.floor(radius * 0.65), 4, 9),
-		math.min(radius * 0.5, 5),
-		0.32
-	)
-	Debris:AddItem(pulse, 0.5)
+	local color = if typeof(packet.Color) == "Color3" then packet.Color else Color3.fromRGB(255, 100, 75)
+	StudVFX.Impact(renderFolder, packet.Position, color, radius, 0.45,
+		if STUD_EFFECT_KINDS[packet.Kind] then 1.15 else 0.9)
 end
 
 function ZombieController.ZombieDamaged(_, id, health, maximumHealth, knockbackDirection, knockbackImpulse)
@@ -524,6 +506,13 @@ function ZombieController.ZombieDamaged(_, id, health, maximumHealth, knockbackD
 		if view.definition.IsBoss then
 			setBossState(true, id, view.typeName, health, maximumHealth)
 		end
+	end
+end
+
+function ZombieController.ZombieDamageNumber(_, id, damageAmount)
+	local view = type(id) == "number" and zombieViews[id]
+	if view then
+		view:ShowDamageNumber(damageAmount)
 	end
 end
 

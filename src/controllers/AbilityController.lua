@@ -11,6 +11,7 @@ local NotificationManager = require(ReplicatedStorage.Modules.UI.NotificationMan
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
 local StudVFX = require(ReplicatedStorage.Modules.UI.StudVFX)
 local UIStyle = require(ReplicatedStorage.Modules.UI.UIStyle)
+local AnalyticsController = require(script.Parent.AnalyticsController)
 local ActiveWeaponEffects = require(script.Parent.Ability.ActiveWeaponEffects)
 local AdditionalWeaponEffects = require(script.Parent.Ability.AdditionalWeaponEffects)
 local CrowdWeaponEffects = require(script.Parent.Ability.CrowdWeaponEffects)
@@ -25,12 +26,39 @@ local abilityNetwork: Networker.Client?
 local effectsFolder: Folder?
 local renderConnection: RBXScriptConnection?
 local inventoryOpen = false
+local shopPromptConnection: RBXScriptConnection?
+local shopPrompt: ProximityPrompt?
 local projectiles = {}
 
 local stateChanged = Signal.new()
 local inventoryOpenChanged = Signal.new()
 local abilityDiscovered = Signal.new()
 local actionResult = Signal.new()
+
+local function isAbilitiesShopPrompt(instance: Instance): boolean
+	local promptPart = instance.Parent
+	local structure = promptPart and promptPart.Parent
+	return instance:IsA("ProximityPrompt")
+		and promptPart ~= nil
+		and promptPart.Name == "PromptPart"
+		and structure ~= nil
+		and structure.Name == "Abilities"
+		and structure:IsDescendantOf(Workspace)
+end
+
+local function bindAbilitiesShopPrompt(candidate: Instance)
+	if not isAbilitiesShopPrompt(candidate) or candidate == shopPrompt then
+		return
+	end
+	if shopPromptConnection then
+		shopPromptConnection:Disconnect()
+	end
+	shopPrompt = candidate :: ProximityPrompt
+	-- The authored booth prompt opens the same persistent unlock menu as the HUD launcher.
+	shopPromptConnection = shopPrompt.Triggered:Connect(function()
+		AbilityController.SetInventoryOpen(true)
+	end)
+end
 
 local function getEmptyData()
 	return {
@@ -564,6 +592,14 @@ function AbilityController.Init()
 	dataService:getChangedSignal(AbilityDefinitions.DataKey):Connect(function()
 		stateChanged:Fire(AbilityController.GetState())
 	end)
+	for _, descendant in Workspace:GetDescendants() do
+		if isAbilitiesShopPrompt(descendant) then
+			bindAbilitiesShopPrompt(descendant)
+			break
+		end
+	end
+	-- Lobby maps move between Workspace and ServerStorage, so bind prompts that replicate or return later.
+	Workspace.DescendantAdded:Connect(bindAbilitiesShopPrompt)
 end
 
 function AbilityController.GetState()
@@ -577,6 +613,9 @@ function AbilityController.SetInventoryOpen(open: boolean)
 	end
 	inventoryOpen = open
 	inventoryOpenChanged:Fire(open)
+	if open then
+		AnalyticsController.OpenShop("Ability")
+	end
 end
 
 function AbilityController.IsInventoryOpen(): boolean
@@ -604,6 +643,12 @@ end
 function AbilityController.UnlockAbility(abilityId: string)
 	if abilityNetwork and AbilityDefinitions.ById[abilityId] then
 		abilityNetwork:fire("UnlockAbility", abilityId)
+	end
+end
+
+function AbilityController.SelectShopItem(abilityId: string)
+	if inventoryOpen and AbilityDefinitions.ById[abilityId] then
+		AnalyticsController.SelectShopItem("Ability", abilityId)
 	end
 end
 

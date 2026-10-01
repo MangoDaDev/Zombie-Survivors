@@ -116,29 +116,16 @@ end
 local function createBoomerangFallback(): Model
 	local model = Instance.new("Model")
 	model.Name = "BoomerangProjectile"
-	local core = Instance.new("Part")
-	core.Name = "Core"
-	core.Size = Vector3.new(0.2, 0.2, 0.2)
-	core.Transparency = 1
-	core.Anchored = true
-	core.CanCollide = false
-	core.CanQuery = false
-	core.CanTouch = false
-	core.Parent = model
+	local core = StudVFX.CreateBlock(model, "Core", Vector3.new(0.2, 0.2, 0.2), Color3.new(1, 1, 1), 1)
 	model.PrimaryPart = core
 	for index, sign in { -1, 1 } do
-		local arm = Instance.new("WedgePart")
-		arm.Name = "Arm" .. index
-		arm.Size = Vector3.new(1.8, 0.28, 0.65)
-		arm.Material = Enum.Material.Neon
-		arm.Color = if sign < 0 then Color3.fromRGB(255, 184, 55) else Color3.fromRGB(255, 119, 30)
-		arm.Anchored = true
-		arm.CanCollide = false
-		arm.CanQuery = false
-		arm.CanTouch = false
-		arm.CastShadow = false
+		local arm = StudVFX.CreateBlock(
+			model,
+			"Arm" .. index,
+			Vector3.new(1.8, 0.28, 0.65),
+			if sign < 0 then Color3.fromRGB(255, 184, 55) else Color3.fromRGB(255, 119, 30)
+		)
 		arm.CFrame = CFrame.new(sign * 0.72, 0, 0.18) * CFrame.Angles(0, math.rad(sign * 28), 0)
-		arm.Parent = model
 	end
 	return model
 end
@@ -180,14 +167,13 @@ local function createBoomerangModel(scale: number, rage: boolean): Model?
 	return model
 end
 
-local function makeSphere(name: string, position: Vector3, color: Color3, size: number, transparency: number): Part?
+local function makeEffectBlock(name: string, position: Vector3, color: Color3, size: number, transparency: number): Part?
 	if not effectsFolder then
 		return nil
 	end
 	local part = Instance.new("Part")
 	part.Name = name
-	part.Shape = Enum.PartType.Ball
-	part.Material = Enum.Material.Neon
+	StudVFX.PreparePart(part)
 	part.Color = color
 	part.Size = Vector3.one * size
 	part.Transparency = transparency
@@ -245,40 +231,16 @@ end
 
 local function playExplosion(position: Vector3, radius: number, rage: boolean, empowered: boolean)
 	local color = if rage then Color3.fromRGB(255, 64, 15) else Color3.fromRGB(255, 123, 28)
-	-- A segmented ground ring and chunky two-tone debris keep the explosion readable in the game's stud-built style.
-	StudVFX.Ring(effectsFolder, position + Vector3.yAxis * 0.14, color, radius * 1.08, 0.38, 20)
-	StudVFX.Burst(
-		effectsFolder,
-		position + Vector3.yAxis * 0.35,
-		color,
-		if rage or empowered then 16 else 11,
-		math.min(radius * 0.72, 9),
-		if rage then 0.42 else 0.34,
-		Color3.fromRGB(255, 232, 118)
-	)
-	local flash = makeSphere("FireballImpact", position, Color3.fromRGB(255, 235, 123), 1.2, 0.05)
+	-- Fireballs use the full layered impact vocabulary: two rings, crossed rays, and two-tone debris.
+	local flash = StudVFX.Impact(effectsFolder, position, color, radius * 1.08,
+		if rage then 0.42 else 0.36, if rage or empowered then 1.6 else 1)
 	if flash then
 		local light = Instance.new("PointLight")
 		light.Color = color
 		light.Brightness = if rage or empowered then 3.2 else 2
 		light.Range = radius * 1.5
 		light.Parent = flash
-		TweenService:Create(
-			flash,
-			TweenInfo.new(if rage then 0.32 else 0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-			{ Size = Vector3.one * radius * 2, Transparency = 1 }
-		):Play()
 		Sounds.Play("FlameBurst", flash, 130)
-		Debris:AddItem(flash, 0.4)
-	end
-	local wave = makeSphere("FireballShockwave", position, color, 0.8, 0.4)
-	if wave then
-		TweenService:Create(
-			wave,
-			TweenInfo.new(0.38, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
-			{ Size = Vector3.one * radius * 2.35, Transparency = 1 }
-		):Play()
-		Debris:AddItem(wave, 0.45)
 	end
 	if radius >= 10 or rage or empowered then
 		pulseScreen()
@@ -307,19 +269,14 @@ local function createLightningPiece(
 	if offset.Magnitude <= 0.001 then
 		return
 	end
-	local part = Instance.new("Part")
-	part.Name = name
-	part.Material = Enum.Material.Neon
-	part.Color = color
-	part.Size = Vector3.new(thickness, thickness, offset.Magnitude)
+	local part = StudVFX.CreateBlock(
+		effectsFolder,
+		name,
+		Vector3.new(thickness, thickness, offset.Magnitude),
+		color,
+		transparency
+	)
 	part.CFrame = CFrame.lookAt(fromPosition:Lerp(toPosition, 0.5), toPosition)
-	part.Transparency = transparency
-	part.Anchored = true
-	part.CanCollide = false
-	part.CanQuery = false
-	part.CanTouch = false
-	part.CastShadow = false
-	part.Parent = effectsFolder
 	TweenService:Create(part, TweenInfo.new(lifetime, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
 		Transparency = 1,
 	}):Play()
@@ -413,12 +370,12 @@ local function drawLightningSegment(fromPosition: Vector3, toPosition: Vector3, 
 end
 
 local function playLightningImpact(position: Vector3, rage: boolean, final: boolean)
-	local flash = makeSphere(
-		"LightningImpact",
+	local flash = StudVFX.Flash(
+		effectsFolder,
 		position + Vector3.new(0, 1.2, 0),
 		if rage then Color3.fromRGB(255, 238, 105) else Color3.fromRGB(118, 220, 255),
-		if final then 1.8 else 1,
-		0.12
+		if final then 4.2 else 2.5,
+		0.16
 	)
 	if flash then
 		local light = Instance.new("PointLight")
@@ -426,11 +383,6 @@ local function playLightningImpact(position: Vector3, rage: boolean, final: bool
 		light.Brightness = if final then 3.4 else if rage then 2.6 else 2
 		light.Range = if final then 8.5 else 6.5
 		light.Parent = flash
-		TweenService:Create(flash, TweenInfo.new(0.16), {
-			Size = Vector3.one * (if final then 4.2 else 2.5),
-			Transparency = 1,
-		}):Play()
-		Debris:AddItem(flash, 0.22)
 	end
 
 	local sparkCount = if final then 6 else if rage then 4 else 3
@@ -629,30 +581,41 @@ function ActiveWeaponEffects.FireballGroundCreated(packet)
 	then
 		return
 	end
-	local area = Instance.new("Part")
-	area.Name = "BurningGround"
-	area.Shape = Enum.PartType.Cylinder
-	area.Material = Enum.Material.Neon
-	area.Color = if packet.rage then Color3.fromRGB(255, 72, 15) else Color3.fromRGB(255, 116, 26)
-	area.Transparency = 0.48
-	area.Size = Vector3.new(0.14, packet.radius * 2, packet.radius * 2)
-	area.CFrame = CFrame.new(packet.position + Vector3.new(0, 0.08, 0)) * CFrame.Angles(0, 0, math.pi / 2)
-	area.Anchored = true
-	area.CanCollide = false
-	area.CanQuery = false
-	area.CanTouch = false
-	area.CastShadow = false
-	area.Parent = effectsFolder
-	StudVFX.Ring(effectsFolder, packet.position + Vector3.yAxis * 0.12, area.Color, packet.radius, 0.34, 18)
+	local color = if packet.rage then Color3.fromRGB(255, 72, 15) else Color3.fromRGB(255, 116, 26)
+	local model = Instance.new("Model")
+	model.Name = "BurningGround"
+	local areaParts = {}
+	-- Overlapping offset tiles create a broken burning patch without one smooth cylinder or a per-frame emitter.
+	for tileIndex = 1, 9 do
+		local angle = TAU * (tileIndex - 1) / 8
+		local isCenter = tileIndex == 9
+		local tileRadius = if isCenter then packet.radius * 0.62 else packet.radius * 0.34
+		local offset = if isCenter then Vector3.zero
+			else Vector3.new(math.cos(angle), 0, math.sin(angle)) * packet.radius * 0.5
+		local tile = StudVFX.CreateBlock(
+			model,
+			"BurningTile",
+			Vector3.new(tileRadius, 0.1, tileRadius * (if tileIndex % 2 == 0 then 0.72 else 1)),
+			if tileIndex % 3 == 0 then color:Lerp(Color3.fromRGB(255, 220, 82), 0.3) else color,
+			0.5 + (tileIndex % 3) * 0.06
+		)
+		tile.CFrame = CFrame.new(packet.position + offset + Vector3.yAxis * (0.06 + (tileIndex % 2) * 0.025))
+			* CFrame.Angles(0, angle * 1.7, 0)
+		table.insert(areaParts, tile)
+	end
+	local area = areaParts[#areaParts]
+	model.PrimaryPart = area
+	model.Parent = effectsFolder
+	StudVFX.Ring(effectsFolder, packet.position + Vector3.yAxis * 0.12, color, packet.radius, 0.34, 18)
 	local light = Instance.new("PointLight")
-	light.Color = area.Color
+	light.Color = color
 	light.Brightness = if packet.rage then 1.15 else 0.65
 	light.Range = packet.radius * (if packet.rage then 1.15 else 1)
 	light.Parent = area
 	grounds[packet.id] = {
-		part = area,
+		model = model,
+		parts = areaParts,
 		ownerUserId = packet.ownerUserId,
-		baseTransparency = area.Transparency,
 		expiresAt = os.clock() + packet.duration,
 	}
 end
@@ -663,8 +626,10 @@ function ActiveWeaponEffects.FireballGroundRemoved(id)
 	end
 	local ground = grounds[id]
 	if ground then
-		TweenService:Create(ground.part, TweenInfo.new(0.2), { Transparency = 1 }):Play()
-		Debris:AddItem(ground.part, 0.25)
+		for _, part in ground.parts do
+			TweenService:Create(part, TweenInfo.new(0.2), { Transparency = 1 }):Play()
+		end
+		Debris:AddItem(ground.model, 0.25)
 		grounds[id] = nil
 	end
 end
@@ -686,11 +651,8 @@ function ActiveWeaponEffects.LightningCast(packet)
 		end
 		local points = chain.points
 		if packet.rage and typeof(points[1]) == "Vector3" then
-			local aura = makeSphere("LightningRageAura", points[1], Color3.fromRGB(96, 205, 255), 2, 0.72)
-			if aura then
-				TweenService:Create(aura, TweenInfo.new(0.2), { Size = Vector3.one * 7, Transparency = 1 }):Play()
-				Debris:AddItem(aura, 0.25)
-			end
+			StudVFX.Flash(effectsFolder, points[1], Color3.fromRGB(96, 205, 255), 7, 0.2)
+			StudVFX.Ring(effectsFolder, points[1], Color3.fromRGB(255, 230, 102), 4.5, 0.24, 12)
 		end
 		if chain.fromAbove == true and typeof(points[2]) == "Vector3" then
 			drawLightningSegment(points[2] + Vector3.new(0, 24, 0), points[2], packet.rage, false)
@@ -702,7 +664,7 @@ function ActiveWeaponEffects.LightningCast(packet)
 				drawLightningSegment(fromPosition, toPosition, packet.rage, false)
 				playLightningImpact(toPosition, packet.rage, index == #points)
 				if not soundParent then
-					soundParent = makeSphere("LightningSound", toPosition, Color3.new(1, 1, 1), 0.1, 1)
+					soundParent = makeEffectBlock("LightningSound", toPosition, Color3.new(1, 1, 1), 0.1, 1)
 				end
 			end
 		end
@@ -824,17 +786,15 @@ function ActiveWeaponEffects.BoomerangHit(packet)
 	if type(packet) ~= "table" or typeof(packet.position) ~= "Vector3" or type(packet.rage) ~= "boolean" then
 		return
 	end
-	local flash = makeSphere(
-		"BoomerangHit",
+	local flash = StudVFX.Flash(
+		effectsFolder,
 		packet.position,
 		if packet.rage then Color3.fromRGB(255, 217, 87) else Color3.fromRGB(255, 161, 49),
-		0.55,
-		0.1
+		if packet.rage then 2.2 else 1.6,
+		0.14
 	)
 	if flash then
-		TweenService:Create(flash, TweenInfo.new(0.12), { Size = Vector3.one * 1.6, Transparency = 1 }):Play()
 		Sounds.Play("BulletHit", flash, 90)
-		Debris:AddItem(flash, 0.18)
 	end
 	StudVFX.Burst(
 		effectsFolder,
@@ -877,7 +837,7 @@ function ActiveWeaponEffects.AbilityEffectsCleared(ownerUserId, abilityId)
 		end
 		for id, ground in grounds do
 			if ground.ownerUserId == ownerUserId then
-				ground.part:Destroy()
+				ground.model:Destroy()
 				grounds[id] = nil
 			end
 		end
@@ -938,7 +898,9 @@ function ActiveWeaponEffects.Render(now: number, deltaTime: number)
 			ActiveWeaponEffects.FireballGroundRemoved(id)
 		else
 			-- The shallow opacity pulse keeps the hazard alive while preserving a clear, stable damage footprint.
-			ground.part.Transparency = ground.baseTransparency + math.sin(localNow * 5) * 0.05
+			for partIndex, part in ground.parts do
+				part.Transparency = 0.52 + (partIndex % 3) * 0.05 + math.sin(localNow * 5 + partIndex) * 0.04
+			end
 		end
 	end
 end

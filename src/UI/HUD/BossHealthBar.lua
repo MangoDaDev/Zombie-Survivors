@@ -45,14 +45,14 @@ return function()
 			-- The round panel owns the first top-center row; the boss bar stays directly below it.
 			return UDim2.new(0.5, 0, 0, topOffset() + 78)
 		end,
-		Size = UDim2.new(0.48, 80, 0.07, 20),
+		Size = UDim2.fromScale(0.88, 0.1),
 		Visible = function()
 			return state().active
 		end,
 		ZIndex = 95,
 		create "UIAspectRatioConstraint" {
 			AspectRatio = 620 / 72,
-			DominantAxis = Enum.DominantAxis.Width,
+			AspectType = Enum.AspectType.FitWithinMaxSize,
 		},
 		create "UICorner" { CornerRadius = UDim.new(0, 4) },
 		create "UIStroke" {

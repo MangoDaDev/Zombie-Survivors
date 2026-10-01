@@ -7,6 +7,7 @@ local Button = require(script.Parent.Parent.Classes.Button)
 local StudTexture = require(script.Parent.Parent.Classes.StudTexture)
 local AbilityDefinitions = require(ReplicatedStorage.Modules.Game.Abilities.AbilityDefinitions)
 local CoinsController = require(ReplicatedStorage.Controllers.CoinsController)
+local MonetizationController = require(ReplicatedStorage.Controllers.MonetizationController)
 local FormatNumber = require(ReplicatedStorage.Modules.Math.FormatNumber)
 local GameReadyController = require(ReplicatedStorage.Controllers.GameReadyController)
 local Images = require(ReplicatedStorage.Modules.UI.Images)
@@ -45,6 +46,86 @@ local function textStroke()
 	}
 end
 
+local function contextualOffer(productKey: string, title, detail: string, yOffset: number, visible, productInfoRevision, narrowViewport, accentColor: Color3)
+	return create "Frame" {
+		Name = productKey .. "Offer",
+		AnchorPoint = Vector2.new(0, 0),
+		BackgroundColor3 = Color3.fromRGB(10, 41, 57),
+		BorderSizePixel = 0,
+		Position = function() return UDim2.new(0, if narrowViewport() then 12 else 20, 0.5, yOffset) end,
+		Size = function() return if narrowViewport() then UDim2.fromOffset(200, 54) else UDim2.fromOffset(220, 58) end,
+		Visible = visible,
+		ZIndex = 80,
+		create "UICorner" { CornerRadius = UDim.new(0, 4) },
+		stroke(accentColor, 2),
+		create "Frame" {
+			Name = "ArtworkPanel",
+			BackgroundColor3 = Color3.fromRGB(2, 15, 25),
+			BorderSizePixel = 0,
+			Position = UDim2.new(0, 6, 0, 6),
+			Size = UDim2.new(0, 46, 1, -12),
+			ZIndex = 81,
+			create "ImageLabel" {
+				BackgroundTransparency = 1,
+				Image = function()
+					productInfoRevision()
+					return MonetizationController.GetImage(productKey)
+				end,
+				Position = UDim2.fromScale(0.06, 0.06),
+				ScaleType = Enum.ScaleType.Fit,
+				Size = UDim2.fromScale(0.88, 0.88),
+				ZIndex = 82,
+			},
+		},
+		create "TextLabel" {
+			BackgroundTransparency = 1,
+			FontFace = Font.new(UIStyle.Font.Family, Enum.FontWeight.Heavy),
+			Position = UDim2.new(0, 60, 0, 7),
+			Size = UDim2.new(1, -138, 0, 23),
+			Text = title,
+			TextColor3 = Color3.new(1, 1, 1),
+			TextScaled = true,
+			TextTruncate = Enum.TextTruncate.AtEnd,
+			TextXAlignment = Enum.TextXAlignment.Left,
+			ZIndex = 82,
+		},
+		create "TextLabel" {
+			BackgroundTransparency = 1,
+			FontFace = Font.new(UIStyle.Font.Family, Enum.FontWeight.Bold),
+			Position = UDim2.new(0, 60, 0, 34),
+			Size = UDim2.new(1, -138, 0, 14),
+			Text = detail,
+			TextColor3 = accentColor:Lerp(Color3.new(1, 1, 1), 0.28),
+			TextScaled = true,
+			TextTruncate = Enum.TextTruncate.AtEnd,
+			TextXAlignment = Enum.TextXAlignment.Left,
+			ZIndex = 82,
+		},
+		create "Frame" {
+			Name = "Price",
+			AnchorPoint = Vector2.new(1, 0),
+			BackgroundTransparency = 1,
+			Position = UDim2.new(1, -6, 0, 6),
+			Size = UDim2.new(0, 66, 1, -12),
+			ZIndex = 83,
+			Button({
+				Text = function()
+					productInfoRevision()
+					return MonetizationController.GetPriceText(productKey)
+				end,
+				LeftIcon = Images.Robux,
+				BackgroundColor3 = accentColor,
+				CornerRadius = UDim.new(0, 3),
+				FontFace = Font.new(UIStyle.Font.Family, Enum.FontWeight.Heavy),
+				MaxTextSize = 21,
+				MinTextSize = 9,
+				Size = UDim2.fromScale(1, 1),
+				OnActivated = function() MonetizationController.PromptDeveloperProduct(productKey) end,
+			}),
+		},
+	}
+end
+
 local function getRunAbility(state, abilityId: string)
 	for _, ability in state.abilities do
 		if ability.id == abilityId then
@@ -75,7 +156,7 @@ local function formatSurvivalTime(seconds: number): string
 	return string.format("%02d:%02d", math.floor(total / 60), total % 60)
 end
 
-local function abilitySlot(category: string, slotIndex: number, state, tooltipId)
+local function abilitySlot(category: string, slotIndex: number, state, tooltipId, slotLimit)
 	local hovered = source(false)
 	local runAbility = derive(function()
 		return getRunAbilitiesInCategory(state(), category)[slotIndex]
@@ -87,6 +168,7 @@ local function abilitySlot(category: string, slotIndex: number, state, tooltipId
 	local occupied = derive(function()
 		return definition() ~= nil
 	end)
+	local locked = derive(function() return slotIndex > slotLimit() end)
 
 	return create "Frame" {
 		Name = (if category == AbilityDefinitions.Categories.Passive then "Passive" else "Active")
@@ -94,12 +176,14 @@ local function abilitySlot(category: string, slotIndex: number, state, tooltipId
 			.. tostring(slotIndex),
 		BackgroundColor3 = function()
 			local currentDefinition = definition()
-			return if currentDefinition
+			return if locked()
+				then PANEL_LIGHT:Lerp(UIStyle.Colors.Gold, if hovered() then 0.16 else 0.07)
+			elseif currentDefinition
 				then PANEL:Lerp(currentDefinition.Color, if hovered() then 0.2 else 0.1)
 				else Color3.new(0, 0, 0)
 		end,
 		BackgroundTransparency = function()
-			return if occupied() then 0 else 0.48
+			return if locked() then 0 elseif occupied() then 0 else 0.48
 		end,
 		BorderSizePixel = 0,
 		LayoutOrder = slotIndex,
@@ -109,13 +193,13 @@ local function abilitySlot(category: string, slotIndex: number, state, tooltipId
 		create "UIStroke" {
 			Color = function()
 				local currentDefinition = definition()
-				return if currentDefinition
+				return if locked() then UIStyle.Colors.Gold elseif currentDefinition
 					then currentDefinition.Color:Lerp(Color3.new(0, 0, 0), 0.25)
 					else Color3.fromRGB(70, 78, 84)
 			end,
 			Thickness = 2,
 			Transparency = function()
-				return if occupied() then 0 else 0.45
+				return if occupied() or locked() then 0 else 0.45
 			end,
 		},
 		create "ImageLabel" {
@@ -126,8 +210,19 @@ local function abilitySlot(category: string, slotIndex: number, state, tooltipId
 			ScaleType = Enum.ScaleType.Tile,
 			Size = UDim2.fromScale(1, 1),
 			TileSize = UDim2.fromOffset(36, 36),
-			Visible = occupied,
+			Visible = function() return occupied() or locked() end,
 			ZIndex = 103,
+		},
+		create "ImageLabel" {
+			Name = "LockedSlot", AnchorPoint = Vector2.new(0.5, 0.5), BackgroundTransparency = 1,
+			Image = Images.Lock, ImageColor3 = Color3.fromRGB(255, 211, 100), Position = UDim2.fromScale(0.5, 0.36),
+			ScaleType = Enum.ScaleType.Fit, Size = UDim2.fromScale(0.42, 0.42), Visible = locked, ZIndex = 106,
+		},
+		create "TextLabel" {
+			Name = "UnlockLabel", AnchorPoint = Vector2.new(0.5, 1), BackgroundTransparency = 1,
+			FontFace = Font.new(UIStyle.Font.Family, Enum.FontWeight.Bold), Position = UDim2.fromScale(0.5, 0.96),
+			Size = UDim2.fromScale(0.9, 0.23), Text = "+ SLOT", TextColor3 = Color3.fromRGB(255, 225, 139),
+			TextScaled = true, Visible = locked, ZIndex = 106,
 		},
 		create "ImageLabel" {
 			AnchorPoint = Vector2.new(0.5, 0),
@@ -175,16 +270,18 @@ local function abilitySlot(category: string, slotIndex: number, state, tooltipId
 			ZIndex = 105,
 		},
 		create "TextButton" {
-			Active = occupied,
+			Active = function() return occupied() or locked() end,
 			AutoButtonColor = false,
 			BackgroundTransparency = 1,
-			Selectable = occupied,
+			Selectable = function() return occupied() or locked() end,
 			Size = UDim2.fromScale(1, 1),
 			Text = "",
 			ZIndex = 110,
 			MouseEnter = function()
 				local currentDefinition = definition()
-				if currentDefinition then
+				if locked() then
+					hovered(true)
+				elseif currentDefinition then
 					hovered(true)
 					tooltipId(currentDefinition.Id)
 				end
@@ -197,6 +294,10 @@ local function abilitySlot(category: string, slotIndex: number, state, tooltipId
 				end
 			end,
 			Activated = function()
+				if locked() then
+					MonetizationController.PromptGamepass("ExtraAbilitySlots")
+					return
+				end
 				local currentDefinition = definition()
 				if currentDefinition then
 					tooltipId(if tooltipId() == currentDefinition.Id then nil else currentDefinition.Id)
@@ -206,7 +307,7 @@ local function abilitySlot(category: string, slotIndex: number, state, tooltipId
 	}
 end
 
-local function abilityCategoryLabel(category: string, state)
+local function abilityCategoryLabel(category: string, state, slotLimit)
 	local displayName = if category == AbilityDefinitions.Categories.Passive then "PASSIVE" else "ACTIVE"
 	return create "TextLabel" {
 		Name = displayName .. "Slots",
@@ -214,7 +315,7 @@ local function abilityCategoryLabel(category: string, state)
 		Size = UDim2.fromOffset(72, 48),
 		FontFace = Font.new(UIStyle.Font.Family, Enum.FontWeight.Bold),
 		Text = function()
-			return string.format("%s\n%d / %d", displayName, #getRunAbilitiesInCategory(state(), category), AbilityDefinitions.EquipLimits[category])
+			return string.format("%s\n%d / %d", displayName, #getRunAbilitiesInCategory(state(), category), slotLimit())
 		end,
 		TextColor3 = MUTED,
 		TextScaled = true,
@@ -233,6 +334,8 @@ return function()
 	local sessionState = source(initialSessionState)
 	local readyState = source(initialReadyState)
 	local roundState = source(initialRoundState)
+	local monetizationState = source(MonetizationController.GetState())
+	local productInfoRevision = source(0)
 	local readySeconds = source(
 		if initialReadyState.active and type(initialReadyState.deadline) == "number"
 			then math.max(initialReadyState.deadline - Workspace:GetServerTimeNow(), 0)
@@ -269,6 +372,14 @@ return function()
 		-- amount cannot remain hidden after the Studio destination replaces the lobby map.
 		return state().active or gameMapPresent()
 	end)
+	local weaponSlotLimit = derive(function()
+		monetizationState()
+		return MonetizationController.GetAbilitySlotLimit(AbilityDefinitions.Categories.Weapon)
+	end)
+	local passiveSlotLimit = derive(function()
+		monetizationState()
+		return MonetizationController.GetAbilitySlotLimit(AbilityDefinitions.Categories.Passive)
+	end)
 	local stateConnection = RunProgressionController.GetStateChangedSignal():Connect(function(newState)
 		state(newState)
 		progressTarget(if newState.xpRequired > 0 then math.clamp(newState.xp / newState.xpRequired, 0, 1) else 1)
@@ -291,6 +402,12 @@ return function()
 	end)
 	local roundConnection = RoundController.GetStateChangedSignal():Connect(function(newState)
 		roundState(newState)
+	end)
+	local monetizationConnection = MonetizationController.GetStateChangedSignal():Connect(function(newState)
+		monetizationState(newState)
+	end)
+	local productInfoConnection = MonetizationController.GetProductInfoChangedSignal():Connect(function()
+		productInfoRevision(productInfoRevision() + 1)
 	end)
 	local timerAccumulator = 0
 	local timerConnection = RunService.Heartbeat:Connect(function(deltaTime)
@@ -337,6 +454,8 @@ return function()
 		sessionConnection:Disconnect()
 		readyConnection:Disconnect()
 		roundConnection:Disconnect()
+		monetizationConnection:Disconnect()
+		productInfoConnection:Disconnect()
 		timerConnection:Disconnect()
 		coinConnection:Disconnect()
 		safeAreaConnection:Disconnect()
@@ -349,16 +468,16 @@ return function()
 
 	local weaponAbilitySlots = {}
 	local passiveAbilitySlots = {}
-	for slotIndex = 1, AbilityDefinitions.EquipLimits.Weapon do
+	for slotIndex = 1, AbilityDefinitions.MaximumEquipLimits.Weapon do
 		table.insert(
 			weaponAbilitySlots,
-			abilitySlot(AbilityDefinitions.Categories.Weapon, slotIndex, state, tooltipId)
+			abilitySlot(AbilityDefinitions.Categories.Weapon, slotIndex, state, tooltipId, weaponSlotLimit)
 		)
 	end
-	for slotIndex = 1, AbilityDefinitions.EquipLimits.Passive do
+	for slotIndex = 1, AbilityDefinitions.MaximumEquipLimits.Passive do
 		table.insert(
 			passiveAbilitySlots,
-			abilitySlot(AbilityDefinitions.Categories.Passive, slotIndex, state, tooltipId)
+			abilitySlot(AbilityDefinitions.Categories.Passive, slotIndex, state, tooltipId, passiveSlotLimit)
 		)
 	end
 
@@ -378,14 +497,14 @@ return function()
 		create "Frame" {
 			Name = "Coins",
 			AnchorPoint = Vector2.new(0, 0.5),
-			BackgroundColor3 = Color3.fromRGB(38, 33, 24),
+			BackgroundColor3 = Color3.fromRGB(10, 41, 57),
 			BorderSizePixel = 0,
 			Position = function()
 				-- Keep permanent currency centered on the left edge instead of returning it to the top HUD band.
 				return UDim2.new(0, if narrowViewport() then 12 else 20, 0.5, 0)
 			end,
 			Size = function()
-				return if narrowViewport() then UDim2.fromOffset(142, 42) else UDim2.fromOffset(160, 44)
+				return if narrowViewport() then UDim2.fromOffset(200, 42) else UDim2.fromOffset(220, 44)
 			end,
 			ZIndex = 80,
 			create "UICorner" { CornerRadius = UDim.new(0, 5) },
@@ -412,7 +531,40 @@ return function()
 				TextXAlignment = Enum.TextXAlignment.Left,
 				ZIndex = 82,
 			},
+			create "TextButton" {
+				Name = "OpenCoinShop", AutoButtonColor = false, BackgroundTransparency = 1,
+				Size = UDim2.fromScale(1, 1), Text = "", ZIndex = 84,
+				Activated = function() MonetizationController.SetShopOpen(true, "Coins") end,
+			},
+			create "TextLabel" {
+				Name = "DoubleCoinsBadge", AnchorPoint = Vector2.new(1, 0), BackgroundColor3 = UIStyle.Colors.Gold,
+				BorderSizePixel = 0, FontFace = Font.new(UIStyle.Font.Family, Enum.FontWeight.Heavy),
+				Position = UDim2.new(1, -3, 0, 3), Size = UDim2.fromOffset(30, 14), Text = "x2",
+				TextColor3 = Color3.fromRGB(53, 34, 8), TextScaled = true,
+				Visible = function() monetizationState(); return MonetizationController.OwnsGamepass("DoubleCoins") end,
+				ZIndex = 85, create "UICorner" { CornerRadius = UDim.new(0, 3) },
+			},
 		},
+		contextualOffer(
+			"RunBoost",
+			"RUN BOOST",
+			"THIS RUN ONLY",
+			30,
+			function() return inGame() and not sessionState().dead and not monetizationState().runBoostActive end,
+			productInfoRevision,
+			narrowViewport,
+			UIStyle.Colors.Gold
+		),
+		contextualOffer(
+			"ReviveTeam",
+			function() return string.format("REVIVE %d", sessionState().eligibleTeamRevives or 0) end,
+			"TEAMMATES",
+			96,
+			function() return inGame() and not sessionState().dead and (sessionState().eligibleTeamRevives or 0) > 0 end,
+			productInfoRevision,
+			narrowViewport,
+			UIStyle.Colors.Green
+		),
 		create "Frame" {
 			Name = "ReadyPrompt",
 			AnchorPoint = Vector2.new(0.5, 0),
@@ -421,14 +573,14 @@ return function()
 			Position = function()
 				return UDim2.new(0.5, 0, 0, topOffset())
 			end,
-			Size = UDim2.fromOffset(360, 78),
+			Size = UDim2.fromScale(0.78, 0.11),
 			Visible = function()
 				return inGame() and readyState().active
 			end,
 			ZIndex = 85,
 			create "UIAspectRatioConstraint" {
 				AspectRatio = 360 / 78,
-				DominantAxis = Enum.DominantAxis.Width,
+				AspectType = Enum.AspectType.FitWithinMaxSize,
 			},
 			create "UIScale" { Scale = readyScale },
 			create "UICorner" { CornerRadius = UDim.new(0, 5) },
@@ -500,7 +652,7 @@ return function()
 			Position = function()
 				return UDim2.new(0.5, 0, 0, topOffset())
 			end,
-			Size = UDim2.fromOffset(396, 68),
+			Size = UDim2.fromScale(0.82, 0.095),
 			Visible = function()
 				local currentSession = sessionState()
 				return inGame()
@@ -510,7 +662,7 @@ return function()
 			ZIndex = 80,
 			create "UIAspectRatioConstraint" {
 				AspectRatio = 396 / 68,
-				DominantAxis = Enum.DominantAxis.Width,
+				AspectType = Enum.AspectType.FitWithinMaxSize,
 			},
 			create "UIScale" { Scale = roundScale },
 			create "UICorner" { CornerRadius = UDim.new(0, 5) },
@@ -670,8 +822,8 @@ return function()
 				return if narrowViewport() then UDim2.new(0.5, 0, 1, -138) else UDim2.new(1, -20, 1, -136)
 			end,
 			Size = function()
-				-- Five slots per category remain full-sized on desktop and only step down slightly on narrow screens.
-				return if compactAbilityHud() then UDim2.fromOffset(308, 106) else UDim2.fromOffset(342, 106)
+				-- Render the locked sixth slot beside the five free slots without making mobile taps too small.
+				return if compactAbilityHud() then UDim2.fromOffset(370, 106) else UDim2.fromOffset(402, 106)
 			end,
 			Visible = inGame,
 			ZIndex = 100,
@@ -688,13 +840,13 @@ return function()
 				LayoutOrder = 1,
 				Size = UDim2.new(1, 0, 0, 48),
 				-- Always render the configured active capacity so the owning player can read every remaining slot.
-				abilityCategoryLabel(AbilityDefinitions.Categories.Weapon, state),
+				abilityCategoryLabel(AbilityDefinitions.Categories.Weapon, state, weaponSlotLimit),
 				create "Frame" {
 					Name = "Slots",
 					BackgroundTransparency = 1,
 					Position = UDim2.fromOffset(78, 0),
 					Size = function()
-						return if compactAbilityHud() then UDim2.fromOffset(230, 48) else UDim2.fromOffset(264, 48)
+						return if compactAbilityHud() then UDim2.fromOffset(292, 48) else UDim2.fromOffset(324, 48)
 					end,
 					create "UIGridLayout" {
 						CellPadding = function()
@@ -703,7 +855,7 @@ return function()
 						CellSize = function()
 							return if compactAbilityHud() then UDim2.fromOffset(42, 42) else UDim2.fromOffset(48, 48)
 						end,
-						FillDirectionMaxCells = AbilityDefinitions.EquipLimits.Weapon,
+						FillDirectionMaxCells = AbilityDefinitions.MaximumEquipLimits.Weapon,
 						HorizontalAlignment = Enum.HorizontalAlignment.Right,
 						SortOrder = Enum.SortOrder.LayoutOrder,
 					},
@@ -716,13 +868,13 @@ return function()
 				LayoutOrder = 2,
 				Size = UDim2.new(1, 0, 0, 48),
 				-- Always render the configured passive capacity independently from every other player's loadout.
-				abilityCategoryLabel(AbilityDefinitions.Categories.Passive, state),
+				abilityCategoryLabel(AbilityDefinitions.Categories.Passive, state, passiveSlotLimit),
 				create "Frame" {
 					Name = "Slots",
 					BackgroundTransparency = 1,
 					Position = UDim2.fromOffset(78, 0),
 					Size = function()
-						return if compactAbilityHud() then UDim2.fromOffset(230, 48) else UDim2.fromOffset(264, 48)
+						return if compactAbilityHud() then UDim2.fromOffset(292, 48) else UDim2.fromOffset(324, 48)
 					end,
 					create "UIGridLayout" {
 						CellPadding = function()
@@ -731,7 +883,7 @@ return function()
 						CellSize = function()
 							return if compactAbilityHud() then UDim2.fromOffset(42, 42) else UDim2.fromOffset(48, 48)
 						end,
-						FillDirectionMaxCells = AbilityDefinitions.EquipLimits.Passive,
+						FillDirectionMaxCells = AbilityDefinitions.MaximumEquipLimits.Passive,
 						HorizontalAlignment = Enum.HorizontalAlignment.Right,
 						SortOrder = Enum.SortOrder.LayoutOrder,
 					},

@@ -7,6 +7,7 @@ local Workspace = game:GetService("Workspace")
 local Networker = require(ReplicatedStorage.Packages.networker)
 local Signal = require(ReplicatedStorage.Packages.signal)
 local RunProgressionController = require(ReplicatedStorage.Controllers.RunProgressionController)
+local RunSessionController = require(ReplicatedStorage.Controllers.RunSessionController)
 
 local localPlayer = Players.LocalPlayer
 local readySignal = Signal.new()
@@ -15,6 +16,8 @@ local workspaceChildAddedConnection: RBXScriptConnection?
 local workspaceChildRemovedConnection: RBXScriptConnection?
 local currentCameraConnection: RBXScriptConnection?
 local progressionStateConnection: RBXScriptConnection?
+local sessionStateConnection: RBXScriptConnection?
+local spectateConnection: RBXScriptConnection?
 
 local GAMEPLAY_CAMERA_BINDING = "GameplayTopDownCamera"
 local GAMEPLAY_FIELD_OF_VIEW = 46
@@ -54,14 +57,22 @@ local function updateChoiceAvailability(runState)
 	choiceAvailable = runState.active == true and type(runState.choices) == "table" and #runState.choices > 0
 end
 
-local function getLiveRoot(): BasePart?
-	local character = localPlayer.Character
+local function getCharacterRoot(player: Player): BasePart?
+	local character = player.Character
 	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 	local root = character and character:FindFirstChild("HumanoidRootPart")
 	if humanoid and humanoid.Health > 0 and root and root:IsA("BasePart") then
 		return root
 	end
 	return nil
+end
+
+local function getCameraRoot(): BasePart?
+	local localRoot = getCharacterRoot(localPlayer)
+	if localRoot then return localRoot end
+	-- A downed player observes a living teammate without gaining movement or combat authority.
+	local spectatePlayer = RunSessionController.GetSpectatePlayer()
+	return if spectatePlayer then getCharacterRoot(spectatePlayer) else nil
 end
 
 local function restoreCamera()
@@ -127,7 +138,7 @@ local function claimCurrentCamera()
 	camera.CameraType = Enum.CameraType.Scriptable
 	camera.FieldOfView = GAMEPLAY_FIELD_OF_VIEW
 
-	local root = getLiveRoot()
+	local root = getCameraRoot()
 	if root then
 		smoothedFocus = root.Position + Vector3.yAxis * CAMERA_FOCUS_HEIGHT
 	end
@@ -142,7 +153,7 @@ local function renderGameplayCamera(deltaTime: number)
 		claimCurrentCamera()
 	end
 
-	local root = getLiveRoot()
+	local root = getCameraRoot()
 	if not root then
 		return
 	end
@@ -204,6 +215,12 @@ function CharacterController.Init()
 	if progressionStateConnection then
 		progressionStateConnection:Disconnect()
 	end
+	if sessionStateConnection then
+		sessionStateConnection:Disconnect()
+	end
+	if spectateConnection then
+		spectateConnection:Disconnect()
+	end
 	workspaceChildAddedConnection = Workspace.ChildAdded:Connect(function(child)
 		if child.Name == "Game" then
 			updateGameplayCameraState()
@@ -221,6 +238,15 @@ function CharacterController.Init()
 	end)
 	updateChoiceAvailability(RunProgressionController.GetState())
 	progressionStateConnection = RunProgressionController.GetStateChangedSignal():Connect(updateChoiceAvailability)
+	sessionStateConnection = RunSessionController.GetStateChangedSignal():Connect(function()
+		-- Snap on spectate transitions so the camera never sweeps across the whole arena between teammates.
+		local root = getCameraRoot()
+		smoothedFocus = root and (root.Position + Vector3.yAxis * CAMERA_FOCUS_HEIGHT) or nil
+	end)
+	spectateConnection = RunSessionController.GetSpectateChangedSignal():Connect(function()
+		local root = getCameraRoot()
+		smoothedFocus = root and (root.Position + Vector3.yAxis * CAMERA_FOCUS_HEIGHT) or nil
+	end)
 	updateGameplayCameraState()
 	IsReady = true
 	readySignal:Fire()
@@ -256,7 +282,8 @@ function CharacterController.OnCharacterAdded(character: Model)
 		end
 	end
 	deathConnection = humanoid.Died:Connect(function()
-		-- A game-session death ends the run; RunSessionController owns the personal result/countdown flow.
+		-- The shared run continues while any teammate lives. The session controller selects the spectate
+		-- target and authorizes either the fifth-wave checkpoint respawn or a purchased revive.
 		if Workspace:FindFirstChild("Game") then
 			return
 		end

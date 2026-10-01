@@ -77,16 +77,40 @@ local function createRing(name: string, radius: number, color: Color3, transpare
 	return model
 end
 
-local function createFilledCircle(name: string, radius: number, color: Color3, transparency: number): Model?
+local function createAuraField(name: string, radius: number, color: Color3, transparency: number): Model?
 	if not effectsFolder then
 		return nil
 	end
 	local model = Instance.new("Model")
 	model.Name = name
-	local circle = makeBlock("FilledCircle", Vector3.new(0.12, radius * 2, radius * 2), color, transparency)
-	circle.Shape = Enum.PartType.Cylinder
-	circle.Parent = model
-	model.PrimaryPart = circle
+	local pivot = makeBlock("Pivot", Vector3.one * 0.1, color, 1)
+	pivot.Parent = model
+	model.PrimaryPart = pivot
+	local segmentCount = 12
+	for index = 1, segmentCount do
+		local angle = (index - 1) / segmentCount * math.pi * 2
+		local segment = makeBlock(
+			"AuraBoundary",
+			Vector3.new(0.3, 0.1, math.max(math.pi * 2 * radius / segmentCount * 0.72, 0.45)),
+			if index % 3 == 0 then color:Lerp(Color3.new(1, 1, 1), 0.28) else color,
+			transparency
+		)
+		segment.CFrame = CFrame.new(math.cos(angle) * radius, 0, math.sin(angle) * radius)
+			* CFrame.Angles(0, -angle, 0)
+		segment.Parent = model
+	end
+	for spokeIndex = 1, 5 do
+		local angle = (spokeIndex - 1) / 5 * math.pi * 2
+		local spoke = makeBlock(
+			"AuraCurrent",
+			Vector3.new(0.18, 0.07, radius * 0.62),
+			color:Lerp(Color3.new(1, 1, 1), 0.18),
+			math.min(transparency + 0.1, 0.88)
+		)
+		spoke.CFrame = CFrame.new(math.cos(angle) * radius * 0.31, 0.025, math.sin(angle) * radius * 0.31)
+			* CFrame.Angles(0, -angle - math.rad(18), 0)
+		spoke.Parent = model
+	end
 	model.Parent = effectsFolder
 	return model
 end
@@ -330,9 +354,9 @@ function CrowdWeaponEffects.AuraState(packet)
 		existing.model:Destroy()
 	end
 	local color = if packet.rage then Color3.fromRGB(255, 188, 48) else Color3.fromRGB(92, 220, 255)
-	-- Keep Aura's range readable with one filled, translucent circle. Do not restore the segmented ring
-	-- or moving decorative motes: those multiply the part count for every equipped Aura.
-	local model = createFilledCircle("Aura", packet.radius, color, if packet.rage then 0.58 else 0.72)
+	-- Aura uses a bounded segmented boundary and five inner currents. This preserves range readability while
+	-- avoiding the old single translucent cylinder and any unbounded per-frame particle emission.
+	local model = createAuraField("Aura", packet.radius, color, if packet.rage then 0.58 else 0.72)
 	if model then
 		auras[packet.ownerUserId] = {
 			model = model,
@@ -684,8 +708,7 @@ function CrowdWeaponEffects.Render(now: number, deltaTime: number)
 		local root = player and player.Character and player.Character:FindFirstChild("HumanoidRootPart")
 		if root and root:IsA("BasePart") then
 			local center = root.Position - Vector3.yAxis * 2.75
-			-- Cylinder parts extend along X, so rotate the single Aura circle flat against the ground.
-			aura.model:PivotTo(CFrame.new(center) * CFrame.Angles(0, 0, math.pi * 0.5))
+			aura.model:PivotTo(CFrame.new(center) * CFrame.Angles(0, localNow * (if aura.rage then 0.55 else 0.32), 0))
 			local pulse = 1 + math.sin(localNow * (if aura.rage then 6 else 3)) * 0.025
 			aura.model:ScaleTo(pulse)
 		else

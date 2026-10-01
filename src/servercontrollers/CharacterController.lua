@@ -42,7 +42,8 @@ function CharacterController.RequestCharacter(_, player: Player): boolean
 		return true
 	end
 	if ServerContext.IsGameServer() and player.Character then
-		-- Run deaths are terminal; clients cannot use the normal spawn request to re-enter combat.
+		-- Run deaths remain server-authorized: checkpoint and paid revives use ReloadCharacter directly,
+		-- while a dead client cannot bypass the team-death rules through the normal spawn request.
 		return false
 	end
 

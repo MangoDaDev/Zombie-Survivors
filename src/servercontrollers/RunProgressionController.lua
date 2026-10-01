@@ -8,6 +8,8 @@ local AbilityDefinitions = require(ReplicatedStorage.Modules.Game.Abilities.Abil
 local RunProgressionConfig = require(ReplicatedStorage.Modules.Game.RunProgressionConfig)
 local RuntimeState = require(ReplicatedStorage.Modules.Game.RuntimeState)
 local AbilityController = require(ServerStorage.Controllers.AbilityController)
+local AnalyticsController = require(ServerStorage.Controllers.AnalyticsController)
+local MonetizationController = require(ServerStorage.Controllers.MonetizationController)
 local RageController = require(ServerStorage.Controllers.RageController)
 local ServerContext = require(ServerStorage.Controllers.ServerContext)
 
@@ -34,6 +36,7 @@ local progressionNetwork
 local random = Random.new()
 local states: { [Player]: PlayerRunState } = {}
 local endedPlayers: { [Player]: boolean } = {}
+local takeAllReservations: { [Player]: { choiceSetId: number, expiresAt: number } } = {}
 
 local function getAbilitySnapshot(player: Player)
 	local snapshot = {}
@@ -135,7 +138,7 @@ local function buildCandidates(player: Player)
 			or table.find(RunProgressionConfig.Abilities.AlwaysAvailable, definition.Id)
 		then
 			local equipped = runData.Equipped[definition.Category]
-			if #equipped < AbilityDefinitions.EquipLimits[definition.Category] then
+			if #equipped < AbilityController.GetEquipLimit(player, definition.Category) then
 				table.insert(candidates, {
 					abilityId = definition.Id,
 					kind = "New",
@@ -214,7 +217,8 @@ local function offerNextChoice(player: Player, state: PlayerRunState)
 	end
 	local runData = AbilityController.GetRunData(player)
 	local equippedCount = #runData.Equipped.Weapon + #runData.Equipped.Passive
-	local totalSlots = AbilityDefinitions.EquipLimits.Weapon + AbilityDefinitions.EquipLimits.Passive
+	local totalSlots = AbilityController.GetEquipLimit(player, "Weapon")
+		+ AbilityController.GetEquipLimit(player, "Passive")
 	local choices = chooseWithoutReplacement(
 		buildCandidates(player),
 		RunProgressionConfig.Abilities.ChoiceCount,
@@ -227,6 +231,7 @@ local function offerNextChoice(player: Player, state: PlayerRunState)
 	end
 	state.choiceSetId += 1
 	state.choices = choices
+	AnalyticsController.StartRunChoice(player, state.choiceSetId, state.level, choices)
 end
 
 local function initializePlayer(player: Player)
@@ -265,7 +270,10 @@ function RunProgressionController.AddXP(player: Player, amount: number): boolean
 		local definition = AbilityDefinitions.ById.TrainingManual
 		manualStats = if RageController.IsActive(player) then definition.GetRageStats(manualLevel) else definition.GetStats(manualLevel)
 	end
-	local xpMultiplier = 1 + (manualStats and manualStats.XPBonusPercent or 0) / 100
+	-- Run Boost is multiplied with ability bonuses at the authoritative award point, so clients cannot
+	-- fabricate boosted XP and every XP source automatically observes the same run-only entitlement.
+	local xpMultiplier = MonetizationController.GetXPMultiplier(player)
+		* (1 + (manualStats and manualStats.XPBonusPercent or 0) / 100)
 	if manualStats and amount >= manualStats.LargeCrystalMinimum then
 		xpMultiplier *= 1 + manualStats.LargeCrystalBonusPercent / 100
 	end
@@ -293,6 +301,7 @@ function RunProgressionController.AddXP(player: Player, amount: number): boolean
 		if manualStats and manualStats.BreakthroughBonusPercent > 0 then
 			RuntimeState.Set(player, "TrainingManualBreakthroughReady", true)
 		end
+		AnalyticsController.TrackGameplayStep(player, 4, { "Level - " .. tostring(state.level) })
 	end
 	if state.pendingChoices > 0 then
 		-- Retry unresolved tokens on every XP update. This closes the brief startup window where progression
@@ -362,6 +371,7 @@ end
 function RunProgressionController.EndRun(player: Player)
 	endedPlayers[player] = true
 	states[player] = nil
+	takeAllReservations[player] = nil
 	if progressionNetwork and player.Parent == Players then
 		-- Clear all run-only progression and queued choices without touching persistent ability data.
 		progressionNetwork:fire(player, "RunStateChanged", {
@@ -385,6 +395,7 @@ function RunProgressionController.RestartRun(player: Player): boolean
 	-- Replays start at level one with no queued choices while persistent ability ownership remains untouched.
 	endedPlayers[player] = nil
 	states[player] = nil
+	takeAllReservations[player] = nil
 	initializePlayer(player)
 	return states[player] ~= nil
 end
@@ -411,6 +422,11 @@ end
 
 function RunProgressionController.SelectChoice(_, player: Player, choiceSetId: any, choiceIndex: any)
 	local state = states[player]
+	local reservation = takeAllReservations[player]
+	if reservation and reservation.expiresAt < workspace:GetServerTimeNow() then
+		takeAllReservations[player] = nil
+		reservation = nil
+	end
 	if not state
 		or type(choiceSetId) ~= "number"
 		or choiceSetId % 1 ~= 0
@@ -418,6 +434,7 @@ function RunProgressionController.SelectChoice(_, player: Player, choiceSetId: a
 		or type(choiceIndex) ~= "number"
 		or choiceIndex % 1 ~= 0
 		or not state.choices
+		or reservation ~= nil
 	then
 		return
 	end
@@ -426,6 +443,7 @@ function RunProgressionController.SelectChoice(_, player: Player, choiceSetId: a
 	if not choice then
 		return
 	end
+	AnalyticsController.TrackRunChoiceSelected(player, choiceSetId, choice.abilityId, choice.kind)
 	local applied = if choice.kind == "New"
 		then AbilityController.AddRunAbility(player, choice.abilityId)
 		else AbilityController.UpgradeRunAbility(player, choice.abilityId)
@@ -434,11 +452,71 @@ function RunProgressionController.SelectChoice(_, player: Player, choiceSetId: a
 		sendState(player, state)
 		return
 	end
+	AnalyticsController.TrackRunChoiceApplied(player, choiceSetId, choice.abilityId, choice.kind)
+	AnalyticsController.TrackGameplayStep(player, 5, { "Item - " .. choice.abilityId, "Choice - " .. choice.kind })
+	AnalyticsController.TrackOnboardingStep(player, 6)
 
 	state.pendingChoices = math.max(state.pendingChoices - 1, 0)
 	state.choices = nil
 	offerNextChoice(player, state)
 	sendState(player, state)
+end
+
+function RunProgressionController.ReserveTakeAll(player: Player, lifetime: number): number?
+	local state = states[player]
+	if not state or not state.choices or #state.choices < 2 or state.pendingChoices <= 0 then
+		return nil
+	end
+	takeAllReservations[player] = {
+		choiceSetId = state.choiceSetId,
+		expiresAt = workspace:GetServerTimeNow() + math.clamp(lifetime, 1, 120),
+	}
+	return state.choiceSetId
+end
+
+function RunProgressionController.CancelTakeAllReservation(player: Player)
+	takeAllReservations[player] = nil
+end
+
+function RunProgressionController.GrantReservedTakeAll(player: Player, choiceSetId: number): boolean
+	local state = states[player]
+	local reservation = takeAllReservations[player]
+	if not state
+		or not reservation
+		or reservation.expiresAt < workspace:GetServerTimeNow()
+		or reservation.choiceSetId ~= choiceSetId
+		or state.choiceSetId ~= choiceSetId
+		or not state.choices
+	then
+		takeAllReservations[player] = nil
+		return false
+	end
+
+	-- Consume the reservation before granting anything. A repeated receipt or client request therefore
+	-- cannot apply the same completed choice set twice, even if another callback arrives synchronously.
+	takeAllReservations[player] = nil
+	local choices = state.choices
+	state.choices = nil
+	local grantedCount = 0
+	for _, choice in choices do
+		local applied = if choice.kind == "New"
+			then AbilityController.AddRunAbility(player, choice.abilityId)
+			else AbilityController.UpgradeRunAbility(player, choice.abilityId)
+		if applied then
+			grantedCount += 1
+			AnalyticsController.TrackRunChoiceApplied(player, choiceSetId, choice.abilityId, choice.kind)
+		end
+	end
+	if grantedCount <= 0 then
+		state.choices = choices
+		sendState(player, state)
+		return false
+	end
+
+	state.pendingChoices = math.max(state.pendingChoices - 1, 0)
+	offerNextChoice(player, state)
+	sendState(player, state)
+	return true
 end
 
 function RunProgressionController.Init()
@@ -465,6 +543,7 @@ end
 function RunProgressionController.OnPlayerRemoving(player: Player)
 	states[player] = nil
 	endedPlayers[player] = nil
+	takeAllReservations[player] = nil
 end
 
 return RunProgressionController

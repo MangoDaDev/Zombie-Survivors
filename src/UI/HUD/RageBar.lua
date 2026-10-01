@@ -73,10 +73,14 @@ return function()
 		BorderSizePixel = 0,
 		-- Keep Rage in the same centered HUD stack, directly above the level/XP bar on every viewport.
 		Position = UDim2.new(0.5, 0, 1, -76),
-		-- Mixed scale/offset sizing preserves the control's proportions while still fitting narrow phones.
-		Size = UDim2.new(0.28, 112, 0, 48),
+		-- Both axes provide a responsive bounding box; the constraint selects the limiting one per viewport.
+		Size = UDim2.fromScale(0.88, 0.067),
 		Visible = inGame,
 		ZIndex = 90,
+		create "UIAspectRatioConstraint" {
+			AspectRatio = 470 / 48,
+			AspectType = Enum.AspectType.FitWithinMaxSize,
+		},
 		create "UICorner" { CornerRadius = UDim.new(0, 5) },
 		StudTexture({ ZIndex = 91, ImageTransparency = 0.86 }),
 		create "UIStroke" {
@@ -92,8 +96,8 @@ return function()
 			Name = "Status",
 			BackgroundTransparency = 1,
 			FontFace = Font.new(UIStyle.Font.Family, Enum.FontWeight.Bold),
-			Position = UDim2.fromOffset(9, 4),
-			Size = UDim2.new(1, -104, 0, 18),
+			Position = UDim2.fromScale(0.02, 0.08),
+			Size = UDim2.fromScale(0.76, 0.38),
 			Text = function()
 				if state().active then
 					return string.format("RAGE  %.1fs", remaining())
@@ -115,8 +119,8 @@ return function()
 			BackgroundColor3 = Color3.fromRGB(53, 35, 34),
 			BorderSizePixel = 0,
 			ClipsDescendants = true,
-			Position = UDim2.new(0, 9, 1, -8),
-			Size = UDim2.new(1, -104, 0, 12),
+			Position = UDim2.fromScale(0.02, 0.84),
+			Size = UDim2.fromScale(0.76, 0.25),
 			ZIndex = 91,
 			create "UICorner" { CornerRadius = UDim.new(0, 3) },
 			create "Frame" {
@@ -147,9 +151,9 @@ return function()
 				return Color3.fromRGB(91, 51, 44)
 			end,
 			BorderSizePixel = 0,
-			Position = UDim2.new(1, -6, 0.5, 0),
+			Position = UDim2.fromScale(0.985, 0.5),
 			Selectable = ready,
-			Size = UDim2.new(0, 86, 1, -12),
+			Size = UDim2.fromScale(0.19, 0.75),
 			Text = function()
 				return if state().active then "ACTIVE" elseif ready() then "ACTIVATE [R]" else "CHARGING"
 			end,

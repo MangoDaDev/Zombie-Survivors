@@ -72,6 +72,29 @@ function StudVFX.Flash(
 	)
 	core.CFrame = CFrame.new(position) * CFrame.Angles(math.rad(-12), math.rad(45), math.rad(25))
 
+	-- Expanding crossed rays give the flash a readable silhouette instead of leaving it as one swelling cube.
+	-- Four rays is the shared budget: this helper can fire many times in one frame during dense horde combat.
+	for rayIndex = 1, 4 do
+		local angle = TAU * (rayIndex - 1) / 4 + math.rad(22.5)
+		local direction = Vector3.new(math.cos(angle), 0.18 + (rayIndex % 2) * 0.16, math.sin(angle)).Unit
+		local rayLength = math.max(radius * 0.55, 0.45)
+		local rayThickness = math.clamp(radius * 0.055, 0.12, 0.42)
+		local ray = StudVFX.CreateBlock(
+			parent,
+			"StudFlashRay",
+			Vector3.new(rayThickness, rayThickness, math.max(rayLength * 0.18, 0.2)),
+			if rayIndex % 2 == 0 then color:Lerp(Color3.new(1, 1, 1), 0.52) else color,
+			0.08
+		)
+		ray.CFrame = CFrame.lookAt(position + direction * rayLength * 0.08, position + direction)
+		TweenService:Create(ray, TweenInfo.new(duration, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+			CFrame = CFrame.lookAt(position + direction * rayLength * 0.7, position + direction * rayLength),
+			Size = Vector3.new(rayThickness * 0.35, rayThickness * 0.35, rayLength),
+			Transparency = 1,
+		}):Play()
+		Debris:AddItem(ray, duration + 0.05)
+	end
+
 	local light = Instance.new("PointLight")
 	light.Name = "StudFlashLight"
 	light.Color = color
@@ -93,6 +116,41 @@ function StudVFX.Flash(
 	Debris:AddItem(outer, duration + 0.05)
 	Debris:AddItem(core, duration + 0.05)
 	return core
+end
+
+function StudVFX.Impact(
+	parent: Instance?,
+	position: Vector3,
+	color: Color3,
+	radius: number,
+	duration: number,
+	intensity: number?
+): Part?
+	if not parent or radius <= 0 or duration <= 0 then
+		return nil
+	end
+
+	local strength = math.clamp(intensity or 1, 0.5, 2)
+	local accent = color:Lerp(Color3.new(1, 1, 1), 0.55)
+	local anchor = StudVFX.Flash(parent, position + Vector3.yAxis * math.min(radius * 0.08, 0.6), color, radius * 0.7, duration * 0.72)
+	StudVFX.Ring(parent, position + Vector3.yAxis * 0.1, color, radius, duration, math.clamp(math.floor(radius * 1.6), 10, 22))
+	StudVFX.Burst(
+		parent,
+		position + Vector3.yAxis * math.min(radius * 0.1, 0.75),
+		color,
+		math.clamp(math.floor(5 + radius * 0.55 * strength), 6, 18),
+		math.min(radius * 0.68, 10),
+		duration * 0.9,
+		accent
+	)
+
+	-- A delayed inner echo gives the impact a second beat without a permanent update loop.
+	task.delay(duration * 0.12, function()
+		if parent.Parent then
+			StudVFX.Ring(parent, position + Vector3.yAxis * 0.18, accent, radius * 0.62, duration * 0.7, 10)
+		end
+	end)
+	return anchor
 end
 
 function StudVFX.Burst(

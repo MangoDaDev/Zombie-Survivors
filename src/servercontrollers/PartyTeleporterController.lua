@@ -9,6 +9,7 @@ local Networker = require(ReplicatedStorage.Packages.networker)
 local PartyTeleporterConfig = require(ReplicatedStorage.Modules.Game.PartyTeleporterConfig)
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
 local PartyTeleportService = require(script.Parent.PartyTeleportService)
+local AnalyticsController = require(script.Parent.AnalyticsController)
 
 local FONT = Font.fromName("ComicNeueAngular")
 local AVAILABLE_COLOR = Color3.fromRGB(156, 161, 174)
@@ -334,6 +335,9 @@ local function finishSetup(state: TeleporterState, now: number)
 	updateWorldView(state, now)
 	broadcastState(state)
 	playSound(state, "Popup")
+	for _, member in state.members do
+		AnalyticsController.TrackOnboardingStep(member, 4)
+	end
 end
 
 local function expireSetup(state: TeleporterState)
@@ -412,6 +416,10 @@ local function tryAddMember(state: TeleporterState, player: Player)
 	updateWorldView(state, now)
 	broadcastState(state)
 	playSound(state, "Popup")
+	AnalyticsController.TrackOnboardingStep(player, 3)
+	if state.configured then
+		AnalyticsController.TrackOnboardingStep(player, 4)
+	end
 end
 
 local function failTeleport(state: TeleporterState, message: string, attempt: number?)

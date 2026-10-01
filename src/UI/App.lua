@@ -5,9 +5,12 @@ local AbilityInterface = require(script.Parent.HUD.AbilityInterface)
 local BossHealthBar = require(script.Parent.HUD.BossHealthBar)
 local BossWarning = require(script.Parent.HUD.BossWarning)
 local ClassInterface = require(script.Parent.HUD.ClassInterface)
+local ClassesAbilitiesTutorial = require(script.Parent.HUD.ClassesAbilitiesTutorial)
+local DownedOverlay = require(script.Parent.HUD.DownedOverlay)
 local GameOver = require(script.Parent.HUD.GameOver)
 local HealthBar = require(script.Parent.HUD.HealthBar)
 local LevelUpChoices = require(script.Parent.HUD.LevelUpChoices)
+local MonetizationShop = require(script.Parent.HUD.MonetizationShop)
 local Notifications = require(script.Parent.HUD.Notifications)
 local OffscreenPlayerIndicators = require(script.Parent.HUD.OffscreenPlayerIndicators)
 local PartyTeleporterMenu = require(script.Parent.HUD.PartyTeleporterMenu)
@@ -30,6 +33,8 @@ return function()
 		-- Permanent ability unlocks are managed from the lobby and feed the authoritative run choice pool.
 		AbilityInterface(),
 		ClassInterface(),
+		-- The returning-player shop tutorial layers guidance over the existing class UI without replacing it.
+		ClassesAbilitiesTutorial(),
 		ZombieIndex(),
 		-- RunHUD is always mounted so Studio's promoted destination can activate reactively without remounting App.
 		RunHUD(),
@@ -43,12 +48,15 @@ return function()
 		BossWarning(),
 		-- Level-up presentation does not pause or intercept live combat outside the three choice cards.
 		LevelUpChoices(),
+		-- The gold shop shares the existing App, interaction components, and responsive style infrastructure.
+		MonetizationShop(),
 		-- The Creation Menu is presentation-only; party membership, settings, and departure stay authoritative.
 		PartyTeleporterMenu(),
 		Confirmation.Component(),
 		-- RageBar owns reactive Game-map visibility so Studio destination promotion needs no App remount.
 		RageBar(),
-		-- Per-player death results cover only the defeated player's client while survivors continue their run.
+		-- Downed players spectate living teammates and can deliberately revive; results appear only after a team wipe.
+		DownedOverlay(),
 		GameOver(),
 	}
 end

@@ -150,14 +150,14 @@ return function()
 				topOffset() + (if narrowViewport() then 132 else 56)
 			)
 		end,
-		Size = UDim2.new(0.08, 150, 0.05, 16),
+		Size = UDim2.fromScale(0.55, 0.08),
 		Visible = function()
 			return inGame() and hasHumanoid()
 		end,
 		ZIndex = 90,
 		create "UIAspectRatioConstraint" {
 			AspectRatio = 240 / 52,
-			DominantAxis = Enum.DominantAxis.Width,
+			AspectType = Enum.AspectType.FitWithinMaxSize,
 		},
 		create "UICorner" { CornerRadius = UDim.new(0, 5) },
 		create "UIStroke" {

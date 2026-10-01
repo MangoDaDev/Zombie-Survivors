@@ -4,9 +4,14 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Networker = require(ReplicatedStorage.Packages.networker)
 local ClassDefinitions = require(ReplicatedStorage.Modules.Game.Classes.ClassDefinitions)
 local AbilityDefinitions = require(ReplicatedStorage.Modules.Game.Abilities.AbilityDefinitions)
+local MonetizationConfig = require(ReplicatedStorage.Modules.Game.MonetizationConfig)
 local CoinsController = require(script.Parent.CoinsController)
+local AnalyticsController = require(script.Parent.AnalyticsController)
 local PlayerStatController = require(script.Parent.PlayerStatController)
 local ServerContext = require(script.Parent.ServerContext)
+local ClassesAbilitiesTutorialController = require(script.Parent.ClassesAbilitiesTutorialController)
+local ClassesAbilitiesTutorialConfig = require(ReplicatedStorage.Modules.Game.ClassesAbilitiesTutorialConfig)
+local MonetizationController = require(script.Parent.MonetizationController)
 
 local REQUEST_COOLDOWN = 0.2
 local MOVEMENT_THRESHOLD = 0.5
@@ -483,12 +488,40 @@ function ClassController.BroadcastKillEffect(kind: string, position: Vector3, ra
 	end
 end
 
+function ClassController.GrantPremiumClass(player: Player, classId: string): boolean
+	local definition = ClassDefinitions.ById[classId]
+	if not definition or player.Parent ~= Players then
+		return false
+	end
+	local data = getData(player)
+	if data.Owned[classId] then
+		return true
+	end
+	-- Verified Gamepass ownership writes into the established class map so every existing class,
+	-- changing-room, and combat path continues using one authoritative ownership source.
+	data.Owned[classId] = true
+	dataService:set(player, ClassDefinitions.DataKey, data)
+	return true
+end
+
 function ClassController.UnlockClass(_, player: Player, classId: any)
 	if not canRequest(player) or type(classId) ~= "string" or not ServerContext.IsLobbyServer() then
 		return
 	end
 	local definition = ClassDefinitions.ById[classId]
 	if not definition then
+		return
+	end
+	local premium = MonetizationConfig.GetPremiumClass(classId)
+	if premium and not MonetizationController.OwnsGamepass(player, classId) then
+		-- Premium classes can never be reached through the legacy coin-unlock remote; only verified
+		-- Gamepass ownership grants them into the shared class inventory.
+		sendResult(player, false, "This premium class requires its Gamepass.")
+		return
+	end
+	local tutorialActive = ClassesAbilitiesTutorialController.IsActive(player)
+	if tutorialActive and classId ~= ClassesAbilitiesTutorialConfig.TargetClassId then
+		sendResult(player, false, "Claim Blade Dancer to finish the tutorial first.")
 		return
 	end
 	if not meetsPrerequisite(player, definition) then
@@ -498,10 +531,24 @@ function ClassController.UnlockClass(_, player: Player, classId: any)
 		return
 	end
 	local data = getData(player)
+	if tutorialActive then
+		-- The tutorial grant is a dedicated server-authoritative path: it never calls the currency
+		-- controller, and only the configured class can consume the player's one-time free claim.
+		if not data.Owned[classId] then
+			AnalyticsController.TrackShopPurchaseAttempt(player, "Class", classId)
+			data.Owned[classId] = true
+			dataService:set(player, ClassDefinitions.DataKey, data)
+			AnalyticsController.TrackShopPurchaseCompleted(player, "Class", classId)
+		end
+		ClassesAbilitiesTutorialController.Complete(player)
+		sendResult(player, true, definition.Name .. " claimed for FREE!")
+		return
+	end
 	if data.Owned[classId] then
 		sendResult(player, false, definition.Name .. " is already unlocked.")
 		return
 	end
+	AnalyticsController.TrackShopPurchaseAttempt(player, "Class", classId)
 	if definition.UnlockCost <= 0 or not CoinsController.Remove(player, definition.UnlockCost) then
 		sendResult(player, false, "Not enough Coins to unlock " .. definition.Name .. ".")
 		return
@@ -509,6 +556,7 @@ function ClassController.UnlockClass(_, player: Player, classId: any)
 	-- The server chooses the fixed price and persists ownership only after the authoritative debit succeeds.
 	data.Owned[classId] = true
 	dataService:set(player, ClassDefinitions.DataKey, data)
+	AnalyticsController.TrackShopPurchaseCompleted(player, "Class", classId)
 	sendResult(player, true, definition.Name .. " unlocked!")
 end
 
@@ -518,6 +566,9 @@ function ClassController.EquipClass(_, player: Player, classId: any)
 	end
 	local definition = ClassDefinitions.ById[classId]
 	local data = getData(player)
+	if ClassesAbilitiesTutorialController.IsActive(player) and classId ~= ClassesAbilitiesTutorialConfig.TargetClassId then
+		return
+	end
 	if not definition or not data.Owned[classId] or not meetsPrerequisite(player, definition) then
 		return
 	end

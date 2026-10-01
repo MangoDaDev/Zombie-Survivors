@@ -5,6 +5,7 @@ local Button = require(script.Parent.Parent.Classes.Button)
 local StudTexture = require(script.Parent.Parent.Classes.StudTexture)
 local AbilityController = require(ReplicatedStorage.Controllers.AbilityController)
 local CoinsController = require(ReplicatedStorage.Controllers.CoinsController)
+local MonetizationController = require(ReplicatedStorage.Controllers.MonetizationController)
 local PartyTeleporterController = require(ReplicatedStorage.Controllers.PartyTeleporterController)
 local RunProgressionController = require(ReplicatedStorage.Controllers.RunProgressionController)
 local AbilityDefinitions = require(ReplicatedStorage.Modules.Game.Abilities.AbilityDefinitions)
@@ -228,6 +229,7 @@ local function abilityCard(ability, order: number, props)
 			end,
 			Activated = function()
 				props.selectedId(ability.Id)
+				AbilityController.SelectShopItem(ability.Id)
 				Sounds.Play("Click", localPlayer.PlayerGui)
 			end,
 		},
@@ -253,6 +255,9 @@ return function()
 	local portrait = derive(function()
 		local size = viewportSize()
 		return size.X < 600 and size.X < size.Y
+	end)
+	local compactPortrait = derive(function()
+		return portrait() and viewportSize().Y < 700
 	end)
 	local shortLandscape = derive(function()
 		local size = viewportSize()
@@ -475,11 +480,11 @@ return function()
 				end,
 				Size = function()
 					if portrait() then
-						return UDim2.new(1, -18, 1, -30)
+						return UDim2.fromScale(0.96, 0.94)
 					elseif shortLandscape() then
-						return UDim2.new(0.94, 0, 0.94, 0)
+						return UDim2.fromScale(0.94, 0.94)
 					end
-					return UDim2.new(0.78, 40, 0.82, 30)
+					return UDim2.fromScale(0.81, 0.86)
 				end,
 				ZIndex = 305,
 				-- Every filled menu surface uses the shared stud layer; light content panels tint it dark below.
@@ -488,9 +493,12 @@ return function()
 					-- Preserve the authored menu proportions when the viewport changes; portrait and
 					-- landscape use different content arrangements and therefore different ratios.
 					AspectRatio = function()
-						return if portrait() then 420 / 880 else 980 / 620
+						-- Short phones use their own envelope so the constraint does not make an
+						-- already narrow portrait layout unnecessarily narrower.
+						return if compactPortrait() then 0.56 elseif portrait() then 420 / 880 else 980 / 620
 					end,
-					DominantAxis = Enum.DominantAxis.Height,
+					-- Fit inside both responsive axes. A fixed dominant axis can overflow on phones or ultrawide screens.
+					AspectType = Enum.AspectType.FitWithinMaxSize,
 				},
 				create "UIStroke" { ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Color = Color3.fromRGB(0, 5, 10), Thickness = 7 },
 				create "UIStroke" { ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Color = CYAN, Thickness = 3 },
@@ -930,7 +938,7 @@ return function()
 								return not selectedOwned() and selectedCost() > 0
 							end,
 							Enabled = function()
-								return not selectedOwned() and selectedCost() > 0 and canAfford()
+								return not selectedOwned() and selectedCost() > 0
 							end,
 							BackgroundColor3 = function()
 								return if selectedOwned() then UIStyle.Colors.Green elseif canAfford() then UIStyle.Colors.Gold else UIStyle.Colors.Muted
@@ -941,7 +949,12 @@ return function()
 							OnActivated = function()
 								local ability = selectedAbility()
 								if not isOwned(state(), ability.Id) then
-									AbilityController.UnlockAbility(ability.Id)
+									if canAfford() then
+										AbilityController.UnlockAbility(ability.Id)
+									else
+										AbilityController.SetInventoryOpen(false)
+										MonetizationController.SetShopOpen(true, "Coins")
+									end
 								end
 							end,
 						}),

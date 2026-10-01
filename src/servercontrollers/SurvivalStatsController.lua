@@ -7,6 +7,7 @@ local Networker = require(ReplicatedStorage.Packages.networker)
 local SurvivalStatsConfig = require(ReplicatedStorage.Modules.Game.SurvivalStatsConfig)
 local RoundController = require(ServerStorage.Controllers.RoundController)
 local ServerContext = require(ServerStorage.Controllers.ServerContext)
+local AnalyticsController = require(ServerStorage.Controllers.AnalyticsController)
 
 type Runtime = {
 	roundsSurvived: number,
@@ -57,6 +58,7 @@ local function awardSurvivedRound(playersWhoSurvived: { Player })
 			-- A round is credited only at its authoritative boundary while the player is alive.
 			runtime.roundsSurvived += 1
 			dataService:set(player, SurvivalStatsConfig.DataKey, runtime.roundsSurvived)
+			AnalyticsController.TrackLifetimeProgression(player, runtime.roundsSurvived)
 		end
 	end
 end

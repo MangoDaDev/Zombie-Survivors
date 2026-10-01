@@ -39,14 +39,14 @@ return function()
 		end,
 		BorderSizePixel = 0,
 		Position = UDim2.new(0.5, 0, 0.18, 0),
-		Size = UDim2.new(0.5, 60, 0.13, 26),
+		Size = UDim2.fromScale(0.9, 0.16),
 		Visible = function()
 			return state().active
 		end,
 		ZIndex = 140,
 		create "UIAspectRatioConstraint" {
 			AspectRatio = 580 / 112,
-			DominantAxis = Enum.DominantAxis.Width,
+			AspectType = Enum.AspectType.FitWithinMaxSize,
 		},
 		create "UIScale" { Scale = animatedScale },
 		create "UICorner" { CornerRadius = UDim.new(0, 5) },

@@ -13,6 +13,7 @@ local RageController = require(ServerStorage.Controllers.RageController)
 local RunProgressionConfig = require(ReplicatedStorage.Modules.Game.RunProgressionConfig)
 local BackpackController = require(ServerStorage.Controllers.BackpackController)
 local CoinsController = require(ServerStorage.Controllers.CoinsController)
+local MonetizationController = require(ServerStorage.Controllers.MonetizationController)
 local ServerContext = require(ServerStorage.Controllers.ServerContext)
 
 local UPDATE_INTERVAL = 0.1
@@ -369,14 +370,17 @@ local function finishCollections(now: number)
 				continue
 			end
 			if player.Parent == Players and getLiveRoot(player) then
-				local awarded = CoinsController.Add(player, coin.value)
+				-- Both permanent x2 Coins and the current-run boost are applied at the shared authoritative
+				-- collection boundary, keeping every coin pickup consistent and resistant to client spoofing.
+				local awardedValue = math.max(1, math.floor(coin.value * MonetizationController.GetCoinMultiplier(player) + 0.5))
+				local awarded = CoinsController.Add(player, awardedValue)
 				if awarded then
 					-- This claim belongs only to this player. Other eligible players retain their own copy and value.
-					BackpackController.AddCarriedCoins(player, coin.value)
-					coinCollected:Fire(player, coin.value)
+					BackpackController.AddCarriedCoins(player, awardedValue)
+					coinCollected:Fire(player, awardedValue)
 					coin.collectAtByPlayer[player] = nil
 					coin.collectedUserIds[player.UserId] = true
-					coinNetwork:fire(player, "CoinCollected", id, player.UserId, coin.value)
+					coinNetwork:fire(player, "CoinCollected", id, player.UserId, awardedValue)
 				else
 					-- A transient data-access failure must not silently consume a permanent reward.
 					coin.collectAtByPlayer[player] = nil

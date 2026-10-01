@@ -5,11 +5,14 @@ local Button = require(script.Parent.Parent.Classes.Button)
 local StudTexture = require(script.Parent.Parent.Classes.StudTexture)
 local AbilityController = require(ReplicatedStorage.Controllers.AbilityController)
 local ClassController = require(ReplicatedStorage.Controllers.ClassController)
+local ClassesAbilitiesTutorialController = require(ReplicatedStorage.Controllers.ClassesAbilitiesTutorialController)
 local CoinsController = require(ReplicatedStorage.Controllers.CoinsController)
+local MonetizationController = require(ReplicatedStorage.Controllers.MonetizationController)
 local PartyTeleporterController = require(ReplicatedStorage.Controllers.PartyTeleporterController)
 local RunProgressionController = require(ReplicatedStorage.Controllers.RunProgressionController)
 local AbilityDefinitions = require(ReplicatedStorage.Modules.Game.Abilities.AbilityDefinitions)
 local ClassDefinitions = require(ReplicatedStorage.Modules.Game.Classes.ClassDefinitions)
+local MonetizationConfig = require(ReplicatedStorage.Modules.Game.MonetizationConfig)
 local FormatNumber = require(ReplicatedStorage.Modules.Math.FormatNumber)
 local Images = require(ReplicatedStorage.Modules.UI.Images)
 local SafeArea = require(ReplicatedStorage.Modules.UI.SafeArea)
@@ -51,17 +54,24 @@ end
 
 local function classCard(definition, order: number, props)
 	local hovered = source(false)
+	local premium = MonetizationConfig.GetPremiumClass(definition.Id)
 	local owned = derive(function()
+		props.monetizationState()
 		return isOwned(props.state(), definition.Id)
+			or (premium ~= nil and MonetizationController.OwnsPremiumClass(definition.Id))
 	end)
 	local selected = derive(function()
 		return props.selectedId() == definition.Id
+	end)
+	local tutorialTarget = derive(function()
+		local tutorialState = props.tutorialState()
+		return tutorialState.active and tutorialState.targetClassId == definition.Id
 	end)
 	local equipped = derive(function()
 		return props.state().Equipped == definition.Id
 	end)
 	local prerequisiteMet = derive(function()
-		return hasRequiredAbility(props.abilityState(), definition)
+		return premium ~= nil or hasRequiredAbility(props.abilityState(), definition)
 	end)
 	local scale = spring(function()
 		return if hovered() then 1.015 else 1
@@ -84,10 +94,10 @@ local function classCard(definition, order: number, props)
 		create "UIStroke" {
 			ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
 			Color = function()
-				return if selected() then definition.Color else Color3.fromRGB(74, 121, 143)
+				return if tutorialTarget() then Color3.fromRGB(255, 207, 65) elseif selected() then definition.Color else Color3.fromRGB(74, 121, 143)
 			end,
 			Thickness = function()
-				return if selected() then 3 else 2
+				return if tutorialTarget() then 5 elseif selected() then 3 else 2
 			end,
 		},
 		create "ImageLabel" {
@@ -144,6 +154,7 @@ local function classCard(definition, order: number, props)
 			Name = "StateBadge",
 			AnchorPoint = function() return if props.portrait() then Vector2.new(1, 0) else Vector2.new(1, 0.5) end,
 			BackgroundColor3 = function()
+				if tutorialTarget() then return Color3.fromRGB(151, 104, 13) end
 				if equipped() then return UIStyle.Colors.Green end
 				if not prerequisiteMet() then return UIStyle.Colors.Muted end
 				return if owned() then Color3.fromRGB(28, 110, 143) else Color3.fromRGB(67, 55, 26)
@@ -159,14 +170,14 @@ local function classCard(definition, order: number, props)
 				Name = "Coin",
 				AnchorPoint = Vector2.new(0, 0.5),
 				BackgroundTransparency = 1,
-				Image = Images.Coin,
+				Image = if premium then Images.Robux else Images.Coin,
 				Position = UDim2.new(0, 6, 0.5, 0),
 				Size = function()
 					local size = if props.portrait() then 14 elseif props.shortLandscape() then 17 else 20
 					return UDim2.fromOffset(size, size)
 				end,
 				Visible = function()
-					return not owned() and prerequisiteMet()
+					return not tutorialTarget() and not owned() and prerequisiteMet()
 				end,
 				ZIndex = 368,
 			},
@@ -174,25 +185,27 @@ local function classCard(definition, order: number, props)
 				BackgroundTransparency = 1,
 				FontFace = HEAVY_FONT,
 				Position = function()
-					return if owned() or not prerequisiteMet()
+					return if tutorialTarget() or owned() or not prerequisiteMet()
 						then UDim2.fromScale(0, 0)
 						else UDim2.new(0, if props.portrait() then 22 else 29, 0, 0)
 				end,
 				Size = function()
-					return if owned() or not prerequisiteMet()
+					return if tutorialTarget() or owned() or not prerequisiteMet()
 						then UDim2.fromScale(1, 1)
 						else UDim2.new(1, if props.portrait() then -25 else -33, 1, 0)
 				end,
 				Text = function()
+					if tutorialTarget() then return "FREE" end
 					if equipped() then return "EQUIPPED" end
 					-- The scrolling list replaces the coin cost with the prerequisite state so a blocked
 					-- class never looks purchasable before its starting ability has been unlocked.
 					if not prerequisiteMet() then return "ABILITY LOCKED" end
 					if owned() then return "OWNED" end
+					if premium then return MonetizationController.GetPriceText(definition.Id) end
 					return FormatNumber(definition.UnlockCost) or tostring(definition.UnlockCost)
 				end,
 				TextColor3 = function()
-					return if owned() or not prerequisiteMet() then PAPER else Color3.fromRGB(255, 224, 129)
+					return if tutorialTarget() then Color3.fromRGB(255, 244, 194) elseif owned() or not prerequisiteMet() then PAPER else Color3.fromRGB(255, 224, 129)
 				end,
 				TextScaled = true,
 				ZIndex = 368,
@@ -213,6 +226,7 @@ local function classCard(definition, order: number, props)
 				hovered(false)
 			end,
 			Activated = function()
+				if props.tutorialState().active and not tutorialTarget() then return end
 				ClassController.SetPreviewClassId(definition.Id)
 				Sounds.Play("Click", localPlayer.PlayerGui)
 			end,
@@ -222,11 +236,13 @@ end
 
 return function()
 	local state = source(ClassController.GetState())
+	local monetizationState = source(MonetizationController.GetState())
 	local abilityState = source(AbilityController.GetState())
 	local balance = source(CoinsController.Get())
 	local runState = source(RunProgressionController.GetState())
 	local abilityShopOpen = source(AbilityController.IsInventoryOpen())
 	local open = source(ClassController.IsOpen())
+	local tutorialState = source(ClassesAbilitiesTutorialController.GetState())
 	local partyActive = source(PartyTeleporterController.GetState() ~= nil)
 	local selectedId = source(ClassController.GetPreviewClassId())
 	local viewportSize = source(Vector2.new(1280, 720))
@@ -263,8 +279,13 @@ return function()
 	local selectedDefinition = derive(function()
 		return ClassDefinitions.ById[selectedId()] or ClassDefinitions.List[1]
 	end)
+	local selectedPremium = derive(function()
+		return MonetizationConfig.GetPremiumClass(selectedDefinition().Id)
+	end)
 	local selectedOwned = derive(function()
+		monetizationState()
 		return isOwned(state(), selectedDefinition().Id)
+			or (selectedPremium() ~= nil and MonetizationController.OwnsPremiumClass(selectedDefinition().Id))
 	end)
 	local selectedEquipped = derive(function()
 		return state().Equipped == selectedDefinition().Id
@@ -277,17 +298,35 @@ return function()
 		return balance() >= selectedDefinition().UnlockCost
 	end)
 	local prerequisiteMet = derive(function()
-		return hasRequiredAbility(abilityState(), selectedDefinition())
+		return selectedPremium() ~= nil or hasRequiredAbility(abilityState(), selectedDefinition())
+	end)
+	local selectedTutorialTarget = derive(function()
+		local currentTutorial = tutorialState()
+		return currentTutorial.active and selectedDefinition().Id == currentTutorial.targetClassId
 	end)
 
 	table.insert(connections, ClassController.GetStateChangedSignal():Connect(function(newState)
 		state(newState)
+	end))
+	table.insert(connections, MonetizationController.GetStateChangedSignal():Connect(function(newState)
+		monetizationState(newState)
+	end))
+	table.insert(connections, MonetizationController.GetProductInfoChangedSignal():Connect(function(productKey)
+		if productKey == selectedDefinition().Id then
+			monetizationState(table.clone(monetizationState()))
+		end
 	end))
 	table.insert(connections, AbilityController.GetStateChangedSignal():Connect(function(newState)
 		abilityState(newState)
 	end))
 	table.insert(connections, ClassController.GetOpenChangedSignal():Connect(function(isOpen)
 		open(isOpen)
+	end))
+	table.insert(connections, ClassesAbilitiesTutorialController.GetStateChangedSignal():Connect(function(newState)
+		tutorialState(newState)
+		if newState.active then
+			ClassController.SetPreviewClassId(newState.targetClassId)
+		end
 	end))
 	table.insert(connections, PartyTeleporterController.GetStateChangedSignal():Connect(function(newState)
 		partyActive(newState ~= nil)
@@ -315,7 +354,7 @@ return function()
 
 	local cards = {}
 	local previewIcons = {}
-	-- The class menu deliberately reuses existing ability icons; do not restore generated character portraits.
+	-- The existing 3D/ability presentation stays intact; premium portraits are shown in the integrated Shop cards.
 	for order, definition in ClassDefinitions.List do
 		table.insert(cards, classCard(definition, order, {
 			state = state,
@@ -324,6 +363,8 @@ return function()
 			portrait = portrait,
 			compactPortrait = compactPortrait,
 			shortLandscape = shortLandscape,
+			tutorialState = tutorialState,
+			monetizationState = monetizationState,
 		}))
 		table.insert(previewIcons, create "ImageLabel" {
 			Name = definition.Id .. "AbilityIcon",
@@ -407,9 +448,9 @@ return function()
 					return UDim2.new(0.5, 0, 0.5, if compactPortrait() then topOffset() * 0.5 else 0)
 				end,
 				Size = function()
-					if compactPortrait() then return UDim2.new(1, -16, 1, -(topOffset() + 20)) end
-					if portrait() then return UDim2.new(1, -16, 1, -28) end
-					return UDim2.new(0.95, 0, 0.94, 0)
+					if compactPortrait() then return UDim2.fromScale(0.96, 0.88) end
+					if portrait() then return UDim2.fromScale(0.96, 0.95) end
+					return UDim2.fromScale(0.95, 0.94)
 				end,
 				ZIndex = 345,
 				create "UIAspectRatioConstraint" {
@@ -418,7 +459,8 @@ return function()
 					AspectRatio = function()
 						return if portrait() then 420 / 690 else 1280 / 760
 					end,
-					DominantAxis = Enum.DominantAxis.Height,
+					-- Choose whichever available axis is limiting so neither narrow nor ultrawide screens overflow.
+					AspectType = Enum.AspectType.FitWithinMaxSize,
 				},
 				create "Frame" {
 					Name = "Header",
@@ -709,6 +751,9 @@ return function()
 						ZIndex = 370,
 						Button({
 							Text = function()
+								if tutorialState().active then
+									return if selectedTutorialTarget() then "CLAIM CLASS FOR FREE" else "SELECT BLADE DANCER"
+								end
 								if selectedEquipped() then return "EQUIPPED" end
 								if not prerequisiteMet() then
 									local ability = requiredAbility()
@@ -716,18 +761,24 @@ return function()
 									return if ability then "UNLOCK " .. string.upper(ability.Name) .. " FIRST" else "REQUIRED ABILITY UNAVAILABLE"
 								end
 								if selectedOwned() then return "EQUIP CLASS" end
+								if selectedPremium() then return MonetizationController.GetPriceText(selectedDefinition().Id) end
 								local cost = FormatNumber(selectedDefinition().UnlockCost) or tostring(selectedDefinition().UnlockCost)
 								return if canAfford() then "UNLOCK FOR " .. cost .. " COINS" else "NEED " .. cost .. " COINS"
 							end,
-							LeftIcon = Images.Coin,
+							LeftIcon = function() return if selectedPremium() then Images.Robux else Images.Coin end,
 							LeftIconVisible = function()
-								return prerequisiteMet() and not selectedOwned() and not selectedEquipped()
+								return not tutorialState().active and prerequisiteMet() and not selectedOwned() and not selectedEquipped()
 							end,
-							Enabled = function() return prerequisiteMet() and not selectedEquipped() and (selectedOwned() or canAfford()) end,
+							Enabled = function()
+								if tutorialState().active then return selectedTutorialTarget() and prerequisiteMet() end
+								return prerequisiteMet() and not selectedEquipped()
+							end,
 							BackgroundColor3 = function()
+								if selectedTutorialTarget() then return UIStyle.Colors.Gold end
 								if selectedEquipped() then return UIStyle.Colors.Green end
 								if not prerequisiteMet() then return UIStyle.Colors.Muted end
 								if selectedOwned() then return Color3.fromRGB(16, 155, 211) end
+								if selectedPremium() then return UIStyle.Colors.Gold end
 								return if canAfford() then UIStyle.Colors.Gold else UIStyle.Colors.Muted
 							end,
 							FontFace = HEAVY_FONT,
@@ -736,13 +787,33 @@ return function()
 							OnActivated = function()
 								if not prerequisiteMet() then return end
 								local definition = selectedDefinition()
-								if not isOwned(state(), definition.Id) then
-									ClassController.UnlockClass(definition.Id)
+								if tutorialState().active then
+									if selectedTutorialTarget() then ClassController.UnlockClass(definition.Id) end
+									return
+								end
+								if selectedPremium() and not selectedOwned() then
+									MonetizationController.PromptGamepass(definition.Id)
+								elseif not isOwned(state(), definition.Id) then
+									if canAfford() then
+										ClassController.UnlockClass(definition.Id)
+									else
+										ClassController.SetOpen(false)
+										MonetizationController.SetShopOpen(true, "Coins")
+									end
 								elseif state().Equipped ~= definition.Id then
 									ClassController.EquipClass(definition.Id)
 								end
 							end,
 						}),
+						create "Frame" {
+							Name = "TutorialHighlight",
+							Active = false,
+							BackgroundTransparency = 1,
+							Size = UDim2.fromScale(1, 1),
+							Visible = selectedTutorialTarget,
+							ZIndex = 379,
+							create "UIStroke" { Color = Color3.fromRGB(255, 239, 133), Thickness = 5 },
+						},
 					},
 				},
 			},

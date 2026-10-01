@@ -373,13 +373,13 @@ return function()
 				Position = UDim2.fromScale(0.5, 0.5),
 				Size = function()
 					if compactPortrait() then
-						return UDim2.new(1, -12, 1, -(topOffset() + 12))
+						return UDim2.fromScale(0.97, 0.88)
 					elseif portrait() then
-						return UDim2.new(1, -16, 1, -28)
+						return UDim2.fromScale(0.96, 0.95)
 					elseif shortLandscape() then
-						return UDim2.new(0.96, 0, 0.96, 0)
+						return UDim2.fromScale(0.96, 0.96)
 					end
-					return UDim2.new(0.82, 30, 0.84, 20)
+					return UDim2.fromScale(0.84, 0.87)
 				end,
 				ZIndex = 405,
 				-- The collection now uses the same stud surface language as the active HUD and shared buttons.
@@ -387,9 +387,10 @@ return function()
 				create "UIAspectRatioConstraint" {
 					-- The catalog/detail split must not stretch independently on unusual viewport ratios.
 					AspectRatio = function()
-						return if portrait() then 430 / 880 else 1080 / 650
+						return if compactPortrait() then 0.56 elseif portrait() then 430 / 880 else 1080 / 650
 					end,
-					DominantAxis = Enum.DominantAxis.Height,
+					-- Fit against both bounds so the tall and wide arrangements stay on-screen at their ratio.
+					AspectType = Enum.AspectType.FitWithinMaxSize,
 				},
 				create "UIStroke" { ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Color = Color3.fromRGB(0, 5, 10), Thickness = 6 },
 				create "UIStroke" { ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Color = CYAN, Thickness = 3 },

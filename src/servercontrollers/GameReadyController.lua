@@ -5,6 +5,7 @@ local GameReadyConfig = require(ReplicatedStorage.Modules.Game.GameReadyConfig)
 local Networker = require(ReplicatedStorage.Packages.networker)
 local Signal = require(ReplicatedStorage.Packages.signal)
 local ServerContext = require(script.Parent.ServerContext)
+local AnalyticsController = require(script.Parent.AnalyticsController)
 
 local GameReadyController = {}
 
@@ -97,6 +98,12 @@ local function startGame()
 	deadline = nil
 	phaseToken += 1
 	broadcastState()
+	for _, player in Players:GetPlayers() do
+		if requiredUserIds[player.UserId] and joinedUserIds[player.UserId] then
+			AnalyticsController.TrackOnboardingStep(player, 5)
+			AnalyticsController.StartGameplayRun(player)
+		end
+	end
 	gameStarted:Fire(startedAt)
 end
 

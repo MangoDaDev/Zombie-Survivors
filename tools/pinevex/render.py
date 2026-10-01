@@ -7,9 +7,9 @@ import urllib.request
 from pathlib import Path
 
 
-PINEVEX_ROOT = Path(
-    r"C:\Users\Ryan Bridges\OneDrive\Documents\pinevex-renderer"
-)
+# Keep the project renderer portable across Windows accounts while preserving the standard
+# sibling-repository layout used by this workspace.
+PINEVEX_ROOT = Path.home() / "OneDrive" / "Documents" / "pinevex-renderer"
 
 PINEVEX_PYTHON = PINEVEX_ROOT / ".venv" / "Scripts" / "python.exe"
 

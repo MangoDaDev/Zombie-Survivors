@@ -60,9 +60,14 @@ function Confirmation.Component()
 			BorderSizePixel = 0,
 			-- Keep confirmations above ordinary application UI.
 			Position = UDim2.fromScale(0.5, 0.34),
-			Size = UDim2.fromScale(0.34, 0.22),
+			-- The generous responsive bounds keep confirmations readable on phones while the
+			-- aspect constraint limits their desktop height and preserves the authored shape.
+			Size = UDim2.fromScale(0.9, 0.3),
 			ZIndex = 101,
-			Create "UIAspectRatioConstraint" { AspectRatio = 2.15 },
+			Create "UIAspectRatioConstraint" {
+				AspectRatio = 2.15,
+				AspectType = Enum.AspectType.FitWithinMaxSize,
+			},
 			Create "UICorner" { CornerRadius = UIStyle.CornerRadius },
 			Create "UIStroke" {
 				Color = UIStyle.Colors.Ink,

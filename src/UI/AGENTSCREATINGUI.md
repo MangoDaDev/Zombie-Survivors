@@ -27,6 +27,8 @@ Use a deliberate mix of:
 Do not build an entire interface using only offsets.
 Do not build an entire interface using only scale.
 Layouts must remain usable across different viewport sizes.
+Every major menu or window must put an appropriately configured UIAspectRatioConstraint on its outer container so the complete interface retains its authored width-to-height ratio. Use FitWithinMaxSize when the limiting axis can change between narrow, standard, and ultrawide viewports, rather than forcing one dominant axis that can overflow.
+Size and position the outer container and its child panels, buttons, labels, images, and scrolling regions primarily with Scale values so they resize together. Keep pixel offsets for small padding, strokes, minimum touch/readability details, or other deliberate corrections—not as the main layout system.
 When using UIAspectRatioConstraint, keep meaningful non-zero responsive size values on both axes unless a zero axis is intentionally required.
 Never use UISizeConstraint. Use responsive Size values and UIAspectRatioConstraint where proportions must be preserved.
 Use UIAspectRatioConstraint when preserving proportions materially improves the element.
@@ -128,6 +130,7 @@ Avoid introducing duplicate live UI instances.
 Do not use weak-key tables as the sole ownership registry for live Instance-backed UI. Keep explicit ownership, clean it up when the Instance is removed, and deduplicate against the actual hierarchy before creating another instance.
 Pinevex Visual Workflow
 Pinevex is the required headless visual feedback tool for substantial UI work.
+Any newly created visible UI must receive a Pinevex render-and-inspect pass before production integration, even when the component is small.
 The local Pinevex server is expected to run at:
 http://127.0.0.1:8000
 Project UI design files live in:
@@ -305,4 +308,5 @@ Dont use pixels for everything.
 For `BillboardGui.Size`, the `UDim2` scale components are measured in world studs and the offset components are measured in screen pixels. When the user asks for a billboard to be "stud-based," size it primarily with scale, such as `UDim2.fromScale(4, 3)`; use offsets only for minor pixel adjustments. This describes physical sizing, not stud-textured artwork.
 - Good practice to put UIAspectRatioConstraint in menus to make sure that no issues with scale happen across different resolutions
 
-Dont use UISIZECONSTRAINT!
+Dont use UISIZECONSTRAINT! Instead use a mix of scale and pixels to make sure stuff scales well on all devices.
+Dont use image atlases or local references. Only image ids work in roblox. 

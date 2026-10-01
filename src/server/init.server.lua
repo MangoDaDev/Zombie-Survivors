@@ -18,13 +18,16 @@ data_service:init({
 })
 
 local modules_to_init = {
+	ServerStorage.Controllers.AnalyticsController,
 	ServerStorage.Controllers.MapController,
 	ServerStorage.Controllers.GameReadyController,
 	ServerStorage.Controllers.ChatCommandController,
 	ServerStorage.Controllers.PlayerStateController,
 	ServerStorage.Controllers.CoinsController,
+	ServerStorage.Controllers.MonetizationController,
 	ServerStorage.Controllers.RageController,
 	ServerStorage.Controllers.PlayerStatController,
+	ServerStorage.Controllers.ClassesAbilitiesTutorialController,
 	ServerStorage.Controllers.ClassController,
 	ServerStorage.Controllers.BackpackController,
 	ServerStorage.Controllers.PowerupDropController,
