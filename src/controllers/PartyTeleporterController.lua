@@ -26,6 +26,10 @@ local function isValidState(state): boolean
 		and type(state.isLeader) == "boolean"
 		and type(state.locked) == "boolean"
 		and type(state.loading) == "boolean"
+		and type(state.pendingJoinUserId) == "number"
+		and type(state.pendingJoinName) == "string"
+		and type(state.pendingJoinCount) == "number"
+		and state.pendingJoinCount % 1 == 0
 end
 
 local function setState(state)
@@ -79,6 +83,12 @@ end
 function PartyTeleporterController.ConfirmParty()
 	if partyNetwork then
 		(partyNetwork :: Networker.Client):fire("ConfirmParty")
+	end
+end
+
+function PartyTeleporterController.ApproveJoinRequest()
+	if partyNetwork then
+		(partyNetwork :: Networker.Client):fire("ApproveJoinRequest")
 	end
 end
 

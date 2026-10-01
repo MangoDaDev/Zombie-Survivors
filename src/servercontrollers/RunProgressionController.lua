@@ -76,48 +76,12 @@ local function sendState(player: Player, state: PlayerRunState)
 	end
 end
 
-local function getRollWeight(definition): number
-	local reciprocalOdds = definition.Roll and definition.Roll.BaseOdds
-	return if type(reciprocalOdds) == "number" and reciprocalOdds > 0 then 1 / reciprocalOdds else 1
-end
-
-local function getUpgradeLevelWeightMultiplier(
-	currentLevel: number,
-	totalOwnedLevels: number,
-	ownedCount: number
-): number
-	if ownedCount <= 1 then
-		return 1
-	end
-	local averageOtherLevel = (totalOwnedLevels - currentLevel) / (ownedCount - 1)
-	local penalizedLead = math.max(
-		0,
-		currentLevel - averageOtherLevel - RunProgressionConfig.Abilities.UpgradeLevelLeadGrace
-	)
-	-- The penalty is relative to the other abilities in this run, so it encourages lagging abilities
-	-- to catch up without changing rarity, slot limits, or the legality of any upgrade choice.
-	return math.max(
-		RunProgressionConfig.Abilities.MinimumUpgradeWeightMultiplier,
-		RunProgressionConfig.Abilities.UpgradeLevelLeadDecay ^ penalizedLead
-	)
-end
-
 local function buildCandidates(player: Player)
 	local runData = AbilityController.GetRunData(player)
 	if not runData then
 		return {}
 	end
 	local permanentData = AbilityController.GetPermanentData(player)
-	local totalOwnedLevels = 0
-	local ownedCount = 0
-	for abilityId in runData.Owned do
-		local level = runData.Levels[abilityId]
-		if type(level) == "number" then
-			totalOwnedLevels += level
-			ownedCount += 1
-		end
-	end
-
 	local candidates = {}
 	-- Choice kind is explicit so future Evolution candidates can share this roller and validation path
 	-- without masquerading as duplicate abilities or weakening server authority.
@@ -130,8 +94,6 @@ local function buildCandidates(player: Player)
 					kind = "Upgrade",
 					currentLevel = currentLevel,
 					nextLevel = currentLevel + 1,
-					weight = getRollWeight(definition)
-						* getUpgradeLevelWeightMultiplier(currentLevel, totalOwnedLevels, ownedCount),
 				})
 			end
 		elseif permanentData.Owned[definition.Id] == true
@@ -144,7 +106,6 @@ local function buildCandidates(player: Player)
 					kind = "New",
 					currentLevel = 0,
 					nextLevel = 1,
-					weight = getRollWeight(definition),
 				})
 			end
 		end
@@ -152,50 +113,12 @@ local function buildCandidates(player: Player)
 	return candidates
 end
 
-local function takeWeighted(candidates)
-	local totalWeight = 0
-	for _, candidate in candidates do
-		totalWeight += candidate.weight
-	end
-	local roll = random:NextNumber() * totalWeight
-	local selectedIndex = #candidates
-	for index, candidate in candidates do
-		roll -= candidate.weight
-		if roll <= 0 then
-			selectedIndex = index
-			break
-		end
-	end
-	return table.remove(candidates, selectedIndex)
-end
-
-local function chooseWithoutReplacement(candidates, count: number, slotFillRatio: number): { Choice }
+local function chooseWithoutReplacement(candidates, count: number): { Choice }
 	local choices = {}
-	local upgrades = {}
-	local newAbilities = {}
-	for _, candidate in candidates do
-		table.insert(if candidate.kind == "Upgrade" then upgrades else newAbilities, candidate)
-	end
-	local newOfferChance = RunProgressionConfig.Abilities.NewOfferChanceAtEmpty
-		+ (RunProgressionConfig.Abilities.NewOfferChanceAtFull
-			- RunProgressionConfig.Abilities.NewOfferChanceAtEmpty) * math.clamp(slotFillRatio, 0, 1)
-	local offeredNew = false
-	local guaranteedUpgradeCount = math.min(2, #upgrades)
-	while #choices < count and (#upgrades > 0 or #newAbilities > 0) do
-		-- Lead with up to two distinct usable upgrades. With three or more owned abilities, the final
-		-- card only expands the build occasionally, and never more than once in the same choice set.
-		local selected
-		if #upgrades > 0 and (#choices < guaranteedUpgradeCount or #newAbilities == 0) then
-			selected = takeWeighted(upgrades)
-		elseif not offeredNew and #newAbilities > 0 and (#upgrades == 0 or random:NextNumber() < newOfferChance) then
-			selected = takeWeighted(newAbilities)
-			offeredNew = true
-		elseif #upgrades > 0 then
-			selected = takeWeighted(upgrades)
-		else
-			selected = takeWeighted(newAbilities)
-			offeredNew = true
-		end
+	while #choices < count and #candidates > 0 do
+		-- Every eligible unlocked ability must have exactly the same chance per draw. Drawing by a
+		-- uniform index also keeps one ability from occupying multiple cards in the same choice set.
+		local selected = table.remove(candidates, random:NextInteger(1, #candidates))
 		table.insert(choices, {
 			abilityId = selected.abilityId,
 			kind = selected.kind,
@@ -215,14 +138,9 @@ local function offerNextChoice(player: Player, state: PlayerRunState)
 		-- ability run state is ready instead of incorrectly treating the temporary empty pool as final.
 		return
 	end
-	local runData = AbilityController.GetRunData(player)
-	local equippedCount = #runData.Equipped.Weapon + #runData.Equipped.Passive
-	local totalSlots = AbilityController.GetEquipLimit(player, "Weapon")
-		+ AbilityController.GetEquipLimit(player, "Passive")
 	local choices = chooseWithoutReplacement(
 		buildCandidates(player),
-		RunProgressionConfig.Abilities.ChoiceCount,
-		equippedCount / totalSlots
+		RunProgressionConfig.Abilities.ChoiceCount
 	)
 	if #choices == 0 then
 		-- This only occurs after every legal run ability reaches its configured maximum.

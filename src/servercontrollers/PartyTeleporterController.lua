@@ -39,6 +39,7 @@ type TeleporterState = {
 	view: WorldView,
 	members: { Player },
 	memberLookup: { [Player]: boolean },
+	pendingMembers: { Player },
 	leader: Player?,
 	maxSize: number,
 	friendsOnly: boolean,
@@ -61,6 +62,7 @@ local heartbeatConnection: RBXScriptConnection?
 local zoneAccumulator = 0
 local orderedStates: { TeleporterState } = {}
 local playerState: { [Player]: TeleporterState } = {}
+local pendingState: { [Player]: TeleporterState } = {}
 local suppressedUntilExit: { [Player]: TeleporterState } = {}
 local lastRequestAt: { [Player]: number } = {}
 local lastMessageAt: { [Player]: number } = {}
@@ -189,6 +191,7 @@ local function playSound(state: TeleporterState, soundName: string)
 end
 
 local function makePacket(state: TeleporterState, player: Player)
+	local pendingMember = state.pendingMembers[1]
 	return {
 		teleporterId = state.id,
 		memberCount = #state.members,
@@ -201,6 +204,9 @@ local function makePacket(state: TeleporterState, player: Player)
 		isLeader = state.leader == player,
 		locked = state.locked,
 		loading = state.loading,
+		pendingJoinUserId = if state.leader == player and pendingMember then pendingMember.UserId else 0,
+		pendingJoinName = if state.leader == player and pendingMember then pendingMember.DisplayName else "",
+		pendingJoinCount = if state.leader == player then #state.pendingMembers else 0,
 	}
 end
 
@@ -292,6 +298,35 @@ local function updateFullCountdown(state: TeleporterState, now: number)
 	end
 end
 
+local function removePendingMember(state: TeleporterState, player: Player, suppressUntilExit: boolean?)
+	if pendingState[player] ~= state then
+		return
+	end
+	pendingState[player] = nil
+	if suppressUntilExit then
+		suppressedUntilExit[player] = state
+	end
+
+	local index = table.find(state.pendingMembers, player)
+	if index then
+		table.remove(state.pendingMembers, index)
+	end
+	broadcastState(state)
+end
+
+local function clearPendingMembers(state: TeleporterState, suppressUntilExit: boolean?, message: string?)
+	for _, player in state.pendingMembers do
+		pendingState[player] = nil
+		if suppressUntilExit then
+			suppressedUntilExit[player] = state
+		end
+		if message then
+			notify(player, message, "Info")
+		end
+	end
+	table.clear(state.pendingMembers)
+end
+
 local function resetState(state: TeleporterState, suppressMembers: boolean?)
 	if state.activeRunId then
 		PartyTeleportService.Cancel(state.activeRunId)
@@ -305,6 +340,7 @@ local function resetState(state: TeleporterState, suppressMembers: boolean?)
 		end
 		sendPlayerState(member, nil)
 	end
+	clearPendingMembers(state, true, "That party is no longer accepting join requests.")
 	table.clear(state.members)
 	table.clear(state.memberLookup)
 	state.leader = nil
@@ -422,6 +458,30 @@ local function tryAddMember(state: TeleporterState, player: Player)
 	end
 end
 
+local function tryRequestJoin(state: TeleporterState, player: Player)
+	if state.locked or playerState[player] or pendingState[player] then
+		return
+	end
+	if #state.members >= state.maxSize then
+		notifyThrottled(player, "That party is full.")
+		return
+	end
+	if not canJoinFriendsOnly(state, player) then
+		notifyThrottled(player, "That party is friends-only.")
+		return
+	end
+
+	-- The founding player necessarily becomes leader; every later entrant remains outside until
+	-- the current leader explicitly approves this server-owned request.
+	pendingState[player] = state
+	table.insert(state.pendingMembers, player)
+	notify(player, "Waiting for the party leader to approve your request.", "Info")
+	if state.leader then
+		notify(state.leader, player.DisplayName .. " wants to join your party.", "Info")
+	end
+	broadcastState(state)
+end
+
 local function failTeleport(state: TeleporterState, message: string, attempt: number?)
 	if not state.locked or (attempt and state.teleportAttempt ~= attempt) then
 		return
@@ -466,6 +526,8 @@ local function startTeleport(state: TeleporterState)
 		return
 	end
 
+	-- Requests cannot carry across the irreversible departure boundary.
+	clearPendingMembers(state, true, "That party has started departing.")
 	state.locked = true
 	state.teleportAttempt += 1
 	local teleportAttempt = state.teleportAttempt
@@ -512,16 +574,26 @@ local function stepZones(deltaTime: number)
 			currentState = nil
 		end
 
+		local requestedState = pendingState[player]
+		if requestedState and not isInside(requestedState, player, PartyTeleporterConfig.EntryPadding) then
+			removePendingMember(requestedState, player)
+			requestedState = nil
+		end
+
 		local suppressedState = suppressedUntilExit[player]
 		if suppressedState and not isInside(suppressedState, player) then
 			suppressedUntilExit[player] = nil
 			suppressedState = nil
 		end
 
-		if not currentState and not suppressedState then
+		if not currentState and not requestedState and not suppressedState then
 			for _, state in orderedStates do
 				if isInside(state, player, PartyTeleporterConfig.EntryPadding) then
-					tryAddMember(state, player)
+					if #state.members == 0 then
+						tryAddMember(state, player)
+					else
+						tryRequestJoin(state, player)
+					end
 					break
 				end
 			end
@@ -615,6 +687,38 @@ function PartyTeleporterController.ConfirmParty(_, player: Player)
 	end
 end
 
+function PartyTeleporterController.ApproveJoinRequest(_, player: Player)
+	if not canRequest(player) then
+		return
+	end
+	local state = playerState[player]
+	local requestedPlayer = state and state.pendingMembers[1]
+	if not state or state.locked or state.leader ~= player or not requestedPlayer then
+		return
+	end
+
+	-- Revalidate capacity, privacy, presence, and membership at the approval boundary so a stale
+	-- client packet can never admit someone after the party's authoritative conditions changed.
+	if requestedPlayer.Parent ~= Players
+		or playerState[requestedPlayer]
+		or #state.members >= state.maxSize
+		or not canJoinFriendsOnly(state, requestedPlayer)
+		or not isInside(state, requestedPlayer, PartyTeleporterConfig.EntryPadding)
+	then
+		removePendingMember(state, requestedPlayer, true)
+		notify(requestedPlayer, "Your party join request is no longer valid.", "Error")
+		return
+	end
+
+	removePendingMember(state, requestedPlayer)
+	tryAddMember(state, requestedPlayer)
+	notify(requestedPlayer, "The party leader approved your request.", "Success")
+	if #state.members >= state.maxSize then
+		clearPendingMembers(state, true, "That party is now full.")
+		broadcastState(state)
+	end
+end
+
 function PartyTeleporterController.LeaveParty(_, player: Player)
 	if not canRequest(player) then
 		return
@@ -649,6 +753,7 @@ function PartyTeleporterController.Init()
 		PartyTeleporterController.SetMaxPartySize,
 		PartyTeleporterController.SetFriendsOnly,
 		PartyTeleporterController.ConfirmParty,
+		PartyTeleporterController.ApproveJoinRequest,
 		PartyTeleporterController.LeaveParty,
 		PartyTeleporterController.CancelParty,
 	})
@@ -728,6 +833,7 @@ function PartyTeleporterController.Init()
 			view = createWorldView(billboardLocation),
 			members = {},
 			memberLookup = {},
+			pendingMembers = {},
 			leader = nil,
 			maxSize = PartyTeleporterConfig.DefaultPartySize,
 			friendsOnly = false,
@@ -781,11 +887,16 @@ function PartyTeleporterController.Init()
 end
 
 function PartyTeleporterController.OnPlayerRemoving(player: Player)
+	local requestedState = pendingState[player]
+	if requestedState then
+		removePendingMember(requestedState, player)
+	end
 	local state = playerState[player]
 	if state then
 		removeMember(state, player)
 	end
 	playerState[player] = nil
+	pendingState[player] = nil
 	suppressedUntilExit[player] = nil
 	lastRequestAt[player] = nil
 	lastMessageAt[player] = nil

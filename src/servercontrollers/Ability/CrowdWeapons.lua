@@ -138,15 +138,23 @@ local function attackAura(player: Player, runtime, stats, root: BasePart, now: n
 		definition.Combat.MaximumTargetsPerTick
 	)
 	local hitPositions = {}
+	local hitZoneIndices = {}
 	for _, target in targets do
-		if damageTarget(player, definition, stats, target, stats.Damage, root.Position, definition.Combat.Knockback) then
+		local zone, zoneIndex = definition.GetZoneAtDistance(
+			stats.Radius,
+			target.distance or horizontalDistance(target.position, root.Position)
+		)
+		local zoneDamage = stats.Damage * (if zone then zone.DamageMultiplier else 1)
+		if damageTarget(player, definition, stats, target, zoneDamage, root.Position, definition.Combat.Knockback) then
 			table.insert(hitPositions, target.position)
+			table.insert(hitZoneIndices, zoneIndex or 1)
 		end
 	end
 	if #hitPositions > 0 then
 		abilityNetwork:fireAll("AuraHit", {
 			ownerUserId = player.UserId,
 			positions = hitPositions,
+			zoneIndices = hitZoneIndices,
 			rage = stats.IsRage == true,
 		})
 	end
@@ -159,12 +167,16 @@ local function attackAura(player: Player, runtime, stats, root: BasePart, now: n
 			definition.Combat.MaximumTargetsPerTick
 		)
 		for _, target in pulseTargets do
+			local zone = definition.GetZoneAtDistance(
+				stats.Radius,
+				target.distance or horizontalDistance(target.position, root.Position)
+			)
 			damageTarget(
 				player,
 				definition,
 				stats,
 				target,
-				stats.Damage * stats.PulseDamageMultiplier,
+				stats.Damage * stats.PulseDamageMultiplier * (if zone then zone.DamageMultiplier else 1),
 				root.Position,
 				definition.Combat.Knockback
 			)

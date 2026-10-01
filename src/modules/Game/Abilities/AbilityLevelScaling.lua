@@ -2,6 +2,7 @@ local AbilityLevelScaling = {}
 
 local DEFAULT_UPGRADE_EXPONENT = 0.95
 local WEAPON_UPGRADE_EXPONENT = 0.8
+local WEAPON_AUTHORED_MAXIMUM_PROGRESS = 49
 
 local function getProgress(level: number, maxLevel: number, exponent: number): number
 	local clampedLevel = math.clamp(math.floor(level), 1, maxLevel)
@@ -19,9 +20,10 @@ function AbilityLevelScaling.GetProgress(level: number, maxLevel: number): numbe
 end
 
 function AbilityLevelScaling.GetWeaponProgress(level: number, maxLevel: number): number
-	-- Weapon upgrades earned during a normal run should create a clearly noticeable power increase.
-	-- Preserve both the authored level-one baseline and level-50 cap so only the journey is rebalanced.
-	return getProgress(level, maxLevel, WEAPON_UPGRADE_EXPONENT)
+	-- Weapons now finish in 25 levels, but their formulas were balanced around 49 upgrade steps.
+	-- Scale the shorter journey back to that authored range so level 1 and maximum-level power stay unchanged.
+	local normalizedProgress = getProgress(level, maxLevel, WEAPON_UPGRADE_EXPONENT) / math.max(maxLevel - 1, 1)
+	return WEAPON_AUTHORED_MAXIMUM_PROGRESS * normalizedProgress
 end
 
 return AbilityLevelScaling

@@ -4,6 +4,7 @@ local Images = require(ReplicatedStorage.Modules.UI.Images)
 local AbilityLevelScaling = require(script.Parent.AbilityLevelScaling)
 
 local AdditionalAbilityDefinitions = {}
+local WEAPON_MAX_LEVEL = 25
 local MAX_LEVEL = 50
 
 local function upgradeProgress(level: number): number
@@ -11,7 +12,7 @@ local function upgradeProgress(level: number): number
 end
 
 local function weaponUpgradeProgress(level: number): number
-	return AbilityLevelScaling.GetWeaponProgress(level, MAX_LEVEL)
+	return AbilityLevelScaling.GetWeaponProgress(level, WEAPON_MAX_LEVEL)
 end
 
 local function levelOf(level: number): number
@@ -20,7 +21,7 @@ end
 
 local function statsText(definition, level: number, fields): string
 	local current = definition.GetStats(level)
-	local nextStats = if level < MAX_LEVEL then definition.GetStats(level + 1) else nil
+	local nextStats = if level < definition.MaxLevel then definition.GetStats(level + 1) else nil
 	local lines = {}
 	for _, field in fields do
 		local currentText = field.Format(current[field.Key])
@@ -50,7 +51,7 @@ local shotgun = {
 	UpgradeDescription = "Levels improve pellet damage, size, range, and fire rate. Milestones add barrels, stagger, and piercing.",
 	RageDescription = "Fires faster with extra pellets, stronger knockback, and a follow-up blast after every shot.",
 	Icon = Images.Abilities.Shotgun, Color = Color3.fromRGB(255, 193, 75),
-	MaxLevel = MAX_LEVEL, BaseUpgradeCost = 120, UpgradeCostGrowth = 1.146,
+	MaxLevel = WEAPON_MAX_LEVEL, BaseUpgradeCost = 120, UpgradeCostGrowth = 1.146,
 	Roll = { BaseOdds = 10, Rarity = "Rare", RarityRank = 3 },
 	Combat = { Range = 48, MaximumCandidates = 60, Knockback = 10, SecondBlastDelay = 0.18 },
 	Milestones = {
@@ -105,7 +106,7 @@ local frostNova = {
 	UpgradeDescription = "Levels improve damage, radius, Chill, and pulse rate. Milestones add shatter, aftershocks, and freezing.",
 	RageDescription = "Fast Frost Novas surround the player. Repeated hits briefly freeze regular zombies and deeply Chill resistant enemies.",
 	Icon = Images.Abilities.FrostNova, Color = Color3.fromRGB(132, 230, 255),
-	MaxLevel = MAX_LEVEL, BaseUpgradeCost = 135, UpgradeCostGrowth = 1.147,
+	MaxLevel = WEAPON_MAX_LEVEL, BaseUpgradeCost = 135, UpgradeCostGrowth = 1.147,
 	Roll = { BaseOdds = 20, Rarity = "Epic", RarityRank = 4 },
 	Combat = { WaveDuration = 0.48, MaximumTargets = 60, Knockback = 3, ChillDuration = 2.3 },
 	Milestones = {
@@ -159,7 +160,7 @@ local meteor = {
 	UpgradeDescription = "Levels improve impact damage, radius, targeting, and cast rate. Milestones add shockwaves, fragments, and more meteors.",
 	RageDescription = "Each cast showers separate groups with smaller meteors before a powerful central impact.",
 	Icon = Images.Abilities.Meteor, Color = Color3.fromRGB(255, 107, 55),
-	MaxLevel = MAX_LEVEL, BaseUpgradeCost = 145, UpgradeCostGrowth = 1.15,
+	MaxLevel = WEAPON_MAX_LEVEL, BaseUpgradeCost = 145, UpgradeCostGrowth = 1.15,
 	Roll = { BaseOdds = 40, Rarity = "Legendary", RarityRank = 5 },
 	Combat = { MaximumCandidates = 40, MaximumTargets = 60, Knockback = 17, FragmentCount = 5, FragmentRadius = 2.6 },
 	Milestones = {
@@ -212,7 +213,7 @@ local turret = {
 	UpgradeDescription = "Levels improve bullet damage, fire rate, range, and duration. Milestones add barrels, turrets, and piercing shots.",
 	RageDescription = "Immediately deploys two overclocked sentries. All active turrets fire faster and release periodic piercing shots.",
 	Icon = Images.Abilities.Turret, Color = Color3.fromRGB(255, 202, 75),
-	MaxLevel = MAX_LEVEL, BaseUpgradeCost = 140, UpgradeCostGrowth = 1.148,
+	MaxLevel = WEAPON_MAX_LEVEL, BaseUpgradeCost = 140, UpgradeCostGrowth = 1.148,
 	Roll = { BaseOdds = 25, Rarity = "Epic", RarityRank = 4 },
 	Combat = { MaximumActive = 3, MaximumTargets = 16, Knockback = 6, RailRange = 36 },
 	Milestones = {
@@ -267,7 +268,7 @@ local vortex = {
 	UpgradeDescription = "Levels improve damage, radius, pull, duration, and cooldown. Milestones add wells, compression, and collapse.",
 	RageDescription = "A large mobile gravity well follows the player for the whole Rage window while normal wells continue spawning.",
 	Icon = Images.Abilities.Vortex, Color = Color3.fromRGB(133, 116, 255),
-	MaxLevel = MAX_LEVEL, BaseUpgradeCost = 145, UpgradeCostGrowth = 1.15,
+	MaxLevel = WEAPON_MAX_LEVEL, BaseUpgradeCost = 145, UpgradeCostGrowth = 1.15,
 	Roll = { BaseOdds = 35, Rarity = "Legendary", RarityRank = 5 },
 	-- Vortex is deliberately a little stronger than a generic damage field: its tighter ticks and pull are the
 	-- weapon's crowd-control identity, while the existing active cap keeps overlapping wells bounded.

@@ -7,13 +7,15 @@ local AdditionalAbilityDefinitions = require(script.Parent.AdditionalAbilityDefi
 local ExpandedAbilityDefinitions = require(script.Parent.ExpandedAbilityDefinitions)
 
 local AbilityDefinitions = {}
+local WEAPON_MAX_LEVEL = 25
+local PASSIVE_MAX_LEVEL = 50
 
 local function upgradeProgress(level: number): number
-	return AbilityLevelScaling.GetProgress(level, 50)
+	return AbilityLevelScaling.GetProgress(level, PASSIVE_MAX_LEVEL)
 end
 
 local function weaponUpgradeProgress(level: number): number
-	return AbilityLevelScaling.GetWeaponProgress(level, 50)
+	return AbilityLevelScaling.GetWeaponProgress(level, WEAPON_MAX_LEVEL)
 end
 
 AbilityDefinitions.DataKey = "Abilities"
@@ -129,7 +131,7 @@ local dagger = {
 	Icon = Images.Abilities.Dagger,
 	AssetName = "Dagger",
 	Color = Color3.fromRGB(95, 183, 255),
-	MaxLevel = 50,
+	MaxLevel = WEAPON_MAX_LEVEL,
 	BaseUpgradeCost = 120,
 	UpgradeCostGrowth = 1.145,
 	Roll = {
@@ -223,7 +225,7 @@ local orbitingSwords = {
 	Icon = Images.Abilities.Sword,
 	AssetName = "Sword",
 	Color = Color3.fromRGB(142, 116, 255),
-	MaxLevel = 50,
+	MaxLevel = WEAPON_MAX_LEVEL,
 	BaseUpgradeCost = 150,
 	UpgradeCostGrowth = 1.15,
 	Roll = {
@@ -351,7 +353,7 @@ local fireball = {
 	Icon = Images.Abilities.Fireball,
 	AssetName = "Fireball",
 	Color = Color3.fromRGB(255, 102, 42),
-	MaxLevel = 50,
+	MaxLevel = WEAPON_MAX_LEVEL,
 	BaseUpgradeCost = 135,
 	UpgradeCostGrowth = 1.15,
 	Roll = {
@@ -518,7 +520,7 @@ local lightning = {
 	UpgradeDescription = "Every level improves damage, jump range, and cooldown. Milestones add targets, finishers, forks, and twin chains.",
 	Icon = Images.Abilities.Lightning,
 	Color = Color3.fromRGB(94, 196, 255),
-	MaxLevel = 50,
+	MaxLevel = WEAPON_MAX_LEVEL,
 	BaseUpgradeCost = 145,
 	UpgradeCostGrowth = 1.15,
 	Roll = {
@@ -634,7 +636,7 @@ local boomerang = {
 	Icon = Images.Abilities.Boomerang,
 	AssetName = "Boomerang",
 	Color = Color3.fromRGB(255, 190, 70),
-	MaxLevel = 50,
+	MaxLevel = WEAPON_MAX_LEVEL,
 	BaseUpgradeCost = 130,
 	UpgradeCostGrowth = 1.145,
 	Roll = {

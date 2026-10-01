@@ -10,7 +10,6 @@ local CoinDropConfig = require(ReplicatedStorage.Modules.Game.CoinDropConfig)
 local RuntimeState = require(ReplicatedStorage.Modules.Game.RuntimeState)
 local ClassController = require(ServerStorage.Controllers.ClassController)
 local RageController = require(ServerStorage.Controllers.RageController)
-local RunProgressionConfig = require(ReplicatedStorage.Modules.Game.RunProgressionConfig)
 local BackpackController = require(ServerStorage.Controllers.BackpackController)
 local CoinsController = require(ServerStorage.Controllers.CoinsController)
 local MonetizationController = require(ServerStorage.Controllers.MonetizationController)
@@ -33,10 +32,8 @@ type CoinState = {
 	position: Vector3,
 	collectibleAt: number,
 	despawnAt: number,
-	ownerUserId: number?,
 	eligibleUserIds: { [number]: boolean },
 	collectAtByPlayer: { [Player]: number },
-	collectedUserIds: { [number]: boolean },
 }
 
 local CoinDropController = {}
@@ -76,12 +73,11 @@ end
 
 local function canCollect(coin: CoinState, player: Player): boolean
 	return coin.eligibleUserIds[player.UserId] == true
-		and coin.collectedUserIds[player.UserId] ~= true
-		and coin.collectAtByPlayer[player] == nil
+		and next(coin.collectAtByPlayer) == nil
 end
 
 local function isUntouched(coin: CoinState): boolean
-	return next(coin.collectAtByPlayer) == nil and next(coin.collectedUserIds) == nil
+	return next(coin.collectAtByPlayer) == nil
 end
 
 local function haveSameEligibility(left: CoinState, right: CoinState): boolean
@@ -112,21 +108,10 @@ local function matchesEligibility(coin: CoinState, eligibleUserIds: { [number]: 
 	return true
 end
 
-local function hasRemainingCollectors(coin: CoinState): boolean
-	for userId in coin.eligibleUserIds do
-		if not coin.collectedUserIds[userId] then
-			return true
-		end
-	end
-	return false
-end
-
-local function getEligibleUserIds(ownerUserId: number?): { [number]: boolean }
+local function getEligibleUserIds(): { [number]: boolean }
 	local eligibleUserIds = {}
 	for _, player in Players:GetPlayers() do
-		if ownerUserId == nil or player.UserId == ownerUserId then
-			eligibleUserIds[player.UserId] = true
-		end
+		eligibleUserIds[player.UserId] = true
 	end
 	return eligibleUserIds
 end
@@ -156,19 +141,17 @@ end
 local function addOverflowValue(
 	position: Vector3,
 	value: number,
-	ownerUserId: number?,
 	eligibleUserIds: { [number]: boolean }
 ): boolean
 	local coin = findNearestCoin(position)
 	if coin
-		and (coin.ownerUserId ~= ownerUserId or not isUntouched(coin) or not matchesEligibility(coin, eligibleUserIds))
+		and (not isUntouched(coin) or not matchesEligibility(coin, eligibleUserIds))
 	then
 		coin = nil
 		local nearestDistance = math.huge
 		for _, candidate in coins do
 			local distance = (candidate.position - position).Magnitude
-			if candidate.ownerUserId == ownerUserId
-				and isUntouched(candidate)
+			if isUntouched(candidate)
 				and matchesEligibility(candidate, eligibleUserIds)
 				and distance < nearestDistance
 			then
@@ -180,15 +163,15 @@ local function addOverflowValue(
 	if not coin then
 		return false
 	end
-	-- At the object cap, fold the reward into an existing coin (even one already magnetizing) so value is
-	-- never discarded just because a large wave died before the current pickup animations completed.
+	-- At the object cap, fold the reward into an untouched compatible coin so value is never discarded
+	-- just because a large wave died before the current pickup animations completed.
 	coin.value += value
 	coin.despawnAt = workspace:GetServerTimeNow() + CoinDropConfig.Lifetime
 	fireEligible(coin, "CoinValueChanged", coin.id, coin.value, coin.position, getVisualScale(coin.value))
 	return true
 end
 
-function CoinDropController.SpawnBurst(position: Vector3, totalValue: number, landingHeight: number?, owner: Player?)
+function CoinDropController.SpawnBurst(position: Vector3, totalValue: number, landingHeight: number?, _owner: Player?)
 	if not ServerContext.IsGameServer()
 		or typeof(position) ~= "Vector3"
 		or type(totalValue) ~= "number"
@@ -198,18 +181,17 @@ function CoinDropController.SpawnBurst(position: Vector3, totalValue: number, la
 	end
 	totalValue = math.max(1, math.floor(totalValue))
 	landingHeight = if type(landingHeight) == "number" then landingHeight else position.Y
-	local ownerUserId = if RunProgressionConfig.Pickups.Ownership == "Killer" and owner then owner.UserId else nil
-	local eligibleUserIds = getEligibleUserIds(ownerUserId)
+	local eligibleUserIds = getEligibleUserIds()
 	if next(eligibleUserIds) == nil then
 		return
 	end
-	if activeCount >= MAX_ACTIVE_COINS and addOverflowValue(position, totalValue, ownerUserId, eligibleUserIds) then
+	if activeCount >= MAX_ACTIVE_COINS and addOverflowValue(position, totalValue, eligibleUserIds) then
 		return
 	end
 
 	local desiredCount = math.clamp(math.ceil(totalValue / 2), 3, 7)
-	-- A new killer-owned reward may temporarily exceed the visual cap when there is no same-owner
-	-- coin to merge into; preserving currency is more important than a single extra visual.
+	-- A new reward may temporarily exceed the visual cap when there is no compatible untouched coin;
+	-- preserving currency is more important than a single extra visual.
 	local dropCount = math.min(desiredCount, math.max(MAX_ACTIVE_COINS - activeCount, 1))
 	local remainingValue = totalValue
 	local packets = {}
@@ -233,10 +215,8 @@ function CoinDropController.SpawnBurst(position: Vector3, totalValue: number, la
 			position = targetPosition,
 			collectibleAt = now + duration * 0.72,
 			despawnAt = now + CoinDropConfig.Lifetime,
-			ownerUserId = ownerUserId,
 			eligibleUserIds = table.clone(eligibleUserIds),
 			collectAtByPlayer = {},
-			collectedUserIds = {},
 		}
 		coins[coin.id] = coin
 		activeCount += 1
@@ -249,7 +229,6 @@ function CoinDropController.SpawnBurst(position: Vector3, totalValue: number, la
 			duration = duration,
 			arcHeight = random:NextNumber(3.2, 5.8),
 			scale = getVisualScale(value),
-			ownerUserId = coin.ownerUserId,
 		})
 	end
 
@@ -259,7 +238,7 @@ function CoinDropController.SpawnBurst(position: Vector3, totalValue: number, la
 		packets[#packets].scale = getVisualScale(packets[#packets].value)
 	end
 	if #packets > 0 then
-		-- Each client receives its own view. Another player's collection only removes that player's copy.
+		-- Every eligible client renders the same shared drops and observes the same winning claim.
 		for userId in eligibleUserIds do
 			local player = Players:GetPlayerByUserId(userId)
 			if player then
@@ -303,7 +282,6 @@ local function mergeNearbyCoins(now: number)
 							and not consumed[otherId]
 							and other
 							and isUntouched(other)
-							and other.ownerUserId == coin.ownerUserId
 							and haveSameEligibility(coin, other)
 							and (other.position - coin.position).Magnitude <= MERGE_RADIUS
 						then
@@ -375,27 +353,22 @@ local function finishCollections(now: number)
 				local awardedValue = math.max(1, math.floor(coin.value * MonetizationController.GetCoinMultiplier(player) + 0.5))
 				local awarded = CoinsController.Add(player, awardedValue)
 				if awarded then
-					-- This claim belongs only to this player. Other eligible players retain their own copy and value.
+					-- Coins are fully first-come-first-served: only the winning collector receives their value.
 					BackpackController.AddCarriedCoins(player, awardedValue)
 					coinCollected:Fire(player, awardedValue)
-					coin.collectAtByPlayer[player] = nil
-					coin.collectedUserIds[player.UserId] = true
-					coinNetwork:fire(player, "CoinCollected", id, player.UserId, awardedValue)
+					fireEligible(coin, "CoinCollected", id, player.UserId, awardedValue)
+					coins[id] = nil
+					activeCount -= 1
+					break
 				else
 					-- A transient data-access failure must not silently consume a permanent reward.
 					coin.collectAtByPlayer[player] = nil
-					coinNetwork:fire(player, "ReleaseCoin", id, coin.position + Vector3.new(0, 0.35, 0))
+					fireEligible(coin, "ReleaseCoin", id, coin.position + Vector3.new(0, 0.35, 0))
 				end
 			else
 				coin.collectAtByPlayer[player] = nil
-				if player.Parent == Players then
-					coinNetwork:fire(player, "ReleaseCoin", id, coin.position + Vector3.new(0, 0.35, 0))
-				end
+				fireEligible(coin, "ReleaseCoin", id, coin.position + Vector3.new(0, 0.35, 0))
 			end
-		end
-		if coins[id] and not hasRemainingCollectors(coin) then
-			coins[id] = nil
-			activeCount -= 1
 		end
 	end
 end
@@ -439,8 +412,12 @@ function CoinDropController.GetCoinCollectedSignal()
 end
 
 local function beginCollection(coin: CoinState, player: Player, now: number)
+	if next(coin.collectAtByPlayer) ~= nil then
+		return
+	end
 	coin.collectAtByPlayer[player] = now + CoinDropConfig.CollectionDuration
-	coinNetwork:fire(player, "CollectCoin", coin.id, player.UserId, now, CoinDropConfig.CollectionDuration)
+	-- Broadcast the winner so every client animates the single shared coin toward the same player.
+	fireEligible(coin, "CollectCoin", coin.id, player.UserId, now, CoinDropConfig.CollectionDuration)
 end
 
 function CoinDropController.CollectAll(player: Player): number
@@ -490,20 +467,23 @@ function CoinDropController.ClearAll()
 	end
 end
 
-local function sendAuthoritativeCoinState(player: Player, id: number, coin: CoinState?, now: number)
-	if not coin or not coin.eligibleUserIds[player.UserId] or coin.collectedUserIds[player.UserId] then
+local function sendAuthoritativeCoinState(player: Player, id: number, coin: CoinState?)
+	if not coin or not coin.eligibleUserIds[player.UserId] then
 		coinNetwork:fire(player, "DespawnCoins", { id })
-	elseif coin.collectAtByPlayer[player] then
+	else
+		local collector, collectAt = next(coin.collectAtByPlayer)
+		if collector then
 		coinNetwork:fire(
 			player,
 			"CollectCoin",
 			id,
-			player.UserId,
-			coin.collectAtByPlayer[player] - CoinDropConfig.CollectionDuration,
+			collector.UserId,
+			collectAt - CoinDropConfig.CollectionDuration,
 			CoinDropConfig.CollectionDuration
 		)
-	else
-		coinNetwork:fire(player, "ReleaseCoin", id, coin.position + Vector3.new(0, 0.35, 0))
+		else
+			coinNetwork:fire(player, "ReleaseCoin", id, coin.position + Vector3.new(0, 0.35, 0))
+		end
 	end
 end
 
@@ -541,7 +521,7 @@ function CoinDropController.RequestCollect(_, player: Player, ids)
 					+ CLIENT_CLAIM_DISTANCE_TOLERANCE
 		then
 			-- Reconcile rejected and contested predictions instead of leaving their local animation stuck.
-			sendAuthoritativeCoinState(player, id, coin, now)
+			sendAuthoritativeCoinState(player, id, coin)
 		else
 			-- The server uses its own character position and a small latency allowance; the client never awards value.
 			beginCollection(coin, player, now)
@@ -561,15 +541,23 @@ local function startCollections(now: number)
 		if now < coin.collectibleAt then
 			continue
 		end
+		local selectedCandidate
+		local selectedDistanceRatio = math.huge
 		for _, candidate in candidates do
 			if not canCollect(coin, candidate.player) then
 				continue
 			end
 			local distance = (candidate.position - coin.position).Magnitude
 			local magnetRadius = CoinDropConfig.MagnetRadius * getCoinMagnetMultiplier(candidate.player)
-			if distance <= magnetRadius then
-				beginCollection(coin, candidate.player, now)
+			local distanceRatio = distance / magnetRadius
+			if distanceRatio <= 1 and distanceRatio < selectedDistanceRatio then
+				selectedCandidate = candidate
+				selectedDistanceRatio = distanceRatio
 			end
+		end
+		if selectedCandidate then
+			-- Resolve same-step entrants by relative depth inside their authoritative magnet radius.
+			beginCollection(coin, selectedCandidate.player, now)
 		end
 	end
 end
@@ -594,13 +582,15 @@ end
 function CoinDropController.GetSnapshot(_, player: Player)
 	local snapshot = {}
 	for _, coin in coins do
-		if canCollect(coin, player) then
+		if coin.eligibleUserIds[player.UserId] then
+			local collector, collectAt = next(coin.collectAtByPlayer)
 			table.insert(snapshot, {
 				id = coin.id,
 				value = coin.value,
 				position = coin.position + Vector3.new(0, 0.35, 0),
 				scale = getVisualScale(coin.value),
-				ownerUserId = coin.ownerUserId,
+				collectorUserId = if collector then collector.UserId else nil,
+				collectionStartAt = if collectAt then collectAt - CoinDropConfig.CollectionDuration else nil,
 			})
 		end
 	end
@@ -626,10 +616,12 @@ end
 function CoinDropController.OnPlayerRemoving(player: Player)
 	lastClientClaimAt[player] = nil
 	for id, coin in coins do
+		local wasCollecting = coin.collectAtByPlayer[player] ~= nil
 		coin.collectAtByPlayer[player] = nil
 		coin.eligibleUserIds[player.UserId] = nil
-		coin.collectedUserIds[player.UserId] = nil
-		if not hasRemainingCollectors(coin) then
+		if wasCollecting and next(coin.eligibleUserIds) ~= nil then
+			fireEligible(coin, "ReleaseCoin", id, coin.position + Vector3.new(0, 0.35, 0))
+		elseif next(coin.eligibleUserIds) == nil then
 			coins[id] = nil
 			activeCount = math.max(activeCount - 1, 0)
 		end

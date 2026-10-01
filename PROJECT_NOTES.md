@@ -41,10 +41,12 @@ Concise project-specific decisions that should survive future changes. General w
 ## Multiplayer wayfinding
 
 - Game sessions show safe-edge arrows with Roblox headshots for living offscreen teammates; lobby, local-player, dead-player, and on-screen markers stay hidden, and all projections share one render callback.
+- The first player entering an empty lobby teleporter becomes its leader; every later entrant remains outside until that leader explicitly approves the server-owned join request.
 
 ## World rewards
 
 - Coin and XP drops share a 120-second authoritative lifetime through `RunProgressionConfig`.
+- Coin and XP drops are single shared world pickups claimed first-come-first-served. Coins go entirely to the collector; up to 25% of an XP drop's integer base value is divided among the other present players, with the indivisible remainder staying with the collector and no base XP duplicated.
 
 ## Class prerequisites
 
@@ -80,14 +82,15 @@ Concise project-specific decisions that should survive future changes. General w
 ## Ability progression
 
 - Permanent weapon and passive unlocks use explicit simulator-style prices instead of rarity-only pricing. Class-linked weapons cost roughly half their corresponding class benchmark, culminating in Vortex at 750,000 Coins against Void Emperor at 1,500,000; starter abilities remain free.
-- Ability milestone requirements use half of their former levels, rounded down, so former level-50 milestones unlock at level 25; continuous weapon upgrades remain available through level 50 and use a stronger early/mid-level curve without changing their level-one baselines or level-50 totals. Passive upgrades retain their gentler curve.
+- Weapon progression is capped at level 25, with its already-condensed special milestones culminating at that cap. The shorter continuous curve preserves the former level-one baseline and level-50 maximum power; passive progression remains capped at level 50 with its gentler curve.
 - Weapon balance reviews must model dense-horde mechanics from the server implementation—including retargeting, unique-hit chains, persistent overlap, geometry, active caps, and crowd control—not rank weapons from displayed stats or single-target damage alone.
-- Level-up spins progressively reduce an owned ability's upgrade weight when it leads the average level of the player's other owned abilities by more than three levels; the card remains possible and its base rarity still applies.
+- Level-up spins draw uniformly without replacement from every eligible unlocked ability. Rarity, current level, upgrade/new status, and filled-slot ratio never bias a candidate's chance; max levels and available category slots still determine eligibility.
+- Aura begins at a 5-stud radius and gains a diminishing but always-positive amount of radius every level with no radius cap. Its radius unlocks shared color-coded Outer, Inner, and Core zones whose damage increases toward the player; final modified radius controls both authoritative zones and visuals.
 - The 3D lobby Abilities booth opens the permanent unlock menu through the `Abilities > PromptPart` proximity prompt; prompt binding follows the booth hierarchy because the Studio-authored prompt may retain a duplicated display name.
 
 ## Round difficulty
 
-- Later-round difficulty is population-led: the smooth density curve gains a second population slope after the round-15 boss, while capped reinforcement-batch growth and a gradually shrinking interval put substantially more zombies on the field together instead of only extending rounds. Never lower the reinforcement interval below 1.1 seconds; maximum-size batches otherwise become an unreadable continuous spawn stream. Strong-archetype weighting remains secondary.
+- Round one starts with six zombies, then population grows through gentle bounded density and post-round-15 slopes so the run does not hit a population/replication cliff around round 30. Reinforcement batches grow slowly and remain capped at 12 initially/10 thereafter; never lower the interval below 1.4 seconds. Strong-archetype weighting remains secondary and gradual.
 - Shielders enter after the first boss and reduce frontal direct damage instead of nullifying it, so every solo build can still defeat them while flanking and bypass effects remain rewarded.
 
 ## Developer commands

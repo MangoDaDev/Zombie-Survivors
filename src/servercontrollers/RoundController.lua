@@ -239,8 +239,8 @@ advanceRound = function()
 			broadcastState()
 		else
 			while remaining > 0 and runGeneration == scheduledGeneration and currentRound == roundNumber do
-				-- Later rounds deploy larger reinforcements with shorter gaps so their increased population
-				-- becomes simultaneous combat pressure instead of merely extending the round's duration.
+				-- Reinforcements scale gradually and stay bounded so pressure builds without recreating the
+				-- former round-30 population and replication spike.
 				local batchLimit = RunProgressionConfig.GetRoundSpawnBatchSize(roundNumber, firstBatch)
 				local batchCount = math.min(remaining, batchLimit)
 				spawningRound = true

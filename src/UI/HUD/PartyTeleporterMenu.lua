@@ -35,6 +35,9 @@ type PartyState = {
 	isLeader: boolean,
 	locked: boolean,
 	loading: boolean,
+	pendingJoinUserId: number,
+	pendingJoinName: string,
+	pendingJoinCount: number,
 }
 
 local function textStroke(thickness: number?)
@@ -111,6 +114,8 @@ local function createHeader(props)
 					return "LOADING..."
 				elseif state and state.locked then
 					return "PARTY LOCKED"
+				elseif state and state.pendingJoinUserId ~= 0 then
+					return "JOIN REQUEST"
 				elseif state and not state.configuring then
 					return "PARTY READY"
 				end
@@ -440,7 +445,7 @@ local function createBody(props)
 				return UDim2.new(1, if props.portrait() then -22 else -28, 0, if props.short() then 54 else 58)
 			end,
 			Text = props.confirmText,
-			Enabled = props.canConfigure,
+			Enabled = props.canConfirm,
 			BackgroundColor3 = UIStyle.Colors.Green,
 			OnActivated = props.confirmParty,
 			TextBounds = UDim2.fromScale(0.9, 0.62),
@@ -488,9 +493,15 @@ return function()
 	end)
 	local showConfiguration = derive(function()
 		local state = partyState()
-		-- Members only need an exit affordance. The leader's configuration surface also closes as
-		-- soon as the authoritative server acknowledges confirmation.
-		return state ~= nil and state.isLeader and state.configuring and not state.locked
+		-- A confirmed party reopens the leader surface only while an entrant needs approval.
+		return state ~= nil
+			and state.isLeader
+			and not state.locked
+			and (state.configuring or state.pendingJoinUserId ~= 0)
+	end)
+	local canConfirm = derive(function()
+		local state = partyState()
+		return canConfigure() or (state ~= nil and state.isLeader and not state.locked and state.pendingJoinUserId ~= 0)
 	end)
 	local canDecreasePartySize = derive(function()
 		local state = partyState()
@@ -516,6 +527,10 @@ return function()
 			return "LOADING"
 		elseif state.locked then
 			return "LOCKED"
+		elseif state.pendingJoinUserId ~= 0 then
+			return if state.pendingJoinCount > 1
+				then string.format("%d JOIN REQUESTS", state.pendingJoinCount)
+				else "JOIN REQUEST"
 		elseif state.configuring then
 			return if state.isLeader then "SETTINGS OPEN" else "LEADER SETUP"
 		elseif state.countdown ~= nil then
@@ -531,6 +546,8 @@ return function()
 			return "LOADING THE GAME..."
 		elseif state.locked then
 			return "PARTY LOCKED • DEPARTING NOW"
+		elseif state.pendingJoinUserId ~= 0 then
+			return state.pendingJoinName .. " WANTS TO JOIN"
 		elseif state.configuring then
 			if state.isLeader and state.countdown ~= nil then
 				return string.format("CONFIRM WITHIN %ds", math.max(0, math.ceil(state.countdown)))
@@ -543,7 +560,9 @@ return function()
 	end)
 	local confirmText = derive(function()
 		local state = partyState()
-		if state and state.configuring and state.isLeader then
+		if state and state.isLeader and state.pendingJoinUserId ~= 0 then
+			return "ALLOW " .. string.upper(state.pendingJoinName)
+		elseif state and state.configuring and state.isLeader then
 			return "CONFIRM PARTY"
 		elseif state and state.configuring then
 			return "WAITING FOR LEADER"
@@ -577,7 +596,10 @@ return function()
 	end
 
 	local function confirmParty()
-		if canConfigure() then
+		local state = partyState()
+		if state and state.isLeader and not state.locked and state.pendingJoinUserId ~= 0 then
+			PartyTeleporterController.ApproveJoinRequest()
+		elseif canConfigure() then
 			PartyTeleporterController.ConfirmParty()
 		end
 	end
@@ -606,6 +628,7 @@ return function()
 		confirmText = confirmText,
 		showConfiguration = showConfiguration,
 		canConfigure = canConfigure,
+		canConfirm = canConfirm,
 		canDecreasePartySize = canDecreasePartySize,
 		canIncreasePartySize = canIncreasePartySize,
 		changePartySize = changePartySize,

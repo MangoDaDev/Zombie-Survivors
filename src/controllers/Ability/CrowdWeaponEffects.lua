@@ -4,6 +4,7 @@ local Workspace = game:GetService("Workspace")
 
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
 local StudVFX = require(ReplicatedStorage.Modules.UI.StudVFX)
+local AbilityDefinitions = require(ReplicatedStorage.Modules.Game.Abilities.AbilityDefinitions)
 
 local CrowdWeaponEffects = {}
 
@@ -77,37 +78,43 @@ local function createRing(name: string, radius: number, color: Color3, transpare
 	return model
 end
 
-local function createAuraField(name: string, radius: number, color: Color3, transparency: number): Model?
+local function createAuraField(name: string, zones, rage: boolean, transparency: number): Model?
 	if not effectsFolder then
 		return nil
 	end
 	local model = Instance.new("Model")
 	model.Name = name
-	local pivot = makeBlock("Pivot", Vector3.one * 0.1, color, 1)
+	local pivot = makeBlock("Pivot", Vector3.one * 0.1, Color3.new(1, 1, 1), 1)
 	pivot.Parent = model
 	model.PrimaryPart = pivot
 	local segmentCount = 12
-	for index = 1, segmentCount do
-		local angle = (index - 1) / segmentCount * math.pi * 2
-		local segment = makeBlock(
-			"AuraBoundary",
-			Vector3.new(0.3, 0.1, math.max(math.pi * 2 * radius / segmentCount * 0.72, 0.45)),
-			if index % 3 == 0 then color:Lerp(Color3.new(1, 1, 1), 0.28) else color,
-			transparency
-		)
-		segment.CFrame = CFrame.new(math.cos(angle) * radius, 0, math.sin(angle) * radius)
-			* CFrame.Angles(0, -angle, 0)
-		segment.Parent = model
+	for _, zone in zones do
+		local color = if rage then zone.Color:Lerp(Color3.fromRGB(255, 178, 48), 0.38) else zone.Color
+		for index = 1, segmentCount do
+			local angle = (index - 1) / segmentCount * math.pi * 2
+			local segment = makeBlock(
+				zone.Name .. "ZoneBoundary",
+				Vector3.new(0.3, 0.1, math.max(math.pi * 2 * zone.Radius / segmentCount * 0.72, 0.45)),
+				if index % 3 == 0 then color:Lerp(Color3.new(1, 1, 1), 0.28) else color,
+				math.max(transparency - (zone.Index - 1) * 0.08, 0.42)
+			)
+			segment.CFrame = CFrame.new(math.cos(angle) * zone.Radius, (zone.Index - 1) * 0.025, math.sin(angle) * zone.Radius)
+				* CFrame.Angles(0, -angle, 0)
+			segment.Parent = model
+		end
 	end
+	-- Short colored currents make the concentric boundaries read as damaging bands without filling the
+	-- ground with a translucent plate or adding any per-frame emitters.
+	local outerZone = zones[1]
 	for spokeIndex = 1, 5 do
 		local angle = (spokeIndex - 1) / 5 * math.pi * 2
 		local spoke = makeBlock(
 			"AuraCurrent",
-			Vector3.new(0.18, 0.07, radius * 0.62),
-			color:Lerp(Color3.new(1, 1, 1), 0.18),
+			Vector3.new(0.18, 0.07, outerZone.Radius * 0.62),
+			outerZone.Color:Lerp(Color3.new(1, 1, 1), 0.18),
 			math.min(transparency + 0.1, 0.88)
 		)
-		spoke.CFrame = CFrame.new(math.cos(angle) * radius * 0.31, 0.025, math.sin(angle) * radius * 0.31)
+		spoke.CFrame = CFrame.new(math.cos(angle) * outerZone.Radius * 0.31, 0.025, math.sin(angle) * outerZone.Radius * 0.31)
 			* CFrame.Angles(0, -angle - math.rad(18), 0)
 		spoke.Parent = model
 	end
@@ -334,7 +341,7 @@ function CrowdWeaponEffects.AuraState(packet)
 		or type(packet.enabled) ~= "boolean"
 		or not isFiniteNumber(packet.radius)
 		or packet.radius < 0
-		or packet.radius > 25
+		or packet.radius > 200
 		or type(packet.rage) ~= "boolean"
 	then
 		return
@@ -353,10 +360,13 @@ function CrowdWeaponEffects.AuraState(packet)
 	if existing then
 		existing.model:Destroy()
 	end
-	local color = if packet.rage then Color3.fromRGB(255, 188, 48) else Color3.fromRGB(92, 220, 255)
-	-- Aura uses a bounded segmented boundary and five inner currents. This preserves range readability while
-	-- avoiding the old single translucent cylinder and any unbounded per-frame particle emission.
-	local model = createAuraField("Aura", packet.radius, color, if packet.rage then 0.58 else 0.72)
+	local zones = AbilityDefinitions.ById.Aura.GetZones(packet.radius)
+	if #zones == 0 then
+		return
+	end
+	-- Each unlocked damage zone owns one segmented boundary. The shared definition keeps these colors and
+	-- radii identical to the server-authoritative damage bands while retaining a bounded part count.
+	local model = createAuraField("Aura", zones, packet.rage, if packet.rage then 0.58 else 0.72)
 	if model then
 		auras[packet.ownerUserId] = {
 			model = model,
@@ -367,17 +377,25 @@ function CrowdWeaponEffects.AuraState(packet)
 end
 
 function CrowdWeaponEffects.AuraHit(packet)
-	if type(packet) ~= "table" or type(packet.positions) ~= "table" or type(packet.rage) ~= "boolean" then
+	if type(packet) ~= "table"
+		or type(packet.positions) ~= "table"
+		or type(packet.zoneIndices) ~= "table"
+		or type(packet.rage) ~= "boolean"
+	then
 		return
 	end
+	local zoneDefinitions = AbilityDefinitions.ById.Aura.Combat.Zones
 	for index, position in packet.positions do
 		if index > 12 then
 			break
 		end
 		if typeof(position) == "Vector3" then
+			local zoneIndex = packet.zoneIndices[index]
+			local zone = if type(zoneIndex) == "number" then zoneDefinitions[zoneIndex] else nil
+			local color = if zone then zone.Color else zoneDefinitions[1].Color
 			addImpact(
 				position + Vector3.yAxis,
-				if packet.rage then Color3.fromRGB(255, 203, 64) else Color3.fromRGB(99, 226, 255),
+				if packet.rage then color:Lerp(Color3.fromRGB(255, 188, 48), 0.38) else color,
 				packet.rage,
 				nil
 			)
@@ -390,7 +408,7 @@ function CrowdWeaponEffects.AuraPulse(packet)
 		or typeof(packet.position) ~= "Vector3"
 		or not isFiniteNumber(packet.radius)
 		or packet.radius <= 0
-		or packet.radius > 35
+		or packet.radius > 300
 		or type(packet.rage) ~= "boolean"
 	then
 		return

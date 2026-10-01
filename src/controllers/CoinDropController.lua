@@ -41,7 +41,6 @@ type CoinView = {
 	curveSide: Vector3,
 	startScale: number,
 	playerUserId: number?,
-	ownerUserId: number?,
 	bobOffset: number,
 }
 
@@ -80,13 +79,12 @@ local function destroyView(id: number)
 	view.holder:Destroy()
 end
 
-local function createView(id: number, value: number, position: Vector3, scale: number, ownerUserId: number?): CoinView
+local function createView(id: number, value: number, position: Vector3, scale: number): CoinView
 	local existing = coinViews[id]
 	if existing then
 		updateValuePresentation(existing, value, scale)
 		existing.position = position
 		existing.targetPosition = position
-		existing.ownerUserId = ownerUserId
 		return existing
 	end
 
@@ -216,7 +214,6 @@ local function createView(id: number, value: number, position: Vector3, scale: n
 		curveSide = Vector3.zero,
 		startScale = scale,
 		playerUserId = nil,
-		ownerUserId = ownerUserId,
 		bobOffset = (id % 11) * 0.47,
 	}
 	coinViews[id] = view
@@ -367,7 +364,7 @@ function CoinDropController.SpawnCoins(_, packets)
 			and typeof(packet.origin) == "Vector3"
 			and typeof(packet.targetPosition) == "Vector3"
 		then
-			local view = createView(packet.id, packet.value, packet.origin, packet.scale or 1, packet.ownerUserId)
+			local view = createView(packet.id, packet.value, packet.origin, packet.scale or 1)
 			view.phase = "Scatter"
 			view.startPosition = packet.origin
 			view.targetPosition = packet.targetPosition
@@ -503,8 +500,7 @@ local function predictLocalCollections(now: number)
 		local isCollectible = view.phase == "Idle"
 			or (view.phase == "Scatter" and now >= view.startAt + view.duration * 0.72)
 		local collectionPosition = if view.phase == "Scatter" then view.targetPosition else view.position
-		local canCollect = view.ownerUserId == nil or view.ownerUserId == Players.LocalPlayer.UserId
-		if canCollect and isCollectible and (root.Position - collectionPosition).Magnitude <= CoinDropConfig.MagnetRadius then
+		if isCollectible and (root.Position - collectionPosition).Magnitude <= CoinDropConfig.MagnetRadius then
 			-- Prediction only owns presentation; the server validates this claim before it awards any coins.
 			startMagnet(view, Players.LocalPlayer.UserId, now, CoinDropConfig.CollectionDuration)
 			table.insert(predictedIds, id)
@@ -551,7 +547,17 @@ function CoinDropController.Init()
 				and type(packet.value) == "number"
 				and typeof(packet.position) == "Vector3"
 			then
-				createView(packet.id, packet.value, packet.position, packet.scale or 1, packet.ownerUserId)
+				local view = createView(packet.id, packet.value, packet.position, packet.scale or 1)
+				if type(packet.collectorUserId) == "number" then
+					startMagnet(
+						view,
+						packet.collectorUserId,
+						type(packet.collectionStartAt) == "number"
+							and packet.collectionStartAt
+							or Workspace:GetServerTimeNow(),
+						CoinDropConfig.CollectionDuration
+					)
+				end
 			end
 		end
 	end

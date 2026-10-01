@@ -4,6 +4,7 @@ local Images = require(ReplicatedStorage.Modules.UI.Images)
 local AbilityLevelScaling = require(script.Parent.AbilityLevelScaling)
 
 local ExpandedAbilityDefinitions = {}
+local WEAPON_MAX_LEVEL = 25
 local MAX_LEVEL = 50
 
 local function upgradeProgress(level: number): number
@@ -11,7 +12,7 @@ local function upgradeProgress(level: number): number
 end
 
 local function weaponUpgradeProgress(level: number): number
-	return AbilityLevelScaling.GetWeaponProgress(level, MAX_LEVEL)
+	return AbilityLevelScaling.GetWeaponProgress(level, WEAPON_MAX_LEVEL)
 end
 
 local function levelOf(level: number): number
@@ -20,7 +21,7 @@ end
 
 local function statsText(definition, level: number, fields): string
 	local current = definition.GetStats(level)
-	local nextStats = if level < MAX_LEVEL then definition.GetStats(level + 1) else nil
+	local nextStats = if level < definition.MaxLevel then definition.GetStats(level + 1) else nil
 	local lines = {}
 	for _, field in fields do
 		local currentText = field.Format(current[field.Key])
@@ -50,7 +51,7 @@ local crowbar = {
 	UpgradeDescription = "Levels improve damage, reach, arc, and swing rate. Milestones add follow-up swings and crowd control.",
 	RageDescription = "Rapid alternating swings surround you, with stronger knockback and a guaranteed three-hit combo.",
 	Icon = Images.Abilities.Crowbar, Color = Color3.fromRGB(78, 210, 255),
-	MaxLevel = MAX_LEVEL, BaseUpgradeCost = 115, UpgradeCostGrowth = 1.145,
+	MaxLevel = WEAPON_MAX_LEVEL, BaseUpgradeCost = 115, UpgradeCostGrowth = 1.145,
 	Roll = { BaseOdds = 8, Rarity = "Uncommon", RarityRank = 2 },
 	Combat = { MaximumTargets = 45, Knockback = 17, FollowUpDelay = 0.16 },
 	Milestones = {
@@ -102,7 +103,7 @@ local crossfire = {
 	UpgradeDescription = "Levels improve damage, width, range, and fire rate. Milestones add diagonals and rotating follow-up volleys.",
 	RageDescription = "Fires rapid eight-way volleys followed by a rotated second burst, covering every approach.",
 	Icon = Images.Abilities.Crossfire, Color = Color3.fromRGB(255, 190, 48),
-	MaxLevel = MAX_LEVEL, BaseUpgradeCost = 120, UpgradeCostGrowth = 1.146,
+	MaxLevel = WEAPON_MAX_LEVEL, BaseUpgradeCost = 120, UpgradeCostGrowth = 1.146,
 	Roll = { BaseOdds = 12, Rarity = "Rare", RarityRank = 3 },
 	Combat = { MaximumTargetsPerBolt = 35, Knockback = 7, FollowUpDelay = 0.14 },
 	Milestones = {
@@ -156,7 +157,7 @@ local buzzsaw = {
 	UpgradeDescription = "Levels improve tick damage, size, duration, and deployment rate. Milestones add ricochets and extra saws.",
 	RageDescription = "Deploys larger, faster-ticking Buzzsaws that chase fresh crowds after clearing their current area.",
 	Icon = Images.Abilities.Buzzsaw, Color = Color3.fromRGB(255, 103, 38),
-	MaxLevel = MAX_LEVEL, BaseUpgradeCost = 125, UpgradeCostGrowth = 1.147,
+	MaxLevel = WEAPON_MAX_LEVEL, BaseUpgradeCost = 125, UpgradeCostGrowth = 1.147,
 	Roll = { BaseOdds = 20, Rarity = "Epic", RarityRank = 4 },
 	Combat = { Range = 62, TickInterval = 0.42, MaximumTargets = 35, MaximumActive = 6, Knockback = 2 },
 	Milestones = {
@@ -210,7 +211,7 @@ local crusher = {
 	UpgradeDescription = "Levels improve damage, wall size, warning speed, and cooldown. Milestones add stun and repeated slams.",
 	RageDescription = "Rapid Crushers strike wider groups with shorter warnings and a crushing second slam.",
 	Icon = Images.Abilities.Crusher, Color = Color3.fromRGB(190, 91, 255),
-	MaxLevel = MAX_LEVEL, BaseUpgradeCost = 135, UpgradeCostGrowth = 1.148,
+	MaxLevel = WEAPON_MAX_LEVEL, BaseUpgradeCost = 135, UpgradeCostGrowth = 1.148,
 	Roll = { BaseOdds = 25, Rarity = "Epic", RarityRank = 4 },
 	Combat = { Range = 68, MaximumTargets = 60, Knockback = 12, RepeatDelay = 0.24 },
 	Milestones = {
@@ -265,7 +266,7 @@ local laserSweep = {
 	UpgradeDescription = "Levels improve beam damage, width, reach, and sweep rate. Milestones add burns and a second beam.",
 	RageDescription = "Two wide, fast beams sweep repeatedly in opposite directions throughout the attack.",
 	Icon = Images.Abilities.LaserSweep, Color = Color3.fromRGB(80, 255, 134),
-	MaxLevel = MAX_LEVEL, BaseUpgradeCost = 140, UpgradeCostGrowth = 1.149,
+	MaxLevel = WEAPON_MAX_LEVEL, BaseUpgradeCost = 140, UpgradeCostGrowth = 1.149,
 	Roll = { BaseOdds = 35, Rarity = "Legendary", RarityRank = 5 },
 	Combat = { MaximumTargetsPerStep = 50, Knockback = 5, StepInterval = 0.04 },
 	Milestones = {

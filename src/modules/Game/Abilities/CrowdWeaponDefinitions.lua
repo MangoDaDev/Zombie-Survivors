@@ -5,7 +5,8 @@ local AbilityLevelScaling = require(script.Parent.AbilityLevelScaling)
 
 local CrowdWeaponDefinitions = {}
 
-local MAX_LEVEL = 50
+-- Weapon progression is intentionally capped at 25; condensed milestones already culminate at this cap.
+local MAX_LEVEL = 25
 
 local function upgradeProgress(level: number): number
 	return AbilityLevelScaling.GetWeaponProgress(level, MAX_LEVEL)
@@ -38,8 +39,8 @@ local aura = {
 	Id = "Aura",
 	Name = "Aura",
 	Category = "Weapon",
-	Description = "Continuously damages zombies that stay close to you.",
-	UpgradeDescription = "Every level improves damage, radius, and tick speed. Milestones add stronger pulses.",
+	Description = "Damages nearby zombies, with stronger color-coded zones closer to you.",
+	UpgradeDescription = "Every level expands the Aura. Larger Auras unlock stronger inner damage zones.",
 	Icon = Images.Abilities.Aura,
 	Color = Color3.fromRGB(104, 221, 255),
 	MaxLevel = MAX_LEVEL,
@@ -49,9 +50,9 @@ local aura = {
 	Combat = {
 		BaseDamage = 8,
 		DamagePerLevel = 0.05,
-		BaseRadius = 8,
-		RadiusPerLevel = 0.005,
-		MaximumRadius = 14,
+		BaseRadius = 5,
+		RadiusGainPerLevel = 1,
+		RadiusGainDecay = 0.08,
 		BaseTickInterval = 0.75,
 		TickSpeedPerLevel = 0.0025,
 		MinimumTickInterval = 0.42,
@@ -60,6 +61,31 @@ local aura = {
 		-- Every Aura visibly pulses from level one so its damage cadence is readable. Level 10 empowers
 		-- that existing pulse instead of introducing the field's only active-looking moment.
 		Pulse = { Level = 10, Interval = 4, RadiusMultiplier = 1.25, DamageMultiplier = 2 },
+		-- Zones are ordered from the full outer field toward the player. Their radius thresholds, rather
+		-- than fixed levels, let size bonuses and Rage unlock the same stronger zones honestly.
+		Zones = {
+			{
+				Name = "Outer",
+				MinimumAuraRadius = 5,
+				RadiusScale = 1,
+				DamageMultiplier = 1,
+				Color = Color3.fromRGB(92, 220, 255),
+			},
+			{
+				Name = "Inner",
+				MinimumAuraRadius = 8,
+				RadiusScale = 0.66,
+				DamageMultiplier = 1.4,
+				Color = Color3.fromRGB(139, 116, 255),
+			},
+			{
+				Name = "Core",
+				MinimumAuraRadius = 11.5,
+				RadiusScale = 0.33,
+				DamageMultiplier = 1.8,
+				Color = Color3.fromRGB(255, 196, 72),
+			},
+		},
 	},
 	Rage = {
 		RadiusMultiplier = 1.45,
@@ -71,22 +97,70 @@ local aura = {
 		KnockbackMultiplier = 1,
 	},
 	Milestones = {
-		{ Level = 2, Description = "Larger Aura - noticeably increases Aura radius" },
-		{ Level = 5, Description = "Faster Aura - damages enemies more frequently" },
-		{ Level = 10, Description = "Empowered Pulse - the energy wave becomes larger and deals double damage" },
+		{ Level = 2, Description = "Growing Aura - begins expanding by a diminishing amount every level" },
+		{ Level = 5, Description = "Inner Zone - nearby enemies take 40% more Aura damage" },
+		{ Level = 10, Description = "Core Zone - closest enemies take 80% more damage; Pulse is empowered" },
 		{ Level = 15, Description = "Strong Aura - significantly increases normal damage" },
 		{ Level = 20, Description = "Double Pulse - pulses happen faster and hit harder" },
 		{ Level = 25, Description = "Super Aura - improves radius, damage, tick speed, and Pulse" },
 	},
 }
 
+local function getAuraRadius(level: number): number
+	local combat = aura.Combat
+	local radius = combat.BaseRadius
+	for upgradeIndex = 1, level - 1 do
+		-- The first upgrade adds one stud, then each gain diminishes without ever becoming zero. The
+		-- harmonic-style curve has no radius cap, so every valid future level still expands the Aura.
+		radius += combat.RadiusGainPerLevel / (1 + combat.RadiusGainDecay * (upgradeIndex - 1))
+	end
+	return radius
+end
+
+local function getAuraZoneCount(radius: number): number
+	local count = 0
+	for _, zoneDefinition in aura.Combat.Zones do
+		if radius >= zoneDefinition.MinimumAuraRadius then
+			count += 1
+		end
+	end
+	return count
+end
+
+function aura.GetZones(radius: number)
+	local zones = {}
+	for zoneIndex, zoneDefinition in aura.Combat.Zones do
+		if radius >= zoneDefinition.MinimumAuraRadius then
+			table.insert(zones, {
+				Index = zoneIndex,
+				Name = zoneDefinition.Name,
+				Radius = radius * zoneDefinition.RadiusScale,
+				DamageMultiplier = zoneDefinition.DamageMultiplier,
+				Color = zoneDefinition.Color,
+			})
+		end
+	end
+	return zones
+end
+
+function aura.GetZoneAtDistance(radius: number, distance: number)
+	local zoneDefinitions = aura.Combat.Zones
+	for zoneIndex = #zoneDefinitions, 1, -1 do
+		local zoneDefinition = zoneDefinitions[zoneIndex]
+		if radius >= zoneDefinition.MinimumAuraRadius and distance <= radius * zoneDefinition.RadiusScale then
+			-- Return the shared immutable definition so every damage tick avoids allocating temporary zone tables.
+			return zoneDefinition, zoneIndex
+		end
+	end
+	return nil
+end
+
 function aura.GetStats(level: number)
 	local validLevel = clampLevel(level)
 	local combat = aura.Combat
 	local damage = combat.BaseDamage * (1 + upgradeProgress(validLevel) * combat.DamagePerLevel)
-	local radius = combat.BaseRadius * (1 + upgradeProgress(validLevel) * combat.RadiusPerLevel)
+	local radius = getAuraRadius(validLevel)
 	local tickInterval = combat.BaseTickInterval / (1 + upgradeProgress(validLevel) * combat.TickSpeedPerLevel)
-	if validLevel >= 2 then radius *= 1.2 end
 	if validLevel >= 5 then tickInterval *= 0.88 end
 	if validLevel >= 15 then damage *= 1.4 end
 	local pulseInterval = combat.Pulse.Interval
@@ -97,14 +171,14 @@ function aura.GetStats(level: number)
 		pulseDamageMultiplier *= 1.35
 	end
 	if validLevel >= 25 then
-		radius *= 1.2
 		damage *= 1.3
 		tickInterval *= 0.82
 		pulseDamageMultiplier *= 1.3
 	end
 	return {
 		Damage = rounded(damage),
-		Radius = math.min(radius, combat.MaximumRadius),
+		Radius = radius,
+		ZoneCount = getAuraZoneCount(radius),
 		TickInterval = math.max(tickInterval, combat.MinimumTickInterval),
 		PulseInterval = pulseInterval,
 		PulseRadiusMultiplier = pulseRadiusMultiplier,
@@ -116,7 +190,8 @@ end
 function aura.GetRageStats(level: number)
 	local stats = aura.GetStats(level)
 	stats.Damage *= aura.Rage.DamageMultiplier
-	stats.Radius = math.min(stats.Radius * aura.Rage.RadiusMultiplier, aura.Combat.MaximumRadius * 1.45)
+	stats.Radius *= aura.Rage.RadiusMultiplier
+	stats.ZoneCount = getAuraZoneCount(stats.Radius)
 	stats.TickInterval *= aura.Rage.TickIntervalMultiplier
 	stats.Cooldown = stats.TickInterval
 	stats.PulseInterval = aura.Rage.PulseInterval
@@ -131,6 +206,7 @@ function aura.GetStatsText(level: number): string
 		{ Key = "Damage", Label = "Damage", Format = function(value) return string.format("%.1f", value) end },
 		{ Key = "Radius", Label = "Radius", Format = function(value) return string.format("%.1f", value) end },
 		{ Key = "TickInterval", Label = "Tick Rate", Format = function(value) return string.format("%.2fs", value) end },
+		{ Key = "ZoneCount", Label = "Damage Zones", Format = tostring },
 	})
 end
 

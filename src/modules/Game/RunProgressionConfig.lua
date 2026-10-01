@@ -15,8 +15,9 @@ local RunProgressionConfig = {
 	},
 
 	Pickups = {
-		-- FreeForAll gives every present player a private claim on each coin/XP drop; another player's claim cannot consume it.
-		Ownership = "FreeForAll", -- Change to "Killer" to reserve both reward types for the killing player.
+		-- World rewards are single shared objects: the first player to claim one consumes it for the party.
+		-- XP keeps most of its value on the collector while this pool is divided between their teammates.
+		SharedXPPercent = 0.25,
 		XP = {
 			PickupRadius = 2.4,
 			MagnetRadius = 15,
@@ -45,16 +46,6 @@ local RunProgressionConfig = {
 
 	Abilities = {
 		ChoiceCount = 3,
-		-- Once a build has at least three upgradeable abilities, at most one card may introduce
-		-- something new. This chance falls as the ten run slots fill so established builds develop.
-		NewOfferChanceAtEmpty = 0.4,
-		NewOfferChanceAtFull = 0.08,
-		-- Upgrades keep their normal rarity weight until they lead the player's other owned abilities
-		-- by more than this many levels. Each further level compounds the penalty, but the floor keeps
-		-- a highly developed ability possible instead of silently removing it from the choice pool.
-		UpgradeLevelLeadGrace = 3,
-		UpgradeLevelLeadDecay = 0.65,
-		MinimumUpgradeWeightMultiplier = 0.1,
 		-- Permanent ownership is the authoritative gate for new run choices. Keep this escape hatch empty
 		-- unless a future global event deliberately makes an ability available without unlocking it.
 		AlwaysAvailable = {},
@@ -62,35 +53,34 @@ local RunProgressionConfig = {
 
 	Rounds = {
 		-- A round owns one finite assigned group, delivered in paced reinforcements rather than one spike.
-		-- Skipped-round zombies remain alive but no longer block later rounds. Population is the main
-		-- difficulty driver: the bounded early density curve stays smooth, then a second linear slope
-		-- starts after the first boss so late-round pressure does not flatten out.
-		BaseZombieCount = 4,
-		ZombieCountGrowthPerRound = 1,
-		MaximumHordeDensityBonus = 1.5,
-		HordeDensityRampRounds = 6,
-		-- After the first boss, add a second population slope so late builds face a genuinely larger
-		-- horde instead of letting the bounded density multiplier flatten the difficulty curve.
+		-- Skipped-round zombies remain alive but no longer block later rounds. Start with a readable
+		-- six-zombie pack, then keep both density multipliers deliberately gentle: difficulty should
+		-- build across the entire run without recreating the former population cliff around round 30.
+		BaseZombieCount = 6,
+		ZombieCountGrowthPerRound = 0.75,
+		MaximumHordeDensityBonus = 0.75,
+		HordeDensityRampRounds = 10,
+		-- The post-boss slope prevents population from becoming completely flat, but must remain below
+		-- the primary slope because every live zombie adds simulation and replication work.
 		LateHordeGrowthStartRound = 15,
-		LateZombieCountGrowthPerRound = 2,
+		LateZombieCountGrowthPerRound = 0.5,
 		FirstRoundDelay = 1.5,
 		IntermissionDuration = 3,
-		-- Late-round batch growth and a shrinking interval put the increased assignment on the field
-		-- together. Keep the hard 1.1-second floor so even maximum-size batches remain readable and
-		-- do not turn into a nearly continuous spawn stream.
+		-- Batches grow slowly and remain capped so later rounds add pressure without producing large
+		-- allocation/replication spikes. The interval floor preserves breathing room at every round.
 		InitialBatchSize = 6,
 		ReinforcementBatchSize = 5,
-		ReinforcementBatchGrowthRounds = 3,
-		MaximumInitialBatchSize = 18,
-		MaximumReinforcementBatchSize = 16,
-		ReinforcementInterval = 1.75,
-		ReinforcementIntervalReductionPerRound = 0.03,
-		MinimumReinforcementInterval = 1.1,
+		ReinforcementBatchGrowthRounds = 6,
+		MaximumInitialBatchSize = 12,
+		MaximumReinforcementBatchSize = 10,
+		ReinforcementInterval = 2,
+		ReinforcementIntervalReductionPerRound = 0.015,
+		MinimumReinforcementInterval = 1.4,
 		-- Keep skip votes deliberate across round boundaries, especially when one player can pass a vote alone.
 		SkipVoteCooldown = 8,
 		-- These values govern threat unlocks and strength bias, not player movement or responsiveness.
-		RoundDurationEquivalent = 22,
-		DifficultyRoundsPerStep = 14,
+		RoundDurationEquivalent = 20,
+		DifficultyRoundsPerStep = 20,
 		MaximumClusterSize = 4,
 		-- Bosses are deliberately fifteen rounds apart. Each milestone gets a short warning, a
 		-- manageable ring wave, and a telegraphed entrance instead of revealing the full roster early.
@@ -167,9 +157,9 @@ local RunProgressionConfig = {
 		SurroundSectorAdvance = 3,
 		SurroundSpawnJitterDegrees = 12,
 		DirectedSpawnAttemptFraction = 0.6,
-		-- Strong archetypes still become more common, but this stays secondary to the accelerating horde
-		-- size so later rounds feel denser rather than being dominated by stat-heavy enemies.
-		StrongZombieBiasPerStep = 0.2,
+		-- Strong archetypes still become more common, but the slow bias avoids stacking a composition
+		-- spike on top of the population curve in the middle and late run.
+		StrongZombieBiasPerStep = 0.15,
 		-- Assigned group size follows sublinear multiplayer scaling so extra party members add pressure
 		-- without multiplying the round linearly.
 		PlayerCountExponent = 0.8,
@@ -189,7 +179,7 @@ function RunProgressionConfig.GetRoundZombieCount(roundNumber: number, playerCou
 	local rounds = RunProgressionConfig.Rounds
 	local completedRounds = validRound - 1
 	-- x^2 / (x^2 + ramp^2) is a smooth saturation curve: round one stays untouched, crowd pressure
-	-- rises decisively through the early rounds, and the multiplier remains bounded for server safety.
+	-- rises gradually through the early rounds, and the multiplier remains bounded for server safety.
 	local completedRoundsSquared = completedRounds * completedRounds
 	local rampRoundsSquared = rounds.HordeDensityRampRounds * rounds.HordeDensityRampRounds
 	local densityProgress = completedRoundsSquared / (completedRoundsSquared + rampRoundsSquared)

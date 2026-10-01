@@ -26,9 +26,7 @@ type XPDropState = {
 	position: Vector3,
 	despawnAt: number,
 	collectibleAt: number,
-	ownerUserId: number?,
 	eligibleUserIds: { [number]: boolean },
-	collectedUserIds: { [number]: boolean },
 	collections: { [Player]: XPCollection },
 }
 
@@ -70,29 +68,17 @@ end
 
 local function canCollect(drop: XPDropState, player: Player): boolean
 	return drop.eligibleUserIds[player.UserId] == true
-		and drop.collectedUserIds[player.UserId] ~= true
-		and drop.collections[player] == nil
+		and next(drop.collections) == nil
 end
 
 local function isUntouched(drop: XPDropState): boolean
-	return next(drop.collections) == nil and next(drop.collectedUserIds) == nil
+	return next(drop.collections) == nil
 end
 
-local function hasRemainingCollectors(drop: XPDropState): boolean
-	for userId in drop.eligibleUserIds do
-		if not drop.collectedUserIds[userId] then
-			return true
-		end
-	end
-	return false
-end
-
-local function getEligibleUserIds(ownerUserId: number?): { [number]: boolean }
+local function getEligibleUserIds(): { [number]: boolean }
 	local eligibleUserIds = {}
 	for _, player in Players:GetPlayers() do
-		if ownerUserId == nil or player.UserId == ownerUserId then
-			eligibleUserIds[player.UserId] = true
-		end
+		eligibleUserIds[player.UserId] = true
 	end
 	return eligibleUserIds
 end
@@ -130,15 +116,13 @@ end
 local function addOverflowValue(
 	position: Vector3,
 	value: number,
-	ownerUserId: number?,
 	eligibleUserIds: { [number]: boolean }
 ): boolean
 	local nearest
 	local nearestDistance = math.huge
 	for _, drop in drops do
 		local distance = (drop.position - position).Magnitude
-		if drop.ownerUserId == ownerUserId
-			and isUntouched(drop)
+		if isUntouched(drop)
 			and matchesEligibility(drop, eligibleUserIds)
 			and distance < nearestDistance
 		then
@@ -155,7 +139,7 @@ local function addOverflowValue(
 	return false
 end
 
-function XPDropController.Spawn(position: Vector3, value: number, owner: Player?, groundY: number?)
+function XPDropController.Spawn(position: Vector3, value: number, _owner: Player?, groundY: number?)
 	if not ServerContext.IsGameServer()
 		or typeof(position) ~= "Vector3"
 		or type(value) ~= "number"
@@ -165,12 +149,11 @@ function XPDropController.Spawn(position: Vector3, value: number, owner: Player?
 	end
 	value = math.max(1, math.floor(value))
 	local config = RunProgressionConfig.Pickups.XP
-	local ownerUserId = if RunProgressionConfig.Pickups.Ownership == "Killer" and owner then owner.UserId else nil
-	local eligibleUserIds = getEligibleUserIds(ownerUserId)
+	local eligibleUserIds = getEligibleUserIds()
 	if next(eligibleUserIds) == nil then
 		return
 	end
-	if activeCount >= config.MaximumActive and addOverflowValue(position, value, ownerUserId, eligibleUserIds) then
+	if activeCount >= config.MaximumActive and addOverflowValue(position, value, eligibleUserIds) then
 		return
 	end
 
@@ -192,9 +175,7 @@ function XPDropController.Spawn(position: Vector3, value: number, owner: Player?
 		position = target,
 		despawnAt = now + config.Lifetime,
 		collectibleAt = now + duration * 0.72,
-		ownerUserId = ownerUserId,
 		eligibleUserIds = eligibleUserIds,
-		collectedUserIds = {},
 		collections = {},
 	}
 	drops[drop.id] = drop
@@ -208,33 +189,56 @@ function XPDropController.Spawn(position: Vector3, value: number, owner: Player?
 		duration = duration,
 		arcHeight = random:NextNumber(2.2, 4.2),
 		scale = visualScale,
-		ownerUserId = drop.ownerUserId,
 	})
 end
 
 local function releaseDrop(drop: XPDropState, player: Player)
 	drop.collections[player] = nil
-	if player.Parent == Players then
-		xpNetwork:fire(player, "ReleaseXP", drop.id, drop.position)
+	fireEligible(drop, "ReleaseXP", drop.id, drop.position)
+end
+
+local function distributeSharedXP(collector: Player, value: number): boolean
+	local otherPlayers = {}
+	for _, player in Players:GetPlayers() do
+		if player ~= collector then
+			table.insert(otherPlayers, player)
+		end
 	end
+
+	local sharedPool = if #otherPlayers > 0
+		then math.floor(value * RunProgressionConfig.Pickups.SharedXPPercent)
+		else 0
+	local collectorValue = value - sharedPool
+	if not RunProgressionController.AddXP(collector, collectorValue) then
+		return false
+	end
+
+	if sharedPool > 0 then
+		local baseShare = math.floor(sharedPool / #otherPlayers)
+		local remainder = sharedPool % #otherPlayers
+		for index, player in otherPlayers do
+			-- Integer XP is conserved exactly; any indivisible remainder is handed out one point at a time.
+			local share = baseShare + (if index <= remainder then 1 else 0)
+			if share > 0 then
+				RunProgressionController.AddXP(player, share)
+			end
+		end
+	end
+	return true
 end
 
 local function collectDrop(id: number, drop: XPDropState, player: Player)
 	-- A shard must only disappear after the authoritative progression state accepts its value.
 	-- If startup ordering temporarily blocks the grant, release it for a later collection attempt.
-	if not RunProgressionController.AddXP(player, drop.value) then
+	if not distributeSharedXP(player, drop.value) then
 		drop.collectibleAt = workspace:GetServerTimeNow() + 0.25
 		releaseDrop(drop, player)
 		return
 	end
-	-- Resolve only this player's claim so every other eligible player keeps their own XP copy.
-	drop.collections[player] = nil
-	drop.collectedUserIds[player.UserId] = true
-	xpNetwork:fire(player, "XPCollected", id, player.UserId, drop.value)
-	if not hasRemainingCollectors(drop) then
-		drops[id] = nil
-		activeCount -= 1
-	end
+	-- One authoritative claim consumes the shared crystal for every client.
+	fireEligible(drop, "XPCollected", id, player.UserId, drop.value)
+	drops[id] = nil
+	activeCount -= 1
 end
 
 local function stepDrops(deltaTime: number, now: number)
@@ -251,7 +255,7 @@ local function stepDrops(deltaTime: number, now: number)
 	for id, drop in drops do
 		for collector, collection in drop.collections do
 			local root = getLiveRoot(collector)
-			if not root or not drop.eligibleUserIds[collector.UserId] or drop.collectedUserIds[collector.UserId] then
+			if not root or not drop.eligibleUserIds[collector.UserId] then
 				releaseDrop(drop, collector)
 			else
 				local destination = root.Position + Vector3.new(0, 1.25, 0)
@@ -275,20 +279,29 @@ local function stepDrops(deltaTime: number, now: number)
 			activeCount -= 1
 			table.insert(expiredIds, id)
 		elseif now >= drop.collectibleAt then
+			local selectedCandidate
+			local selectedDistanceRatio = math.huge
 			for _, candidate in candidates do
 				if not canCollect(drop, candidate.player) then
 					continue
 				end
 				local distance = (candidate.root.Position - drop.position).Magnitude
 				local magnetRadius = config.MagnetRadius * getMagnetRadiusMultiplier(candidate.player)
-				if distance <= magnetRadius then
-					drop.collections[candidate.player] = {
-						position = drop.position,
-						magnetSpeed = config.MagnetInitialSpeed * getMagnetSpeedMultiplier(candidate.player),
-						forcedCollection = false,
-					}
-					xpNetwork:fire(candidate.player, "MagnetXP", id, candidate.player.UserId, drop.position, now)
+				local distanceRatio = distance / magnetRadius
+				if distanceRatio <= 1 and distanceRatio < selectedDistanceRatio then
+					selectedCandidate = candidate
+					selectedDistanceRatio = distanceRatio
 				end
+			end
+			if selectedCandidate then
+				local collector = selectedCandidate.player
+				drop.collections[collector] = {
+					position = drop.position,
+					magnetSpeed = config.MagnetInitialSpeed * getMagnetSpeedMultiplier(collector),
+					forcedCollection = false,
+				}
+				-- If several players cross the radius in one server step, the deepest valid entrant wins.
+				fireEligible(drop, "MagnetXP", id, collector.UserId, drop.position, now)
 			end
 		end
 	end
@@ -344,7 +357,7 @@ function XPDropController.CollectAll(player: Player): number
 				magnetSpeed = math.max(RunProgressionConfig.Pickups.XP.MagnetInitialSpeed * 5, 80),
 				forcedCollection = true,
 			}
-			xpNetwork:fire(player, "MagnetXP", drop.id, player.UserId, drop.position, now)
+			fireEligible(drop, "MagnetXP", drop.id, player.UserId, drop.position, now)
 			collectedCount += 1
 		end
 	end
@@ -366,7 +379,7 @@ function XPDropController.CollectInRadius(player: Player, position: Vector3, rad
 				magnetSpeed = RunProgressionConfig.Pickups.XP.MagnetInitialSpeed * getMagnetSpeedMultiplier(player),
 				forcedCollection = true,
 			}
-			xpNetwork:fire(player, "MagnetXP", drop.id, player.UserId, drop.position, now)
+			fireEligible(drop, "MagnetXP", drop.id, player.UserId, drop.position, now)
 			collectedCount += 1
 		end
 	end
@@ -405,15 +418,14 @@ end
 function XPDropController.GetSnapshot(_, player: Player)
 	local snapshot = {}
 	for _, drop in drops do
-		local collection = drop.collections[player]
-		if canCollect(drop, player) or collection then
+		if drop.eligibleUserIds[player.UserId] then
+			local collector, collection = next(drop.collections)
 			table.insert(snapshot, {
 				id = drop.id,
 				value = drop.value,
 				position = if collection then collection.position else drop.position,
 				scale = getVisualScale(drop.value),
-				ownerUserId = drop.ownerUserId,
-				collectorUserId = if collection then player.UserId else nil,
+				collectorUserId = if collector then collector.UserId else nil,
 			})
 		end
 	end
@@ -437,10 +449,13 @@ end
 
 function XPDropController.OnPlayerRemoving(player: Player)
 	for id, drop in drops do
+		local wasCollecting = drop.collections[player] ~= nil
 		drop.collections[player] = nil
 		drop.eligibleUserIds[player.UserId] = nil
-		drop.collectedUserIds[player.UserId] = nil
-		if not hasRemainingCollectors(drop) then
+		if wasCollecting and next(drop.eligibleUserIds) ~= nil then
+			drop.collectibleAt = workspace:GetServerTimeNow() + 0.25
+			fireEligible(drop, "ReleaseXP", drop.id, drop.position)
+		elseif next(drop.eligibleUserIds) == nil then
 			drops[id] = nil
 			activeCount = math.max(activeCount - 1, 0)
 		end
