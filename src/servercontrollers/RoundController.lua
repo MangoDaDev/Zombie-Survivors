@@ -21,6 +21,8 @@ local spawningRound = false
 local roundSpawnPending = false
 local completionCheckPending = false
 local runGeneration = 0
+local skipEndsAt = 0
+local skipCountdownSequence = 0
 local roundCompleted = Signal.new()
 local bossAnnouncement = {
 	active = false,
@@ -93,19 +95,24 @@ local function getRequiredVotes(): number
 	return if partyCount > 0 then math.floor(partyCount / 2) + 1 else 0
 end
 
+local packetRevision = 0
+
 local function makePacket(player: Player)
+	packetRevision += 1
 	local cooldownEndsAt = (lastSkipVoteAt[player.UserId] or 0) + RunProgressionConfig.Rounds.SkipVoteCooldown
+	local hasVoted = votes[player.UserId] == true
 	return {
+		revision = packetRevision,
 		active = currentRound > 0,
 		round = currentRound,
 		remaining = if currentRound > 0 then ZombieController.GetLivingZombieCountForRound(currentRound) else 0,
 		voteCount = getVoteCount(),
 		requiredVotes = getRequiredVotes(),
-		hasVoted = votes[player.UserId] == true,
+		hasVoted = hasVoted,
 		canVote = currentRound > 0
-			and votes[player.UserId] ~= true
-			and workspace:GetServerTimeNow() >= cooldownEndsAt,
+			and (hasVoted or workspace:GetServerTimeNow() >= cooldownEndsAt),
 		cooldownEndsAt = cooldownEndsAt,
+		skipEndsAt = skipEndsAt,
 		bossAnnouncement = bossAnnouncement,
 	}
 end
@@ -152,6 +159,9 @@ advanceRound = function()
 		return
 	end
 	advancing = true
+	-- Any natural completion, admin action, or confirmed skip invalidates a pending skip countdown.
+	skipCountdownSequence += 1
+	skipEndsAt = 0
 	if currentRound > 0 then
 		local playersWhoSurvived = {}
 		for _, player in Players:GetPlayers() do
@@ -274,8 +284,41 @@ end
 local function evaluateSkipMajority()
 	local requiredVotes = getRequiredVotes()
 	if currentRound > 0 and requiredVotes > 0 and getVoteCount() >= requiredVotes then
-		advanceRound()
+		if skipEndsAt > 0 then
+			broadcastState()
+			return
+		end
+
+		-- A majority is intentionally not an instant skip. During this server-owned grace period,
+		-- any voter can withdraw; falling below the threshold cancels the pending transition.
+		local roundNumber = currentRound
+		local scheduledGeneration = runGeneration
+		skipCountdownSequence += 1
+		local sequence = skipCountdownSequence
+		skipEndsAt = workspace:GetServerTimeNow() + RunProgressionConfig.Rounds.SkipCountdownDuration
+		broadcastState()
+		task.delay(RunProgressionConfig.Rounds.SkipCountdownDuration, function()
+			if sequence ~= skipCountdownSequence
+				or runGeneration ~= scheduledGeneration
+				or currentRound ~= roundNumber
+			then
+				return
+			end
+
+			local currentRequiredVotes = getRequiredVotes()
+			if currentRequiredVotes > 0 and getVoteCount() >= currentRequiredVotes then
+				advanceRound()
+			else
+				skipEndsAt = 0
+				skipCountdownSequence += 1
+				broadcastState()
+			end
+		end)
 	else
+		if skipEndsAt > 0 then
+			skipEndsAt = 0
+			skipCountdownSequence += 1
+		end
 		broadcastState()
 	end
 end
@@ -319,6 +362,8 @@ function RoundController.SetRoundForAdmin(roundNumber: number): (boolean, number
 	spawningRound = false
 	roundSpawnPending = false
 	completionCheckPending = false
+	skipCountdownSequence += 1
+	skipEndsAt = 0
 	setBossAnnouncement(false)
 	ZombieController.ClearAll()
 	advanceRound()
@@ -329,23 +374,40 @@ function RoundController.VoteToSkip(_, player: Player)
 	local now = workspace:GetServerTimeNow()
 	if currentRound <= 0
 		or not isPartyMember(player)
-		or votes[player.UserId]
-		or now < (lastSkipVoteAt[player.UserId] or 0) + RunProgressionConfig.Rounds.SkipVoteCooldown
 	then
 		sendState(player)
 		return
 	end
 
-	-- The client supplies no counts or round number; the server records only the authenticated sender's
-	-- one vote for the active shared round and owns both the cooldown and strict-majority decision.
-	lastSkipVoteAt[player.UserId] = now
-	votes[player.UserId] = true
-	task.delay(RunProgressionConfig.Rounds.SkipVoteCooldown, function()
-		if player.Parent == Players and lastSkipVoteAt[player.UserId] == now then
+	if votes[player.UserId] then
+		-- Voters can always withdraw during the grace period, even while their cast cooldown is active.
+		votes[player.UserId] = nil
+	else
+		if now < (lastSkipVoteAt[player.UserId] or 0) + RunProgressionConfig.Rounds.SkipVoteCooldown then
 			sendState(player)
+			return
 		end
-	end)
+		-- The client supplies no counts; the server records only the authenticated sender's intent.
+		lastSkipVoteAt[player.UserId] = now
+		votes[player.UserId] = true
+		task.delay(RunProgressionConfig.Rounds.SkipVoteCooldown, function()
+			if player.Parent == Players and lastSkipVoteAt[player.UserId] == now then
+				sendState(player)
+			end
+		end)
+	end
 	evaluateSkipMajority()
+end
+
+function RoundController.RequestSkipVote(_, player: Player, requestId: any, round: any)
+	if type(requestId) ~= "number" or requestId % 1 ~= 0 or requestId <= 0 or requestId >= math.huge then
+		return
+	end
+	-- A delayed vote belongs to the round displayed when it was pressed, never the next round.
+	if round == currentRound then
+		RoundController.VoteToSkip(nil, player)
+	end
+	roundNetwork:fire(player, "VoteResolved", requestId, makePacket(player))
 end
 
 function RoundController.RestartRun()
@@ -358,6 +420,8 @@ function RoundController.RestartRun()
 	spawningRound = false
 	roundSpawnPending = false
 	completionCheckPending = false
+	skipCountdownSequence += 1
+	skipEndsAt = 0
 	setBossAnnouncement(false)
 
 	if ZombieController.IsSimulationStarted() then
@@ -371,6 +435,7 @@ function RoundController.Init()
 	roundNetwork = Networker.server.new("RoundController", RoundController, {
 		RoundController.GetState,
 		RoundController.VoteToSkip,
+		RoundController.RequestSkipVote,
 	})
 
 	ZombieController.GetZombieDiedSignal():Connect(function(death)

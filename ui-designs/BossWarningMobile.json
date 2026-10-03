@@ -2,39 +2,185 @@
   "pinevex_object": {
     "type": "Frame",
     "name": "BossWarningMobilePreview",
-    "size": [1, 0, 1, 0],
-    "bg": [20, 25, 31],
+    "size": [
+      1,
+      0,
+      1,
+      0
+    ],
+    "bg": [
+      20,
+      25,
+      31
+    ],
     "children": [
       {
         "type": "Frame",
         "name": "BossWarning",
-        "size": [0, 320, 0, 82],
-        "position": [0.5, 0, 0, 118],
-        "anchor": [0.5, 0],
-        "bg": [31, 29, 19],
-        "strokes": [{ "thickness": 3, "color": [225, 188, 112], "applyMode": "Border" }],
+        "size": [
+          0.5777777777777777,
+          112,
+          0.066625,
+          28.7
+        ],
+        "position": [
+          0.5,
+          0,
+          0,
+          118
+        ],
+        "anchor": [
+          0.5,
+          0
+        ],
+        "bg": [
+          31,
+          29,
+          19
+        ],
+        "strokes": [
+          {
+            "thickness": 3,
+            "color": [
+              225,
+              188,
+              112
+            ],
+            "applyMode": "Border"
+          }
+        ],
         "children": [
-          { "type": "Frame", "name": "LeftAccent", "size": [0, 5, 1, -16], "position": [0, 8, 0, 8], "bg": [225, 188, 112] },
-          { "type": "Frame", "name": "RightAccent", "size": [0, 5, 1, -16], "position": [1, -8, 0, 8], "anchor": [1, 0], "bg": [225, 188, 112] },
           {
-            "type": "TextLabel", "name": "Stage", "size": [1, -42, 0, 15], "position": [0, 21, 0, 7],
-            "bgTransparency": 1, "text": "BOSS EMERGING", "textColor": [238, 216, 171],
-            "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy"
+            "type": "Frame",
+            "name": "LeftAccent",
+            "size": [
+              0.015625,
+              0,
+              0.8048780487804879,
+              0
+            ],
+            "position": [
+              0.025,
+              0,
+              0.0975609756097561,
+              0
+            ],
+            "bg": [
+              225,
+              188,
+              112
+            ]
           },
           {
-            "type": "TextLabel", "name": "BossName", "size": [1, -42, 0, 29], "position": [0, 21, 0, 25],
-            "bgTransparency": 1, "text": "BONE COLOSSUS", "textColor": [255, 242, 226],
-            "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy"
+            "type": "Frame",
+            "name": "RightAccent",
+            "size": [
+              0.015625,
+              0,
+              0.8048780487804879,
+              0
+            ],
+            "position": [
+              0.975,
+              0,
+              0.0975609756097561,
+              0
+            ],
+            "anchor": [
+              1,
+              0
+            ],
+            "bg": [
+              225,
+              188,
+              112
+            ]
           },
           {
-            "type": "TextLabel", "name": "Message", "size": [1, -42, 0, 13], "position": [0, 21, 0, 61],
-            "bgTransparency": 1, "text": "GROUND BREACH - STAY CLEAR", "textColor": [216, 207, 202],
-            "textScaled": true, "font": "Ubuntu", "fontWeight": "Bold"
+            "type": "TextLabel",
+            "name": "Stage",
+            "size": [
+              0.86875,
+              0,
+              0.18292682926829268,
+              0
+            ],
+            "position": [
+              0.065625,
+              0,
+              0.08536585365853659,
+              0
+            ],
+            "bgTransparency": 1,
+            "text": "BOSS EMERGING",
+            "textColor": [
+              238,
+              216,
+              171
+            ],
+            "textScaled": true,
+            "font": "Ubuntu",
+            "fontWeight": "Heavy"
+          },
+          {
+            "type": "TextLabel",
+            "name": "BossName",
+            "size": [
+              0.86875,
+              0,
+              0.35365853658536583,
+              0
+            ],
+            "position": [
+              0.065625,
+              0,
+              0.3048780487804878,
+              0
+            ],
+            "bgTransparency": 1,
+            "text": "BONE COLOSSUS",
+            "textColor": [
+              255,
+              242,
+              226
+            ],
+            "textScaled": true,
+            "font": "Ubuntu",
+            "fontWeight": "Heavy"
+          },
+          {
+            "type": "TextLabel",
+            "name": "Message",
+            "size": [
+              0.86875,
+              0,
+              0.15853658536585366,
+              0
+            ],
+            "position": [
+              0.065625,
+              0,
+              0.7439024390243902,
+              0
+            ],
+            "bgTransparency": 1,
+            "text": "GROUND BREACH - STAY CLEAR",
+            "textColor": [
+              216,
+              207,
+              202
+            ],
+            "textScaled": true,
+            "font": "Ubuntu",
+            "fontWeight": "Bold"
           }
         ]
       }
     ]
   },
-  "viewport_size": [360, 800],
+  "viewport_size": [
+    360,
+    800
+  ],
   "transparent_background": false
 }

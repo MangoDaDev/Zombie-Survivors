@@ -19,13 +19,13 @@
         "name": "Bar0_0",
         "size": [
           0,
-          228,
+          300.0,
           0,
-          30
+          47.0
         ],
         "position": [
           0,
-          150,
+          154,
           0,
           65
         ],
@@ -36,7 +36,7 @@
         "bgTransparency": 1,
         "strokes": [
           {
-            "thickness": 2.1,
+            "thickness": 3.2900000000000005,
             "color": [
               15,
               20,
@@ -92,7 +92,7 @@
             "fontWeight": "Bold",
             "strokes": [
               {
-                "thickness": 1.485,
+                "thickness": 2.3265000000000002,
                 "color": [
                   15,
                   20,
@@ -109,9 +109,9 @@
         "name": "Bar0_1",
         "size": [
           0,
-          152,
+          208.0,
           0,
-          20
+          34.0
         ],
         "position": [
           0,
@@ -126,7 +126,7 @@
         "bgTransparency": 1,
         "strokes": [
           {
-            "thickness": 1.4000000000000001,
+            "thickness": 2.3800000000000003,
             "color": [
               15,
               20,
@@ -182,7 +182,7 @@
             "fontWeight": "Bold",
             "strokes": [
               {
-                "thickness": 0.99,
+                "thickness": 1.683,
                 "color": [
                   15,
                   20,
@@ -199,9 +199,9 @@
         "name": "Bar0_2",
         "size": [
           0,
-          114,
+          162.0,
           0,
-          15
+          27.5
         ],
         "position": [
           0,
@@ -216,7 +216,7 @@
         "bgTransparency": 1,
         "strokes": [
           {
-            "thickness": 1.05,
+            "thickness": 1.9250000000000003,
             "color": [
               15,
               20,
@@ -272,7 +272,7 @@
             "fontWeight": "Bold",
             "strokes": [
               {
-                "thickness": 0.7425,
+                "thickness": 1.36125,
                 "color": [
                   15,
                   20,
@@ -289,13 +289,13 @@
         "name": "Bar1_0",
         "size": [
           0,
-          228,
+          300.0,
           0,
-          30
+          47.0
         ],
         "position": [
           0,
-          150,
+          154,
           0,
           145
         ],
@@ -306,7 +306,7 @@
         "bgTransparency": 1,
         "strokes": [
           {
-            "thickness": 2.1,
+            "thickness": 3.2900000000000005,
             "color": [
               15,
               20,
@@ -362,7 +362,7 @@
             "fontWeight": "Bold",
             "strokes": [
               {
-                "thickness": 1.485,
+                "thickness": 2.3265000000000002,
                 "color": [
                   15,
                   20,
@@ -379,9 +379,9 @@
         "name": "Bar1_1",
         "size": [
           0,
-          152,
+          208.0,
           0,
-          20
+          34.0
         ],
         "position": [
           0,
@@ -396,7 +396,7 @@
         "bgTransparency": 1,
         "strokes": [
           {
-            "thickness": 1.4000000000000001,
+            "thickness": 2.3800000000000003,
             "color": [
               15,
               20,
@@ -452,7 +452,7 @@
             "fontWeight": "Bold",
             "strokes": [
               {
-                "thickness": 0.99,
+                "thickness": 1.683,
                 "color": [
                   15,
                   20,
@@ -469,9 +469,9 @@
         "name": "Bar1_2",
         "size": [
           0,
-          114,
+          162.0,
           0,
-          15
+          27.5
         ],
         "position": [
           0,
@@ -486,7 +486,7 @@
         "bgTransparency": 1,
         "strokes": [
           {
-            "thickness": 1.05,
+            "thickness": 1.9250000000000003,
             "color": [
               15,
               20,
@@ -542,7 +542,7 @@
             "fontWeight": "Bold",
             "strokes": [
               {
-                "thickness": 0.7425,
+                "thickness": 1.36125,
                 "color": [
                   15,
                   20,
@@ -559,13 +559,13 @@
         "name": "Bar2_0",
         "size": [
           0,
-          228,
+          300.0,
           0,
-          30
+          47.0
         ],
         "position": [
           0,
-          150,
+          154,
           0,
           225
         ],
@@ -576,7 +576,7 @@
         "bgTransparency": 1,
         "strokes": [
           {
-            "thickness": 2.1,
+            "thickness": 3.2900000000000005,
             "color": [
               15,
               20,
@@ -632,7 +632,7 @@
             "fontWeight": "Bold",
             "strokes": [
               {
-                "thickness": 1.485,
+                "thickness": 2.3265000000000002,
                 "color": [
                   15,
                   20,
@@ -649,9 +649,9 @@
         "name": "Bar2_1",
         "size": [
           0,
-          152,
+          208.0,
           0,
-          20
+          34.0
         ],
         "position": [
           0,
@@ -666,7 +666,7 @@
         "bgTransparency": 1,
         "strokes": [
           {
-            "thickness": 1.4000000000000001,
+            "thickness": 2.3800000000000003,
             "color": [
               15,
               20,
@@ -722,7 +722,7 @@
             "fontWeight": "Bold",
             "strokes": [
               {
-                "thickness": 0.99,
+                "thickness": 1.683,
                 "color": [
                   15,
                   20,
@@ -739,9 +739,9 @@
         "name": "Bar2_2",
         "size": [
           0,
-          114,
+          162.0,
           0,
-          15
+          27.5
         ],
         "position": [
           0,
@@ -756,7 +756,7 @@
         "bgTransparency": 1,
         "strokes": [
           {
-            "thickness": 1.05,
+            "thickness": 1.9250000000000003,
             "color": [
               15,
               20,
@@ -812,7 +812,7 @@
             "fontWeight": "Bold",
             "strokes": [
               {
-                "thickness": 0.7425,
+                "thickness": 1.36125,
                 "color": [
                   15,
                   20,
@@ -829,13 +829,13 @@
         "name": "Bar3_0",
         "size": [
           0,
-          228,
+          300.0,
           0,
-          30
+          47.0
         ],
         "position": [
           0,
-          150,
+          154,
           0,
           305
         ],
@@ -846,7 +846,7 @@
         "bgTransparency": 1,
         "strokes": [
           {
-            "thickness": 2.1,
+            "thickness": 3.2900000000000005,
             "color": [
               15,
               20,
@@ -902,7 +902,7 @@
             "fontWeight": "Bold",
             "strokes": [
               {
-                "thickness": 1.485,
+                "thickness": 2.3265000000000002,
                 "color": [
                   15,
                   20,
@@ -919,9 +919,9 @@
         "name": "Bar3_1",
         "size": [
           0,
-          152,
+          208.0,
           0,
-          20
+          34.0
         ],
         "position": [
           0,
@@ -936,7 +936,7 @@
         "bgTransparency": 1,
         "strokes": [
           {
-            "thickness": 1.4000000000000001,
+            "thickness": 2.3800000000000003,
             "color": [
               15,
               20,
@@ -992,7 +992,7 @@
             "fontWeight": "Bold",
             "strokes": [
               {
-                "thickness": 0.99,
+                "thickness": 1.683,
                 "color": [
                   15,
                   20,
@@ -1009,9 +1009,9 @@
         "name": "Bar3_2",
         "size": [
           0,
-          114,
+          162.0,
           0,
-          15
+          27.5
         ],
         "position": [
           0,
@@ -1026,7 +1026,7 @@
         "bgTransparency": 1,
         "strokes": [
           {
-            "thickness": 1.05,
+            "thickness": 1.9250000000000003,
             "color": [
               15,
               20,
@@ -1082,7 +1082,7 @@
             "fontWeight": "Bold",
             "strokes": [
               {
-                "thickness": 0.7425,
+                "thickness": 1.36125,
                 "color": [
                   15,
                   20,

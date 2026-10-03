@@ -6,6 +6,8 @@ local MonetizationController = require(ReplicatedStorage.Controllers.Monetizatio
 local MonetizationConfig = require(ReplicatedStorage.Modules.Game.MonetizationConfig)
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
 local UIStyle = require(ReplicatedStorage.Modules.UI.UIStyle)
+local ResponsiveLayout = require(ReplicatedStorage.Modules.UI.ResponsiveLayout)
+local ResponsiveViewport = require(script.Parent.Parent.ResponsiveViewport)
 local Vide = require(ReplicatedStorage.Packages.vide)
 
 local action = Vide.action
@@ -19,6 +21,7 @@ local GOLD_LIGHT = Color3.fromRGB(255, 224, 126)
 local PAPER = Color3.fromRGB(255, 252, 238)
 
 return function()
+	local responsiveViewport = ResponsiveViewport()
 	local panel: CanvasGroup?
 	local panelScale: UIScale?
 	local productName: TextLabel?
@@ -112,6 +115,11 @@ return function()
 		cancelActiveAnimation()
 	end)
 
+	local layout = {}
+	layout.Viewport = ResponsiveLayout.Viewport(responsiveViewport)
+	layout.PurchaseCelebration = layout.Viewport
+	layout.Banner = ResponsiveLayout.Base(UDim2.new(0.6, 100, 0.1, 28), layout.PurchaseCelebration, 4.25)
+
 	return create "Frame" {
 		Name = "PurchaseCelebration",
 		BackgroundTransparency = 1,
@@ -124,7 +132,7 @@ return function()
 			BorderSizePixel = 0,
 			GroupTransparency = 1,
 			Position = UDim2.fromScale(0.5, 0.82),
-			Size = UDim2.new(0.6, 100, 0.1, 28),
+			Size = layout.Banner.Size,
 			Visible = false,
 			ZIndex = 400,
 			action(function(instance)

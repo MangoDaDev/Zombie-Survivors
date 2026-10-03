@@ -21,10 +21,14 @@ local XPDropController = require(ServerStorage.Controllers.XPDropController)
 local ZombieController = require(ServerStorage.Controllers.ZombieController)
 
 local RETURN_DELAY = 15
+local REVIVE_HOLD_SECONDS = 1.5
+local REVIVE_DISTANCE = 10
 
 type RunRuntime = {
 	startedAt: number?, zombiesKilled: number, coinsCollected: number, dead: boolean, ended: boolean,
 	resultPacket: any?, deathConnection: RBXScriptConnection?, returnToken: number, restarting: boolean,
+	revivePrompt: ProximityPrompt?, reviveConnections: { RBXScriptConnection }?,
+	reviveHolds: { [Player]: { startedAt: number, endedAt: number? } }?,
 }
 
 local RunSessionController = {}
@@ -83,12 +87,6 @@ local function getReplayVoteCount(): number
 	return count
 end
 
-local function getNextCheckpointRound(): number
-	local interval = MonetizationConfig.Run.CheckpointRespawnInterval
-	local currentRound = math.max(RoundController.GetCurrentRound(), 1)
-	return math.ceil(currentRound / interval) * interval
-end
-
 local function makeSnapshot(player: Player, runtime: RunRuntime)
 	if runtime.resultPacket then
 		local result = table.clone(runtime.resultPacket)
@@ -98,11 +96,16 @@ local function makeSnapshot(player: Player, runtime: RunRuntime)
 		return result
 	end
 	local livingUserIds = getLivingUserIds()
+	local downedUserIds = {}
+	for _, teammate in getPartyPlayers() do
+		local teammateRuntime = runtimes[teammate]
+		if teammateRuntime.dead and not teammateRuntime.ended then table.insert(downedUserIds, teammate.UserId) end
+	end
 	return {
 		active = false, startedAt = runtime.startedAt, dead = runtime.dead,
 		teamAliveCount = #livingUserIds, teamDeadCount = getDeadCount(nil),
 		eligibleTeamRevives = getDeadCount(player), livingUserIds = livingUserIds,
-		nextRespawnRound = getNextCheckpointRound(), teamWipeAt = teamWipeAt,
+		downedUserIds = downedUserIds, teamWipeAt = teamWipeAt,
 	}
 end
 
@@ -118,6 +121,95 @@ end
 
 local function disconnectDeath(runtime: RunRuntime)
 	if runtime.deathConnection then runtime.deathConnection:Disconnect(); runtime.deathConnection = nil end
+end
+
+local function clearRevivePrompt(runtime: RunRuntime)
+	for _, connection in runtime.reviveConnections or {} do connection:Disconnect() end
+	runtime.reviveConnections = nil
+	runtime.reviveHolds = nil
+	if runtime.revivePrompt then runtime.revivePrompt:Destroy(); runtime.revivePrompt = nil end
+end
+
+local function ragdollCharacter(character: Model, humanoid: Humanoid)
+	-- Preserve the corpse and its root for teammate wayfinding until a deliberate revive replaces it.
+	humanoid.AutoRotate = false
+	for _, descendant in character:GetDescendants() do
+		if descendant:IsA("Motor6D") and descendant.Part0 and descendant.Part1
+			and descendant.Part0.Name ~= "HumanoidRootPart" and descendant.Part1.Name ~= "HumanoidRootPart" then
+			local attachment0 = Instance.new("Attachment")
+			attachment0.Name = "DownedJoint"
+			attachment0.CFrame = descendant.C0
+			attachment0.Parent = descendant.Part0
+			local attachment1 = Instance.new("Attachment")
+			attachment1.Name = "DownedJoint"
+			attachment1.CFrame = descendant.C1
+			attachment1.Parent = descendant.Part1
+			local socket = Instance.new("BallSocketConstraint")
+			socket.Attachment0 = attachment0
+			socket.Attachment1 = attachment1
+			socket.LimitsEnabled = true
+			socket.UpperAngle = 55
+			socket.TwistLimitsEnabled = true
+			socket.TwistLowerAngle = -45
+			socket.TwistUpperAngle = 45
+			socket.Parent = descendant.Part0
+			descendant.Enabled = false
+		elseif descendant:IsA("BasePart") then
+			if descendant.Parent == character then descendant.CanCollide = descendant.Name ~= "HumanoidRootPart" end
+			if descendant:CanSetNetworkOwnership() then descendant:SetNetworkOwner(nil) end
+		end
+	end
+end
+
+local function createRevivePrompt(player: Player, runtime: RunRuntime, character: Model)
+	clearRevivePrompt(runtime)
+	local root = character:FindFirstChild("HumanoidRootPart")
+	if not root or not root:IsA("BasePart") then return end
+	local prompt = Instance.new("ProximityPrompt")
+	prompt.Name = "TeammateRevive"
+	prompt.ActionText = "Revive (hold 1.5s)"
+	prompt.ObjectText = player.DisplayName .. " - DOWNED"
+	prompt.HoldDuration = REVIVE_HOLD_SECONDS
+	prompt.MaxActivationDistance = REVIVE_DISTANCE
+	prompt.RequiresLineOfSight = false
+	runtime.revivePrompt = prompt
+	local holds: { [Player]: { startedAt: number, endedAt: number? } } = {}
+	runtime.reviveHolds = holds
+	local function canHelp(helper: Player): boolean
+		local helperRuntime = runtimes[helper]
+		local helperCharacter = helper.Character
+		local helperRoot = helperCharacter and helperCharacter:FindFirstChild("HumanoidRootPart")
+		local helperHumanoid = helperCharacter and helperCharacter:FindFirstChildOfClass("Humanoid")
+		return helper ~= player and isPartyMember(helper) and isPartyMember(player)
+			and helperRuntime ~= nil and not helperRuntime.dead and not helperRuntime.ended and not helperRuntime.restarting
+			and runtimes[player] == runtime and runtime.dead and not runtime.ended and not runtime.restarting
+			and player.Character == character and root.Parent ~= nil and prompt.Parent == root and prompt.Enabled
+			and helperHumanoid ~= nil and helperHumanoid.Health > 0
+			and helperRoot ~= nil and helperRoot:IsA("BasePart")
+			and (helperRoot.Position - root.Position).Magnitude <= REVIVE_DISTANCE
+	end
+	-- Prompt events are client-triggered; validate both participants, distance, and elapsed hold on the server.
+	runtime.reviveConnections = {
+		prompt.PromptButtonHoldBegan:Connect(function(helper)
+			holds[helper] = if canHelp(helper) then { startedAt = os.clock() } else nil
+		end),
+		prompt.PromptButtonHoldEnded:Connect(function(helper)
+			local hold = holds[helper]
+			if not hold then return end
+			local now = os.clock()
+			if now - hold.startedAt < REVIVE_HOLD_SECONDS - 0.05 then holds[helper] = nil else hold.endedAt = now end
+		end),
+		prompt.Triggered:Connect(function(helper)
+			local hold = holds[helper]
+			holds[helper] = nil
+			local now = os.clock()
+			-- A short delivery allowance accepts either ordering of release/completion without accepting old holds.
+			if not hold or now - hold.startedAt < REVIVE_HOLD_SECONDS - 0.05
+				or (hold.endedAt and now - hold.endedAt > 0.25) or not canHelp(helper) then return end
+			RunSessionController.RevivePlayer(player, "Teammate")
+		end),
+	}
+	prompt.Parent = root
 end
 
 local function initializePlayer(player: Player)
@@ -147,6 +239,7 @@ local function endPartyRun()
 			runtime.ended = true
 			runtime.returnToken += 1
 			disconnectDeath(runtime)
+			clearRevivePrompt(runtime)
 			local progression = RunProgressionController.GetRunSummary(player)
 			runtime.resultPacket = {
 				active = true, startedAt = runtime.startedAt, endedAt = now, returnAt = now + RETURN_DELAY,
@@ -203,12 +296,17 @@ end
 
 function RunSessionController.RevivePlayer(player: Player, _source: string): boolean
 	local runtime = runtimes[player]
-	if not runtime or runtime.ended or not runtime.dead or player.Parent ~= Players then return false end
+	if not runtime or runtime.ended or runtime.restarting or not runtime.dead or player.Parent ~= Players then return false end
+	local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+	local reviveCFrame = if root and root:IsA("BasePart") then CFrame.new(root.Position + Vector3.yAxis * 3) else nil
+	-- Death never grants an automatic wave respawn; only receipts and completed teammate prompts enter here.
 	runtime.dead = false
 	teamWipeRevision += 1; teamWipeAt = nil
-	if not CharacterController.ReloadCharacter(player) then
+	if not CharacterController.ReloadCharacter(player, reviveCFrame) then
 		runtime.dead = true; scheduleTeamWipeIfNeeded(); return false
 	end
+	clearRevivePrompt(runtime)
+	if runtimes[player] ~= runtime or player.Parent ~= Players then return false end
 	broadcastState()
 	return true
 end
@@ -231,7 +329,7 @@ local function restartParty()
 	for _, player in partyPlayers do
 		AnalyticsController.TrackReplayStep(player, 3)
 		local runtime = runtimes[player]
-		runtime.restarting = true; runtime.returnToken += 1; disconnectDeath(runtime)
+		runtime.restarting = true; runtime.returnToken += 1; disconnectDeath(runtime); clearRevivePrompt(runtime)
 	end
 	local failedPlayers = {}
 	for _, player in partyPlayers do if not CharacterController.ReloadCharacter(player) then table.insert(failedPlayers, player) end end
@@ -297,15 +395,6 @@ function RunSessionController.Init()
 		local runtime = runtimes[player]
 		if runtime and not runtime.ended then runtime.coinsCollected += value end
 	end)
-	RoundController.GetRoundCompletedSignal():Connect(function(completedRound: number)
-		if completedRound > 0 and completedRound % MonetizationConfig.Run.CheckpointRespawnInterval == 0 then
-			-- Every fifth completed wave is a free team recovery checkpoint; purchased revives bridge the gap.
-			for _, player in getPartyPlayers() do
-				if runtimes[player].dead then RunSessionController.RevivePlayer(player, "Checkpoint") end
-			end
-		end
-		broadcastState()
-	end)
 	if RunService:IsStudio() then
 		ServerContext.GetChangedSignal():Connect(function(serverType)
 			if serverType == "Game" then for _, player in Players:GetPlayers() do initializePlayer(player) end end
@@ -319,20 +408,32 @@ function RunSessionController.OnCharacterAdded(player: Player, character: Model)
 	local runtime = runtimes[player]
 	if not runtime or runtime.ended then return end
 	disconnectDeath(runtime)
+	clearRevivePrompt(runtime)
 	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 	if humanoid then
+		humanoid.BreakJointsOnDeath = false
 		runtime.deathConnection = humanoid.Died:Connect(function()
-			if runtime.ended or runtime.dead then return end
-			runtime.dead = true; disconnectDeath(runtime); broadcastState(); scheduleTeamWipeIfNeeded()
+			if runtimes[player] ~= runtime or player.Character ~= character or runtime.ended or runtime.dead or runtime.restarting then return end
+			runtime.dead = true
+			for _, teammateRuntime in runtimes do
+				if teammateRuntime.reviveHolds then teammateRuntime.reviveHolds[player] = nil end
+			end
+			disconnectDeath(runtime)
+			ragdollCharacter(character, humanoid)
+			createRevivePrompt(player, runtime, character)
+			broadcastState(); scheduleTeamWipeIfNeeded()
 		end)
 	end
 end
 
 function RunSessionController.OnPlayerRemoving(player: Player)
 	local runtime = runtimes[player]
-	if runtime then runtime.returnToken += 1; disconnectDeath(runtime) end
+	if runtime then runtime.returnToken += 1; disconnectDeath(runtime); clearRevivePrompt(runtime) end
+	for _, otherRuntime in runtimes do
+		if otherRuntime.reviveHolds then otherRuntime.reviveHolds[player] = nil end
+	end
 	replayVotes[player] = nil; runtimes[player] = nil
-	task.defer(function() restartParty(); scheduleTeamWipeIfNeeded() end)
+	task.defer(function() restartParty(); scheduleTeamWipeIfNeeded(); broadcastState() end)
 end
 
 return RunSessionController

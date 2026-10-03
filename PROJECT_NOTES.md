@@ -31,7 +31,7 @@ Concise project-specific decisions that should survive future changes. General w
 - Permanent x2 Coins and the current-run boost multiply at the authoritative coin/XP award boundaries. The run boost is cleared at every final run/replay boundary.
 - Gunslinger, Cryomancer, Starcaller, Titan, and Void Emperor are premium Gamepass classes. Verified ownership grants into the existing class/ability data; the legacy coin-unlock remote cannot bypass the pass.
 - Five Weapon and five Passive slots remain free. The slot Gamepass adds exactly one server-enforced slot to each category.
-- A player death is a downed state while any teammate lives. Downed players spectate; every fifth completed wave revives all downed party members, and only a full-team wipe can start the final result/lobby-return flow.
+- A player death is a downed state while any teammate lives. Downed players remain ragdolled and spectate until a paid revive or a living party teammate completes the 1.5-second body ProximityPrompt; wave completion never revives players. Revives reload a healthy character at the body location and retain run progression. Only a full-team wipe can start the final result/lobby-return flow.
 - Monetization artwork uses one standalone transparent PNG and one Roblox Image asset ID per product/class; never use atlases or runtime local-file paths. Source PNGs live under `assets/monetization/`, and runtime UI falls back to Marketplace/generic art until the corresponding Image IDs are configured.
 - The monetization shop is one continuous scrolling catalog. Its top category controls only jump the existing scroll position to section anchors; do not turn them back into filtered pages.
 - Purchase celebration is confirmation-driven: Developer Products celebrate only after their receipt applies, Gamepasses only after verified ownership, and cancellations never produce success feedback.
@@ -42,13 +42,15 @@ Concise project-specific decisions that should survive future changes. General w
 - Every composed menu keeps its authored panel proportions with a `UIAspectRatioConstraint`; use `FitWithinMaxSize` so the limiting axis can change safely between narrow, standard, and ultrawide viewports.
 - Authored HUD surfaces such as the round timer, currency chip, status bars, compact offers, and ability tray also preserve their breakpoint-specific proportions with `UIAspectRatioConstraint`; full-screen composition roots and intentionally fluid layout wrappers remain unconstrained.
 - Major catalog menus combine scale and positive pixel offsets so they continue growing across resolutions while occupying proportionally less space on larger displays; do not hard-cap them with pixel ceilings.
+- Screen-level menus/popups/HUD use `Modules.UI.ResponsiveLayout`: `UIStyle.BaseContainerScaleWeight = 0.65` transfers 35% of authored viewport Scale into the reference pixel base at `UIStyle.ReferenceViewport = 1280x720`. Children resolve authored offsets into parent-relative Scale, including list/grid spacing; mobile envelopes and existing aspect ratios stay intact. For future high-resolution bigger/smaller requests, tune this weight (lower grows more slowly), not child dimensions or a global UIScale.
+- Catalog content heights are derived from item counts and row dimensions, avoiding Scale-child/AutomaticSize-parent feedback loops while retaining automatic scrolling canvases.
 - Ability Arsenal, Shop, Zombie Index, Party Creation, and Run Over use the shared `UIStyle.NonClassMenuScale` value of `0.84`; Classes deliberately remains at its authored scale.
 - The party setup panel uses a fixed `1.25` aspect ratio.
 - UI sizing must not use `UISizeConstraint`; use responsive `Size` values and aspect-ratio constraints instead.
 
 ## Multiplayer wayfinding
 
-- Game sessions show safe-edge arrows with Roblox headshots for living offscreen teammates; lobby, local-player, dead-player, and on-screen markers stay hidden, and all projections share one render callback.
+- Game sessions show safe-edge arrows with Roblox headshots for offscreen teammates. Downed teammates retain red DOWNED / REVIVE ME markers, including above on-screen bodies; living on-screen, lobby, and local-player markers stay hidden. All projections share one render callback and downed eligibility comes from the authoritative session snapshot.
 
 ## Spectator UI
 
@@ -87,8 +89,19 @@ Concise project-specific decisions that should survive future changes. General w
 
 ## Combat feedback
 
-- Floating zombie damage numbers use the server's post-mitigation health loss and are sent only to the player credited by the damage context. Each hit owns a separate client-local, stud-scaled BillboardGui so simultaneous hits do not replace one another or modify the shared health bar.
+- Floating zombie damage numbers render only for the credited player. Predicted ordinary hits show an estimate immediately; the correlated server damage packet corrects it to post-mitigation health loss without a second number. Each hit owns a separate client-local, stud-scaled BillboardGui.
 - Zombie spawn height is measured from authored foot/leg geometry rather than the complete model bounds, preventing roots, accessories, or effect parts below the body from lifting visible feet off the ground.
+- Zombie spawn surface raycasts include only the arena's authored `Game.Baseplate`; tree canopies, rocks, and spawn pads must never set spawn height because the CFrame simulation has no gravity to settle elevated zombies.
+
+## Latency and prediction
+
+- High-ping interactions give immediate client presentation while damage, combat gates, currency, ownership, ability levels, rewards, and persistence stay server-authoritative. Never write predicted state into DataService.
+- Ready-up, round skip votes, and level-up choices use `ClientActionState`: one pending intent, correlated acknowledgements (including rejection), monotonically versioned snapshots, and an eight-second recovery timeout. Their startup snapshots run asynchronously; older fetch responses cannot replace newer pushes.
+- A selected level-up offer disappears locally without predicting its ability grant or queued replacement. The server supplies the next offer or restores a rejected one; choice-set IDs stay unique across same-server replays. Skip-vote intents carry their displayed round so delayed votes cannot affect the next round.
+- A strict-majority round skip starts a five-second server-owned countdown instead of advancing immediately. Any voter can withdraw during that window; dropping below the majority cancels it. Normal completed rounds also keep a five-second intermission.
+- Class equipment predicts only menu selection, shows `EQUIPPING...`, and reconciles against the explicit server reply plus DataService. Purchases and claim celebrations continue to require authoritative success.
+- Dagger launches/impacts, orbiting/released Sword contacts, and scheduled Aura ticks predict local hit flashes/audio and ordinary-enemy health/death presentation. `Zombie.CombatPrediction` keeps authoritative health separate, correlates confirmations by source/hit identity, restores missed predictions after 1.5 seconds, and retains bounded eight-second deduplication records. Death prediction is a reversible fall; only authoritative removal creates a ragdoll. Special enemies/bosses predict contact cues only, leaving damage/death to their authoritative mitigation. Other weapon effects remain server-driven.
+- Sword contact validation grants server-measured ping/motion leeway capped at two studs and 250ms; clients never supply damage, kills, cooldowns, or rewards. Dagger pending damage is bound to its original character and run data. Aura may continue its known cosmetic cadence for at most 1.5 seconds through delayed schedule pushes; every new schedule corrects it.
 
 ## Player regeneration
 
@@ -96,9 +109,17 @@ Concise project-specific decisions that should survive future changes. General w
 
 ## Player health presentation
 
-- `UI.World.PlayerHealthBars` replaces the screen health HUD with a 3.8-by-0.5-stud BillboardGui above every player during Game sessions. Every client reads all replicated Humanoids; damage and healing remain server-owned.
-- Keep the empty bar transparent, with a scaled outline, health fill, and only the remaining health number centered inside. Do not restore a HEALTH caption, backing panel, pixel-sized billboard, or duplicate native overhead/screen health display.
+- `UI.World.PlayerHealthBars` replaces the screen health HUD with a BillboardGui above every player during Game sessions. User-requested enlarged mixed sizing is `UDim2.new(4.6, 24, 0.65, 8)`: world studs plus a small pixel base for distant readability. Every client reads all replicated Humanoids; damage and healing remain server-owned.
+- Keep the empty bar transparent, with a scaled outline, health fill, and only the remaining health number centered inside. Do not restore a HEALTH caption, backing panel, entirely pixel-sized billboard, or duplicate native overhead/screen health display.
 - World health bars sit outside App's ordinary screen-UI spectator gate so downed players can still see their observed teammates' health.
+
+## Combat HUD composition
+
+- Combat keeps the user-requested classic Roblox STUD style: clearly visible tiled studs, navy panels, chunky borders/raised buttons, gold purchases, and orange combat actions. Improve readability through layout, spacing, and contrast; do not remove or nearly hide studs when polishing. `UIStyle.CombatStudTransparency` owns HUD stud visibility. Preserve all existing votes, purchases, ability tooltips, and authoritative state.
+- User-requested desktop commerce group sits at the middle-left (team revive, run boost, currency, Shop), with the complete stack centered vertically. Rage/XP stay at bottom-center and abilities at bottom-right. Below `UIStyle.CompactCombatWidth`, purchases use the safe top dock; portrait abilities sit above the meters and landscape abilities sit at top-right. Lobby currency keeps its existing left-center placement.
+- `UIStyle.CombatMeterSize` owns both meter dimensions. Edge-anchored HUD positions must retain their actual anchors; passing `Vector2.zero` to a responsive edge position pulls controls into the combat area.
+- Round-panel columns use parent proportions so fitted panels cannot overlap their labels/actions. Ability cards show larger icons and one centered level; cooldowns remain in their tooltips. Category names and counts are separate labels, and short landscape offer cards compress vertically to clear the meters.
+- Use Pinevex directly for UI iteration; existing icon asset IDs and a bright studded arena approximation are included in combat previews so visual review does not rely on text placeholders or a quiet background.
 
 ## Character placement
 
@@ -106,7 +127,7 @@ Concise project-specific decisions that should survive future changes. General w
 
 ## Part-built VFX
 
-- Client-local part effects share `Modules.UI.StudVFX` for studded Plastic blocks, layered flashes, segmented rings, and bounded two-tone debris bursts; keep gameplay timing and authority in their existing controllers.
+- Client-local part effects share `Modules.UI.StudVFX` for studded Plastic blocks, layered flashes, segmented rings, bounded two-tone debris bursts, and volumetric explosions built from stepped cores, rising plumes, dual shock fronts, and arcing ground chunks; keep gameplay timing and authority in their existing controllers.
 - Impact and area effects use layered stud compositions (crossed rays, echo rings, debris, broken tiles, or moving segments) rather than a single expanding sphere, cylinder, or plate; keep persistent effect part counts bounded for dense multiplayer hordes.
 
 ## Rendering performance

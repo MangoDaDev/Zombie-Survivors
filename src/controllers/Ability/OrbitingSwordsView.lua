@@ -6,6 +6,9 @@ local Workspace = game:GetService("Workspace")
 local EffectLightingConfig = require(ReplicatedStorage.Modules.UI.EffectLightingConfig)
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
 local StudVFX = require(ReplicatedStorage.Modules.UI.StudVFX)
+local ZombieController = require(script.Parent.Parent.ZombieController)
+local GameReadyController = require(script.Parent.Parent.GameReadyController)
+local AbilityDefinitions = require(ReplicatedStorage.Modules.Game.Abilities.AbilityDefinitions)
 
 local TAU = math.pi * 2
 local ORBIT_CORRECTION_SPEED = 18
@@ -18,8 +21,8 @@ local OrbitingSwordsView = {}
 local effectsFolder: Folder?
 local views = {}
 local releasedBlades = {}
-local framePlayers: { [number]: Player | boolean } = {}
-local frameRoots: { [number]: BasePart | boolean } = {}
+local framePlayers: { [number]: Player | false } = {}
+local frameRoots: { [number]: BasePart | false } = {}
 
 local function getFrameOwner(userId: number): (Player?, BasePart?)
 	if framePlayers[userId] == nil then
@@ -31,8 +34,7 @@ local function getFrameOwner(userId: number): (Player?, BasePart?)
 	end
 	local player = framePlayers[userId]
 	local root = frameRoots[userId]
-	return if typeof(player) == "Instance" then player else nil,
-		if typeof(root) == "Instance" then root else nil
+	return player or nil, root or nil
 end
 
 local function isFiniteNumber(value: any): boolean
@@ -314,6 +316,9 @@ function OrbitingSwordsView.SpawnReleased(packet): boolean
 		outwardDuration = packet.outwardDuration,
 		rage = packet.rage,
 		impacted = false,
+		targetId = packet.targetId,
+		damage = packet.damage,
+		predictionKey = packet.predictionKey,
 	})
 	return true
 end
@@ -336,6 +341,16 @@ function OrbitingSwordsView.Render(now: number, deltaTime: number)
 			view.renderAngle = (view.renderAngle + correction * correctionAlpha) % TAU
 			local angle = view.renderAngle
 			local center = root.Position + Vector3.new(0, 1.2, 0)
+			local humanoid = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+			local predict = userId == Players.LocalPlayer.UserId and GameReadyController.GetState().started
+				and humanoid and humanoid.Health > 0 and type(packet.damage) == "number"
+				and type(packet.hitRadius) == "number" and type(packet.hitCooldown) == "number"
+			local checkContact = predict and now >= (view.nextContactAt or 0)
+			local candidates = if checkContact then ZombieController.GetContactCandidates(center,
+				packet.orbitRadius + packet.hitRadius + 1) else nil
+			if checkContact then
+				view.nextContactAt = now + AbilityDefinitions.ById.OrbitingSwords.Combat.SimulationInterval
+			end
 			for _, sword in view.models do
 				local swordAngle
 				local radius
@@ -354,6 +369,34 @@ function OrbitingSwordsView.Render(now: number, deltaTime: number)
 				local position = center + radial * radius
 				-- Point the blade tip away from the owner so its full length contributes to visible orbit reach.
 				sword.model:PivotTo(getBladeCFrame(position, radial))
+				if candidates then
+					sword.hitTimes = sword.hitTimes or {}
+					local combat = AbilityDefinitions.ById.OrbitingSwords.Combat
+					local hitRadius = packet.hitRadius * (if sword.kind == "Inner" then combat.InnerScaleMultiplier else 1)
+					local damageMultiplier = if sword.kind == "Inner" then combat.InnerDamageMultiplier
+						elseif sword.kind == "Rage" then 0.8 else 1
+					local key = if sword.kind == "Main" then tostring(sword.index)
+						elseif sword.kind == "Rage" then "Rage" .. sword.index else "Inner"
+					local hits = 0
+					for _, candidate in candidates do
+						local offset = candidate.position - position
+						if Vector2.new(offset.X, offset.Z).Magnitude <= hitRadius
+							and now - (sword.hitTimes[candidate.id] or -math.huge) >= packet.hitCooldown then
+							sword.hitTimes[candidate.id] = now
+							ZombieController.PredictHit(candidate.id, "OrbitingSwords", key,
+								math.floor(packet.damage * damageMultiplier + 0.5))
+							hits += 1
+							if hits >= combat.MaximumHitsPerSwordStep then
+								break
+							end
+						end
+					end
+					for id, at in sword.hitTimes do
+						if now - at > 5 then
+							sword.hitTimes[id] = nil
+						end
+					end
+				end
 			end
 		end
 	end
@@ -372,6 +415,10 @@ function OrbitingSwordsView.Render(now: number, deltaTime: number)
 		else
 			if not blade.impacted then
 				blade.impacted = true
+				if blade.ownerUserId == Players.LocalPlayer.UserId and type(blade.targetId) == "number"
+					and type(blade.damage) == "number" and type(blade.predictionKey) == "string" then
+					ZombieController.PredictHit(blade.targetId, "OrbitingSwords", blade.predictionKey, blade.damage)
+				end
 				emitReleaseImpact(blade.targetPosition, blade.rage)
 			end
 			local returnAlpha = math.clamp((elapsed - blade.outwardDuration) / blade.outwardDuration, 0, 1)

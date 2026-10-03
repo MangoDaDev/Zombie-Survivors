@@ -36,7 +36,7 @@ local effectsFolder: Folder?
 local renderConnection: RBXScriptConnection?
 local nextVisibilityReportAt = 0
 local views: { [number]: XPView } = {}
-local frameDestinations: { [number]: Vector3 | boolean } = {}
+local frameDestinations: { [number]: Vector3 | false } = {}
 
 local function getRoot(userId: number?): BasePart?
 	local player = userId and Players:GetPlayerByUserId(userId)
@@ -52,7 +52,7 @@ local function getFrameDestination(userId: number?): Vector3?
 	end
 	local cached = frameDestinations[userId]
 	if cached ~= nil then
-		return if typeof(cached) == "Vector3" then cached else nil
+		return cached or nil
 	end
 	-- A magnet burst shares one collector destination for this frame. Refresh before the
 	-- next frame so health, respawns, and root replication keep their existing behavior.

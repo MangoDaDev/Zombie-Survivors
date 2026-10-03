@@ -77,7 +77,8 @@ local RunProgressionConfig = {
 		LateHordeGrowthStartRound = 15,
 		LateZombieCountGrowthPerRound = 0.5,
 		FirstRoundDelay = 1.5,
-		IntermissionDuration = 3,
+		-- Give players a consistent five-second breather after each completed round.
+		IntermissionDuration = 5,
 		-- Batches grow slowly and remain capped so later rounds add pressure without producing large
 		-- allocation/replication spikes. The interval floor preserves breathing room at every round.
 		InitialBatchSize = 6,
@@ -90,6 +91,8 @@ local RunProgressionConfig = {
 		MinimumReinforcementInterval = 1.4,
 		-- Keep skip votes deliberate across round boundaries, especially when one player can pass a vote alone.
 		SkipVoteCooldown = 8,
+		-- Reaching the majority starts a visible grace period; withdrawing a vote can cancel it.
+		SkipCountdownDuration = 5,
 		-- These values govern threat unlocks and strength bias, not player movement or responsiveness.
 		RoundDurationEquivalent = 20,
 		DifficultyRoundsPerStep = 20,

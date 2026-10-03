@@ -62,6 +62,7 @@ type DamageContext = {
 	canApplyHitPassives: boolean?,
 	chainDepth: number?,
 	chainState: any?,
+	predictionKey: string?,
 }
 
 local function onZombieDamagedPlayer(zombie, player: Player, actualDamage: number)
@@ -393,7 +394,9 @@ local function findSurfacePosition(spawnArena, worldPosition: Vector3)
 	end
 	local raycastParams = RaycastParams.new()
 	raycastParams.FilterType = Enum.RaycastFilterType.Include
-	raycastParams.FilterDescendantsInstances = { activeMap }
+	-- Zombies move on the combat floor without gravity. Hitting trees or props here would
+	-- preserve their elevated spawn height even after they move away from that decoration.
+	raycastParams.FilterDescendantsInstances = { spawnArena.Floor }
 	local result = workspace:Raycast(
 		Vector3.new(worldPosition.X, spawnArena.GroundY + 45, worldPosition.Z),
 		Vector3.new(0, -90, 0),
@@ -1092,22 +1095,24 @@ damageZombieInternal = function(
 			end
 		end
 		-- Damage feedback is replicated immediately instead of waiting for the next movement snapshot.
+		local owner = type(damageContext) == "table" and damageContext.player or nil
+		local ownerUserId = if typeof(owner) == "Instance" and owner:IsA("Player") then owner.UserId else nil
 		zombieNetwork:fireAll(
 			"ZombieDamaged",
 			id,
 			zombie.health,
 			zombie.maximumHealth,
 			direction,
-			knockbackImpulse or 0
+			knockbackImpulse or 0,
+			ownerUserId,
+			type(damageContext) == "table" and damageContext.source or nil,
+			type(damageContext) == "table" and damageContext.predictionKey or nil,
+			workspace:GetServerTimeNow(),
+			actualDamage
 		)
 		-- Armor, shields, and dodges consume the authoritative hit but must not trigger on-damage passives.
 		if actualDamage > 0 then
-			local owner = type(damageContext) == "table" and damageContext.player or nil
-			if typeof(owner) == "Instance" and owner:IsA("Player") and owner.Parent == Players then
-				-- Send the post-mitigation health loss only to the dealer. Other players still receive the
-				-- shared health/impact packet above, but never see another player's floating number.
-				zombieNetwork:fire(owner, "ZombieDamageNumber", id, actualDamage)
-			end
+			-- One correlated packet reconciles health and feedback together. Only the dealer renders its number.
 			zombieDamaged:Fire(id, position, actualDamage, killed, damageContext)
 		end
 		return true, killed
@@ -1290,6 +1295,7 @@ local function startSimulation()
 	local floorSurface = floor.CFrame * CFrame.new(0, floor.Size.Y * 0.5, 0)
 	-- The arena is derived from the authored floor, replacing the removed multi-area progression system.
 	arena = {
+		Floor = floor,
 		CFrame = floorSurface,
 		Size = Vector2.new(floor.Size.X, floor.Size.Z),
 		GroundY = floorSurface.Position.Y,

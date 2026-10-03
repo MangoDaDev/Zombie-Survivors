@@ -18,6 +18,7 @@ local Images = require(ReplicatedStorage.Modules.UI.Images)
 local SafeArea = require(ReplicatedStorage.Modules.UI.SafeArea)
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
 local UIStyle = require(ReplicatedStorage.Modules.UI.UIStyle)
+local ResponsiveLayout = require(ReplicatedStorage.Modules.UI.ResponsiveLayout)
 local Vide = require(ReplicatedStorage.Packages.vide)
 
 local action = Vide.action
@@ -78,6 +79,33 @@ local function classCard(definition, order: number, props)
 	end, 0.16, 0.88)
 	local ability = getAbility(definition)
 
+	local layout = {}
+	layout.Viewport = props.parentLayout
+	layout.Frame = ResponsiveLayout.Child(function()
+		return UDim2.new(1, -4, 0, if props.compactPortrait() then 70 elseif props.portrait() then 82 elseif props.shortLandscape() then 70 else 92)
+	end, layout.Viewport)
+	layout.AbilityIcon = ResponsiveLayout.Child(function()
+		local iconSize = if props.portrait() then 34 elseif props.shortLandscape() then 38 else 58
+		return UDim2.fromOffset(iconSize, iconSize)
+	end, layout.Frame)
+	layout.ClassName = ResponsiveLayout.Child(function()
+		if props.portrait() then return UDim2.new(1, -16, 0, 20) end
+		return UDim2.new(1, if props.shortLandscape() then -154 else -196, 0, if props.shortLandscape() then 24 else 31)
+	end, layout.Frame)
+	layout.StartingAbility = ResponsiveLayout.Child(function() return UDim2.new(1, if props.shortLandscape() then -154 else -196, 0, if props.shortLandscape() then 18 else 22) end, layout.Frame)
+	layout.StateBadge = ResponsiveLayout.Child(function()
+		return UDim2.fromOffset(if props.portrait() then 70 elseif props.shortLandscape() then 74 else 92, if props.portrait() then 20 elseif props.shortLandscape() then 25 else 30)
+	end, layout.Frame)
+	layout.Coin = ResponsiveLayout.Child(function()
+		local size = if props.portrait() then 14 elseif props.shortLandscape() then 17 else 20
+		return UDim2.fromOffset(size, size)
+	end, layout.StateBadge)
+	layout.TextLabel = ResponsiveLayout.Child(function()
+		return if premium or tutorialTarget() or owned() or not prerequisiteMet()
+			then UDim2.fromScale(1, 1)
+			else UDim2.new(1, if props.portrait() then -25 else -33, 1, 0)
+	end, layout.StateBadge)
+
 	return create "Frame" {
 		Name = definition.Id .. "Card",
 		BackgroundColor3 = function()
@@ -85,9 +113,7 @@ local function classCard(definition, order: number, props)
 		end,
 		BorderSizePixel = 0,
 		LayoutOrder = order,
-		Size = function()
-			return UDim2.new(1, -4, 0, if props.compactPortrait() then 70 elseif props.portrait() then 82 elseif props.shortLandscape() then 70 else 92)
-		end,
+		Size = layout.Frame.Size,
 		ZIndex = 365,
 		create "UIScale" { Scale = scale },
 		StudTexture({ ZIndex = 365, ImageTransparency = 0.9, TileSize = UDim2.fromOffset(56, 56) }),
@@ -105,28 +131,22 @@ local function classCard(definition, order: number, props)
 			AnchorPoint = function() return if props.portrait() then Vector2.new(0, 0) else Vector2.new(0, 0.5) end,
 			BackgroundTransparency = 1,
 			Image = ability.Icon,
-			Position = function()
+			Position = layout.Frame.Scale(function()
 				return if props.portrait() then UDim2.fromOffset(9, 7) else UDim2.new(0, if props.shortLandscape() then 8 else 12, 0.5, 0)
-			end,
+			end),
 			ScaleType = Enum.ScaleType.Fit,
-			Size = function()
-				local iconSize = if props.portrait() then 34 elseif props.shortLandscape() then 38 else 58
-				return UDim2.fromOffset(iconSize, iconSize)
-			end,
+			Size = layout.AbilityIcon.Size,
 			ZIndex = 366,
 		},
 		create "TextLabel" {
 			Name = "ClassName",
 			BackgroundTransparency = 1,
 			FontFace = HEAVY_FONT,
-			Position = function()
+			Position = layout.Frame.Scale(function()
 				if props.portrait() then return UDim2.fromOffset(8, if props.compactPortrait() then 46 else 56) end
 				return UDim2.fromOffset(if props.shortLandscape() then 58 else 82, if props.shortLandscape() then 9 else 14)
-			end,
-			Size = function()
-				if props.portrait() then return UDim2.new(1, -16, 0, 20) end
-				return UDim2.new(1, if props.shortLandscape() then -154 else -196, 0, if props.shortLandscape() then 24 else 31)
-			end,
+			end),
+			Size = layout.ClassName.Size,
 			Text = string.upper(definition.Name),
 			TextColor3 = PAPER,
 			TextScaled = true,
@@ -138,10 +158,10 @@ local function classCard(definition, order: number, props)
 			Name = "StartingAbility",
 			BackgroundTransparency = 1,
 			FontFace = BOLD_FONT,
-			Position = function()
+			Position = layout.Frame.Scale(function()
 				return UDim2.fromOffset(if props.shortLandscape() then 58 else 82, if props.shortLandscape() then 39 else 53)
-			end,
-			Size = function() return UDim2.new(1, if props.shortLandscape() then -154 else -196, 0, if props.shortLandscape() then 18 else 22) end,
+			end),
+			Size = layout.StartingAbility.Size,
 			Text = string.upper(ability.Name),
 			TextColor3 = definition.Color,
 			TextScaled = true,
@@ -160,10 +180,8 @@ local function classCard(definition, order: number, props)
 				return if owned() then Color3.fromRGB(28, 110, 143) else Color3.fromRGB(67, 55, 26)
 			end,
 			BorderSizePixel = 0,
-			Position = function() return if props.portrait() then UDim2.new(1, -8, 0, 9) else UDim2.new(1, -9, 0.5, 0) end,
-			Size = function()
-				return UDim2.fromOffset(if props.portrait() then 70 elseif props.shortLandscape() then 74 else 92, if props.portrait() then 20 elseif props.shortLandscape() then 25 else 30)
-			end,
+			Position = layout.Frame.Scale(function() return if props.portrait() then UDim2.new(1, -8, 0, 9) else UDim2.new(1, -9, 0.5, 0) end),
+			Size = layout.StateBadge.Size,
 			ZIndex = 367,
 			StudTexture({ ZIndex = 367, ImageTransparency = 0.89, TileSize = UDim2.fromOffset(36, 36) }),
 			create "ImageLabel" {
@@ -171,11 +189,8 @@ local function classCard(definition, order: number, props)
 				AnchorPoint = Vector2.new(0, 0.5),
 				BackgroundTransparency = 1,
 				Image = Images.Coin,
-				Position = UDim2.new(0, 6, 0.5, 0),
-				Size = function()
-					local size = if props.portrait() then 14 elseif props.shortLandscape() then 17 else 20
-					return UDim2.fromOffset(size, size)
-				end,
+				Position = layout.StateBadge.Scale(UDim2.new(0, 6, 0.5, 0)),
+				Size = layout.Coin.Size,
 				Visible = function()
 					return not premium and not tutorialTarget() and not owned() and prerequisiteMet()
 				end,
@@ -184,16 +199,12 @@ local function classCard(definition, order: number, props)
 			create "TextLabel" {
 				BackgroundTransparency = 1,
 				FontFace = HEAVY_FONT,
-				Position = function()
+				Position = layout.StateBadge.Scale(function()
 					return if premium or tutorialTarget() or owned() or not prerequisiteMet()
 						then UDim2.fromScale(0, 0)
 						else UDim2.new(0, if props.portrait() then 22 else 29, 0, 0)
-				end,
-				Size = function()
-					return if premium or tutorialTarget() or owned() or not prerequisiteMet()
-						then UDim2.fromScale(1, 1)
-						else UDim2.new(1, if props.portrait() then -25 else -33, 1, 0)
-				end,
+				end),
+				Size = layout.TextLabel.Size,
 				Text = function()
 					if tutorialTarget() then return "FREE" end
 					if equipped() then return "EQUIPPED" end
@@ -356,11 +367,82 @@ return function()
 		if viewportConnection then viewportConnection:Disconnect() end
 	end)
 
+	local layout = {}
+	layout.Viewport = ResponsiveLayout.Viewport(viewportSize)
+	layout.ClassInterface = layout.Viewport
+	layout.OpenButton = ResponsiveLayout.Base(function()
+		return if compactLauncher() then UDim2.new(1 / 3, -12, 0, 48) else UDim2.fromOffset(176, 50)
+	end, layout.ClassInterface)
+	layout.Overlay = layout.ClassInterface
+	layout.BackdropSensor = layout.Overlay
+	layout.Panel = ResponsiveLayout.Base(function()
+		if compactPortrait() then return UDim2.fromScale(0.96, 0.88) end
+		if portrait() then return UDim2.fromScale(0.96, 0.95) end
+		return UDim2.fromScale(0.95, 0.94)
+	end, layout.Overlay, function()
+						return if portrait() then 420 / 690 else 1280 / 760
+					end)
+	layout.Header = ResponsiveLayout.Child(function()
+		return if portrait() then UDim2.new(1, -76, 0, headerHeight()) else UDim2.new(0.445, -12, 0, headerHeight())
+	end, layout.Panel)
+	layout.Title = ResponsiveLayout.Child(function()
+		return UDim2.new(if portrait() then 1 else 0.56, if portrait() then -20 else 0, 0, if portrait() then 36 else 44)
+	end, layout.Header)
+	layout.Subtitle = ResponsiveLayout.Child(UDim2.new(0.65, 0, 0, 18), layout.Header)
+	layout.Coins = ResponsiveLayout.Child(function()
+		return if portrait() then UDim2.new(1, -20, 0, 22) else UDim2.fromOffset(if shortLandscape() then 112 else 152, if shortLandscape() then 34 else 42)
+	end, layout.Header)
+	layout.ImageLabel = ResponsiveLayout.Child(function()
+		return UDim2.fromOffset(if portrait() then 19 else 28, if portrait() then 19 else 28)
+	end, layout.Coins)
+	layout.TextLabel = ResponsiveLayout.Child(function()
+		return UDim2.new(1, if portrait() then -38 else -48, 1, -6)
+	end, layout.Coins)
+	layout.CloseSlot = ResponsiveLayout.Child(function()
+		return if portrait() then UDim2.fromOffset(52, headerHeight()) else UDim2.fromOffset(56, 56)
+	end, layout.Panel)
+	layout.Catalog = ResponsiveLayout.Child(function()
+		return UDim2.new(if portrait() then 0.42 else 0.445, if portrait() then -16 else -12, 1, -(contentTop() + 12))
+	end, layout.Panel)
+	layout.Content = ResponsiveLayout.Child(function()
+		local cardHeight = if compactPortrait() then 70 elseif portrait() then 82 elseif shortLandscape() then 70 else 92
+		local titleHeight = if compactPortrait() or shortLandscape() then 22 else 24
+		return UDim2.new(1, 0, 0, #ClassDefinitions.List * (cardHeight + 6) + titleHeight + 16)
+	end, layout.Catalog)
+	layout.CatalogTitle = ResponsiveLayout.Child(function() return UDim2.new(1, -4, 0, if compactPortrait() or shortLandscape() then 22 else 24) end, layout.Content)
+	layout.Details = ResponsiveLayout.Child(function()
+		return UDim2.new(if portrait() then 0.58 else 0.555, if portrait() then -16 else -24, 0, detailsHeight())
+	end, layout.Panel)
+	layout.AbilityPreview = ResponsiveLayout.Child(function()
+		local size = if portrait() then 42 else 58
+		return UDim2.fromOffset(size, size)
+	end, layout.Details)
+	layout.ClassName = ResponsiveLayout.Child(function()
+		return UDim2.new(1, if portrait() then -72 else -96, 0, if portrait() then 24 else 31)
+	end, layout.Details)
+	layout.Description = ResponsiveLayout.Child(function()
+		return UDim2.new(1, if portrait() then -24 else -96, 0, if portrait() then 53 else 45)
+	end, layout.Details)
+	layout.StartingAbility = ResponsiveLayout.Child(function()
+		return if portrait() then UDim2.new(1, -24, 0, 50) else UDim2.new(0.33, -18, 0, 67)
+	end, layout.Details)
+	layout.TextLabel2 = ResponsiveLayout.Child(function() return UDim2.new(1, -24, 0, if compactPortrait() then 17 else 21) end, layout.StartingAbility)
+	layout.TextLabel3 = ResponsiveLayout.Child(function() return UDim2.new(1, -24, 0, if compactPortrait() then 18 else 20) end, layout.StartingAbility)
+	layout.Perks = ResponsiveLayout.Child(function()
+		return if portrait() then UDim2.new(1, -24, 0, 70) else UDim2.new(0.67, -18, 0, 67)
+	end, layout.Details)
+	layout.TextLabel4 = ResponsiveLayout.Child(function() return UDim2.new(1, -24, 0, if compactPortrait() then 16 else 21) end, layout.Perks)
+	layout.TextLabel5 = ResponsiveLayout.Child(function() return UDim2.new(1, -24, 1, if compactPortrait() then -22 else -31) end, layout.Perks)
+	layout.Action = ResponsiveLayout.Child(function()
+		return UDim2.new(1, -24, 0, if portrait() then 42 else 48)
+	end, layout.Details)
+
 	local cards = {}
 	local previewIcons = {}
 	-- The existing 3D/ability presentation stays intact; premium portraits are shown in the integrated Shop cards.
 	for order, definition in ClassDefinitions.List do
 		table.insert(cards, classCard(definition, order, {
+			parentLayout = layout.Content,
 			state = state,
 			abilityState = abilityState,
 			selectedId = selectedId,
@@ -399,12 +481,10 @@ return function()
 			Name = "OpenButton",
 			AnchorPoint = Vector2.new(0.5, 1),
 			BackgroundTransparency = 1,
-			Position = function()
+			Position = layout.OpenButton.Position(function()
 				return UDim2.new(0.5, 0, 1, if compactLauncher() then -18 else -24)
-			end,
-			Size = function()
-				return if compactLauncher() then UDim2.new(1 / 3, -12, 0, 48) else UDim2.fromOffset(176, 50)
-			end,
+			end, Vector2.new(0.5, 1)),
+			Size = layout.OpenButton.Size,
 			Visible = function()
 				return not inRun() and not open() and not abilityShopOpen() and not shopOpen() and not partyActive()
 			end,
@@ -448,14 +528,10 @@ return function()
 				AnchorPoint = Vector2.new(0.5, 0.5),
 				BackgroundTransparency = 1,
 				BorderSizePixel = 0,
-				Position = function()
+				Position = layout.Panel.Position(function()
 					return UDim2.new(0.5, 0, 0.5, if compactPortrait() then topOffset() * 0.5 else 0)
-				end,
-				Size = function()
-					if compactPortrait() then return UDim2.fromScale(0.96, 0.88) end
-					if portrait() then return UDim2.fromScale(0.96, 0.95) end
-					return UDim2.fromScale(0.95, 0.94)
-				end,
+				end, Vector2.new(0.5, 0.5)),
+				Size = layout.Panel.Size,
 				ZIndex = 345,
 				create "UIAspectRatioConstraint" {
 					-- Keep the two-column class layout proportional across resolution changes while
@@ -470,10 +546,8 @@ return function()
 					Name = "Header",
 					BackgroundColor3 = Color3.fromRGB(16, 168, 219),
 					BorderSizePixel = 0,
-					Position = UDim2.fromOffset(12, 12),
-					Size = function()
-						return if portrait() then UDim2.new(1, -76, 0, headerHeight()) else UDim2.new(0.445, -12, 0, headerHeight())
-					end,
+					Position = layout.Panel.Scale(UDim2.fromOffset(12, 12)),
+					Size = layout.Header.Size,
 					ZIndex = 350,
 					-- Keep every filled menu surface on the same shared stud treatment as the HUD and buttons.
 					StudTexture({ ZIndex = 351, ImageTransparency = 0.82, TileSize = UDim2.fromOffset(96, 96) }),
@@ -483,10 +557,8 @@ return function()
 						Name = "Title",
 						BackgroundTransparency = 1,
 						FontFace = HEAVY_FONT,
-						Position = UDim2.fromOffset(if portrait() then 10 else 20, 7),
-						Size = function()
-							return UDim2.new(if portrait() then 1 else 0.56, if portrait() then -20 else 0, 0, if portrait() then 36 else 44)
-						end,
+						Position = layout.Header.Scale(UDim2.fromOffset(if portrait() then 10 else 20, 7)),
+						Size = layout.Title.Size,
 						Text = "CLASSES",
 						TextColor3 = PAPER,
 						TextScaled = true,
@@ -497,8 +569,8 @@ return function()
 						Name = "Subtitle",
 						BackgroundTransparency = 1,
 						FontFace = BOLD_FONT,
-						Position = UDim2.fromOffset(22, 54),
-						Size = UDim2.new(0.65, 0, 0, 18),
+						Position = layout.Header.Scale(UDim2.fromOffset(22, 54)),
+						Size = layout.Subtitle.Size,
 						Text = "CHOOSE YOUR SPECIALTY",
 						TextColor3 = Color3.fromRGB(2, 47, 72),
 						TextScaled = true,
@@ -515,12 +587,10 @@ return function()
 						end,
 						BackgroundColor3 = Color3.fromRGB(37, 31, 20),
 						BorderSizePixel = 0,
-						Position = function()
+						Position = layout.Header.Scale(function()
 							return if portrait() then UDim2.fromOffset(10, 47) else UDim2.new(1, -16, 0.5, 0)
-						end,
-						Size = function()
-							return if portrait() then UDim2.new(1, -20, 0, 22) else UDim2.fromOffset(if shortLandscape() then 112 else 152, if shortLandscape() then 34 else 42)
-						end,
+						end),
+						Size = layout.Coins.Size,
 						ZIndex = 352,
 						StudTexture({ ZIndex = 352, ImageTransparency = 0.9, TileSize = UDim2.fromOffset(44, 44) }),
 						create "UIStroke" { Color = Color3.fromRGB(218, 164, 55), Thickness = 2 },
@@ -528,21 +598,17 @@ return function()
 							AnchorPoint = Vector2.new(0, 0.5),
 							BackgroundTransparency = 1,
 							Image = Images.Coin,
-							Position = UDim2.new(0, 8, 0.5, 0),
-							Size = function()
-								return UDim2.fromOffset(if portrait() then 19 else 28, if portrait() then 19 else 28)
-							end,
+							Position = layout.Coins.Scale(UDim2.new(0, 8, 0.5, 0)),
+							Size = layout.ImageLabel.Size,
 							ZIndex = 353,
 						},
 						create "TextLabel" {
 							BackgroundTransparency = 1,
 							FontFace = HEAVY_FONT,
-							Position = function()
+							Position = layout.Coins.Scale(function()
 								return UDim2.fromOffset(if portrait() then 32 else 43, 3)
-							end,
-							Size = function()
-								return UDim2.new(1, if portrait() then -38 else -48, 1, -6)
-							end,
+							end),
+							Size = layout.TextLabel.Size,
 							Text = function()
 								local amount = FormatNumber(balance()) or tostring(balance())
 								return if portrait() then "COINS  " .. amount else amount
@@ -558,12 +624,10 @@ return function()
 					Name = "CloseSlot",
 					AnchorPoint = Vector2.new(1, 0),
 					BackgroundTransparency = 1,
-					Position = function()
+					Position = layout.Panel.Scale(function()
 						return if portrait() then UDim2.new(1, -12, 0, 12) else UDim2.new(1, -24, 0, 24)
-					end,
-					Size = function()
-						return if portrait() then UDim2.fromOffset(52, headerHeight()) else UDim2.fromOffset(56, 56)
-					end,
+					end),
+					Size = layout.CloseSlot.Size,
 					ZIndex = 380,
 					Button({ Text = "X", BackgroundColor3 = UIStyle.Colors.Red, FontFace = HEAVY_FONT, MaxTextSize = 44, Size = UDim2.fromScale(1, 1), OnActivated = function()
 						ClassController.SetOpen(false)
@@ -575,32 +639,29 @@ return function()
 					BackgroundColor3 = PANEL_LIGHT,
 					BorderSizePixel = 0,
 					CanvasSize = UDim2.fromScale(0, 0),
-					Position = function() return UDim2.fromOffset(12, contentTop()) end,
+					Position = layout.Panel.Scale(function() return UDim2.fromOffset(12, contentTop()) end),
 					ScrollBarImageColor3 = CYAN,
 					ScrollBarThickness = 4,
 					-- The list stays on the left while Workspace remains visible on the right.
-					Size = function()
-						return UDim2.new(if portrait() then 0.42 else 0.445, if portrait() then -16 else -12, 1, -(contentTop() + 12))
-					end,
+					Size = layout.Catalog.Size,
 					ZIndex = 360,
 					StudTexture({ ZIndex = 361, ImageTransparency = 0.93, TileSize = UDim2.fromOffset(60, 60) }),
 					create "UIStroke" { ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Color = Color3.fromRGB(0, 120, 148), Thickness = 2 },
 					create "Frame" {
 						Name = "Content",
-						AutomaticSize = Enum.AutomaticSize.Y,
 						BackgroundTransparency = 1,
-						Size = UDim2.new(1, 0, 0, 0),
+						Size = layout.Content.Size,
 						ZIndex = 361,
 						-- Isolate list entries from the scrolling panel's decorative texture so it cannot
 						-- be measured as a class row and introduce a large blank buffer.
-						create "UIPadding" { PaddingLeft = UDim.new(0, 8), PaddingRight = UDim.new(0, 8), PaddingTop = UDim.new(0, 8), PaddingBottom = UDim.new(0, 8) },
-						create "UIListLayout" { Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder },
+						create "UIPadding" { PaddingLeft = layout.Content.Padding(UDim.new(0, 8), "X"), PaddingRight = layout.Content.Padding(UDim.new(0, 8), "X"), PaddingTop = layout.Content.Padding(UDim.new(0, 8), "Y"), PaddingBottom = layout.Content.Padding(UDim.new(0, 8), "Y")},
+						create "UIListLayout" { Padding = layout.Content.Padding(UDim.new(0, 6), "Y"), SortOrder = Enum.SortOrder.LayoutOrder },
 						create "TextLabel" {
 							Name = "CatalogTitle",
 							BackgroundTransparency = 1,
 							FontFace = HEAVY_FONT,
 							LayoutOrder = 0,
-							Size = function() return UDim2.new(1, -4, 0, if compactPortrait() or shortLandscape() then 22 else 24) end,
+							Size = layout.CatalogTitle.Size,
 							Text = function()
 								local count = 0
 								for _, definition in ClassDefinitions.List do
@@ -623,14 +684,12 @@ return function()
 					BackgroundColor3 = PAPER,
 					BorderSizePixel = 0,
 					CanvasSize = function() return UDim2.fromOffset(0, if portrait() then 310 else 260) end,
-					Position = function()
+					Position = layout.Panel.Scale(function()
 						return UDim2.new(if portrait() then 0.42 else 0.445, if portrait() then 4 else 12, 1, -12)
-					end,
+					end),
 					ScrollBarImageColor3 = CYAN,
 					ScrollBarThickness = 4,
-					Size = function()
-						return UDim2.new(if portrait() then 0.58 else 0.555, if portrait() then -16 else -24, 0, detailsHeight())
-					end,
+					Size = layout.Details.Size,
 					ZIndex = 360,
 					StudTexture({
 						ZIndex = 361,
@@ -642,11 +701,8 @@ return function()
 					create "Frame" {
 						Name = "AbilityPreview",
 						BackgroundTransparency = 1,
-						Position = UDim2.fromOffset(12, 10),
-						Size = function()
-							local size = if portrait() then 42 else 58
-							return UDim2.fromOffset(size, size)
-						end,
+						Position = layout.Details.Scale(UDim2.fromOffset(12, 10)),
+						Size = layout.AbilityPreview.Size,
 						ZIndex = 366,
 						previewIcons,
 					},
@@ -654,12 +710,10 @@ return function()
 						Name = "ClassName",
 						BackgroundTransparency = 1,
 						FontFace = HEAVY_FONT,
-						Position = function()
+						Position = layout.Details.Scale(function()
 							return UDim2.fromOffset(if portrait() then 62 else 84, 10)
-						end,
-						Size = function()
-							return UDim2.new(1, if portrait() then -72 else -96, 0, if portrait() then 24 else 31)
-						end,
+						end),
+						Size = layout.ClassName.Size,
 						Text = function()
 							return string.upper(selectedDefinition().Name)
 						end,
@@ -675,12 +729,10 @@ return function()
 						Name = "Description",
 						BackgroundTransparency = 1,
 						FontFace = UIStyle.Font,
-						Position = function()
+						Position = layout.Details.Scale(function()
 							return UDim2.fromOffset(if portrait() then 12 else 84, if portrait() then 58 else 45)
-						end,
-						Size = function()
-							return UDim2.new(1, if portrait() then -24 else -96, 0, if portrait() then 53 else 45)
-						end,
+						end),
+						Size = layout.Description.Size,
 						Text = function()
 							return selectedDefinition().Description
 						end,
@@ -695,10 +747,8 @@ return function()
 						Name = "StartingAbility",
 						BackgroundColor3 = Color3.fromRGB(205, 220, 229),
 						BorderSizePixel = 0,
-						Position = function() return UDim2.fromOffset(12, if portrait() then 116 else 100) end,
-						Size = function()
-							return if portrait() then UDim2.new(1, -24, 0, 50) else UDim2.new(0.33, -18, 0, 67)
-						end,
+						Position = layout.Details.Scale(function() return UDim2.fromOffset(12, if portrait() then 116 else 100) end),
+						Size = layout.StartingAbility.Size,
 						ZIndex = 365,
 						StudTexture({
 							ZIndex = 365,
@@ -708,11 +758,11 @@ return function()
 						}),
 						create "UIStroke" { Color = Color3.fromRGB(110, 143, 160), Thickness = 2 },
 						create "TextLabel" {
-							BackgroundTransparency = 1, FontFace = HEAVY_FONT, Position = function() return UDim2.fromOffset(12, if compactPortrait() then 4 else 5) end, Size = function() return UDim2.new(1, -24, 0, if compactPortrait() then 17 else 21) end,
+							BackgroundTransparency = 1, FontFace = HEAVY_FONT, Position = layout.StartingAbility.Scale(function() return UDim2.fromOffset(12, if compactPortrait() then 4 else 5) end), Size = layout.TextLabel2.Size,
 							Text = "STARTING ABILITY", TextColor3 = Color3.fromRGB(36, 92, 120), TextScaled = true, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 366,
 						},
 						create "TextLabel" {
-							BackgroundTransparency = 1, FontFace = BOLD_FONT, Position = function() return UDim2.fromOffset(12, if compactPortrait() then 23 else 29) end, Size = function() return UDim2.new(1, -24, 0, if compactPortrait() then 18 else 20) end,
+							BackgroundTransparency = 1, FontFace = BOLD_FONT, Position = layout.StartingAbility.Scale(function() return UDim2.fromOffset(12, if compactPortrait() then 23 else 29) end), Size = layout.TextLabel3.Size,
 							Text = function() return string.upper(getAbility(selectedDefinition()).Name) end,
 							TextColor3 = INK, TextScaled = true, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 366,
 						},
@@ -721,12 +771,10 @@ return function()
 						Name = "Perks",
 						BackgroundColor3 = Color3.fromRGB(218, 239, 246),
 						BorderSizePixel = 0,
-						Position = function()
+						Position = layout.Details.Scale(function()
 							return if portrait() then UDim2.fromOffset(12, 176) else UDim2.new(0.33, 4, 0, 100)
-						end,
-						Size = function()
-							return if portrait() then UDim2.new(1, -24, 0, 70) else UDim2.new(0.67, -18, 0, 67)
-						end,
+						end),
+						Size = layout.Perks.Size,
 						ZIndex = 365,
 						StudTexture({
 							ZIndex = 365,
@@ -736,11 +784,11 @@ return function()
 						}),
 						create "UIStroke" { Color = Color3.fromRGB(78, 170, 193), Thickness = 2 },
 						create "TextLabel" {
-							BackgroundTransparency = 1, FontFace = HEAVY_FONT, Position = function() return UDim2.fromOffset(12, if compactPortrait() then 3 else 5) end, Size = function() return UDim2.new(1, -24, 0, if compactPortrait() then 16 else 21) end,
+							BackgroundTransparency = 1, FontFace = HEAVY_FONT, Position = layout.Perks.Scale(function() return UDim2.fromOffset(12, if compactPortrait() then 3 else 5) end), Size = layout.TextLabel4.Size,
 							Text = "CLASS PERKS", TextColor3 = Color3.fromRGB(17, 76, 96), TextScaled = true, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 366,
 						},
 						create "TextLabel" {
-							BackgroundTransparency = 1, FontFace = BOLD_FONT, Position = function() return UDim2.fromOffset(12, if compactPortrait() then 20 else 28) end, Size = function() return UDim2.new(1, -24, 1, if compactPortrait() then -22 else -31) end,
+							BackgroundTransparency = 1, FontFace = BOLD_FONT, Position = layout.Perks.Scale(function() return UDim2.fromOffset(12, if compactPortrait() then 20 else 28) end), Size = layout.TextLabel5.Size,
 							Text = function() return selectedDefinition().PerkText end,
 							TextColor3 = INK, TextScaled = true, TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Left, ZIndex = 366,
 						},
@@ -748,16 +796,15 @@ return function()
 					create "Frame" {
 						Name = "Action",
 						BackgroundTransparency = 1,
-						Position = function() return UDim2.fromOffset(12, if portrait() then 256 else 199) end,
-						Size = function()
-							return UDim2.new(1, -24, 0, if portrait() then 42 else 48)
-						end,
+						Position = layout.Details.Scale(function() return UDim2.fromOffset(12, if portrait() then 256 else 199) end),
+						Size = layout.Action.Size,
 						ZIndex = 370,
 						Button({
 							Text = function()
 								if tutorialState().active then
 									return if selectedTutorialTarget() then "CLAIM CLASS FOR FREE" else "SELECT BLADE DANCER"
 								end
+								if state().PendingEquip == selectedDefinition().Id then return "EQUIPPING..." end
 								if selectedEquipped() then return "EQUIPPED" end
 								if not prerequisiteMet() then
 									local ability = requiredAbility()

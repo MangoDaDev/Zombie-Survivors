@@ -13,6 +13,8 @@ local EffectLightingConfig = require(ReplicatedStorage.Modules.UI.EffectLighting
 local Images = require(ReplicatedStorage.Modules.UI.Images)
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
 local UIStyle = require(ReplicatedStorage.Modules.UI.UIStyle)
+local ResponsiveLayout = require(ReplicatedStorage.Modules.UI.ResponsiveLayout)
+local ResponsiveViewport = require(script.Parent.Parent.ResponsiveViewport)
 local Vide = require(ReplicatedStorage.Packages.vide)
 
 local action = Vide.action
@@ -198,7 +200,7 @@ local function createCard(parent: Frame, index: number): CardView
 	slot.Name = "Choice" .. index
 	slot.BackgroundTransparency = 1
 	slot.LayoutOrder = index
-	slot.Size = UDim2.new(1 / CARD_COUNT, -12, 1, 0)
+	slot.Size = UDim2.fromScale(1 / CARD_COUNT - 12 / 510, 1)
 	slot.ZIndex = 302
 	slot.Parent = parent
 
@@ -296,7 +298,7 @@ local function createCard(parent: Frame, index: number): CardView
 	selectionLine.BackgroundTransparency = 0.16
 	selectionLine.BorderSizePixel = 0
 	selectionLine.Position = UDim2.fromScale(0.5, 0.5)
-	selectionLine.Size = UDim2.new(0.82, 0, 0, 4)
+	selectionLine.Size = UDim2.fromScale(0.82, 4 / (230 * 0.895 * 0.76))
 	selectionLine.ZIndex = 312
 	selectionLine.Parent = window
 
@@ -438,7 +440,7 @@ local function emitCardBurst(card: CardView, accent: Color3, isFinalLanding: boo
 		sparkle.ImageColor3 = accent:Lerp(Color3.new(1, 1, 1), 0.3)
 		sparkle.Position = UDim2.fromScale(0.5, 0.5)
 		sparkle.Rotation = visualRandom:NextNumber(-30, 30)
-		sparkle.Size = UDim2.fromOffset(if isFinalLanding then 15 else 11, if isFinalLanding then 15 else 11)
+		sparkle.Size = UDim2.fromScale((if isFinalLanding then 15 else 11) / (510 / CARD_COUNT - 12), (if isFinalLanding then 15 else 11) / (230 * 0.895))
 		sparkle.ZIndex = 325
 		sparkle.Parent = card.frame
 		local sparkleTween = TweenService:Create(
@@ -446,9 +448,12 @@ local function emitCardBurst(card: CardView, accent: Color3, isFinalLanding: boo
 			TweenInfo.new(visualRandom:NextNumber(0.28, 0.42), Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
 			{
 				ImageTransparency = 1,
-				Position = UDim2.new(0.5, math.cos(angle) * distance, 0.5, math.sin(angle) * distance),
+				Position = UDim2.fromScale(
+					0.5 + math.cos(angle) * distance / (510 / CARD_COUNT - 12),
+					0.5 + math.sin(angle) * distance / (230 * 0.895)
+				),
 				Rotation = sparkle.Rotation + visualRandom:NextNumber(100, 220),
-				Size = UDim2.fromOffset(3, 3),
+				Size = UDim2.fromScale(3 / (510 / CARD_COUNT - 12), 3 / (230 * 0.895)),
 			}
 		)
 		sparkleTween.Completed:Once(function()
@@ -459,6 +464,7 @@ local function emitCardBurst(card: CardView, accent: Color3, isFinalLanding: boo
 end
 
 return function()
+	local responsiveViewport = ResponsiveViewport()
 	local root: Frame?
 	local chain: Frame?
 	local rowScale: UIScale?
@@ -747,7 +753,7 @@ return function()
 				emitCardBurst(card, CARD_COLORS[index], finalLanding)
 				local linePulse = TweenService:Create(card.selectionLine, TweenInfo.new(0.11, Enum.EasingStyle.Quad, Enum.EasingDirection.Out, 0, true), {
 					BackgroundTransparency = 0,
-					Size = UDim2.new(0.94, 0, 0, 8),
+					Size = UDim2.fromScale(0.94, 8 / (230 * 0.895 * 0.76)),
 				})
 				linePulse:Play()
 				TweenService:Create(card.window, TweenInfo.new(0.16, Enum.EasingStyle.Quad), { GroupTransparency = 1 }):Play()
@@ -829,6 +835,11 @@ return function()
 		end
 	end)
 
+	local layout = {}
+	layout.Viewport = ResponsiveLayout.Viewport(responsiveViewport)
+	layout.LevelUpChoices = layout.Viewport
+	layout.ChoiceChain = ResponsiveLayout.Base(UDim2.new(0.92, 0, 0.32, 0), layout.LevelUpChoices, 510 / 230)
+
 	return create "Frame" {
 		Name = "LevelUpChoices",
 		BackgroundTransparency = 1,
@@ -876,9 +887,9 @@ return function()
 			BackgroundTransparency = 1,
 			-- This centered overlay deliberately uses a fixed screen-edge gap; adding the topbar inset
 			-- leaves excessive empty space above the cards on desktop.
-			Position = UDim2.new(0.5, 0, 0, LEVEL_UP_TOP_PADDING),
+			Position = layout.ChoiceChain.Position(UDim2.new(0.5, 0, 0, LEVEL_UP_TOP_PADDING), Vector2.new(0.5, 0)),
 			-- A wide responsive slot keeps mobile cards tappable while the aspect constraint caps its height.
-			Size = UDim2.new(0.92, 0, 0.32, 0),
+			Size = layout.ChoiceChain.Size,
 			ZIndex = 300,
 			create "UIAspectRatioConstraint" {
 				-- Preserve the three-card menu silhouette instead of stretching cards with the viewport.
@@ -913,7 +924,7 @@ return function()
 				local layout = Instance.new("UIListLayout")
 				layout.FillDirection = Enum.FillDirection.Horizontal
 				layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-				layout.Padding = UDim.new(0, 12)
+				layout.Padding = UDim.new(12 / 510, 0)
 				layout.SortOrder = Enum.SortOrder.LayoutOrder
 				layout.Parent = row
 				for index = 1, CARD_COUNT do

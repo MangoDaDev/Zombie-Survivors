@@ -1,0 +1,340 @@
+{
+    "pinevex_object":  {
+                           "type":  "Frame",
+                           "name":  "IndicatorPreview",
+                           "size":  [
+                                        1,
+                                        0,
+                                        1,
+                                        0
+                                    ],
+                           "bg":  [
+                                      27,
+                                      44,
+                                      38
+                                  ],
+                           "children":  [
+                                            {
+                                                "type":  "Frame",
+                                                "name":  "OffscreenDowned",
+                                                "size":  [
+                                                             0,
+                                                             48,
+                                                             0,
+                                                             48
+                                                         ],
+                                                "position":  [
+                                                                 0.16,
+                                                                 0,
+                                                                 0.5,
+                                                                 0
+                                                             ],
+                                                "anchor":  [
+                                                               0.5,
+                                                               0.5
+                                                           ],
+                                                "bgTransparency":  1,
+                                                "children":  [
+                                                                 {
+                                                                     "type":  "ImageLabel",
+                                                                     "name":  "DirectionArrow",
+                                                                     "size":  [
+                                                                                  1.32,
+                                                                                  0,
+                                                                                  1.32,
+                                                                                  0
+                                                                              ],
+                                                                     "position":  [
+                                                                                      0.5,
+                                                                                      0,
+                                                                                      0.5,
+                                                                                      0
+                                                                                  ],
+                                                                     "anchor":  [
+                                                                                    0.5,
+                                                                                    0.5
+                                                                                ],
+                                                                     "bgTransparency":  1,
+                                                                     "icon":  "rbxassetid://123892753905134",
+                                                                     "imageColor":  [
+                                                                                        255,
+                                                                                        104,
+                                                                                        94
+                                                                                    ],
+                                                                     "rotation":  -90
+                                                                 },
+                                                                 {
+                                                                     "type":  "Frame",
+                                                                     "name":  "Headshot",
+                                                                     "size":  [
+                                                                                  0.68,
+                                                                                  0,
+                                                                                  0.68,
+                                                                                  0
+                                                                              ],
+                                                                     "position":  [
+                                                                                      0.5,
+                                                                                      0,
+                                                                                      0.5,
+                                                                                      0
+                                                                                  ],
+                                                                     "anchor":  [
+                                                                                    0.5,
+                                                                                    0.5
+                                                                                ],
+                                                                     "bg":  [
+                                                                                6,
+                                                                                20,
+                                                                                28
+                                                                            ],
+                                                                     "corner":  999,
+                                                                     "strokes":  [
+                                                                                     {
+                                                                                         "color":  [
+                                                                                                       255,
+                                                                                                       104,
+                                                                                                       94
+                                                                                                   ],
+                                                                                         "thickness":  2,
+                                                                                         "applyMode":  "Border"
+                                                                                     }
+                                                                                 ]
+                                                                 },
+                                                                 {
+                                                                     "type":  "Frame",
+                                                                     "name":  "DownedStatus",
+                                                                     "size":  [
+                                                                                  1.8,
+                                                                                  0,
+                                                                                  0.48,
+                                                                                  0
+                                                                              ],
+                                                                     "position":  [
+                                                                                      0.5,
+                                                                                      0,
+                                                                                      0.88,
+                                                                                      0
+                                                                                  ],
+                                                                     "anchor":  [
+                                                                                    0.5,
+                                                                                    0
+                                                                                ],
+                                                                     "bg":  [
+                                                                                73,
+                                                                                20,
+                                                                                24
+                                                                            ],
+                                                                     "strokes":  [
+                                                                                     {
+                                                                                         "color":  [
+                                                                                                       255,
+                                                                                                       104,
+                                                                                                       94
+                                                                                                   ],
+                                                                                         "thickness":  1,
+                                                                                         "applyMode":  "Border"
+                                                                                     }
+                                                                                 ],
+                                                                     "children":  [
+                                                                                      {
+                                                                                          "textColor":  [
+                                                                                                            255,
+                                                                                                            255,
+                                                                                                            255
+                                                                                                        ],
+                                                                                          "fontWeight":  "Heavy",
+                                                                                          "type":  "TextLabel",
+                                                                                          "size":  [
+                                                                                                       1,
+                                                                                                       0,
+                                                                                                       0.5,
+                                                                                                       0
+                                                                                                   ],
+                                                                                          "text":  "DOWNED",
+                                                                                          "name":  "Status",
+                                                                                          "bgTransparency":  1,
+                                                                                          "font":  "Ubuntu",
+                                                                                          "textScaled":  true
+                                                                                      },
+                                                                                      {
+                                                                                          "textColor":  [
+                                                                                                            255,
+                                                                                                            255,
+                                                                                                            255
+                                                                                                        ],
+                                                                                          "position":  [
+                                                                                                           0,
+                                                                                                           0,
+                                                                                                           0.5,
+                                                                                                           0
+                                                                                                       ],
+                                                                                          "type":  "TextLabel",
+                                                                                          "size":  [
+                                                                                                       1,
+                                                                                                       0,
+                                                                                                       0.5,
+                                                                                                       0
+                                                                                                   ],
+                                                                                          "fontWeight":  "Bold",
+                                                                                          "text":  "REVIVE ME",
+                                                                                          "name":  "ReviveHelp",
+                                                                                          "bgTransparency":  1,
+                                                                                          "font":  "Ubuntu",
+                                                                                          "textScaled":  true
+                                                                                      }
+                                                                                  ]
+                                                                 }
+                                                             ]
+                                            },
+                                            {
+                                                "type":  "Frame",
+                                                "name":  "VisibleBodyDowned",
+                                                "size":  [
+                                                             0,
+                                                             64,
+                                                             0,
+                                                             64
+                                                         ],
+                                                "position":  [
+                                                                 0.62,
+                                                                 0,
+                                                                 0.5,
+                                                                 0
+                                                             ],
+                                                "anchor":  [
+                                                               0.5,
+                                                               0.5
+                                                           ],
+                                                "bgTransparency":  1,
+                                                "children":  [
+                                                                 {
+                                                                     "type":  "Frame",
+                                                                     "name":  "Headshot",
+                                                                     "size":  [
+                                                                                  0.68,
+                                                                                  0,
+                                                                                  0.68,
+                                                                                  0
+                                                                              ],
+                                                                     "position":  [
+                                                                                      0.5,
+                                                                                      0,
+                                                                                      0.5,
+                                                                                      0
+                                                                                  ],
+                                                                     "anchor":  [
+                                                                                    0.5,
+                                                                                    0.5
+                                                                                ],
+                                                                     "bg":  [
+                                                                                6,
+                                                                                20,
+                                                                                28
+                                                                            ],
+                                                                     "corner":  999,
+                                                                     "strokes":  [
+                                                                                     {
+                                                                                         "color":  [
+                                                                                                       255,
+                                                                                                       104,
+                                                                                                       94
+                                                                                                   ],
+                                                                                         "thickness":  2,
+                                                                                         "applyMode":  "Border"
+                                                                                     }
+                                                                                 ]
+                                                                 },
+                                                                 {
+                                                                     "type":  "Frame",
+                                                                     "name":  "DownedStatus",
+                                                                     "size":  [
+                                                                                  1.8,
+                                                                                  0,
+                                                                                  0.48,
+                                                                                  0
+                                                                              ],
+                                                                     "position":  [
+                                                                                      0.5,
+                                                                                      0,
+                                                                                      0.88,
+                                                                                      0
+                                                                                  ],
+                                                                     "anchor":  [
+                                                                                    0.5,
+                                                                                    0
+                                                                                ],
+                                                                     "bg":  [
+                                                                                73,
+                                                                                20,
+                                                                                24
+                                                                            ],
+                                                                     "strokes":  [
+                                                                                     {
+                                                                                         "color":  [
+                                                                                                       255,
+                                                                                                       104,
+                                                                                                       94
+                                                                                                   ],
+                                                                                         "thickness":  1,
+                                                                                         "applyMode":  "Border"
+                                                                                     }
+                                                                                 ],
+                                                                     "children":  [
+                                                                                      {
+                                                                                          "textColor":  [
+                                                                                                            255,
+                                                                                                            255,
+                                                                                                            255
+                                                                                                        ],
+                                                                                          "fontWeight":  "Heavy",
+                                                                                          "type":  "TextLabel",
+                                                                                          "size":  [
+                                                                                                       1,
+                                                                                                       0,
+                                                                                                       0.5,
+                                                                                                       0
+                                                                                                   ],
+                                                                                          "text":  "DOWNED",
+                                                                                          "name":  "Status",
+                                                                                          "bgTransparency":  1,
+                                                                                          "font":  "Ubuntu",
+                                                                                          "textScaled":  true
+                                                                                      },
+                                                                                      {
+                                                                                          "textColor":  [
+                                                                                                            255,
+                                                                                                            255,
+                                                                                                            255
+                                                                                                        ],
+                                                                                          "position":  [
+                                                                                                           0,
+                                                                                                           0,
+                                                                                                           0.5,
+                                                                                                           0
+                                                                                                       ],
+                                                                                          "type":  "TextLabel",
+                                                                                          "size":  [
+                                                                                                       1,
+                                                                                                       0,
+                                                                                                       0.5,
+                                                                                                       0
+                                                                                                   ],
+                                                                                          "fontWeight":  "Bold",
+                                                                                          "text":  "REVIVE ME",
+                                                                                          "name":  "ReviveHelp",
+                                                                                          "bgTransparency":  1,
+                                                                                          "font":  "Ubuntu",
+                                                                                          "textScaled":  true
+                                                                                      }
+                                                                                  ]
+                                                                 }
+                                                             ]
+                                            }
+                                        ]
+                       },
+    "viewport_size":  [
+                          640,
+                          360
+                      ],
+    "transparent_background":  false
+}

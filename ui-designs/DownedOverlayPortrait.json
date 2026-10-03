@@ -1,0 +1,731 @@
+{
+    "pinevex_object":  {
+                           "type":  "Frame",
+                           "name":  "Preview",
+                           "size":  [
+                                        1,
+                                        0,
+                                        1,
+                                        0
+                                    ],
+                           "bg":  [
+                                      27,
+                                      44,
+                                      38
+                                  ],
+                           "children":  [
+                                            {
+                                                "type":  "Frame",
+                                                "name":  "Vignette",
+                                                "size":  [
+                                                             1,
+                                                             0,
+                                                             1,
+                                                             0
+                                                         ],
+                                                "bg":  [
+                                                           63,
+                                                           10,
+                                                           13
+                                                       ],
+                                                "bgTransparency":  0.72,
+                                                "gradient":  {
+                                                                 "rotation":  90,
+                                                                 "colors":  [
+                                                                                [
+                                                                                    0,
+                                                                                    "#160507"
+                                                                                ],
+                                                                                [
+                                                                                    1,
+                                                                                    "#02070B"
+                                                                                ]
+                                                                            ],
+                                                                 "transparency":  [
+                                                                                      [
+                                                                                          0,
+                                                                                          0.46
+                                                                                      ],
+                                                                                      [
+                                                                                          0.5,
+                                                                                          0.92
+                                                                                      ],
+                                                                                      [
+                                                                                          1,
+                                                                                          0.28
+                                                                                      ]
+                                                                                  ]
+                                                             }
+                                            },
+                                            {
+                                                "type":  "Frame",
+                                                "name":  "StatusBanner",
+                                                "size":  [
+                                                             0,
+                                                             324,
+                                                             0,
+                                                             72
+                                                         ],
+                                                "position":  [
+                                                                 0.5,
+                                                                 0,
+                                                                 0,
+                                                                 24
+                                                             ],
+                                                "anchor":  [
+                                                               0.5,
+                                                               0
+                                                           ],
+                                                "bg":  [
+                                                           73,
+                                                           20,
+                                                           24
+                                                       ],
+                                                "strokes":  [
+                                                                {
+                                                                    "thickness":  4,
+                                                                    "color":  [
+                                                                                  31,
+                                                                                  5,
+                                                                                  8
+                                                                              ],
+                                                                    "applyMode":  "Border"
+                                                                },
+                                                                {
+                                                                    "thickness":  2,
+                                                                    "color":  [
+                                                                                  202,
+                                                                                  72,
+                                                                                  70
+                                                                              ],
+                                                                    "applyMode":  "Border"
+                                                                }
+                                                            ],
+                                                "children":  [
+                                                                 {
+                                                                     "type":  "ImageLabel",
+                                                                     "name":  "StudTexture",
+                                                                     "size":  [
+                                                                                  1,
+                                                                                  0,
+                                                                                  1,
+                                                                                  0
+                                                                              ],
+                                                                     "bgTransparency":  1,
+                                                                     "icon":  "rbxassetid://6927295847",
+                                                                     "imageTransparency":  0.88,
+                                                                     "scaleType":  "Tile",
+                                                                     "tileSize":  [
+                                                                                      0,
+                                                                                      72,
+                                                                                      0,
+                                                                                      72
+                                                                                  ]
+                                                                 },
+                                                                 {
+                                                                     "type":  "TextLabel",
+                                                                     "name":  "Title",
+                                                                     "size":  [
+                                                                                  0.92,
+                                                                                  0,
+                                                                                  0.48,
+                                                                                  0
+                                                                              ],
+                                                                     "position":  [
+                                                                                      0.04,
+                                                                                      0,
+                                                                                      0.08,
+                                                                                      0
+                                                                                  ],
+                                                                     "anchor":  [
+                                                                                    0,
+                                                                                    0
+                                                                                ],
+                                                                     "bgTransparency":  1,
+                                                                     "text":  "YOU\u0027RE DOWN",
+                                                                     "textColor":  [
+                                                                                       255,
+                                                                                       245,
+                                                                                       242
+                                                                                   ],
+                                                                     "textScaled":  true,
+                                                                     "font":  "Ubuntu",
+                                                                     "fontWeight":  "Heavy",
+                                                                     "strokes":  [
+                                                                                     {
+                                                                                         "thickness":  3,
+                                                                                         "color":  [
+                                                                                                       25,
+                                                                                                       4,
+                                                                                                       6
+                                                                                                   ]
+                                                                                     }
+                                                                                 ]
+                                                                 },
+                                                                 {
+                                                                     "type":  "TextLabel",
+                                                                     "name":  "Subtitle",
+                                                                     "size":  [
+                                                                                  0.92,
+                                                                                  0,
+                                                                                  0.34,
+                                                                                  0
+                                                                              ],
+                                                                     "position":  [
+                                                                                      0.04,
+                                                                                      0,
+                                                                                      0.58,
+                                                                                      0
+                                                                                  ],
+                                                                     "anchor":  [
+                                                                                    0,
+                                                                                    0
+                                                                                ],
+                                                                     "bgTransparency":  1,
+                                                                     "text":  "BUY A REVIVE OR WAIT\nFOR A TEAMMATE TO REVIVE YOU",
+                                                                     "textColor":  [
+                                                                                       235,
+                                                                                       153,
+                                                                                       149
+                                                                                   ],
+                                                                     "textScaled":  true,
+                                                                     "font":  "Ubuntu",
+                                                                     "fontWeight":  "Bold",
+                                                                     "textWrapped":  true
+                                                                 }
+                                                             ]
+                                            },
+                                            {
+                                                "type":  "Frame",
+                                                "name":  "Dock",
+                                                "size":  [
+                                                             0,
+                                                             358.8,
+                                                             0,
+                                                             358.8
+                                                         ],
+                                                "position":  [
+                                                                 0.5,
+                                                                 0,
+                                                                 1,
+                                                                 -28
+                                                             ],
+                                                "anchor":  [
+                                                               0.5,
+                                                               1
+                                                           ],
+                                                "bg":  [
+                                                           3,
+                                                           18,
+                                                           30
+                                                       ],
+                                                "strokes":  [
+                                                                {
+                                                                    "thickness":  6,
+                                                                    "color":  [
+                                                                                  0,
+                                                                                  5,
+                                                                                  10
+                                                                              ],
+                                                                    "applyMode":  "Border"
+                                                                },
+                                                                {
+                                                                    "thickness":  2,
+                                                                    "color":  [
+                                                                                  98,
+                                                                                  122,
+                                                                                  137
+                                                                              ],
+                                                                    "applyMode":  "Border"
+                                                                }
+                                                            ],
+                                                "children":  [
+                                                                 {
+                                                                     "type":  "Frame",
+                                                                     "name":  "Spectate",
+                                                                     "size":  [
+                                                                                  1,
+                                                                                  -24,
+                                                                                  0,
+                                                                                  62
+                                                                              ],
+                                                                     "position":  [
+                                                                                      0,
+                                                                                      12,
+                                                                                      0,
+                                                                                      12
+                                                                                  ],
+                                                                     "bg":  [
+                                                                                4,
+                                                                                29,
+                                                                                45
+                                                                            ],
+                                                                     "strokes":  [
+                                                                                     {
+                                                                                         "thickness":  2,
+                                                                                         "color":  [
+                                                                                                       55,
+                                                                                                       93,
+                                                                                                       114
+                                                                                                   ],
+                                                                                         "applyMode":  "Border"
+                                                                                     }
+                                                                                 ],
+                                                                     "children":  [
+                                                                                      {
+                                                                                          "type":  "TextButton",
+                                                                                          "name":  "Previous",
+                                                                                          "size":  [
+                                                                                                       0,
+                                                                                                       60,
+                                                                                                       1,
+                                                                                                       0
+                                                                                                   ],
+                                                                                          "bg":  [
+                                                                                                     14,
+                                                                                                     57,
+                                                                                                     78
+                                                                                                 ],
+                                                                                          "text":  "\u003c",
+                                                                                          "textColor":  [
+                                                                                                            255,
+                                                                                                            208,
+                                                                                                            92
+                                                                                                        ],
+                                                                                          "textScaled":  true,
+                                                                                          "font":  "Ubuntu",
+                                                                                          "fontWeight":  "Heavy"
+                                                                                      },
+                                                                                      {
+                                                                                          "type":  "TextLabel",
+                                                                                          "name":  "Label",
+                                                                                          "size":  [
+                                                                                                       1,
+                                                                                                       -156,
+                                                                                                       0,
+                                                                                                       18
+                                                                                                   ],
+                                                                                          "position":  [
+                                                                                                           0,
+                                                                                                           78,
+                                                                                                           0,
+                                                                                                           8
+                                                                                                       ],
+                                                                                          "bgTransparency":  1,
+                                                                                          "text":  "SPECTATING",
+                                                                                          "textColor":  [
+                                                                                                            131,
+                                                                                                            159,
+                                                                                                            174
+                                                                                                        ],
+                                                                                          "textScaled":  true,
+                                                                                          "textXAlignment":  "Left",
+                                                                                          "font":  "Ubuntu",
+                                                                                          "fontWeight":  "Bold"
+                                                                                      },
+                                                                                      {
+                                                                                          "type":  "TextLabel",
+                                                                                          "name":  "Player",
+                                                                                          "size":  [
+                                                                                                       1,
+                                                                                                       -156,
+                                                                                                       0,
+                                                                                                       28
+                                                                                                   ],
+                                                                                          "position":  [
+                                                                                                           0,
+                                                                                                           78,
+                                                                                                           0,
+                                                                                                           27
+                                                                                                       ],
+                                                                                          "bgTransparency":  1,
+                                                                                          "text":  "TEAMMATE_NAME",
+                                                                                          "textColor":  [
+                                                                                                            255,
+                                                                                                            255,
+                                                                                                            255
+                                                                                                        ],
+                                                                                          "textScaled":  true,
+                                                                                          "textXAlignment":  "Left",
+                                                                                          "font":  "Ubuntu",
+                                                                                          "fontWeight":  "Heavy"
+                                                                                      },
+                                                                                      {
+                                                                                          "type":  "TextButton",
+                                                                                          "name":  "Next",
+                                                                                          "size":  [
+                                                                                                       0,
+                                                                                                       60,
+                                                                                                       1,
+                                                                                                       0
+                                                                                                   ],
+                                                                                          "position":  [
+                                                                                                           1,
+                                                                                                           0,
+                                                                                                           0,
+                                                                                                           0
+                                                                                                       ],
+                                                                                          "anchor":  [
+                                                                                                         1,
+                                                                                                         0
+                                                                                                     ],
+                                                                                          "bg":  [
+                                                                                                     14,
+                                                                                                     57,
+                                                                                                     78
+                                                                                                 ],
+                                                                                          "text":  "\u003e",
+                                                                                          "textColor":  [
+                                                                                                            255,
+                                                                                                            208,
+                                                                                                            92
+                                                                                                        ],
+                                                                                          "textScaled":  true,
+                                                                                          "font":  "Ubuntu",
+                                                                                          "fontWeight":  "Heavy"
+                                                                                      }
+                                                                                  ]
+                                                                 },
+                                                                 {
+                                                                     "type":  "Frame",
+                                                                     "name":  "Revive",
+                                                                     "size":  [
+                                                                                  1,
+                                                                                  -24,
+                                                                                  0,
+                                                                                  114.4
+                                                                              ],
+                                                                     "position":  [
+                                                                                      0,
+                                                                                      12,
+                                                                                      0,
+                                                                                      108
+                                                                                  ],
+                                                                     "bg":  [
+                                                                                10,
+                                                                                41,
+                                                                                57
+                                                                            ],
+                                                                     "strokes":  [
+                                                                                     {
+                                                                                         "thickness":  2,
+                                                                                         "color":  [
+                                                                                                       210,
+                                                                                                       147,
+                                                                                                       35
+                                                                                                   ],
+                                                                                         "applyMode":  "Border"
+                                                                                     }
+                                                                                 ],
+                                                                     "children":  [
+                                                                                      {
+                                                                                          "type":  "ImageLabel",
+                                                                                          "name":  "Artwork",
+                                                                                          "size":  [
+                                                                                                       0,
+                                                                                                       82,
+                                                                                                       1,
+                                                                                                       -20
+                                                                                                   ],
+                                                                                          "position":  [
+                                                                                                           0,
+                                                                                                           10,
+                                                                                                           0,
+                                                                                                           10
+                                                                                                       ],
+                                                                                          "bg":  [
+                                                                                                     2,
+                                                                                                     15,
+                                                                                                     25
+                                                                                                 ],
+                                                                                          "icon":  "rbxassetid://89417655945879"
+                                                                                      },
+                                                                                      {
+                                                                                          "type":  "TextLabel",
+                                                                                          "name":  "Name",
+                                                                                          "size":  [
+                                                                                                       1,
+                                                                                                       -112,
+                                                                                                       0,
+                                                                                                       28
+                                                                                                   ],
+                                                                                          "position":  [
+                                                                                                           0,
+                                                                                                           102,
+                                                                                                           0,
+                                                                                                           12
+                                                                                                       ],
+                                                                                          "bgTransparency":  1,
+                                                                                          "text":  "BUY A REVIVE",
+                                                                                          "textColor":  [
+                                                                                                            255,
+                                                                                                            255,
+                                                                                                            255
+                                                                                                        ],
+                                                                                          "textScaled":  true,
+                                                                                          "textXAlignment":  "Left",
+                                                                                          "font":  "Ubuntu",
+                                                                                          "fontWeight":  "Heavy"
+                                                                                      },
+                                                                                      {
+                                                                                          "type":  "TextLabel",
+                                                                                          "name":  "Detail",
+                                                                                          "size":  [
+                                                                                                       1,
+                                                                                                       -112,
+                                                                                                       0,
+                                                                                                       18
+                                                                                                   ],
+                                                                                          "position":  [
+                                                                                                           0,
+                                                                                                           102,
+                                                                                                           0,
+                                                                                                           43
+                                                                                                       ],
+                                                                                          "bgTransparency":  1,
+                                                                                          "text":  "RETURN IMMEDIATELY",
+                                                                                          "textColor":  [
+                                                                                                            139,
+                                                                                                            177,
+                                                                                                            195
+                                                                                                        ],
+                                                                                          "textScaled":  true,
+                                                                                          "textXAlignment":  "Left",
+                                                                                          "font":  "Ubuntu",
+                                                                                          "fontWeight":  "Bold"
+                                                                                      },
+                                                                                      {
+                                                                                          "type":  "TextButton",
+                                                                                          "name":  "Buy",
+                                                                                          "size":  [
+                                                                                                       1,
+                                                                                                       -112,
+                                                                                                       0,
+                                                                                                       40
+                                                                                                   ],
+                                                                                          "position":  [
+                                                                                                           0,
+                                                                                                           102,
+                                                                                                           1,
+                                                                                                           -50
+                                                                                                       ],
+                                                                                          "bg":  [
+                                                                                                     225,
+                                                                                                     157,
+                                                                                                     40
+                                                                                                 ],
+                                                                                          "text":  " 19",
+                                                                                          "textColor":  [
+                                                                                                            255,
+                                                                                                            255,
+                                                                                                            255
+                                                                                                        ],
+                                                                                          "textScaled":  true,
+                                                                                          "font":  "Ubuntu",
+                                                                                          "fontWeight":  "Heavy",
+                                                                                          "strokes":  [
+                                                                                                          {
+                                                                                                              "thickness":  3,
+                                                                                                              "color":  [
+                                                                                                                            99,
+                                                                                                                            57,
+                                                                                                                            8
+                                                                                                                        ],
+                                                                                                              "applyMode":  "Border"
+                                                                                                          }
+                                                                                                      ]
+                                                                                      }
+                                                                                  ]
+                                                                 },
+                                                                 {
+                                                                     "type":  "Frame",
+                                                                     "name":  "ReviveTeam",
+                                                                     "size":  [
+                                                                                  1,
+                                                                                  -24,
+                                                                                  0,
+                                                                                  114.4
+                                                                              ],
+                                                                     "position":  [
+                                                                                      0,
+                                                                                      12,
+                                                                                      0,
+                                                                                      232.4
+                                                                                  ],
+                                                                     "bg":  [
+                                                                                10,
+                                                                                41,
+                                                                                57
+                                                                            ],
+                                                                     "strokes":  [
+                                                                                     {
+                                                                                         "thickness":  2,
+                                                                                         "color":  [
+                                                                                                       67,
+                                                                                                       154,
+                                                                                                       105
+                                                                                                   ],
+                                                                                         "applyMode":  "Border"
+                                                                                     }
+                                                                                 ],
+                                                                     "children":  [
+                                                                                      {
+                                                                                          "type":  "ImageLabel",
+                                                                                          "name":  "Artwork",
+                                                                                          "size":  [
+                                                                                                       0,
+                                                                                                       82,
+                                                                                                       1,
+                                                                                                       -20
+                                                                                                   ],
+                                                                                          "position":  [
+                                                                                                           0,
+                                                                                                           10,
+                                                                                                           0,
+                                                                                                           10
+                                                                                                       ],
+                                                                                          "bg":  [
+                                                                                                     2,
+                                                                                                     15,
+                                                                                                     25
+                                                                                                 ],
+                                                                                          "icon":  "rbxassetid://99546721866961"
+                                                                                      },
+                                                                                      {
+                                                                                          "type":  "TextLabel",
+                                                                                          "name":  "Name",
+                                                                                          "size":  [
+                                                                                                       1,
+                                                                                                       -112,
+                                                                                                       0,
+                                                                                                       28
+                                                                                                   ],
+                                                                                          "position":  [
+                                                                                                           0,
+                                                                                                           102,
+                                                                                                           0,
+                                                                                                           12
+                                                                                                       ],
+                                                                                          "bgTransparency":  1,
+                                                                                          "text":  "REVIVE 2 TEAMMATES",
+                                                                                          "textColor":  [
+                                                                                                            255,
+                                                                                                            255,
+                                                                                                            255
+                                                                                                        ],
+                                                                                          "textScaled":  true,
+                                                                                          "textXAlignment":  "Left",
+                                                                                          "font":  "Ubuntu",
+                                                                                          "fontWeight":  "Heavy"
+                                                                                      },
+                                                                                      {
+                                                                                          "type":  "TextLabel",
+                                                                                          "name":  "Detail",
+                                                                                          "size":  [
+                                                                                                       1,
+                                                                                                       -112,
+                                                                                                       0,
+                                                                                                       18
+                                                                                                   ],
+                                                                                          "position":  [
+                                                                                                           0,
+                                                                                                           102,
+                                                                                                           0,
+                                                                                                           43
+                                                                                                       ],
+                                                                                          "bgTransparency":  1,
+                                                                                          "text":  "BRING THE TEAM BACK",
+                                                                                          "textColor":  [
+                                                                                                            139,
+                                                                                                            177,
+                                                                                                            195
+                                                                                                        ],
+                                                                                          "textScaled":  true,
+                                                                                          "textXAlignment":  "Left",
+                                                                                          "font":  "Ubuntu",
+                                                                                          "fontWeight":  "Bold"
+                                                                                      },
+                                                                                      {
+                                                                                          "type":  "TextButton",
+                                                                                          "name":  "Buy",
+                                                                                          "size":  [
+                                                                                                       1,
+                                                                                                       -112,
+                                                                                                       0,
+                                                                                                       40
+                                                                                                   ],
+                                                                                          "position":  [
+                                                                                                           0,
+                                                                                                           102,
+                                                                                                           1,
+                                                                                                           -50
+                                                                                                       ],
+                                                                                          "bg":  [
+                                                                                                     71,
+                                                                                                     190,
+                                                                                                     104
+                                                                                                 ],
+                                                                                          "text":  " 39",
+                                                                                          "textColor":  [
+                                                                                                            255,
+                                                                                                            255,
+                                                                                                            255
+                                                                                                        ],
+                                                                                          "textScaled":  true,
+                                                                                          "font":  "Ubuntu",
+                                                                                          "fontWeight":  "Heavy",
+                                                                                          "strokes":  [
+                                                                                                          {
+                                                                                                              "thickness":  3,
+                                                                                                              "color":  [
+                                                                                                                            25,
+                                                                                                                            86,
+                                                                                                                            47
+                                                                                                                        ],
+                                                                                                              "applyMode":  "Border"
+                                                                                                          }
+                                                                                                      ]
+                                                                                      }
+                                                                                  ]
+                                                                 },
+                                                                 {
+                                                                     "type":  "TextLabel",
+                                                                     "name":  "TeammateReviveHelp",
+                                                                     "size":  [
+                                                                                  1,
+                                                                                  -36,
+                                                                                  0,
+                                                                                  22
+                                                                              ],
+                                                                     "position":  [
+                                                                                      0,
+                                                                                      18,
+                                                                                      0,
+                                                                                      80
+                                                                                  ],
+                                                                     "anchor":  [
+                                                                                    0,
+                                                                                    0
+                                                                                ],
+                                                                     "bgTransparency":  1,
+                                                                     "text":  "WAIT FOR A TEAMMATE - HOLD 1.5s TO REVIVE",
+                                                                     "textColor":  [
+                                                                                       255,
+                                                                                       207,
+                                                                                       102
+                                                                                   ],
+                                                                     "textScaled":  true,
+                                                                     "textXAlignment":  "Center",
+                                                                     "font":  "Ubuntu",
+                                                                     "fontWeight":  "Bold"
+                                                                 }
+                                                             ]
+                                            }
+                                        ]
+                       },
+    "viewport_size":  [
+                          390,
+                          844
+                      ],
+    "transparent_background":  false
+}

@@ -6,6 +6,8 @@ local NotificationManager = require(ReplicatedStorage.Modules.UI.NotificationMan
 local SafeArea = require(ReplicatedStorage.Modules.UI.SafeArea)
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
 local UIStyle = require(ReplicatedStorage.Modules.UI.UIStyle)
+local ResponsiveLayout = require(ReplicatedStorage.Modules.UI.ResponsiveLayout)
+local ResponsiveViewport = require(script.Parent.Parent.ResponsiveViewport)
 local Vide = require(ReplicatedStorage.Packages.vide)
 
 local Action = Vide.action
@@ -18,6 +20,7 @@ local ALERT_HEIGHT = 28
 local ALERT_TWEEN_INFO = TweenInfo.new(0.16, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
 
 return function()
+	local responsiveViewport = ResponsiveViewport()
 	local AlertContainer: Frame?
 	local NotificationConnection: RBXScriptConnection?
 	local ActiveAlerts = {}
@@ -110,15 +113,19 @@ return function()
 		table.clear(ActiveAlerts)
 	end)
 
+	local layout = {}
+	layout.Viewport = ResponsiveLayout.Viewport(responsiveViewport)
+	layout.Notifications = ResponsiveLayout.Base(UDim2.fromScale(0.9, 0.36), layout.Viewport, ALERT_WIDTH / 260)
+
 	return Create "Frame" {
 		Name = "Notifications",
 		AnchorPoint = Vector2.new(0.5, 0),
 		BackgroundTransparency = 1,
 		BorderSizePixel = 0,
-		Position = function()
+		Position = layout.Notifications.Position(function()
 			return UDim2.new(0.5, 0, 0, TopOffset())
-		end,
-		Size = UDim2.fromScale(0.9, 0.36),
+		end, Vector2.new(0.5, 0)),
+		Size = layout.Notifications.Size,
 		ZIndex = 80,
 		Create "UIAspectRatioConstraint" {
 			AspectRatio = ALERT_WIDTH / 260,
@@ -131,7 +138,7 @@ return function()
 		Create "UIListLayout" {
 			FillDirection = Enum.FillDirection.Vertical,
 			HorizontalAlignment = Enum.HorizontalAlignment.Center,
-			Padding = UDim.new(0, 6),
+			Padding = layout.Notifications.Padding(UDim.new(0, 6), "Y"),
 			SortOrder = Enum.SortOrder.LayoutOrder,
 			VerticalAlignment = Enum.VerticalAlignment.Top,
 		},

@@ -1,6 +1,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local ResponsiveLayout = require(ReplicatedStorage.Modules.UI.ResponsiveLayout)
 local Vide = require(ReplicatedStorage.Packages.vide)
 local ZombieIndexController = require(ReplicatedStorage.Controllers.ZombieIndexController)
 local AbilityController = require(ReplicatedStorage.Controllers.AbilityController)
@@ -57,6 +58,16 @@ local function collectionCard(definition, order: number, props)
 	end)
 	local accent = definition.EffectColor
 
+	local layout = {}
+	layout.Viewport = props.parentLayout
+	layout.Frame = layout.Viewport
+	layout.Portrait = ResponsiveLayout.Child(function()
+		return UDim2.new(1, -14, 0, if props.portrait() then 88 else 98)
+	end, layout.Frame)
+	layout.Name = ResponsiveLayout.Child(UDim2.new(1, -16, 0, 22), layout.Frame)
+	layout.Kills = ResponsiveLayout.Child(UDim2.new(1, -16, 0, 16), layout.Frame)
+	layout.Claim = ResponsiveLayout.Child(UDim2.new(1, -14, 0, 27), layout.Frame)
+
 	return create "Frame" {
 		Name = definition.Id,
 		BackgroundColor3 = function()
@@ -87,10 +98,8 @@ local function collectionCard(definition, order: number, props)
 				return if discovered() then accent:Lerp(Color3.fromRGB(10, 20, 30), 0.78) else Color3.fromRGB(18, 24, 30)
 			end,
 			BorderSizePixel = 0,
-			Position = UDim2.fromOffset(7, 7),
-			Size = function()
-				return UDim2.new(1, -14, 0, if props.portrait() then 88 else 98)
-			end,
+			Position = layout.Frame.Scale(UDim2.fromOffset(7, 7)),
+			Size = layout.Portrait.Size,
 			ZIndex = 417,
 			StudTexture({ ZIndex = 418, ImageTransparency = 0.93, TileSize = UDim2.fromOffset(48, 48) }),
 			create "UIGradient" {
@@ -141,10 +150,10 @@ local function collectionCard(definition, order: number, props)
 			Name = "Name",
 			BackgroundTransparency = 1,
 			FontFace = HEAVY_FONT,
-			Position = function()
+			Position = layout.Frame.Scale(function()
 				return UDim2.fromOffset(8, if props.portrait() then 98 else 108)
-			end,
-			Size = UDim2.new(1, -16, 0, 22),
+			end),
+			Size = layout.Name.Size,
 			Text = function()
 				return if discovered() then string.upper(definition.Name) else "???"
 			end,
@@ -159,10 +168,10 @@ local function collectionCard(definition, order: number, props)
 			Name = "Kills",
 			BackgroundTransparency = 1,
 			FontFace = BOLD_FONT,
-			Position = function()
+			Position = layout.Frame.Scale(function()
 				return UDim2.fromOffset(8, if props.portrait() then 121 else 131)
-			end,
-			Size = UDim2.new(1, -16, 0, 16),
+			end),
+			Size = layout.Kills.Size,
 			Text = function()
 				local entry = getEntry(props.state(), definition.Id)
 				if not entry then
@@ -180,8 +189,8 @@ local function collectionCard(definition, order: number, props)
 			Name = "Claim",
 			AnchorPoint = Vector2.new(0.5, 1),
 			BackgroundTransparency = 1,
-			Position = UDim2.new(0.5, 0, 1, -7),
-			Size = UDim2.new(1, -14, 0, 27),
+			Position = layout.Frame.Scale(UDim2.new(0.5, 0, 1, -7)),
+			Size = layout.Claim.Size,
 			Visible = discovered,
 			ZIndex = 425,
 			Button({
@@ -289,10 +298,93 @@ return function()
 		end
 	end)
 
+	local layout = {}
+	layout.Viewport = ResponsiveLayout.Viewport(viewportSize)
+	layout.ZombieIndex = layout.Viewport
+	layout.OpenButton = ResponsiveLayout.Base(function()
+		return if compactLauncher() then UDim2.new(1 / 3, -12, 0, 48) else UDim2.fromOffset(176, 50)
+	end, layout.ZombieIndex)
+	layout.Overlay = layout.ZombieIndex
+	layout.BackdropSensor = layout.Overlay
+	layout.Panel = ResponsiveLayout.Base(function()
+		if compactPortrait() then
+			return UDim2.new(0.5, 175, 0.55, 230)
+		elseif portrait() then
+			return UDim2.new(0.4, 225, 0.4, 450)
+		elseif shortLandscape() then
+			return UDim2.new(0.82, 40, 0.86, 20)
+		end
+		-- Scale plus a fixed base keeps the menu growing with resolution while reducing its relative footprint.
+		return UDim2.new(0.5, 360, 0.6, 200)
+	end, layout.Overlay, function()
+						return if compactPortrait() then 0.56 elseif portrait() then 430 / 880 else 1080 / 650
+					end)
+	layout.Header = ResponsiveLayout.Child(function()
+		return UDim2.new(1, if portrait() then -76 else -92, 0, if portrait() then 72 else 80)
+	end, layout.Panel)
+	layout.Title = ResponsiveLayout.Child(UDim2.new(0.6, 0, 0, if portrait() then 34 else 42), layout.Header)
+	layout.Progress = ResponsiveLayout.Child(function()
+		return UDim2.fromOffset(if portrait() then 106 else 176, if portrait() then 34 else 42)
+	end, layout.Header)
+	layout.CloseSlot = ResponsiveLayout.Child(UDim2.fromOffset(if portrait() then 52 else 56, if portrait() then 72 else 80), layout.Panel)
+	layout.Catalog = ResponsiveLayout.Child(function()
+		if portrait() then
+			-- The proportional split guarantees the details footer keeps enough room on short phones.
+			return UDim2.new(1, -24, 0.54, -58)
+		end
+		return UDim2.new(0.62, -16, 1, -116)
+	end, layout.Panel)
+	layout.Content = ResponsiveLayout.Child(function()
+		local columns = if portrait() then 2 else 3
+		local rows = math.ceil(#ZombieIndexConfig.List / columns)
+		return UDim2.new(1, 0, 0, rows * ((if portrait() then 174 else 184) + (if portrait() then 7 else 9)) + (if portrait() then 9 else 7))
+	end, layout.Catalog)
+	layout.Details = ResponsiveLayout.Child(function()
+		if portrait() then
+			return UDim2.new(1, -24, 0.46, -60)
+		end
+		return UDim2.new(0.38, -14, 1, -116)
+	end, layout.Panel)
+	layout.Portrait = ResponsiveLayout.Child(function()
+		local size = if compactPortrait() then 78 elseif portrait() then 96 elseif veryShortLandscape() then 68 elseif shortLandscape() then 88 else 144
+		return UDim2.fromOffset(size, size)
+	end, layout.Details)
+	layout.ZombieName = ResponsiveLayout.Child(function()
+		return UDim2.new(1, if compactPortrait() then -116 elseif portrait() then -134 elseif veryShortLandscape() then -110 elseif shortLandscape() then -132 else -194, 0, if compactPortrait() or veryShortLandscape() then 26 elseif portrait() or shortLandscape() then 30 else 40)
+	end, layout.Details)
+	layout.Description = ResponsiveLayout.Child(function()
+		return UDim2.new(1, if compactPortrait() then -116 elseif portrait() then -134 elseif veryShortLandscape() then -110 elseif shortLandscape() then -132 else -194, 0, if veryShortLandscape() then 44 elseif compactPortrait() then 50 elseif portrait() then 56 elseif shortLandscape() then 55 else 82)
+	end, layout.Details)
+	layout.Stats = ResponsiveLayout.Child(function()
+		return UDim2.new(1, if portrait() then -24 else -36, 0, if compactPortrait() or veryShortLandscape() then 28 elseif portrait() or shortLandscape() then 40 else 54)
+	end, layout.Details)
+	layout.TextLabel = ResponsiveLayout.Child(UDim2.new(1, -20, 1, -12), layout.Stats)
+	layout.RewardSummary = ResponsiveLayout.Child(function()
+		-- Medium-height desktop screens get a compact summary; taller panels let it fill the unused space.
+		return if viewportSize().Y < 680 then UDim2.new(1, -36, 0, 80) else UDim2.new(1, -36, 1, -338)
+	end, layout.Details)
+	layout.Coin = ResponsiveLayout.Child(function()
+		local size = if viewportSize().Y < 680 then 64 else 96
+		return UDim2.fromOffset(size, size)
+	end, layout.RewardSummary)
+	layout.RewardLabel = ResponsiveLayout.Child(function()
+		return UDim2.new(0.56, -8, 0, if viewportSize().Y < 680 then 18 else 30)
+	end, layout.RewardSummary)
+	layout.RewardAmount = ResponsiveLayout.Child(function()
+		return UDim2.new(0.56, -8, 0, if viewportSize().Y < 680 then 28 else 52)
+	end, layout.RewardSummary)
+	layout.RewardState = ResponsiveLayout.Child(function()
+		return UDim2.new(0.56, -8, 0, if viewportSize().Y < 680 then 16 else 24)
+	end, layout.RewardSummary)
+	layout.Action = ResponsiveLayout.Child(function()
+		return UDim2.new(1, if portrait() then -24 else -36, 0, if compactPortrait() then 36 elseif portrait() then 42 elseif veryShortLandscape() then 34 elseif shortLandscape() then 42 else 52)
+	end, layout.Details)
+
 	local cards = {}
 	local detailPortraits = {}
 	for order, definition in ZombieIndexConfig.List do
 		table.insert(cards, collectionCard(definition, order, {
+			parentLayout = ResponsiveLayout.Child(function() return if portrait() then UDim2.new(0.5, -4, 0, 174) else UDim2.new(1 / 3, -6, 0, 184) end, layout.Content),
 			state = state,
 			selectedId = selectedId,
 			portrait = portrait,
@@ -326,12 +418,10 @@ return function()
 			Name = "OpenButton",
 			AnchorPoint = Vector2.new(0.5, 1),
 			BackgroundTransparency = 1,
-			Position = function()
+			Position = layout.OpenButton.Position(function()
 				return if compactLauncher() then UDim2.new(5 / 6, -4, 1, -18) else UDim2.new(0.5, 188, 1, -24)
-			end,
-			Size = function()
-				return if compactLauncher() then UDim2.new(1 / 3, -12, 0, 48) else UDim2.fromOffset(176, 50)
-			end,
+			end, Vector2.new(0.5, 1)),
+			Size = layout.OpenButton.Size,
 			Visible = function()
 				return not inRun() and not open() and not abilityOpen() and not classOpen() and not shopOpen() and not partyActive()
 			end,
@@ -375,18 +465,8 @@ return function()
 				AnchorPoint = Vector2.new(0.5, 0.5),
 				BackgroundColor3 = PANEL,
 				BorderSizePixel = 0,
-				Position = UDim2.fromScale(0.5, 0.5),
-				Size = function()
-					if compactPortrait() then
-						return UDim2.new(0.5, 175, 0.55, 230)
-					elseif portrait() then
-						return UDim2.new(0.4, 225, 0.4, 450)
-					elseif shortLandscape() then
-						return UDim2.new(0.82, 40, 0.86, 20)
-					end
-					-- Scale plus a fixed base keeps the menu growing with resolution while reducing its relative footprint.
-					return UDim2.new(0.5, 360, 0.6, 200)
-				end,
+				Position = layout.Panel.Position(UDim2.fromScale(0.5, 0.5), Vector2.new(0.5, 0.5)),
+				Size = layout.Panel.Size,
 				ZIndex = 405,
 				-- The collection now uses the same stud surface language as the active HUD and shared buttons.
 				StudTexture({ ZIndex = 406, ImageTransparency = 0.92, TileSize = UDim2.fromOffset(76, 76) }),
@@ -405,10 +485,8 @@ return function()
 					Name = "Header",
 					BackgroundColor3 = Color3.fromRGB(15, 164, 202),
 					BorderSizePixel = 0,
-					Position = UDim2.fromOffset(12, 12),
-					Size = function()
-						return UDim2.new(1, if portrait() then -76 else -92, 0, if portrait() then 72 else 80)
-					end,
+					Position = layout.Panel.Scale(UDim2.fromOffset(12, 12)),
+					Size = layout.Header.Size,
 					ZIndex = 408,
 					StudTexture({ ZIndex = 409, ImageTransparency = 0.82, TileSize = UDim2.fromOffset(92, 92) }),
 					create "UIGradient" {
@@ -420,8 +498,8 @@ return function()
 						Name = "Title",
 						BackgroundTransparency = 1,
 						FontFace = HEAVY_FONT,
-						Position = UDim2.fromOffset(if portrait() then 10 else 20, 7),
-						Size = UDim2.new(0.6, 0, 0, if portrait() then 34 else 42),
+						Position = layout.Header.Scale(UDim2.fromOffset(if portrait() then 10 else 20, 7)),
+						Size = layout.Title.Size,
 						Text = "ZOMBIE INDEX",
 						TextColor3 = Color3.new(1, 1, 1),
 						TextScaled = true,
@@ -434,10 +512,8 @@ return function()
 						BackgroundColor3 = Color3.fromRGB(6, 53, 75),
 						BorderSizePixel = 0,
 						FontFace = HEAVY_FONT,
-						Position = UDim2.new(1, -14, 0.5, 0),
-						Size = function()
-							return UDim2.fromOffset(if portrait() then 106 else 176, if portrait() then 34 else 42)
-						end,
+						Position = layout.Header.Scale(UDim2.new(1, -14, 0.5, 0)),
+						Size = layout.Progress.Size,
 						Text = function()
 							if portrait() then
 								return string.format("%d / %d", countDiscovered(state()), #ZombieIndexConfig.List)
@@ -447,15 +523,15 @@ return function()
 						TextColor3 = Color3.fromRGB(184, 242, 250),
 						TextScaled = true,
 						ZIndex = 410,
-						create "UIPadding" { PaddingLeft = UDim.new(0, 7), PaddingRight = UDim.new(0, 7) },
+						create "UIPadding" { PaddingLeft = layout.Progress.Padding(UDim.new(0, 7), "X"), PaddingRight = layout.Progress.Padding(UDim.new(0, 7), "X")},
 					},
 				},
 				create "Frame" {
 					Name = "CloseSlot",
 					AnchorPoint = Vector2.new(1, 0),
 					BackgroundTransparency = 1,
-					Position = UDim2.new(1, -12, 0, 12),
-					Size = UDim2.fromOffset(if portrait() then 52 else 56, if portrait() then 72 else 80),
+					Position = layout.Panel.Scale(UDim2.new(1, -12, 0, 12)),
+					Size = layout.CloseSlot.Size,
 					ZIndex = 412,
 					Button({
 						Text = "X",
@@ -474,37 +550,30 @@ return function()
 					BackgroundColor3 = PANEL_LIGHT,
 					BorderSizePixel = 0,
 					CanvasSize = UDim2.fromScale(0, 0),
-					Position = function()
+					Position = layout.Panel.Scale(function()
 						return UDim2.fromOffset(12, if portrait() then 96 else 104)
-					end,
+					end),
 					ScrollBarImageColor3 = CYAN,
 					ScrollBarThickness = 4,
-					Size = function()
-						if portrait() then
-							-- The proportional split guarantees the details footer keeps enough room on short phones.
-							return UDim2.new(1, -24, 0.54, -58)
-						end
-						return UDim2.new(0.62, -16, 1, -116)
-					end,
+					Size = layout.Catalog.Size,
 					ZIndex = 414,
 					StudTexture({ ZIndex = 415, ImageTransparency = 0.93, TileSize = UDim2.fromOffset(60, 60) }),
 					create "UIStroke" { ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Color = Color3.fromRGB(0, 120, 148), Thickness = 2 },
 					create "Frame" {
 						Name = "Content",
-						AutomaticSize = Enum.AutomaticSize.Y,
 						BackgroundTransparency = 1,
-						Size = UDim2.new(1, 0, 0, 0),
+						Size = layout.Content.Size,
 						ZIndex = 416,
 						-- Only collection cards belong to this grid. Decorative siblings would otherwise
 						-- occupy cells and leave apparently random holes at the start of the catalog.
-						create "UIPadding" { PaddingLeft = UDim.new(0, 8), PaddingRight = UDim.new(0, 8), PaddingTop = UDim.new(0, 8), PaddingBottom = UDim.new(0, 8) },
+						create "UIPadding" { PaddingLeft = layout.Content.Padding(UDim.new(0, 8), "X"), PaddingRight = layout.Content.Padding(UDim.new(0, 8), "X"), PaddingTop = layout.Content.Padding(UDim.new(0, 8), "Y"), PaddingBottom = layout.Content.Padding(UDim.new(0, 8), "Y")},
 						create "UIGridLayout" {
-							CellPadding = function()
+							CellPadding = layout.Content.Scale(function()
 								return UDim2.fromOffset(if portrait() then 7 else 9, if portrait() then 7 else 9)
-							end,
-							CellSize = function()
+							end),
+							CellSize = layout.Content.Scale(function()
 								return if portrait() then UDim2.new(0.5, -4, 0, 174) else UDim2.new(1 / 3, -6, 0, 184)
-							end,
+							end),
 							FillDirectionMaxCells = function()
 								return if portrait() then 2 else 3
 							end,
@@ -517,18 +586,13 @@ return function()
 					Name = "Details",
 					BackgroundColor3 = PAPER,
 					BorderSizePixel = 0,
-					Position = function()
+					Position = layout.Panel.Scale(function()
 						if portrait() then
 							return UDim2.new(0, 12, 0.54, 48)
 						end
 						return UDim2.new(0.62, 2, 0, 104)
-					end,
-					Size = function()
-						if portrait() then
-							return UDim2.new(1, -24, 0.46, -60)
-						end
-						return UDim2.new(0.38, -14, 1, -116)
-					end,
+					end),
+					Size = layout.Details.Size,
 					ZIndex = 428,
 					StudTexture({
 						ZIndex = 429,
@@ -545,13 +609,10 @@ return function()
 								else Color3.fromRGB(34, 42, 48)
 						end,
 						BorderSizePixel = 0,
-						Position = function()
+						Position = layout.Details.Scale(function()
 							return UDim2.fromOffset(if portrait() then 12 else 18, if portrait() then 12 else 18)
-						end,
-						Size = function()
-							local size = if compactPortrait() then 78 elseif portrait() then 96 elseif veryShortLandscape() then 68 elseif shortLandscape() then 88 else 144
-							return UDim2.fromOffset(size, size)
-						end,
+						end),
+						Size = layout.Portrait.Size,
 						ZIndex = 431,
 						StudTexture({ ZIndex = 432, ImageTransparency = 0.93, TileSize = UDim2.fromOffset(52, 52) }),
 						create "UIStroke" {
@@ -578,12 +639,10 @@ return function()
 						Name = "ZombieName",
 						BackgroundTransparency = 1,
 						FontFace = HEAVY_FONT,
-						Position = function()
+						Position = layout.Details.Scale(function()
 							return UDim2.fromOffset(if compactPortrait() then 104 elseif portrait() then 122 elseif veryShortLandscape() then 98 elseif shortLandscape() then 120 else 180, if portrait() then 10 elseif shortLandscape() then 14 else 20)
-						end,
-						Size = function()
-							return UDim2.new(1, if compactPortrait() then -116 elseif portrait() then -134 elseif veryShortLandscape() then -110 elseif shortLandscape() then -132 else -194, 0, if compactPortrait() or veryShortLandscape() then 26 elseif portrait() or shortLandscape() then 30 else 40)
-						end,
+						end),
+						Size = layout.ZombieName.Size,
 						Text = function()
 							return if selectedDiscovered() then string.upper(selectedDefinition().Name) else "UNKNOWN ZOMBIE"
 						end,
@@ -599,12 +658,10 @@ return function()
 						Name = "Description",
 						BackgroundTransparency = 1,
 						FontFace = UIStyle.Font,
-						Position = function()
+						Position = layout.Details.Scale(function()
 							return UDim2.fromOffset(if compactPortrait() then 104 elseif portrait() then 122 elseif veryShortLandscape() then 98 elseif shortLandscape() then 120 else 180, if compactPortrait() or veryShortLandscape() then 42 elseif portrait() then 46 elseif shortLandscape() then 52 else 68)
-						end,
-						Size = function()
-							return UDim2.new(1, if compactPortrait() then -116 elseif portrait() then -134 elseif veryShortLandscape() then -110 elseif shortLandscape() then -132 else -194, 0, if veryShortLandscape() then 44 elseif compactPortrait() then 50 elseif portrait() then 56 elseif shortLandscape() then 55 else 82)
-						end,
+						end),
+						Size = layout.Description.Size,
 						Text = function()
 							return if selectedDiscovered()
 								then selectedDefinition().Description
@@ -621,12 +678,10 @@ return function()
 						Name = "Stats",
 						BackgroundColor3 = Color3.fromRGB(211, 228, 235),
 						BorderSizePixel = 0,
-						Position = function()
+						Position = layout.Details.Scale(function()
 							return UDim2.fromOffset(if portrait() then 12 else 18, if compactPortrait() then 101 elseif portrait() then 112 elseif veryShortLandscape() then 92 elseif shortLandscape() then 116 else 178)
-						end,
-						Size = function()
-							return UDim2.new(1, if portrait() then -24 else -36, 0, if compactPortrait() or veryShortLandscape() then 28 elseif portrait() or shortLandscape() then 40 else 54)
-						end,
+						end),
+						Size = layout.Stats.Size,
 						Visible = selectedDiscovered,
 						ZIndex = 431,
 						StudTexture({
@@ -639,8 +694,8 @@ return function()
 						create "TextLabel" {
 							BackgroundTransparency = 1,
 							FontFace = BOLD_FONT,
-							Position = UDim2.fromOffset(10, 6),
-							Size = UDim2.new(1, -20, 1, -12),
+							Position = layout.Stats.Scale(UDim2.fromOffset(10, 6)),
+							Size = layout.TextLabel.Size,
 							Text = function()
 								local entry = selectedEntry()
 								return string.format("THREAT %d  |  %s HEALTH  |  %s KILLS", selectedDefinition().ThreatLevel, FormatNumber(selectedDefinition().MaxHealth) or tostring(selectedDefinition().MaxHealth), FormatNumber(entry and entry.Kills or 0) or tostring(entry and entry.Kills or 0))
@@ -655,11 +710,8 @@ return function()
 						Name = "RewardSummary",
 						BackgroundColor3 = Color3.fromRGB(224, 235, 238),
 						BorderSizePixel = 0,
-						Position = UDim2.fromOffset(18, 250),
-						Size = function()
-							-- Medium-height desktop screens get a compact summary; taller panels let it fill the unused space.
-							return if viewportSize().Y < 680 then UDim2.new(1, -36, 0, 80) else UDim2.new(1, -36, 1, -338)
-						end,
+						Position = layout.Details.Scale(UDim2.fromOffset(18, 250)),
+						Size = layout.RewardSummary.Size,
 						Visible = function()
 							return selectedDiscovered() and not portrait() and not shortLandscape() and viewportSize().Y >= 620
 						end,
@@ -677,22 +729,17 @@ return function()
 							BackgroundTransparency = 1,
 							Image = Images.Coin,
 							Position = UDim2.fromScale(0.25, 0.5),
-							Size = function()
-								local size = if viewportSize().Y < 680 then 64 else 96
-								return UDim2.fromOffset(size, size)
-							end,
+							Size = layout.Coin.Size,
 							ZIndex = 432,
 						},
 						create "TextLabel" {
 							Name = "RewardLabel",
 							BackgroundTransparency = 1,
 							FontFace = BOLD_FONT,
-							Position = function()
+							Position = layout.RewardSummary.Scale(function()
 								return UDim2.new(0.42, 0, 0.5, if viewportSize().Y < 680 then -34 else -55)
-							end,
-							Size = function()
-								return UDim2.new(0.56, -8, 0, if viewportSize().Y < 680 then 18 else 30)
-							end,
+							end),
+							Size = layout.RewardLabel.Size,
 							Text = "DISCOVERY REWARD",
 							TextColor3 = Color3.fromRGB(88, 72, 35),
 							TextScaled = true,
@@ -703,12 +750,10 @@ return function()
 							Name = "RewardAmount",
 							BackgroundTransparency = 1,
 							FontFace = HEAVY_FONT,
-							Position = function()
+							Position = layout.RewardSummary.Scale(function()
 								return UDim2.new(0.42, 0, 0.5, if viewportSize().Y < 680 then -14 else -22)
-							end,
-							Size = function()
-								return UDim2.new(0.56, -8, 0, if viewportSize().Y < 680 then 28 else 52)
-							end,
+							end),
+							Size = layout.RewardAmount.Size,
 							Text = function()
 								return string.format("+%d COINS", selectedDefinition().DiscoveryReward)
 							end,
@@ -721,12 +766,10 @@ return function()
 							Name = "RewardState",
 							BackgroundTransparency = 1,
 							FontFace = BOLD_FONT,
-							Position = function()
+							Position = layout.RewardSummary.Scale(function()
 								return UDim2.new(0.42, 0, 0.5, if viewportSize().Y < 680 then 17 else 34)
-							end,
-							Size = function()
-								return UDim2.new(0.56, -8, 0, if viewportSize().Y < 680 then 16 else 24)
-							end,
+							end),
+							Size = layout.RewardState.Size,
 							Text = function()
 								return if selectedClaimed() then "COLLECTED" else "READY TO CLAIM"
 							end,
@@ -742,12 +785,10 @@ return function()
 						Name = "Action",
 						AnchorPoint = Vector2.new(0.5, 1),
 						BackgroundTransparency = 1,
-						Position = function()
+						Position = layout.Details.Scale(function()
 							return UDim2.new(0.5, 0, 1, if compactPortrait() or veryShortLandscape() then -8 elseif portrait() or shortLandscape() then -10 else -14)
-						end,
-						Size = function()
-							return UDim2.new(1, if portrait() then -24 else -36, 0, if compactPortrait() then 36 elseif portrait() then 42 elseif veryShortLandscape() then 34 elseif shortLandscape() then 42 else 52)
-						end,
+						end),
+						Size = layout.Action.Size,
 						Visible = selectedDiscovered,
 						ZIndex = 435,
 						Button({

@@ -5,6 +5,8 @@ local Button = require(script.Parent.Button)
 local Signal = require(ReplicatedStorage.Packages.signal)
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
 local UIStyle = require(ReplicatedStorage.Modules.UI.UIStyle)
+local ResponsiveLayout = require(ReplicatedStorage.Modules.UI.ResponsiveLayout)
+local ResponsiveViewport = require(script.Parent.Parent.ResponsiveViewport)
 local Vide = require(ReplicatedStorage.Packages.vide)
 
 local Cleanup = Vide.cleanup
@@ -22,6 +24,7 @@ function Confirmation.Show(Text: string, OnConfirmed: () -> ())
 end
 
 function Confirmation.Component()
+	local responsiveViewport = ResponsiveViewport()
 	local IsVisible = Source(false)
 	local Text = Source("")
 	local ConfirmCallback: (() -> ())?
@@ -45,6 +48,12 @@ function Confirmation.Component()
 		RequestConnection:Disconnect()
 	end)
 
+	local layout = {}
+	layout.Viewport = ResponsiveLayout.Viewport(responsiveViewport)
+	layout.Confirmation = layout.Viewport
+	layout.Panel = ResponsiveLayout.Base(UDim2.fromScale(0.9, 0.3), layout.Confirmation, 2.15)
+	layout.Actions = ResponsiveLayout.Child(UDim2.fromScale(0.9, 0.28), layout.Panel)
+
 	return Create "Frame" {
 		Name = "Confirmation",
 		Active = true,
@@ -59,10 +68,10 @@ function Confirmation.Component()
 			BackgroundColor3 = UIStyle.Colors.InkSoft,
 			BorderSizePixel = 0,
 			-- Keep confirmations above ordinary application UI.
-			Position = UDim2.fromScale(0.5, 0.34),
+			Position = layout.Panel.Position(UDim2.fromScale(0.5, 0.34), Vector2.new(0.5, 0.5)),
 			-- The generous responsive bounds keep confirmations readable on phones while the
 			-- aspect constraint limits their desktop height and preserves the authored shape.
-			Size = UDim2.fromScale(0.9, 0.3),
+			Size = layout.Panel.Size,
 			ZIndex = 101,
 			Create "UIAspectRatioConstraint" {
 				AspectRatio = 2.15,
@@ -129,7 +138,7 @@ function Confirmation.Component()
 				Create "UIListLayout" {
 					FillDirection = Enum.FillDirection.Horizontal,
 					HorizontalAlignment = Enum.HorizontalAlignment.Center,
-					Padding = UDim.new(0.08, 0),
+					Padding = layout.Actions.Padding(UDim.new(0.08, 0), "X"),
 					SortOrder = Enum.SortOrder.LayoutOrder,
 					VerticalAlignment = Enum.VerticalAlignment.Center,
 				},

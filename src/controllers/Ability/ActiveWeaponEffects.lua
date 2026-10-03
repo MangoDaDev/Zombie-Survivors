@@ -235,9 +235,16 @@ end
 
 local function playExplosion(position: Vector3, radius: number, rage: boolean, empowered: boolean)
 	local color = if rage then Color3.fromRGB(255, 64, 15) else Color3.fromRGB(255, 123, 28)
-	-- Fireballs use the full layered impact vocabulary: two rings, crossed rays, and two-tone debris.
-	local flash = StudVFX.Impact(effectsFolder, position, color, radius * 1.08,
-		if rage then 0.42 else 0.36, if rage or empowered then 1.6 else 1)
+	-- Fireballs use the dedicated volumetric block explosion; gameplay radius and timing remain server-owned.
+	local flash = StudVFX.Explosion(
+		effectsFolder,
+		position,
+		color,
+		radius * 1.08,
+		if rage then 0.5 else 0.43,
+		if rage or empowered then 1.6 else 1,
+		Color3.fromRGB(255, 246, 154)
+	)
 	if flash then
 		local light = Instance.new("PointLight")
 		light.Color = color

@@ -2,6 +2,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
+local RunSessionController = require(ReplicatedStorage.Controllers.RunSessionController)
 
 local GetProfilePicture = require(ReplicatedStorage.Modules.Platform.GetProfilePicture)
 local Images = require(ReplicatedStorage.Modules.UI.Images)
@@ -29,6 +30,8 @@ type IndicatorState = {
 	size: any,
 	thumbnail: any,
 	visible: any,
+	downed: any,
+	onScreen: any,
 	root: BasePart?,
 	humanoid: Humanoid?,
 	characterAddedConnection: RBXScriptConnection?,
@@ -93,7 +96,7 @@ local function hideIndicator(state: IndicatorState)
 	end
 end
 
-local function updateIndicator(state: IndicatorState, camera: Camera?, gameMapPresent: boolean, topOffset: number)
+local function updateIndicator(state: IndicatorState, camera: Camera?, gameMapPresent: boolean, topOffset: number, downedLookup)
 	local root = state.root
 	local humanoid = state.humanoid
 	if not gameMapPresent
@@ -102,7 +105,7 @@ local function updateIndicator(state: IndicatorState, camera: Camera?, gameMapPr
 		or not root
 		or not root.Parent
 		or not humanoid
-		or humanoid.Health <= 0
+		or (humanoid.Health <= 0 and not downedLookup[state.player.UserId])
 	then
 		hideIndicator(state)
 		return
@@ -115,7 +118,10 @@ local function updateIndicator(state: IndicatorState, camera: Camera?, gameMapPr
 	end
 
 	local projected, onScreen = camera:WorldToViewportPoint(root.Position + Vector3.yAxis * PLAYER_AIM_HEIGHT)
-	if onScreen then
+	local downed = downedLookup[state.player.UserId] == true
+	state.downed(downed)
+	state.onScreen(onScreen)
+	if onScreen and not downed then
 		hideIndicator(state)
 		return
 	end
@@ -139,8 +145,10 @@ local function updateIndicator(state: IndicatorState, camera: Camera?, gameMapPr
 		MAXIMUM_INDICATOR_SIZE
 	)
 	local margin = indicatorSize * 0.5 + EDGE_PADDING
-	local minimum = Vector2.new(margin, math.max(margin, topOffset + margin))
-	local maximum = Vector2.new(viewportSize.X - margin, viewportSize.Y - margin)
+	-- The downed badge is wider than the headshot and must also remain inside the safe screen edges.
+	local horizontalMargin = if downed then indicatorSize * 0.9 + EDGE_PADDING else margin
+	local minimum = Vector2.new(horizontalMargin, math.max(margin, topOffset + margin))
+	local maximum = Vector2.new(viewportSize.X - horizontalMargin, viewportSize.Y - margin - (if downed then indicatorSize * 0.38 else 0))
 	if maximum.X <= minimum.X or maximum.Y <= minimum.Y then
 		hideIndicator(state)
 		return
@@ -156,6 +164,9 @@ local function updateIndicator(state: IndicatorState, camera: Camera?, gameMapPr
 	local verticalScale = if math.abs(direction.Y) > 0.0001 then verticalDistance / direction.Y else math.huge
 	local edgeScale = math.min(horizontalScale, verticalScale)
 	local edgePosition = center + direction * edgeScale
+	if onScreen then
+		edgePosition = Vector2.new(math.clamp(projected.X, minimum.X, maximum.X), math.clamp(projected.Y, minimum.Y, maximum.Y))
+	end
 
 	state.size(indicatorSize)
 	state.position(UDim2.fromOffset(edgePosition.X, edgePosition.Y))
@@ -184,12 +195,13 @@ local function playerIndicator(state: IndicatorState)
 			AnchorPoint = Vector2.new(0.5, 0.5),
 			BackgroundTransparency = 1,
 			Image = Images.ObjectiveArrow,
-			ImageColor3 = UIStyle.Colors.Gold,
+			ImageColor3 = function() return if state.downed() then Color3.fromRGB(255, 104, 94) else UIStyle.Colors.Gold end,
 			Position = UDim2.fromScale(0.5, 0.5),
 			Rotation = state.rotation,
 			ScaleType = Enum.ScaleType.Fit,
 			Size = UDim2.fromScale(1.32, 1.32),
 			ZIndex = 70,
+			Visible = function() return not state.onScreen() end,
 		},
 		create "ImageLabel" {
 			Name = "Headshot",
@@ -204,8 +216,40 @@ local function playerIndicator(state: IndicatorState)
 			create "UIAspectRatioConstraint" { AspectRatio = 1 },
 			create "UICorner" { CornerRadius = UDim.new(1, 0) },
 			create "UIStroke" {
-				Color = Color3.new(1, 1, 1),
+				Color = function() return if state.downed() then Color3.fromRGB(255, 104, 94) else Color3.new(1, 1, 1) end,
 				Thickness = 2,
+			},
+		},
+		create "Frame" {
+			Name = "DownedStatus",
+			AnchorPoint = Vector2.new(0.5, 0),
+			BackgroundColor3 = Color3.fromRGB(73, 20, 24),
+			BorderSizePixel = 0,
+			Position = UDim2.fromScale(0.5, 0.88),
+			Size = UDim2.fromScale(1.8, 0.48),
+			Visible = state.downed,
+			ZIndex = 72,
+			create "UIStroke" { ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Color = Color3.fromRGB(255, 104, 94), Thickness = 1 },
+			create "TextLabel" {
+				Name = "Status",
+				BackgroundTransparency = 1,
+				Size = UDim2.fromScale(1, 0.5),
+				FontFace = Font.new(UIStyle.Font.Family, Enum.FontWeight.Heavy),
+				Text = "DOWNED",
+				TextColor3 = Color3.new(1, 1, 1),
+				TextScaled = true,
+				ZIndex = 73,
+			},
+			create "TextLabel" {
+				Name = "ReviveHelp",
+				BackgroundTransparency = 1,
+				Position = UDim2.fromScale(0, 0.5),
+				Size = UDim2.fromScale(1, 0.5),
+				FontFace = Font.new(UIStyle.Font.Family, Enum.FontWeight.Bold),
+				Text = "REVIVE ME",
+				TextColor3 = Color3.new(1, 1, 1),
+				TextScaled = true,
+				ZIndex = 73,
 			},
 		},
 	}
@@ -216,6 +260,13 @@ return function()
 	local indicatorStates = source({} :: { [Player]: IndicatorState })
 	local gameMapPresent = Workspace:FindFirstChild("Game") ~= nil
 	local topOffset = SafeArea.GetTopOffset(0)
+	local downedLookup = {}
+	local function updateDowned(packet)
+		table.clear(downedLookup)
+		for _, userId in packet.downedUserIds or {} do downedLookup[userId] = true end
+	end
+	updateDowned(RunSessionController.GetState())
+	local sessionConnection = RunSessionController.GetStateChangedSignal():Connect(updateDowned)
 
 	local function publishStates()
 		local currentStates = {}
@@ -236,6 +287,8 @@ return function()
 			size = source(MINIMUM_INDICATOR_SIZE),
 			thumbnail = source(""),
 			visible = source(false),
+			downed = source(false),
+			onScreen = source(false),
 			root = nil,
 			humanoid = nil,
 			characterAddedConnection = nil,
@@ -293,12 +346,13 @@ return function()
 	local renderConnection = RunService.RenderStepped:Connect(function()
 		local camera = Workspace.CurrentCamera
 		for _, state in states do
-			updateIndicator(state, camera, gameMapPresent, topOffset)
+			updateIndicator(state, camera, gameMapPresent, topOffset, downedLookup)
 		end
 	end)
 
 	cleanup(function()
 		renderConnection:Disconnect()
+		sessionConnection:Disconnect()
 		playerAddedConnection:Disconnect()
 		playerRemovingConnection:Disconnect()
 		workspaceChildAddedConnection:Disconnect()

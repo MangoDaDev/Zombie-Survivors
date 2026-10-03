@@ -1,56 +1,730 @@
 {
   "pinevex_object": {
-    "type": "Frame", "name": "Preview", "size": [1, 0, 1, 0], "bg": [27, 44, 38],
+    "type": "Frame",
+    "name": "Preview",
+    "size": [
+      1,
+      0,
+      1,
+      0
+    ],
+    "bg": [
+      27,
+      44,
+      38
+    ],
     "children": [
-      { "type": "Frame", "name": "Vignette", "size": [1, 0, 1, 0], "bg": [63, 10, 13], "bgTransparency": 0.72, "gradient": { "rotation": 90, "colors": [[0, "#160507"], [1, "#02070B"]], "transparency": [[0, 0.46], [0.5, 0.92], [1, 0.28]] } },
       {
-        "type": "Frame", "name": "StatusBanner", "size": [0, 520, 0, 76], "position": [0.5, 0, 0, 24], "anchor": [0.5, 0], "bg": [73, 20, 24],
-        "strokes": [{ "thickness": 4, "color": [31, 5, 8], "applyMode": "Border" }, { "thickness": 2, "color": [202, 72, 70], "applyMode": "Border" }],
+        "type": "Frame",
+        "name": "Vignette",
+        "size": [
+          1,
+          0,
+          1,
+          0
+        ],
+        "bg": [
+          63,
+          10,
+          13
+        ],
+        "bgTransparency": 0.72,
+        "gradient": {
+          "rotation": 90,
+          "colors": [
+            [
+              0,
+              "#160507"
+            ],
+            [
+              1,
+              "#02070B"
+            ]
+          ],
+          "transparency": [
+            [
+              0,
+              0.46
+            ],
+            [
+              0.5,
+              0.92
+            ],
+            [
+              1,
+              0.28
+            ]
+          ]
+        }
+      },
+      {
+        "type": "Frame",
+        "name": "StatusBanner",
+        "size": [
+          0.26406250000000003,
+          182,
+          0.06861111111111111,
+          26.599999999999998
+        ],
+        "position": [
+          0.5,
+          0,
+          0,
+          24
+        ],
+        "anchor": [
+          0.5,
+          0
+        ],
+        "bg": [
+          73,
+          20,
+          24
+        ],
+        "strokes": [
+          {
+            "thickness": 4,
+            "color": [
+              31,
+              5,
+              8
+            ],
+            "applyMode": "Border"
+          },
+          {
+            "thickness": 2,
+            "color": [
+              202,
+              72,
+              70
+            ],
+            "applyMode": "Border"
+          }
+        ],
         "children": [
-          { "type": "ImageLabel", "name": "StudTexture", "size": [1, 0, 1, 0], "bgTransparency": 1, "icon": "rbxassetid://6927295847", "imageTransparency": 0.88, "scaleType": "Tile", "tileSize": [0, 72, 0, 72] },
-          { "type": "TextLabel", "name": "Title", "size": [1, -30, 0, 38], "position": [0.5, 0, 0, 7], "anchor": [0.5, 0], "bgTransparency": 1, "text": "YOU'RE DOWN", "textColor": [255, 245, 242], "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy", "strokes": [{ "thickness": 3, "color": [25, 4, 6] }] },
-          { "type": "TextLabel", "name": "Subtitle", "size": [1, -32, 0, 19], "position": [0.5, 0, 0, 48], "anchor": [0.5, 0], "bgTransparency": 1, "text": "YOUR RUN CONTINUES WHILE A TEAMMATE IS ALIVE", "textColor": [235, 153, 149], "textScaled": true, "font": "Ubuntu", "fontWeight": "Bold" }
+          {
+            "type": "ImageLabel",
+            "name": "StudTexture",
+            "size": [
+              1,
+              0,
+              1,
+              0
+            ],
+            "bgTransparency": 1,
+            "icon": "rbxassetid://6927295847",
+            "imageTransparency": 0.88,
+            "scaleType": "Tile",
+            "tileSize": [
+              0,
+              72,
+              0,
+              72
+            ]
+          },
+          {
+            "type": "TextLabel",
+            "name": "Title",
+            "size": [
+              0.9423076923076923,
+              0,
+              0.5,
+              0
+            ],
+            "position": [
+              0.5,
+              0,
+              0.09210526315789473,
+              0
+            ],
+            "anchor": [
+              0.5,
+              0
+            ],
+            "bgTransparency": 1,
+            "text": "YOU'RE DOWN",
+            "textColor": [
+              255,
+              245,
+              242
+            ],
+            "textScaled": true,
+            "font": "Ubuntu",
+            "fontWeight": "Heavy",
+            "strokes": [
+              {
+                "thickness": 3,
+                "color": [
+                  25,
+                  4,
+                  6
+                ]
+              }
+            ]
+          },
+          {
+            "type": "TextLabel",
+            "name": "Subtitle",
+            "size": [
+              0.9384615384615385,
+              0,
+              0.25,
+              0
+            ],
+            "position": [
+              0.5,
+              0,
+              0.631578947368421,
+              0
+            ],
+            "anchor": [
+              0.5,
+              0
+            ],
+            "bgTransparency": 1,
+            "text": "BUY A REVIVE OR WAIT FOR A TEAMMATE TO REVIVE YOU",
+            "textColor": [
+              235,
+              153,
+              149
+            ],
+            "textScaled": true,
+            "font": "Ubuntu",
+            "fontWeight": "Bold"
+          }
         ]
       },
       {
-        "type": "Frame", "name": "Dock", "size": [0, 880, 0, 218], "position": [0.5, 0, 1, -28], "anchor": [0.5, 1], "bg": [3, 18, 30],
-        "strokes": [{ "thickness": 6, "color": [0, 5, 10], "applyMode": "Border" }, { "thickness": 2, "color": [98, 122, 137], "applyMode": "Border" }],
+        "type": "Frame",
+        "name": "Dock",
+        "size": [
+          0.446875,
+          308,
+          0.19680555555555554,
+          76.3
+        ],
+        "position": [
+          0.5,
+          0,
+          1,
+          -28
+        ],
+        "anchor": [
+          0.5,
+          1
+        ],
+        "bg": [
+          3,
+          18,
+          30
+        ],
+        "strokes": [
+          {
+            "thickness": 6,
+            "color": [
+              0,
+              5,
+              10
+            ],
+            "applyMode": "Border"
+          },
+          {
+            "thickness": 2,
+            "color": [
+              98,
+              122,
+              137
+            ],
+            "applyMode": "Border"
+          }
+        ],
         "children": [
           {
-            "type": "Frame", "name": "Spectate", "size": [1, -24, 0, 62], "position": [0, 12, 0, 12], "bg": [4, 29, 45],
-            "strokes": [{ "thickness": 2, "color": [55, 93, 114], "applyMode": "Border" }],
+            "type": "Frame",
+            "name": "Spectate",
+            "size": [
+              0.9727272727272728,
+              0,
+              0.28440366972477066,
+              0
+            ],
+            "position": [
+              0.013636363636363636,
+              0,
+              0.05504587155963303,
+              0
+            ],
+            "bg": [
+              4,
+              29,
+              45
+            ],
+            "strokes": [
+              {
+                "thickness": 2,
+                "color": [
+                  55,
+                  93,
+                  114
+                ],
+                "applyMode": "Border"
+              }
+            ],
             "children": [
-              { "type": "TextButton", "name": "Previous", "size": [0, 60, 1, 0], "bg": [14, 57, 78], "text": "‹", "textColor": [255, 208, 92], "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy" },
-              { "type": "TextLabel", "name": "Label", "size": [0, 138, 0, 18], "position": [0, 78, 0, 8], "bgTransparency": 1, "text": "SPECTATING", "textColor": [131, 159, 174], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Bold" },
-              { "type": "TextLabel", "name": "Player", "size": [0, 300, 0, 28], "position": [0, 78, 0, 27], "bgTransparency": 1, "text": "TEAMMATE_NAME", "textColor": [255, 255, 255], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Heavy" },
-              { "type": "TextLabel", "name": "Checkpoint", "size": [0, 320, 0, 32], "position": [1, -386, 0.5, 0], "anchor": [0, 0.5], "bgTransparency": 1, "text": "FREE TEAM REVIVE AFTER WAVE 10", "textColor": [255, 207, 102], "textScaled": true, "textXAlignment": "Right", "font": "Ubuntu", "fontWeight": "Bold" },
-              { "type": "TextButton", "name": "Next", "size": [0, 60, 1, 0], "position": [1, 0, 0, 0], "anchor": [1, 0], "bg": [14, 57, 78], "text": "›", "textColor": [255, 208, 92], "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy" }
+              {
+                "type": "TextButton",
+                "name": "Previous",
+                "size": [
+                  0.07009345794392523,
+                  0,
+                  1,
+                  0
+                ],
+                "bg": [
+                  14,
+                  57,
+                  78
+                ],
+                "text": "<",
+                "textColor": [
+                  255,
+                  208,
+                  92
+                ],
+                "textScaled": true,
+                "font": "Ubuntu",
+                "fontWeight": "Heavy"
+              },
+              {
+                "type": "TextLabel",
+                "name": "Label",
+                "size": [
+                  0.16121495327102803,
+                  0,
+                  0.2903225806451613,
+                  0
+                ],
+                "position": [
+                  0.0911214953271028,
+                  0,
+                  0.12903225806451613,
+                  0
+                ],
+                "bgTransparency": 1,
+                "text": "SPECTATING",
+                "textColor": [
+                  131,
+                  159,
+                  174
+                ],
+                "textScaled": true,
+                "textXAlignment": "Left",
+                "font": "Ubuntu",
+                "fontWeight": "Bold"
+              },
+              {
+                "type": "TextLabel",
+                "name": "Player",
+                "size": [
+                  0.35046728971962615,
+                  0,
+                  0.45161290322580644,
+                  0
+                ],
+                "position": [
+                  0.0911214953271028,
+                  0,
+                  0.43548387096774194,
+                  0
+                ],
+                "bgTransparency": 1,
+                "text": "TEAMMATE_NAME",
+                "textColor": [
+                  255,
+                  255,
+                  255
+                ],
+                "textScaled": true,
+                "textXAlignment": "Left",
+                "font": "Ubuntu",
+                "fontWeight": "Heavy"
+              },
+              {
+                "type": "TextLabel",
+                "name": "TeammateReviveHelp",
+                "size": [
+                  0.37383177570093457,
+                  0,
+                  0.5161290322580645,
+                  0
+                ],
+                "position": [
+                  0.5490654205607477,
+                  0,
+                  0.5,
+                  0
+                ],
+                "anchor": [
+                  0,
+                  0.5
+                ],
+                "bgTransparency": 1,
+                "text": "WAIT FOR A TEAMMATE - HOLD 1.5s TO REVIVE",
+                "textColor": [
+                  255,
+                  207,
+                  102
+                ],
+                "textScaled": true,
+                "textXAlignment": "Right",
+                "font": "Ubuntu",
+                "fontWeight": "Bold"
+              },
+              {
+                "type": "TextButton",
+                "name": "Next",
+                "size": [
+                  0.07009345794392523,
+                  0,
+                  1,
+                  0
+                ],
+                "position": [
+                  1,
+                  0,
+                  0,
+                  0
+                ],
+                "anchor": [
+                  1,
+                  0
+                ],
+                "bg": [
+                  14,
+                  57,
+                  78
+                ],
+                "text": ">",
+                "textColor": [
+                  255,
+                  208,
+                  92
+                ],
+                "textScaled": true,
+                "font": "Ubuntu",
+                "fontWeight": "Heavy"
+              }
             ]
           },
           {
-            "type": "Frame", "name": "Revive", "size": [0.5, -18, 0, 118], "position": [0, 12, 0, 87], "bg": [10, 41, 57],
-            "strokes": [{ "thickness": 2, "color": [210, 147, 35], "applyMode": "Border" }],
+            "type": "Frame",
+            "name": "Revive",
+            "size": [
+              0.47954545454545455,
+              0,
+              0.5412844036697247,
+              0
+            ],
+            "position": [
+              0.013636363636363636,
+              0,
+              0.39908256880733944,
+              0
+            ],
+            "bg": [
+              10,
+              41,
+              57
+            ],
+            "strokes": [
+              {
+                "thickness": 2,
+                "color": [
+                  210,
+                  147,
+                  35
+                ],
+                "applyMode": "Border"
+              }
+            ],
             "children": [
-              { "type": "ImageLabel", "name": "Artwork", "size": [0, 96, 0, 96], "position": [0, 10, 0, 11], "bg": [2, 15, 25], "icon": "rbxassetid://89417655945879" },
-              { "type": "TextLabel", "name": "Name", "size": [1, -126, 0, 28], "position": [0, 118, 0, 12], "bgTransparency": 1, "text": "REVIVE YOURSELF", "textColor": [255, 255, 255], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Heavy" },
-              { "type": "TextLabel", "name": "Detail", "size": [1, -126, 0, 18], "position": [0, 118, 0, 43], "bgTransparency": 1, "text": "CONTINUE THIS RUN", "textColor": [139, 177, 195], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Bold" },
-              { "type": "TextButton", "name": "Buy", "size": [1, -128, 0, 40], "position": [0, 118, 1, -50], "bg": [225, 157, 40], "text": " 39", "textColor": [255, 255, 255], "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy", "strokes": [{ "thickness": 3, "color": [99, 57, 8], "applyMode": "Border" }] }
+              {
+                "type": "ImageLabel",
+                "name": "Artwork",
+                "size": [
+                  0.22748815165876776,
+                  0,
+                  0.8135593220338984,
+                  0
+                ],
+                "position": [
+                  0.023696682464454975,
+                  0,
+                  0.09322033898305085,
+                  0
+                ],
+                "bg": [
+                  2,
+                  15,
+                  25
+                ],
+                "icon": "rbxassetid://89417655945879"
+              },
+              {
+                "type": "TextLabel",
+                "name": "Name",
+                "size": [
+                  0.7014218009478673,
+                  0,
+                  0.23728813559322035,
+                  0
+                ],
+                "position": [
+                  0.2796208530805687,
+                  0,
+                  0.1016949152542373,
+                  0
+                ],
+                "bgTransparency": 1,
+                "text": "BUY A REVIVE",
+                "textColor": [
+                  255,
+                  255,
+                  255
+                ],
+                "textScaled": true,
+                "textXAlignment": "Left",
+                "font": "Ubuntu",
+                "fontWeight": "Heavy"
+              },
+              {
+                "type": "TextLabel",
+                "name": "Detail",
+                "size": [
+                  0.7014218009478673,
+                  0,
+                  0.15254237288135594,
+                  0
+                ],
+                "position": [
+                  0.2796208530805687,
+                  0,
+                  0.3644067796610169,
+                  0
+                ],
+                "bgTransparency": 1,
+                "text": "RETURN IMMEDIATELY",
+                "textColor": [
+                  139,
+                  177,
+                  195
+                ],
+                "textScaled": true,
+                "textXAlignment": "Left",
+                "font": "Ubuntu",
+                "fontWeight": "Bold"
+              },
+              {
+                "type": "TextButton",
+                "name": "Buy",
+                "size": [
+                  0.6966824644549763,
+                  0,
+                  0.3389830508474576,
+                  0
+                ],
+                "position": [
+                  0.2796208530805687,
+                  0,
+                  0.576271186440678,
+                  0
+                ],
+                "bg": [
+                  225,
+                  157,
+                  40
+                ],
+                "text": " 19",
+                "textColor": [
+                  255,
+                  255,
+                  255
+                ],
+                "textScaled": true,
+                "font": "Ubuntu",
+                "fontWeight": "Heavy",
+                "strokes": [
+                  {
+                    "thickness": 3,
+                    "color": [
+                      99,
+                      57,
+                      8
+                    ],
+                    "applyMode": "Border"
+                  }
+                ]
+              }
             ]
           },
           {
-            "type": "Frame", "name": "ReviveTeam", "size": [0.5, -18, 0, 118], "position": [0.5, 6, 0, 87], "bg": [10, 41, 57],
-            "strokes": [{ "thickness": 2, "color": [67, 154, 105], "applyMode": "Border" }],
+            "type": "Frame",
+            "name": "ReviveTeam",
+            "size": [
+              0.47954545454545455,
+              0,
+              0.5412844036697247,
+              0
+            ],
+            "position": [
+              0.5068181818181818,
+              0,
+              0.39908256880733944,
+              0
+            ],
+            "bg": [
+              10,
+              41,
+              57
+            ],
+            "strokes": [
+              {
+                "thickness": 2,
+                "color": [
+                  67,
+                  154,
+                  105
+                ],
+                "applyMode": "Border"
+              }
+            ],
             "children": [
-              { "type": "ImageLabel", "name": "Artwork", "size": [0, 96, 0, 96], "position": [0, 10, 0, 11], "bg": [2, 15, 25], "icon": "rbxassetid://99546721866961" },
-              { "type": "TextLabel", "name": "Name", "size": [1, -126, 0, 28], "position": [0, 118, 0, 12], "bgTransparency": 1, "text": "REVIVE 2 TEAMMATES", "textColor": [255, 255, 255], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Heavy" },
-              { "type": "TextLabel", "name": "Detail", "size": [1, -126, 0, 18], "position": [0, 118, 0, 43], "bgTransparency": 1, "text": "BRING THE TEAM BACK", "textColor": [139, 177, 195], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Bold" },
-              { "type": "TextButton", "name": "Buy", "size": [1, -128, 0, 40], "position": [0, 118, 1, -50], "bg": [71, 190, 104], "text": " 79", "textColor": [255, 255, 255], "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy", "strokes": [{ "thickness": 3, "color": [25, 86, 47], "applyMode": "Border" }] }
+              {
+                "type": "ImageLabel",
+                "name": "Artwork",
+                "size": [
+                  0.22748815165876776,
+                  0,
+                  0.8135593220338984,
+                  0
+                ],
+                "position": [
+                  0.023696682464454975,
+                  0,
+                  0.09322033898305085,
+                  0
+                ],
+                "bg": [
+                  2,
+                  15,
+                  25
+                ],
+                "icon": "rbxassetid://99546721866961"
+              },
+              {
+                "type": "TextLabel",
+                "name": "Name",
+                "size": [
+                  0.7014218009478673,
+                  0,
+                  0.23728813559322035,
+                  0
+                ],
+                "position": [
+                  0.2796208530805687,
+                  0,
+                  0.1016949152542373,
+                  0
+                ],
+                "bgTransparency": 1,
+                "text": "REVIVE 2 TEAMMATES",
+                "textColor": [
+                  255,
+                  255,
+                  255
+                ],
+                "textScaled": true,
+                "textXAlignment": "Left",
+                "font": "Ubuntu",
+                "fontWeight": "Heavy"
+              },
+              {
+                "type": "TextLabel",
+                "name": "Detail",
+                "size": [
+                  0.7014218009478673,
+                  0,
+                  0.15254237288135594,
+                  0
+                ],
+                "position": [
+                  0.2796208530805687,
+                  0,
+                  0.3644067796610169,
+                  0
+                ],
+                "bgTransparency": 1,
+                "text": "BRING THE TEAM BACK",
+                "textColor": [
+                  139,
+                  177,
+                  195
+                ],
+                "textScaled": true,
+                "textXAlignment": "Left",
+                "font": "Ubuntu",
+                "fontWeight": "Bold"
+              },
+              {
+                "type": "TextButton",
+                "name": "Buy",
+                "size": [
+                  0.6966824644549763,
+                  0,
+                  0.3389830508474576,
+                  0
+                ],
+                "position": [
+                  0.2796208530805687,
+                  0,
+                  0.576271186440678,
+                  0
+                ],
+                "bg": [
+                  71,
+                  190,
+                  104
+                ],
+                "text": " 39",
+                "textColor": [
+                  255,
+                  255,
+                  255
+                ],
+                "textScaled": true,
+                "font": "Ubuntu",
+                "fontWeight": "Heavy",
+                "strokes": [
+                  {
+                    "thickness": 3,
+                    "color": [
+                      25,
+                      86,
+                      47
+                    ],
+                    "applyMode": "Border"
+                  }
+                ]
+              }
             ]
           }
         ]
       }
     ]
   },
-  "viewport_size": [1280, 720],
+  "viewport_size": [
+    1280,
+    720
+  ],
   "transparent_background": false
 }

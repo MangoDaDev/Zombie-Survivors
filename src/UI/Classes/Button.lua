@@ -26,6 +26,8 @@ export type Props = {
 	MinTextSize: Reactive<number>?,
 	Size: Reactive<UDim2>?,
 	StrokeThickness: Reactive<number>?,
+	BorderThickness: Reactive<number>?,
+	StudTransparency: Reactive<number>?,
 	TextBounds: Reactive<UDim2>?,
 	TextCenterY: Reactive<number>?,
 }
@@ -122,7 +124,7 @@ return function(props: Props)
 				ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
 				-- Keep the silhouette crisp even though the other dark details inherit the button color.
 				Color = outlineColor,
-				Thickness = UIStyle.OutlineThickness,
+				Thickness = function() return readOr(props.BorderThickness, UIStyle.OutlineThickness) end,
 			},
 			create "UIScale" { Scale = scale },
 		create "ImageLabel" {
@@ -158,7 +160,7 @@ return function(props: Props)
 				Name = "StudTexture",
 				BackgroundTransparency = 1,
 				Image = UIStyle.StudTexture,
-				ImageTransparency = UIStyle.StudTransparency,
+				ImageTransparency = function() return readOr(props.StudTransparency, UIStyle.StudTransparency) end,
 				ScaleType = Enum.ScaleType.Tile,
 				Size = UDim2.fromScale(1, 1),
 				TileSize = UDim2.fromOffset(108, 108),
@@ -169,7 +171,7 @@ return function(props: Props)
 				Color = function()
 					return buttonColor():Lerp(UIStyle.Colors.Paper, 0.38)
 				end,
-				Thickness = UIStyle.OutlineThickness,
+				Thickness = function() return readOr(props.BorderThickness, UIStyle.OutlineThickness) end,
 				Transparency = UIStyle.InsideStrokeTransparency,
 			},
 		},

@@ -12,8 +12,9 @@ local CharacterController = {}
 local readyPlayers: { [Player]: boolean } = {}
 local loadingPlayers: { [Player]: boolean } = {}
 local lastRequestAt: { [Player]: number } = {}
+local requestedSpawnCFrames: { [Player]: CFrame } = {}
 
-function CharacterController.ReloadCharacter(player: Player): boolean
+function CharacterController.ReloadCharacter(player: Player, spawnCFrame: CFrame?): boolean
 	if not readyPlayers[player] or loadingPlayers[player] or player.Parent ~= Players then
 		return false
 	end
@@ -21,10 +22,12 @@ function CharacterController.ReloadCharacter(player: Player): boolean
 	-- All server features that replace a character use this path so concurrent loads cannot race one another.
 	lastRequestAt[player] = os.clock()
 	loadingPlayers[player] = true
+	requestedSpawnCFrames[player] = spawnCFrame
 	player:LoadCharacter()
+	requestedSpawnCFrames[player] = nil
 	loadingPlayers[player] = nil
 
-	return player.Character ~= nil
+	return player.Parent == Players and player.Character ~= nil
 end
 
 function CharacterController.RequestCharacter(_, player: Player): boolean
@@ -42,7 +45,7 @@ function CharacterController.RequestCharacter(_, player: Player): boolean
 		return true
 	end
 	if ServerContext.IsGameServer() and player.Character then
-		-- Run deaths remain server-authorized: checkpoint and paid revives use ReloadCharacter directly,
+		-- Run deaths remain server-authorized: teammate and paid revives use ReloadCharacter directly,
 		-- while a dead client cannot bypass the team-death rules through the normal spawn request.
 		return false
 	end
@@ -65,10 +68,18 @@ function CharacterController.OnPlayerRemoving(player: Player)
 	readyPlayers[player] = nil
 	loadingPlayers[player] = nil
 	lastRequestAt[player] = nil
+	requestedSpawnCFrames[player] = nil
 end
 
 function CharacterController.OnCharacterAdded(player: Player, character: Model)
-	local spawnCFrame = MapController.GetSpawnCFrame()
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	if humanoid and ServerContext.IsGameServer() then
+		-- Set this before later character hooks can yield: downed bodies must retain their joints.
+		humanoid.BreakJointsOnDeath = false
+	end
+	-- Revives return at the downed body; initial spawns and replays use the map spawn.
+	local requestedSpawn = requestedSpawnCFrames[player]
+	local spawnCFrame = requestedSpawn or MapController.GetSpawnCFrame()
 	if not spawnCFrame then
 		return
 	end
@@ -77,7 +88,7 @@ function CharacterController.OnCharacterAdded(player: Player, character: Model)
 	-- uses its inspected spawn even if Roblox's default SpawnLocation selection changes later.
 	task.defer(function()
 		if player.Parent == Players and player.Character == character then
-			character:PivotTo(spawnCFrame * CFrame.new(0, 3.5, 0))
+			character:PivotTo(if requestedSpawn then spawnCFrame else spawnCFrame * CFrame.new(0, 3.5, 0))
 		end
 	end)
 end

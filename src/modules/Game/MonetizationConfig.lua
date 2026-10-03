@@ -144,7 +144,6 @@ MonetizationConfig.Run = {
 	BoostXPMultiplier = 1.5,
 	PermanentCoinMultiplier = 2,
 	TeamWipeGraceSeconds = 15,
-	CheckpointRespawnInterval = 5,
 }
 
 MonetizationConfig.AbilitySlots = {

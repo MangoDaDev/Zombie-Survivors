@@ -105,6 +105,10 @@ local function sendVisualState(player: Player, runtime: Runtime, stats, level: n
 		innerRadius = stats.OrbitRadius * AbilityDefinitions.ById[ABILITY_ID].Combat.InnerRadiusMultiplier,
 		innerScale = stats.SwordScale * AbilityDefinitions.ById[ABILITY_ID].Combat.InnerScaleMultiplier,
 		rage = stats.IsRage == true,
+		damage = stats.Damage * ClassController.GetWeaponDamageMultiplier(player),
+		hitRadius = AbilityDefinitions.ById[ABILITY_ID].Combat.HitRadius
+			* (stats.SwordScale / AbilityDefinitions.ById[ABILITY_ID].Combat.BaseScale),
+		hitCooldown = stats.HitCooldown,
 	})
 end
 
@@ -115,7 +119,8 @@ local function applySwordDamage(
 	target,
 	baseDamage: number,
 	now: number,
-	hitOrigin: Vector3
+	hitOrigin: Vector3,
+	predictionKey: string?
 )
 	local definition = AbilityDefinitions.ById[ABILITY_ID]
 	local damage = baseDamage
@@ -134,6 +139,7 @@ local function applySwordDamage(
 			player = player,
 			source = ABILITY_ID,
 			canApplyHitPassives = true,
+			predictionKey = predictionKey,
 		}
 	)
 	if not damaged then
@@ -180,7 +186,7 @@ local function hitWithSword(
 			and now - (swordHits[target.key] or -math.huge) >= stats.HitCooldown
 		then
 			swordHits[target.key] = now
-			applySwordDamage(player, runtime, stats, target, stats.Damage * damageMultiplier, now, swordPosition)
+			applySwordDamage(player, runtime, stats, target, stats.Damage * damageMultiplier, now, swordPosition, tostring(swordKey))
 			hitsThisStep += 1
 			if hitsThisStep >= maximumHits then
 				break
@@ -200,6 +206,7 @@ local function fireReleasedBlade(player: Player, runtime: Runtime, stats, root: 
 	local target = targets[1]
 	local radial = Vector3.new(math.cos(runtime.angle), 0, math.sin(runtime.angle))
 	local targetPosition = if target then target.position else origin + radial * 18
+	local predictionKey = "Release:" .. tostring(token) .. ":" .. tostring(runtime.rotationTravel)
 
 	abilityNetwork:fireAll("SwordReleased", {
 		ownerUserId = player.UserId,
@@ -209,6 +216,9 @@ local function fireReleasedBlade(player: Player, runtime: Runtime, stats, root: 
 		outwardDuration = definition.Combat.ReleaseTravelDuration,
 		scale = stats.SwordScale * 0.82,
 		rage = stats.IsRage == true,
+		targetId = target and target.id or nil,
+		damage = stats.Damage * definition.Combat.ReleaseDamageMultiplier * ClassController.GetWeaponDamageMultiplier(player),
+		predictionKey = predictionKey,
 	})
 
 	if target then
@@ -221,7 +231,8 @@ local function fireReleasedBlade(player: Player, runtime: Runtime, stats, root: 
 					target,
 					stats.Damage * definition.Combat.ReleaseDamageMultiplier,
 					workspace:GetServerTimeNow(),
-					origin
+					origin,
+					predictionKey
 				)
 			end
 		end)
@@ -290,6 +301,11 @@ local function runOrbit(player: Player, runtime: Runtime, token: number)
 		local hitRadius = definition.Combat.HitRadius * (stats.SwordScale / definition.Combat.BaseScale)
 		-- Inflate by half this frame's arc so high Rage speed cannot tunnel between discrete server checks.
 		hitRadius += math.min(stats.OrbitRadius * angleStep * 0.5, 1.5)
+		-- Allow small contact disagreements on high ping, bounded to two studs / 250ms. The server
+		-- still owns blade geometry, per-blade cooldowns, damage, specials, and every kill/reward.
+		local contactLeeway = math.min(2, math.min(math.max(player:GetNetworkPing(), 0), 0.25)
+			* (math.min(root.AssemblyLinearVelocity.Magnitude, 20) + math.min(stats.OrbitRadius * angularSpeed, 20)))
+		hitRadius += contactLeeway
 		local candidates = CombatTargets.GetDamageablesInRadius(
 			root.Position,
 			stats.OrbitRadius + hitRadius + 1,

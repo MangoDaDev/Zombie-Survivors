@@ -6,6 +6,7 @@ local ClassesAbilitiesTutorialController = require(ReplicatedStorage.Controllers
 local ClassController = require(ReplicatedStorage.Controllers.ClassController)
 local SafeArea = require(ReplicatedStorage.Modules.UI.SafeArea)
 local UIStyle = require(ReplicatedStorage.Modules.UI.UIStyle)
+local ResponsiveLayout = require(ReplicatedStorage.Modules.UI.ResponsiveLayout)
 local Vide = require(ReplicatedStorage.Packages.vide)
 
 local action = Vide.action
@@ -130,6 +131,17 @@ return function()
 		return tutorialState().active
 	end)
 
+	local layout = {}
+	layout.Viewport = ResponsiveLayout.Viewport(rootSize)
+	layout.ClassesAbilitiesTutorial = layout.Viewport
+	layout.Instruction = ResponsiveLayout.Base(function()
+		return if rootSize().X < 600 then UDim2.new(0.84, 0, 0.08, 0) else UDim2.new(0.42, 0, 0.08, 0)
+	end, layout.ClassesAbilitiesTutorial, 7.2)
+	layout.WorldArrow = ResponsiveLayout.Base(UDim2.fromOffset(96, 52), layout.ClassesAbilitiesTutorial)
+	layout.Shaft = ResponsiveLayout.Child(UDim2.fromOffset(68, 16), layout.WorldArrow)
+	layout.ArrowHeadUpper = ResponsiveLayout.Child(UDim2.fromOffset(38, 16), layout.WorldArrow)
+	layout.ArrowHeadLower = ResponsiveLayout.Child(UDim2.fromOffset(38, 16), layout.WorldArrow)
+
 	return create "Frame" {
 		Name = "ClassesAbilitiesTutorial",
 		BackgroundTransparency = 1,
@@ -148,12 +160,10 @@ return function()
 			AnchorPoint = Vector2.new(0.5, 0),
 			BackgroundColor3 = Color3.fromRGB(9, 42, 58),
 			BorderSizePixel = 0,
-			Position = function()
+			Position = layout.Instruction.Position(function()
 				return UDim2.new(0.5, 0, 0, topOffset())
-			end,
-			Size = function()
-				return if rootSize().X < 600 then UDim2.new(0.84, 0, 0.08, 0) else UDim2.new(0.42, 0, 0.08, 0)
-			end,
+			end, Vector2.new(0.5, 0)),
+			Size = layout.Instruction.Size,
 			ZIndex = 901,
 			create "UIAspectRatioConstraint" {
 				AspectRatio = 7.2,
@@ -183,7 +193,7 @@ return function()
 			BackgroundTransparency = 1,
 			Position = markerPosition,
 			Rotation = markerRotation,
-			Size = UDim2.fromOffset(96, 52),
+			Size = layout.WorldArrow.Size,
 			Visible = markerAvailable,
 			ZIndex = 905,
 			create "UIScale" { Scale = pulse },
@@ -192,8 +202,8 @@ return function()
 				AnchorPoint = Vector2.new(0, 0.5),
 				BackgroundColor3 = GOLD,
 				BorderSizePixel = 0,
-				Position = UDim2.new(0, 2, 0.5, 0),
-				Size = UDim2.fromOffset(68, 16),
+				Position = layout.WorldArrow.Scale(UDim2.new(0, 2, 0.5, 0)),
+				Size = layout.Shaft.Size,
 				ZIndex = 905,
 				create "UICorner" { CornerRadius = UDim.new(0, 7) },
 				create "UIStroke" { Color = Color3.fromRGB(30, 20, 4), Thickness = 3 },
@@ -203,9 +213,9 @@ return function()
 				AnchorPoint = Vector2.new(0.5, 0.5),
 				BackgroundColor3 = GOLD,
 				BorderSizePixel = 0,
-				Position = UDim2.fromOffset(72, 15),
+				Position = layout.WorldArrow.Scale(UDim2.fromOffset(72, 15)),
 				Rotation = 45,
-				Size = UDim2.fromOffset(38, 16),
+				Size = layout.ArrowHeadUpper.Size,
 				ZIndex = 906,
 				create "UICorner" { CornerRadius = UDim.new(0, 7) },
 				create "UIStroke" { Color = Color3.fromRGB(30, 20, 4), Thickness = 3 },
@@ -215,9 +225,9 @@ return function()
 				AnchorPoint = Vector2.new(0.5, 0.5),
 				BackgroundColor3 = GOLD,
 				BorderSizePixel = 0,
-				Position = UDim2.fromOffset(72, 37),
+				Position = layout.WorldArrow.Scale(UDim2.fromOffset(72, 37)),
 				Rotation = -45,
-				Size = UDim2.fromOffset(38, 16),
+				Size = layout.ArrowHeadLower.Size,
 				ZIndex = 906,
 				create "UICorner" { CornerRadius = UDim.new(0, 7) },
 				create "UIStroke" { Color = Color3.fromRGB(30, 20, 4), Thickness = 3 },

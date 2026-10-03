@@ -62,13 +62,16 @@ Production application UI uses Vide. Pinevex is the headless design and validati
 - Keep each screen internally coherent, readable, and polished without forcing it to resemble unrelated interfaces.
 - When a reference is supplied, treat it as the target unless the user says it is only inspiration. Compare silhouette, hierarchy, relative sizes, spacing, alignment, colors, panel structure, controls, typography, icons, and decorative density without copying defects.
 - The user's requested direction overrides existing styling.
+- Readability/layout cleanup must preserve the user's requested visual identity, including visible studs; do not infer permission to replace it with a flatter or more minimal style.
 
 ## Responsive layout
 
 ### Sizing rules
 
 - Use a deliberate combination of `Scale` and pixel offsets. Do not build an entire interface with only one of them.
-- Size and position the outer container and its major child regions primarily with Scale so they resize together. Reserve offsets for small padding, strokes, minimum touch/readability details, and deliberate corrections.
+- Treat each screen-level menu, panel, popup, or HUD surface as one responsive unit: its base container uses Scale + Offset, while descendants use parent-relative Scale for Size, Position, padding, and list/grid dimensions. Preserve children that already scale correctly. Keep full-screen roots, backdrops, and world-projected markers in screen space.
+- For requests to make UI bigger/smaller on high-resolution devices, adjust `UIStyle.BaseContainerScaleWeight` through `Modules.UI.ResponsiveLayout` (lower means slower growth), compensating Scale with Offset at `UIStyle.ReferenceViewport`. Change authored dimensions only when the reference-resolution size should also change. Do not use a global UIScale or pixel ceiling for high-resolution tuning.
+- Scale-only children must not depend on an AutomaticSize parent on the same axis. For scrolling lists/grids, derive content height from the authoritative item count and authored row dimensions, then keep rows, gaps, and controls proportional to that content. AutomaticCanvasSize may still measure that explicit content.
 - Never use `UISizeConstraint` or scripted pixel ceilings/hard maximum sizes to control responsive UI.
 - Do not use `UIScale` to resize menus or solve layout responsiveness unless the user or a documented project invariant explicitly requires a uniform full-menu transform.
 - Existing or explicitly requested interaction animations may use `UIScale`. When such a control participates in a layout, keep an unscaled layout slot and center the scaled visual child at `AnchorPoint` and `Position` `(0.5, 0.5)`.
@@ -227,3 +230,5 @@ UI work is complete only when all applicable items are true:
 - New or substantial visual work completed the required Pinevex iteration.
 - Material defects found during validation were corrected.
 - No unnecessary duplicate UI system or component was introduced.
+
+People playing on mobile are not intended to play in portrait mode. No need to test the Ui in that format.

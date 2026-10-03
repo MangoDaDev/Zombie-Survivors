@@ -33,6 +33,8 @@ type PlayerRunState = {
 local RunProgressionController = {}
 
 local progressionNetwork
+local packetRevision = 0
+local nextChoiceSetId = 0
 local random = Random.new()
 local states: { [Player]: PlayerRunState } = {}
 local endedPlayers: { [Player]: boolean } = {}
@@ -58,7 +60,9 @@ local function getAbilitySnapshot(player: Player)
 end
 
 local function makePacket(player: Player, state: PlayerRunState)
+	packetRevision += 1
 	return {
+		revision = packetRevision,
 		active = ServerContext.IsGameServer(),
 		level = state.level,
 		xp = state.xp,
@@ -199,7 +203,9 @@ local function offerNextChoice(player: Player, state: PlayerRunState)
 		state.pendingChoices = 0
 		return
 	end
-	state.choiceSetId += 1
+	-- Choice identity survives same-server replay so a late selection cannot consume a new run's offer.
+	nextChoiceSetId += 1
+	state.choiceSetId = nextChoiceSetId
 	state.choices = choices
 	AnalyticsController.StartRunChoice(player, state.choiceSetId, state.level, choices)
 end
@@ -343,8 +349,10 @@ function RunProgressionController.EndRun(player: Player)
 	states[player] = nil
 	takeAllReservations[player] = nil
 	if progressionNetwork and player.Parent == Players then
+		packetRevision += 1
 		-- Clear all run-only progression and queued choices without touching persistent ability data.
 		progressionNetwork:fire(player, "RunStateChanged", {
+			revision = packetRevision,
 			active = false,
 			level = 1,
 			xp = 0,
@@ -378,7 +386,9 @@ function RunProgressionController.GetSnapshot(_, player: Player)
 	if state and state.pendingChoices > 0 then
 		offerNextChoice(player, state)
 	end
+	packetRevision += 1
 	return state and makePacket(player, state) or {
+		revision = packetRevision,
 		active = false,
 		level = 1,
 		xp = 0,
@@ -430,6 +440,15 @@ function RunProgressionController.SelectChoice(_, player: Player, choiceSetId: a
 	state.choices = nil
 	offerNextChoice(player, state)
 	sendState(player, state)
+end
+
+function RunProgressionController.RequestChoice(_, player: Player, requestId: any, choiceSetId: any, choiceIndex: any)
+	if type(requestId) ~= "number" or requestId % 1 ~= 0 or requestId <= 0 or requestId >= math.huge then
+		return
+	end
+	RunProgressionController.SelectChoice(nil, player, choiceSetId, choiceIndex)
+	-- Rejections (including Take All reservations) restore the same offer instead of stranding the UI.
+	progressionNetwork:fire(player, "ChoiceResolved", requestId, RunProgressionController.GetSnapshot(nil, player))
 end
 
 function RunProgressionController.ReserveTakeAll(player: Player, lifetime: number): number?
@@ -493,6 +512,7 @@ function RunProgressionController.Init()
 	progressionNetwork = Networker.server.new("RunProgressionController", RunProgressionController, {
 		RunProgressionController.GetSnapshot,
 		RunProgressionController.SelectChoice,
+		RunProgressionController.RequestChoice,
 	})
 	if RunService:IsStudio() then
 		ServerContext.GetChangedSignal():Connect(function(serverType)

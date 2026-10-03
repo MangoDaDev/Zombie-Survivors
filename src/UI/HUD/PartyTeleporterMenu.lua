@@ -5,6 +5,7 @@ local StudTexture = require(script.Parent.Parent.Classes.StudTexture)
 local PartyTeleporterController = require(ReplicatedStorage.Controllers.PartyTeleporterController)
 local PartyTeleporterConfig = require(ReplicatedStorage.Modules.Game.PartyTeleporterConfig)
 local UIStyle = require(ReplicatedStorage.Modules.UI.UIStyle)
+local ResponsiveLayout = require(ReplicatedStorage.Modules.UI.ResponsiveLayout)
 local Vide = require(ReplicatedStorage.Packages.vide)
 
 local action = Vide.action
@@ -55,8 +56,8 @@ local function actionButton(props)
 		Name = props.Name,
 		AnchorPoint = props.AnchorPoint,
 		BackgroundTransparency = 1,
-		Position = props.Position,
-		Size = props.Size,
+		Position = if props.ParentLayout then props.ParentLayout.Scale(props.Position) else props.Position,
+		Size = if props.ParentLayout then props.ParentLayout.Scale(props.Size) else props.Size,
 		ZIndex = props.ZIndex or 72,
 		Button({
 			Text = props.Text,
@@ -74,15 +75,19 @@ local function actionButton(props)
 	}
 end
 
-local function createHeader(props)
+local function createHeader(props, parentLayout)
+	local layout = {}
+	layout.Viewport = parentLayout
+	layout.Header = ResponsiveLayout.Child(function()
+		return UDim2.new(1, -24, 0, props.headerHeight())
+	end, layout.Viewport)
+
 	return create "Frame" {
 		Name = "Header",
 		BackgroundColor3 = Color3.fromRGB(18, 196, 255),
 		BorderSizePixel = 0,
-		Position = UDim2.fromOffset(12, 12),
-		Size = function()
-			return UDim2.new(1, -24, 0, props.headerHeight())
-		end,
+		Position = layout.Viewport.Scale(UDim2.fromOffset(12, 12)),
+		Size = layout.Header.Size,
 		Visible = props.showConfiguration,
 		ZIndex = 64,
 		create "UIGradient" {
@@ -151,18 +156,22 @@ local function createHeader(props)
 	}
 end
 
-local function createSummary(props)
+local function createSummary(props, parentLayout)
+	local layout = {}
+	layout.Viewport = parentLayout
+	layout.Summary = ResponsiveLayout.Child(function()
+		return UDim2.new(1, if props.portrait() then -22 else -28, 0, if props.short() then 54 else if props.portrait() then 66 else 62)
+	end, layout.Viewport)
+
 	return create "Frame" {
 		Name = "Summary",
 		AnchorPoint = Vector2.new(0.5, 0),
 		BackgroundColor3 = Color3.fromRGB(2, 14, 24),
 		BorderSizePixel = 0,
-		Position = function()
+		Position = layout.Viewport.Scale(function()
 			return UDim2.new(0.5, 0, 0, if props.short() then 10 else if props.portrait() then 12 else 14)
-		end,
-		Size = function()
-			return UDim2.new(1, if props.portrait() then -22 else -28, 0, if props.short() then 54 else if props.portrait() then 66 else 62)
-		end,
+		end),
+		Size = layout.Summary.Size,
 		ZIndex = 68,
 		StudTexture({ ZIndex = 68, ImageTransparency = 0.92, TileSize = UDim2.fromOffset(56, 56) }),
 		create "UIStroke" {
@@ -224,18 +233,32 @@ local function createSummary(props)
 	}
 end
 
-local function createSettings(props)
+local function createSettings(props, parentLayout)
+	local layout = {}
+	layout.Viewport = parentLayout
+	layout.Settings = ResponsiveLayout.Child(function()
+		return UDim2.new(1, if props.portrait() then -22 else -28, 0, if props.short() then 130 else if props.portrait() then 184 else 142)
+	end, layout.Viewport)
+	layout.PartySizeLabel = ResponsiveLayout.Child(function()
+		return UDim2.new(if props.portrait() then 1 else 0.42, if props.portrait() then -24 else 0, 0, if props.portrait() then 27 else 30)
+	end, layout.Settings)
+	layout.PartySizeValue = ResponsiveLayout.Child(function()
+		return UDim2.fromOffset(if props.portrait() then 70 else 68, if props.short() then 44 else 48)
+	end, layout.Settings)
+	layout.Divider = ResponsiveLayout.Child(UDim2.new(1, -32, 0, 2), layout.Settings)
+	layout.PrivacyLabel = ResponsiveLayout.Child(function()
+		return UDim2.new(if props.portrait() then 1 else 0.42, if props.portrait() then -24 else 0, 0, if props.portrait() then 24 else 30)
+	end, layout.Settings)
+
 	return create "Frame" {
 		Name = "Settings",
 		AnchorPoint = Vector2.new(0.5, 0),
 		BackgroundColor3 = PANEL_NAVY,
 		BorderSizePixel = 0,
-		Position = function()
+		Position = layout.Viewport.Scale(function()
 			return UDim2.new(0.5, 0, 0, if props.short() then 74 else if props.portrait() then 90 else 88)
-		end,
-		Size = function()
-			return UDim2.new(1, if props.portrait() then -22 else -28, 0, if props.short() then 130 else if props.portrait() then 184 else 142)
-		end,
+		end),
+		Size = layout.Settings.Size,
 		ZIndex = 68,
 		StudTexture({ ZIndex = 68, ImageTransparency = 0.92, TileSize = UDim2.fromOffset(60, 60) }),
 		create "UIStroke" {
@@ -247,12 +270,10 @@ local function createSettings(props)
 			Name = "PartySizeLabel",
 			BackgroundTransparency = 1,
 			FontFace = HEAVY_FONT,
-			Position = function()
+			Position = layout.Settings.Scale(function()
 				return UDim2.new(0, if props.portrait() then 12 else 18, 0, if props.short() then 15 else if props.portrait() then 8 else 20)
-			end,
-			Size = function()
-				return UDim2.new(if props.portrait() then 1 else 0.42, if props.portrait() then -24 else 0, 0, if props.portrait() then 27 else 30)
-			end,
+			end),
+			Size = layout.PartySizeLabel.Size,
 			Text = "PARTY SIZE",
 			TextColor3 = UIStyle.Colors.Paper,
 			TextScaled = true,
@@ -261,6 +282,7 @@ local function createSettings(props)
 			textStroke(),
 		},
 		actionButton({
+			ParentLayout = layout.Settings,
 			Name = "Decrease",
 			Position = function()
 				if props.portrait() then
@@ -287,15 +309,13 @@ local function createSettings(props)
 			AnchorPoint = Vector2.new(0.5, 0),
 			BackgroundColor3 = Color3.fromRGB(1, 10, 18),
 			BorderSizePixel = 0,
-			Position = function()
+			Position = layout.Settings.Scale(function()
 				if props.portrait() then
 					return UDim2.new(0.5, 0, 0, 39)
 				end
 				return UDim2.new(1, if props.short() then -112 else -124, 0, if props.short() then 6 else 11)
-			end,
-			Size = function()
-				return UDim2.fromOffset(if props.portrait() then 70 else 68, if props.short() then 44 else 48)
-			end,
+			end),
+			Size = layout.PartySizeValue.Size,
 			ZIndex = 72,
 			StudTexture({ ZIndex = 72, ImageTransparency = 0.91, TileSize = UDim2.fromOffset(40, 40) }),
 			create "UIStroke" {
@@ -318,6 +338,7 @@ local function createSettings(props)
 			},
 		},
 		actionButton({
+			ParentLayout = layout.Settings,
 			Name = "Increase",
 			AnchorPoint = Vector2.new(1, 0),
 			Position = function()
@@ -339,22 +360,20 @@ local function createSettings(props)
 			AnchorPoint = Vector2.new(0.5, 0),
 			BackgroundColor3 = Color3.fromRGB(0, 83, 105),
 			BorderSizePixel = 0,
-			Position = function()
+			Position = layout.Settings.Scale(function()
 				return UDim2.new(0.5, 0, 0, if props.short() then 60 else if props.portrait() then 96 else 70)
-			end,
-			Size = UDim2.new(1, -32, 0, 2),
+			end),
+			Size = layout.Divider.Size,
 			ZIndex = 69,
 		},
 		create "TextLabel" {
 			Name = "PrivacyLabel",
 			BackgroundTransparency = 1,
 			FontFace = HEAVY_FONT,
-			Position = function()
+			Position = layout.Settings.Scale(function()
 				return UDim2.new(0, if props.portrait() then 12 else 18, 0, if props.short() then 78 else if props.portrait() then 104 else 91)
-			end,
-			Size = function()
-				return UDim2.new(if props.portrait() then 1 else 0.42, if props.portrait() then -24 else 0, 0, if props.portrait() then 24 else 30)
-			end,
+			end),
+			Size = layout.PrivacyLabel.Size,
 			Text = "WHO CAN JOIN?",
 			TextColor3 = UIStyle.Colors.Paper,
 			TextScaled = true,
@@ -363,6 +382,7 @@ local function createSettings(props)
 			textStroke(),
 		},
 		actionButton({
+			ParentLayout = layout.Settings,
 			Name = "Privacy",
 			AnchorPoint = function()
 				return if props.portrait() then Vector2.zero else Vector2.new(1, 0)
@@ -391,16 +411,21 @@ local function createSettings(props)
 	}
 end
 
-local function createBody(props)
+local function createBody(props, parentLayout)
+	local layout = {}
+	layout.Viewport = parentLayout
+	layout.Body = ResponsiveLayout.Child(function()
+		return UDim2.new(1, if props.portrait() then -20 else -24, 1, -(props.headerHeight() + 36))
+	end, layout.Viewport)
+	layout.Status = ResponsiveLayout.Child(UDim2.new(1, -34, 0, 28), layout.Body)
+
 	return create "Frame" {
 		Name = "Body",
 		AnchorPoint = Vector2.new(0.5, 1),
 		BackgroundColor3 = DEEP_NAVY,
 		BorderSizePixel = 0,
-		Position = UDim2.new(0.5, 0, 1, -12),
-		Size = function()
-			return UDim2.new(1, if props.portrait() then -20 else -24, 1, -(props.headerHeight() + 36))
-		end,
+		Position = layout.Viewport.Scale(UDim2.new(0.5, 0, 1, -12)),
+		Size = layout.Body.Size,
 		Visible = props.showConfiguration,
 		ZIndex = 64,
 		create "UIGradient" {
@@ -420,17 +445,17 @@ local function createBody(props)
 			ImageTransparency = 0.88,
 			ZIndex = 65,
 		}),
-		createSummary(props),
-		createSettings(props),
+		createSummary(props, layout.Body),
+		createSettings(props, layout.Body),
 		create "TextLabel" {
 			Name = "Status",
 			AnchorPoint = Vector2.new(0.5, 0),
 			BackgroundTransparency = 1,
 			FontFace = BOLD_FONT,
-			Position = function()
+			Position = layout.Body.Scale(function()
 				return UDim2.new(0.5, 0, 0, if props.short() then 211 else if props.portrait() then 284 else 239)
-			end,
-			Size = UDim2.new(1, -34, 0, 28),
+			end),
+			Size = layout.Status.Size,
 			Text = props.statusText,
 			TextColor3 = CYAN_TEXT,
 			TextScaled = true,
@@ -438,6 +463,7 @@ local function createBody(props)
 			ZIndex = 68,
 		},
 		actionButton({
+			ParentLayout = layout.Body,
 			Name = "Confirm",
 			AnchorPoint = Vector2.new(0.5, 1),
 			Position = UDim2.new(0.5, 0, 1, if props.portrait() then -12 else -14),
@@ -636,6 +662,18 @@ return function()
 		confirmParty = confirmParty,
 	}
 
+	local layout = {}
+	layout.Viewport = ResponsiveLayout.Viewport(viewportSize)
+	layout.PartyTeleporterMenu = layout.Viewport
+	layout.Panel = ResponsiveLayout.Base(function()
+		if portrait() then
+			return UDim2.fromScale(0.95, 0.97)
+		elseif short() then
+			return UDim2.fromScale(0.88, 0.96)
+		end
+		return UDim2.fromScale(0.54, 0.78)
+	end, layout.PartyTeleporterMenu, 1.25)
+
 	return create "Frame" {
 		Name = "PartyTeleporterMenu",
 		BackgroundTransparency = 1,
@@ -662,17 +700,10 @@ return function()
 			AnchorPoint = Vector2.new(0.5, 0.5),
 			BackgroundColor3 = Color3.fromRGB(2, 10, 18),
 			BorderSizePixel = 0,
-			Position = function()
+			Position = layout.Panel.Position(function()
 				return UDim2.fromScale(0.5, if portrait() or short() then 0.44 else 0.5)
-			end,
-			Size = function()
-				if portrait() then
-					return UDim2.fromScale(0.95, 0.97)
-				elseif short() then
-					return UDim2.fromScale(0.88, 0.96)
-				end
-				return UDim2.fromScale(0.54, 0.78)
-			end,
+			end, Vector2.new(0.5, 0.5)),
+			Size = layout.Panel.Size,
 			Visible = showConfiguration,
 			ZIndex = 61,
 			-- The outer shell and nested settings surfaces share one texture implementation.
@@ -700,8 +731,8 @@ return function()
 				Color = CYAN,
 				Thickness = 4,
 			},
-			createHeader(componentProps),
-			createBody(componentProps),
+			createHeader(componentProps, layout.Panel),
+			createBody(componentProps, layout.Panel),
 		},
 		actionButton({
 			Name = "Exit",

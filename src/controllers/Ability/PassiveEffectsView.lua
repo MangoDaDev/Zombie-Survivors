@@ -75,15 +75,16 @@ end
 
 function PassiveEffectsView.BlastTriggered(packet)
 	local color = if packet.secondary then Color3.fromRGB(255, 76, 29) else Color3.fromRGB(255, 157, 47)
-	-- Blast is one of the most frequent passive procs, so use the bounded shared impact instead of a
-	-- single neon sphere. The layered rings, crossed flash, and chips communicate both force and radius.
-	local anchor = StudVFX.Impact(
+	-- Blast can chain through a horde, so the shared explosion keeps every layer bounded while still
+	-- providing a rising fireball, shock front, embers, and weighty ground chunks.
+	local anchor = StudVFX.Explosion(
 		effectsFolder,
 		packet.position,
 		color,
 		packet.radius,
-		0.3,
-		if packet.secondary then 1.35 else 1
+		if packet.secondary then 0.36 else 0.32,
+		if packet.secondary then 1.25 else 0.85,
+		Color3.fromRGB(255, 239, 145)
 	)
 	if anchor then
 		Sounds.Play("FlameBurst", anchor, 95)

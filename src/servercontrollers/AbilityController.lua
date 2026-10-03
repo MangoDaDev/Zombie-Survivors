@@ -29,6 +29,7 @@ type PlayerRuntime = {
 	attackToken: number,
 	lastRequestAt: number,
 	nextDaggerAt: number,
+	daggerSequence: number,
 	runData: any?,
 	runEnded: boolean,
 }
@@ -180,17 +181,46 @@ local function sendResult(player: Player, success: boolean, message: string, mil
 	abilityNetwork:fire(player, "ActionResult", success, message, milestone == true)
 end
 
-local function damageTarget(player: Player, definition, target, damage: number, hitOrigin: Vector3, isRage: boolean)
+local function damageTarget(player: Player, definition, target, damage: number, hitOrigin: Vector3, isRage: boolean, predictionKey: string?)
 	local knockback = definition.Combat.Knockback
 		* (if isRage then definition.Rage.KnockbackMultiplier or 1 else 1)
 	CombatTargets.DamageTarget(target, damage, hitOrigin, knockback, {
 		player = player,
 		source = definition.Id,
 		canApplyHitPassives = true,
+		predictionKey = predictionKey,
 	})
 end
 
-local function fireDaggerVolley(player: Player, definition, level: number, damageMultiplier: number?): boolean
+local function getDaggerStats(player: Player, definition, level: number)
+	local stats = if RageController.IsActive(player) and definition.GetRageStats
+		then definition.GetRageStats(level) else definition.GetStats(level)
+	ClassController.ApplyWeaponStats(player, "Dagger", stats)
+	return PassiveEffects.ModifyWeaponStats(player, "Dagger", stats)
+end
+
+local function sendDaggerSchedule(player: Player, runtime: PlayerRuntime, enabled: boolean)
+	runtime.daggerSequence += 1
+	local packet = { sequence = runtime.daggerSequence, enabled = enabled, nextAt = runtime.nextDaggerAt }
+	if enabled then
+		local definition = AbilityDefinitions.ById.Dagger
+		local stats = getDaggerStats(player, definition, getCombatData(player).Levels.Dagger or 1)
+		packet.count = stats.DaggerCount
+		packet.range = (stats.Range or definition.Combat.Range) * ClassController.GetProjectileRangeMultiplier(player)
+		packet.speed = stats.ProjectileSpeed or definition.Combat.ProjectileSpeed
+		packet.stagger = stats.VolleyStagger or VOLLEY_STAGGER
+		packet.lead = VOLLEY_NETWORK_LEAD
+		packet.minimumDuration = definition.Combat.MinimumTravelDuration
+		packet.maximumDuration = definition.Combat.MaximumTravelDuration
+		packet.scale = stats.ProjectileScale
+		packet.rage = stats.IsRage == true
+		packet.damage = stats.Damage * ClassController.GetWeaponDamageMultiplier(player)
+	end
+	-- Send only a cosmetic schedule to its owner. The server still selects every actual target and hit.
+	abilityNetwork:fire(player, "DaggerSchedule", packet)
+end
+
+local function fireDaggerVolley(player: Player, definition, level: number, damageMultiplier: number?, sequence: number?): boolean
 	local character = player.Character
 	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 	local root = character and character:FindFirstChild("HumanoidRootPart")
@@ -198,12 +228,8 @@ local function fireDaggerVolley(player: Player, definition, level: number, damag
 		return false
 	end
 
-	local rageActive = RageController.IsActive(player)
-	local stats = if rageActive and definition.GetRageStats
-		then definition.GetRageStats(level)
-		else definition.GetStats(level)
-	ClassController.ApplyWeaponStats(player, "Dagger", stats)
-	stats = PassiveEffects.ModifyWeaponStats(player, "Dagger", stats)
+	local stats = getDaggerStats(player, definition, level)
+	local combatData = getCombatData(player)
 	local range = (stats.Range or definition.Combat.Range) * ClassController.GetProjectileRangeMultiplier(player)
 	local projectileSpeed = stats.ProjectileSpeed or definition.Combat.ProjectileSpeed
 	local volleyStagger = stats.VolleyStagger or VOLLEY_STAGGER
@@ -226,8 +252,11 @@ local function fireDaggerVolley(player: Player, definition, level: number, damag
 		-- A tiny shared lead lets every client begin the cosmetic projectile at the same smooth timestamp.
 		local launchDelay = VOLLEY_NETWORK_LEAD + (daggerIndex - 1) * volleyStagger
 		local launchAt = workspace:GetServerTimeNow() + launchDelay
+		local predictionKey = if sequence then tostring(sequence) .. ":" .. tostring(daggerIndex)
+			else "Repeat:" .. tostring(launchAt) .. ":" .. tostring(daggerIndex)
 
 		abilityNetwork:fireAll("DaggerThrown", {
+			sequence = sequence,
 			ownerUserId = player.UserId,
 			startPosition = startPosition,
 			targetPosition = target.position,
@@ -237,11 +266,19 @@ local function fireDaggerVolley(player: Player, definition, level: number, damag
 			daggerIndex = daggerIndex,
 			daggerCount = stats.DaggerCount,
 			rage = stats.IsRage == true,
+			targetId = target.id,
+			damage = stats.Damage * (damageMultiplier or 1) * ClassController.GetWeaponDamageMultiplier(player),
+			predictionKey = predictionKey,
 		})
 
 		task.delay(launchDelay + duration, function()
-			if player.Parent == Players then
-			damageTarget(player, definition, target, stats.Damage * (damageMultiplier or 1), startPosition, stats.IsRage == true)
+			-- Pending shots cannot survive an ended run, changed loadout, or dead character.
+			local currentCharacter = player.Character
+			local currentHumanoid = currentCharacter and currentCharacter:FindFirstChildOfClass("Humanoid")
+			if player.Parent == Players and currentCharacter == character and currentHumanoid and currentHumanoid.Health > 0
+				and getCombatData(player) == combatData and isEquipped(combatData, "Dagger") then
+				damageTarget(player, definition, target, stats.Damage * (damageMultiplier or 1), startPosition, stats.IsRage == true,
+					predictionKey)
 			end
 		end)
 	end
@@ -259,8 +296,10 @@ local function refreshAttacks(player: Player)
 	local data = getCombatData(player)
 	-- Lobby loadouts remain replicated for presentation, but no attack scheduler runs outside a game session.
 	if ServerContext.IsLobbyServer() or not isEquipped(data, "Dagger") then
+		sendDaggerSchedule(player, runtime, false)
 		return
 	end
+	sendDaggerSchedule(player, runtime, true)
 
 	task.spawn(function()
 		while player.Parent == Players and runtimes[player] == runtime and runtime.attackToken == token do
@@ -282,7 +321,7 @@ local function refreshAttacks(player: Player)
 			local rageActive = RageController.IsActive(player)
 			local rageStats = if rageActive and definition.GetRageStats then definition.GetRageStats(level) else nil
 			local cooldown = rageStats and rageStats.Cooldown or definition.Combat.Cooldown
-			local attacked = fireDaggerVolley(player, definition, level, nil)
+			local attacked = fireDaggerVolley(player, definition, level, nil, runtime.daggerSequence)
 			if attacked then
 				local repeatConfig = PassiveEffects.ConsumeWeaponActivation(player, "Dagger")
 				if repeatConfig then
@@ -298,6 +337,7 @@ local function refreshAttacks(player: Player)
 				else math.min(cooldown, 0.35)
 			-- This timestamp survives equip toggles so clients cannot reset the authoritative attack cooldown.
 			runtime.nextDaggerAt = workspace:GetServerTimeNow() + retryDelay
+			sendDaggerSchedule(player, runtime, true)
 		end
 	end)
 end
@@ -436,6 +476,10 @@ function AbilityController.UpgradeRunAbility(player: Player, abilityId: string):
 		PassiveEffects.Refresh(player)
 	end
 	-- Active schedulers read the new level on their next cast, preserving the cooldown already in flight.
+	-- Refresh only the cosmetic snapshot; a Dagger/passive upgrade must not reset the attack timestamp.
+	if isEquipped(runData, "Dagger") then
+		sendDaggerSchedule(player, runtime, true)
+	end
 	return true
 end
 
@@ -706,6 +750,7 @@ function AbilityController.OnPlayerAdded(player: Player)
 		attackToken = 0,
 		lastRequestAt = -math.huge,
 		nextDaggerAt = workspace:GetServerTimeNow() + 0.2,
+		daggerSequence = 0,
 		runData = nil,
 		runEnded = false,
 	}

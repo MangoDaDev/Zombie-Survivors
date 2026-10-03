@@ -1,86 +1,1307 @@
 {
   "pinevex_object": {
-    "type": "Frame", "name": "Preview", "size": [1, 0, 1, 0], "bg": [13, 23, 31],
+    "type": "Frame",
+    "name": "Preview",
+    "size": [
+      1,
+      0,
+      1,
+      0
+    ],
+    "bg": [
+      13,
+      23,
+      31
+    ],
     "children": [
-      { "type": "Frame", "name": "Dim", "size": [1, 0, 1, 0], "bg": [1, 7, 13], "bgTransparency": 0.28, "children": [] },
-      { "type": "Frame", "name": "Shadow", "size": [0, 1050, 0, 620], "position": [0.5, 8, 0.5, 10], "anchor": [0.5, 0.5], "bg": [0, 4, 8], "corner": 0.018, "children": [] },
       {
-        "type": "Frame", "name": "Panel", "size": [0, 1050, 0, 620], "position": [0.5, 0, 0.5, 0], "anchor": [0.5, 0.5], "bg": [3, 18, 30], "corner": 0.018,
-        "strokes": [{ "thickness": 7, "color": [0, 5, 10], "applyMode": "Border" }, { "thickness": 3, "color": [221, 151, 37], "applyMode": "Border" }],
+        "type": "Frame",
+        "name": "Dim",
+        "size": [
+          1,
+          0,
+          1,
+          0
+        ],
+        "bg": [
+          1,
+          7,
+          13
+        ],
+        "bgTransparency": 0.28,
+        "children": []
+      },
+      {
+        "type": "Frame",
+        "name": "Shadow",
+        "size": [
+          0.533203125,
+          367.5,
+          0.5597222222222222,
+          217
+        ],
+        "position": [
+          0.5,
+          8,
+          0.5,
+          10
+        ],
+        "anchor": [
+          0.5,
+          0.5
+        ],
+        "bg": [
+          0,
+          4,
+          8
+        ],
+        "corner": 0.018,
+        "children": []
+      },
+      {
+        "type": "Frame",
+        "name": "Panel",
+        "size": [
+          0.533203125,
+          367.5,
+          0.5597222222222222,
+          217
+        ],
+        "position": [
+          0.5,
+          0,
+          0.5,
+          0
+        ],
+        "anchor": [
+          0.5,
+          0.5
+        ],
+        "bg": [
+          3,
+          18,
+          30
+        ],
+        "corner": 0.018,
+        "strokes": [
+          {
+            "thickness": 7,
+            "color": [
+              0,
+              5,
+              10
+            ],
+            "applyMode": "Border"
+          },
+          {
+            "thickness": 3,
+            "color": [
+              221,
+              151,
+              37
+            ],
+            "applyMode": "Border"
+          }
+        ],
         "children": [
           {
-            "type": "Frame", "name": "Header", "size": [1, -94, 0, 88], "position": [0, 12, 0, 12], "bg": [224, 157, 40],
-            "gradient": { "rotation": 90, "colors": [[0, "#FFD45A"], [1, "#D78E1D"]], "transparency": [[0, 0], [1, 0]] },
-            "strokes": [{ "thickness": 3, "color": [255, 224, 112], "applyMode": "Border" }],
-            "children": [
-              { "type": "ImageLabel", "name": "StudTexture", "size": [1, 0, 1, 0], "bgTransparency": 1, "icon": "rbxassetid://6927295847", "imageTransparency": 0.84, "scaleType": "Tile", "tileSize": [0, 92, 0, 92] },
-              { "type": "TextLabel", "name": "Title", "size": [0.7, 0, 0, 44], "position": [0, 20, 0, 7], "bgTransparency": 1, "text": "SURVIVOR SHOP", "textColor": [255, 255, 255], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Heavy", "strokes": [{ "thickness": 4, "color": [70, 39, 7] }] },
-              { "type": "TextLabel", "name": "Subtitle", "size": [0.74, 0, 0, 20], "position": [0, 22, 0, 58], "bgTransparency": 1, "text": "COINS, PERMANENT PERKS & RUN UPGRADES", "textColor": [79, 47, 8], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Bold" }
-            ]
-          },
-          { "type": "TextButton", "name": "Close", "size": [0, 64, 0, 88], "position": [1, -12, 0, 12], "anchor": [1, 0], "bg": [221, 57, 67], "corner": 0.08, "text": "X", "textColor": [255, 255, 255], "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy", "strokes": [{ "thickness": 4, "color": [80, 15, 23], "applyMode": "Border" }] },
-          {
-            "type": "Frame", "name": "JumpBar", "size": [1, -24, 0, 50], "position": [0, 12, 0, 110], "bg": [4, 29, 45],
-            "strokes": [{ "thickness": 2, "color": [54, 91, 111], "applyMode": "Border" }],
-            "children": [
-              { "type": "TextButton", "name": "Featured", "size": [0.2, -8, 1, -12], "position": [0, 6, 0, 6], "bg": [225, 157, 40], "corner": 0.09, "text": "FEATURED", "textColor": [255, 255, 255], "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy", "strokes": [{ "thickness": 2, "color": [104, 62, 11], "applyMode": "Border" }] },
-              { "type": "TextButton", "name": "Coins", "size": [0.2, -8, 1, -12], "position": [0.2, 2, 0, 6], "bg": [19, 49, 65], "corner": 0.09, "text": "COINS", "textColor": [192, 210, 219], "textScaled": true, "font": "Ubuntu", "fontWeight": "Bold" },
-              { "type": "TextButton", "name": "Gamepasses", "size": [0.2, -8, 1, -12], "position": [0.4, 2, 0, 6], "bg": [19, 49, 65], "corner": 0.09, "text": "GAMEPASSES", "textColor": [192, 210, 219], "textScaled": true, "font": "Ubuntu", "fontWeight": "Bold" },
-              { "type": "TextButton", "name": "Boosts", "size": [0.2, -8, 1, -12], "position": [0.6, 2, 0, 6], "bg": [19, 49, 65], "corner": 0.09, "text": "BOOSTS", "textColor": [192, 210, 219], "textScaled": true, "font": "Ubuntu", "fontWeight": "Bold" },
-              { "type": "TextButton", "name": "Classes", "size": [0.2, -8, 1, -12], "position": [0.8, 2, 0, 6], "bg": [19, 49, 65], "corner": 0.09, "text": "CLASSES", "textColor": [192, 210, 219], "textScaled": true, "font": "Ubuntu", "fontWeight": "Bold" }
-            ]
-          },
-          {
-            "type": "Frame", "name": "Catalog", "size": [1, -24, 1, -182], "position": [0, 12, 0, 170], "bg": [4, 24, 38],
-            "strokes": [{ "thickness": 2, "color": [38, 80, 101], "applyMode": "Border" }],
-            "children": [
-              { "type": "TextLabel", "name": "FeaturedHeader", "size": [1, -32, 0, 28], "position": [0, 16, 0, 12], "bgTransparency": 1, "text": "FEATURED  •  RECOMMENDED UPGRADES", "textColor": [255, 205, 91], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Heavy" },
+            "type": "Frame",
+            "name": "Header",
+            "size": [
+              0.9104761904761904,
+              0,
+              0.14193548387096774,
+              0
+            ],
+            "position": [
+              0.011428571428571429,
+              0,
+              0.01935483870967742,
+              0
+            ],
+            "bg": [
+              224,
+              157,
+              40
+            ],
+            "gradient": {
+              "rotation": 90,
+              "colors": [
+                [
+                  0,
+                  "#FFD45A"
+                ],
+                [
+                  1,
+                  "#D78E1D"
+                ]
+              ],
+              "transparency": [
+                [
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0
+                ]
+              ]
+            },
+            "strokes": [
               {
-                "type": "Frame", "name": "Backpack", "size": [0.5, -22, 0, 172], "position": [0, 14, 0, 49], "bg": [11, 43, 59], "corner": 0.035,
-                "strokes": [{ "thickness": 3, "color": [221, 151, 37], "applyMode": "Border" }],
-                "children": [
-                  { "type": "Frame", "name": "ArtworkPanel", "size": [0, 154, 1, -16], "position": [0, 8, 0, 8], "bg": [2, 15, 25], "corner": 0.05, "children": [
-                    { "type": "ImageLabel", "name": "Artwork", "size": [1, -18, 1, -18], "position": [0.5, 0, 0.5, 0], "anchor": [0.5, 0.5], "bgTransparency": 1, "icon": "rbxassetid://106238814627516" },
-                    { "type": "TextLabel", "name": "Badge", "size": [0, 82, 0, 22], "position": [0, 6, 0, 6], "bg": [225, 157, 40], "text": "FEATURED", "textColor": [58, 32, 5], "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy" }
-                  ] },
-                  { "type": "TextLabel", "name": "Name", "size": [1, -182, 0, 31], "position": [0, 174, 0, 12], "bgTransparency": 1, "text": "BACKPACK", "textColor": [255, 255, 255], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Heavy" },
-                  { "type": "TextLabel", "name": "Type", "size": [1, -182, 0, 17], "position": [0, 174, 0, 47], "bgTransparency": 1, "text": "INSTANT COINS", "textColor": [110, 203, 236], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Bold" },
-                  { "type": "TextLabel", "name": "Benefit", "size": [1, -182, 0, 42], "position": [0, 174, 0, 69], "bgTransparency": 1, "text": "Receive 5,000 Coins immediately.", "textColor": [184, 202, 211], "textScaled": true, "textWrapped": true, "textXAlignment": "Left", "font": "Ubuntu" },
-                  { "type": "TextButton", "name": "Buy", "size": [1, -182, 0, 42], "position": [0, 174, 1, -51], "bg": [225, 157, 40], "corner": 0.12, "text": " 99", "textColor": [255, 255, 255], "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy", "strokes": [{ "thickness": 3, "color": [100, 57, 8], "applyMode": "Border" }] }
+                "thickness": 3,
+                "color": [
+                  255,
+                  224,
+                  112
+                ],
+                "applyMode": "Border"
+              }
+            ],
+            "children": [
+              {
+                "type": "ImageLabel",
+                "name": "StudTexture",
+                "size": [
+                  1,
+                  0,
+                  1,
+                  0
+                ],
+                "bgTransparency": 1,
+                "icon": "rbxassetid://6927295847",
+                "imageTransparency": 0.84,
+                "scaleType": "Tile",
+                "tileSize": [
+                  0,
+                  92,
+                  0,
+                  92
                 ]
               },
               {
-                "type": "Frame", "name": "RunBoost", "size": [0.5, -22, 0, 172], "position": [0.5, 8, 0, 49], "bg": [11, 43, 59], "corner": 0.035,
-                "strokes": [{ "thickness": 3, "color": [221, 151, 37], "applyMode": "Border" }],
-                "children": [
-                  { "type": "Frame", "name": "ArtworkPanel", "size": [0, 154, 1, -16], "position": [0, 8, 0, 8], "bg": [2, 15, 25], "corner": 0.05, "children": [
-                    { "type": "ImageLabel", "name": "Artwork", "size": [1, -18, 1, -18], "position": [0.5, 0, 0.5, 0], "anchor": [0.5, 0.5], "bgTransparency": 1, "icon": "rbxassetid://115042318829702" },
-                    { "type": "TextLabel", "name": "Badge", "size": [0, 82, 0, 22], "position": [0, 6, 0, 6], "bg": [225, 157, 40], "text": "FEATURED", "textColor": [58, 32, 5], "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy" }
-                  ] },
-                  { "type": "TextLabel", "name": "Name", "size": [1, -182, 0, 31], "position": [0, 174, 0, 12], "bgTransparency": 1, "text": "RUN BOOST", "textColor": [255, 255, 255], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Heavy" },
-                  { "type": "TextLabel", "name": "Type", "size": [1, -182, 0, 17], "position": [0, 174, 0, 47], "bgTransparency": 1, "text": "CURRENT RUN ONLY", "textColor": [255, 191, 91], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Bold" },
-                  { "type": "TextLabel", "name": "Benefit", "size": [1, -182, 0, 42], "position": [0, 174, 0, 69], "bgTransparency": 1, "text": "x2 run Coins and x1.5 XP.", "textColor": [184, 202, 211], "textScaled": true, "textWrapped": true, "textXAlignment": "Left", "font": "Ubuntu" },
-                  { "type": "TextButton", "name": "Buy", "size": [1, -182, 0, 42], "position": [0, 174, 1, -51], "bg": [225, 157, 40], "corner": 0.12, "text": " 49", "textColor": [255, 255, 255], "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy", "strokes": [{ "thickness": 3, "color": [100, 57, 8], "applyMode": "Border" }] }
+                "type": "TextLabel",
+                "name": "Title",
+                "size": [
+                  0.7,
+                  0,
+                  0.5,
+                  0
+                ],
+                "position": [
+                  0.02092050209205021,
+                  0,
+                  0.07954545454545454,
+                  0
+                ],
+                "bgTransparency": 1,
+                "text": "SURVIVOR SHOP",
+                "textColor": [
+                  255,
+                  255,
+                  255
+                ],
+                "textScaled": true,
+                "textXAlignment": "Left",
+                "font": "Ubuntu",
+                "fontWeight": "Heavy",
+                "strokes": [
+                  {
+                    "thickness": 4,
+                    "color": [
+                      70,
+                      39,
+                      7
+                    ]
+                  }
                 ]
               },
-              { "type": "Frame", "name": "Divider", "size": [1, -32, 0, 2], "position": [0, 16, 0, 236], "bg": [39, 73, 91], "children": [] },
-              { "type": "TextLabel", "name": "CoinsHeader", "size": [1, -32, 0, 31], "position": [0, 16, 0, 248], "bgTransparency": 1, "text": "COINS  •  MORE VALUE AT HIGHER TIERS", "textColor": [255, 205, 91], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Heavy" },
-              { "type": "Frame", "name": "CoinPreviewA", "size": [0.5, -22, 0, 118], "position": [0, 14, 0, 291], "bg": [10, 35, 50], "strokes": [{ "thickness": 2, "color": [62, 99, 118], "applyMode": "Border" }], "children": [
-                { "type": "ImageLabel", "name": "Artwork", "size": [0, 98, 0, 98], "position": [0, 10, 0, 10], "bg": [2, 15, 25], "icon": "rbxassetid://89123200158797" },
-                { "type": "TextLabel", "name": "Name", "size": [1, -130, 0, 30], "position": [0, 120, 0, 12], "bgTransparency": 1, "text": "COIN POUCH", "textColor": [255, 255, 255], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Heavy" },
-                { "type": "TextButton", "name": "Buy", "size": [1, -132, 0, 38], "position": [0, 120, 1, -48], "bg": [225, 157, 40], "text": " 19", "textColor": [255, 255, 255], "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy" }
-              ] },
-              { "type": "Frame", "name": "CoinPreviewB", "size": [0.5, -22, 0, 118], "position": [0.5, 8, 0, 291], "bg": [10, 35, 50], "strokes": [{ "thickness": 2, "color": [62, 99, 118], "applyMode": "Border" }], "children": [
-                { "type": "ImageLabel", "name": "Artwork", "size": [0, 98, 0, 98], "position": [0, 10, 0, 10], "bg": [2, 15, 25], "icon": "rbxassetid://106239575713076" },
-                { "type": "TextLabel", "name": "Name", "size": [1, -130, 0, 30], "position": [0, 120, 0, 12], "bgTransparency": 1, "text": "SATCHEL", "textColor": [255, 255, 255], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Heavy" },
-                { "type": "TextButton", "name": "Buy", "size": [1, -132, 0, 38], "position": [0, 120, 1, -48], "bg": [225, 157, 40], "text": " 49", "textColor": [255, 255, 255], "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy" }
-              ] }
+              {
+                "type": "TextLabel",
+                "name": "Subtitle",
+                "size": [
+                  0.74,
+                  0,
+                  0.22727272727272727,
+                  0
+                ],
+                "position": [
+                  0.02301255230125523,
+                  0,
+                  0.6590909090909091,
+                  0
+                ],
+                "bgTransparency": 1,
+                "text": "COINS, PERMANENT PERKS & RUN UPGRADES",
+                "textColor": [
+                  79,
+                  47,
+                  8
+                ],
+                "textScaled": true,
+                "textXAlignment": "Left",
+                "font": "Ubuntu",
+                "fontWeight": "Bold"
+              }
+            ]
+          },
+          {
+            "type": "TextButton",
+            "name": "Close",
+            "size": [
+              0.06095238095238095,
+              0,
+              0.14193548387096774,
+              0
+            ],
+            "position": [
+              0.9885714285714285,
+              0,
+              0.01935483870967742,
+              0
+            ],
+            "anchor": [
+              1,
+              0
+            ],
+            "bg": [
+              221,
+              57,
+              67
+            ],
+            "corner": 0.08,
+            "text": "X",
+            "textColor": [
+              255,
+              255,
+              255
+            ],
+            "textScaled": true,
+            "font": "Ubuntu",
+            "fontWeight": "Heavy",
+            "strokes": [
+              {
+                "thickness": 4,
+                "color": [
+                  80,
+                  15,
+                  23
+                ],
+                "applyMode": "Border"
+              }
+            ]
+          },
+          {
+            "type": "Frame",
+            "name": "JumpBar",
+            "size": [
+              0.9771428571428571,
+              0,
+              0.08064516129032258,
+              0
+            ],
+            "position": [
+              0.011428571428571429,
+              0,
+              0.1774193548387097,
+              0
+            ],
+            "bg": [
+              4,
+              29,
+              45
+            ],
+            "strokes": [
+              {
+                "thickness": 2,
+                "color": [
+                  54,
+                  91,
+                  111
+                ],
+                "applyMode": "Border"
+              }
+            ],
+            "children": [
+              {
+                "type": "TextButton",
+                "name": "Featured",
+                "size": [
+                  0.19220272904483432,
+                  0,
+                  0.76,
+                  0
+                ],
+                "position": [
+                  0.005847953216374269,
+                  0,
+                  0.12,
+                  0
+                ],
+                "bg": [
+                  225,
+                  157,
+                  40
+                ],
+                "corner": 0.09,
+                "text": "FEATURED",
+                "textColor": [
+                  255,
+                  255,
+                  255
+                ],
+                "textScaled": true,
+                "font": "Ubuntu",
+                "fontWeight": "Heavy",
+                "strokes": [
+                  {
+                    "thickness": 2,
+                    "color": [
+                      104,
+                      62,
+                      11
+                    ],
+                    "applyMode": "Border"
+                  }
+                ]
+              },
+              {
+                "type": "TextButton",
+                "name": "Coins",
+                "size": [
+                  0.19220272904483432,
+                  0,
+                  0.76,
+                  0
+                ],
+                "position": [
+                  0.20194931773879143,
+                  0,
+                  0.12,
+                  0
+                ],
+                "bg": [
+                  19,
+                  49,
+                  65
+                ],
+                "corner": 0.09,
+                "text": "COINS",
+                "textColor": [
+                  192,
+                  210,
+                  219
+                ],
+                "textScaled": true,
+                "font": "Ubuntu",
+                "fontWeight": "Bold"
+              },
+              {
+                "type": "TextButton",
+                "name": "Gamepasses",
+                "size": [
+                  0.19220272904483432,
+                  0,
+                  0.76,
+                  0
+                ],
+                "position": [
+                  0.40194931773879145,
+                  0,
+                  0.12,
+                  0
+                ],
+                "bg": [
+                  19,
+                  49,
+                  65
+                ],
+                "corner": 0.09,
+                "text": "GAMEPASSES",
+                "textColor": [
+                  192,
+                  210,
+                  219
+                ],
+                "textScaled": true,
+                "font": "Ubuntu",
+                "fontWeight": "Bold"
+              },
+              {
+                "type": "TextButton",
+                "name": "Boosts",
+                "size": [
+                  0.19220272904483432,
+                  0,
+                  0.76,
+                  0
+                ],
+                "position": [
+                  0.6019493177387913,
+                  0,
+                  0.12,
+                  0
+                ],
+                "bg": [
+                  19,
+                  49,
+                  65
+                ],
+                "corner": 0.09,
+                "text": "BOOSTS",
+                "textColor": [
+                  192,
+                  210,
+                  219
+                ],
+                "textScaled": true,
+                "font": "Ubuntu",
+                "fontWeight": "Bold"
+              },
+              {
+                "type": "TextButton",
+                "name": "Classes",
+                "size": [
+                  0.19220272904483432,
+                  0,
+                  0.76,
+                  0
+                ],
+                "position": [
+                  0.8019493177387915,
+                  0,
+                  0.12,
+                  0
+                ],
+                "bg": [
+                  19,
+                  49,
+                  65
+                ],
+                "corner": 0.09,
+                "text": "CLASSES",
+                "textColor": [
+                  192,
+                  210,
+                  219
+                ],
+                "textScaled": true,
+                "font": "Ubuntu",
+                "fontWeight": "Bold"
+              }
+            ]
+          },
+          {
+            "type": "Frame",
+            "name": "Catalog",
+            "size": [
+              0.9771428571428571,
+              0,
+              0.7064516129032259,
+              0
+            ],
+            "position": [
+              0.011428571428571429,
+              0,
+              0.27419354838709675,
+              0
+            ],
+            "bg": [
+              4,
+              24,
+              38
+            ],
+            "strokes": [
+              {
+                "thickness": 2,
+                "color": [
+                  38,
+                  80,
+                  101
+                ],
+                "applyMode": "Border"
+              }
+            ],
+            "children": [
+              {
+                "type": "TextLabel",
+                "name": "FeaturedHeader",
+                "size": [
+                  0.9688109161793372,
+                  0,
+                  0.0639269406392694,
+                  0
+                ],
+                "position": [
+                  0.015594541910331383,
+                  0,
+                  0.0273972602739726,
+                  0
+                ],
+                "bgTransparency": 1,
+                "text": "FEATURED  •  RECOMMENDED UPGRADES",
+                "textColor": [
+                  255,
+                  205,
+                  91
+                ],
+                "textScaled": true,
+                "textXAlignment": "Left",
+                "font": "Ubuntu",
+                "fontWeight": "Heavy"
+              },
+              {
+                "type": "Frame",
+                "name": "Backpack",
+                "size": [
+                  0.47855750487329435,
+                  0,
+                  0.3926940639269406,
+                  0
+                ],
+                "position": [
+                  0.01364522417153996,
+                  0,
+                  0.11187214611872145,
+                  0
+                ],
+                "bg": [
+                  11,
+                  43,
+                  59
+                ],
+                "corner": 0.035,
+                "strokes": [
+                  {
+                    "thickness": 3,
+                    "color": [
+                      221,
+                      151,
+                      37
+                    ],
+                    "applyMode": "Border"
+                  }
+                ],
+                "children": [
+                  {
+                    "type": "Frame",
+                    "name": "ArtworkPanel",
+                    "size": [
+                      0.3136456211812627,
+                      0,
+                      0.9069767441860466,
+                      0
+                    ],
+                    "position": [
+                      0.016293279022403257,
+                      0,
+                      0.046511627906976744,
+                      0
+                    ],
+                    "bg": [
+                      2,
+                      15,
+                      25
+                    ],
+                    "corner": 0.05,
+                    "children": [
+                      {
+                        "type": "ImageLabel",
+                        "name": "Artwork",
+                        "size": [
+                          0.8831168831168831,
+                          0,
+                          0.8846153846153846,
+                          0
+                        ],
+                        "position": [
+                          0.5,
+                          0,
+                          0.5,
+                          0
+                        ],
+                        "anchor": [
+                          0.5,
+                          0.5
+                        ],
+                        "bgTransparency": 1,
+                        "icon": "rbxassetid://106238814627516"
+                      },
+                      {
+                        "type": "TextLabel",
+                        "name": "Badge",
+                        "size": [
+                          0.5324675324675324,
+                          0,
+                          0.14102564102564102,
+                          0
+                        ],
+                        "position": [
+                          0.03896103896103896,
+                          0,
+                          0.038461538461538464,
+                          0
+                        ],
+                        "bg": [
+                          225,
+                          157,
+                          40
+                        ],
+                        "text": "FEATURED",
+                        "textColor": [
+                          58,
+                          32,
+                          5
+                        ],
+                        "textScaled": true,
+                        "font": "Ubuntu",
+                        "fontWeight": "Heavy"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "TextLabel",
+                    "name": "Name",
+                    "size": [
+                      0.6293279022403259,
+                      0,
+                      0.18023255813953487,
+                      0
+                    ],
+                    "position": [
+                      0.3543788187372709,
+                      0,
+                      0.06976744186046512,
+                      0
+                    ],
+                    "bgTransparency": 1,
+                    "text": "BACKPACK",
+                    "textColor": [
+                      255,
+                      255,
+                      255
+                    ],
+                    "textScaled": true,
+                    "textXAlignment": "Left",
+                    "font": "Ubuntu",
+                    "fontWeight": "Heavy"
+                  },
+                  {
+                    "type": "TextLabel",
+                    "name": "Type",
+                    "size": [
+                      0.6293279022403259,
+                      0,
+                      0.09883720930232558,
+                      0
+                    ],
+                    "position": [
+                      0.3543788187372709,
+                      0,
+                      0.27325581395348836,
+                      0
+                    ],
+                    "bgTransparency": 1,
+                    "text": "INSTANT COINS",
+                    "textColor": [
+                      110,
+                      203,
+                      236
+                    ],
+                    "textScaled": true,
+                    "textXAlignment": "Left",
+                    "font": "Ubuntu",
+                    "fontWeight": "Bold"
+                  },
+                  {
+                    "type": "TextLabel",
+                    "name": "Benefit",
+                    "size": [
+                      0.6293279022403259,
+                      0,
+                      0.2441860465116279,
+                      0
+                    ],
+                    "position": [
+                      0.3543788187372709,
+                      0,
+                      0.4011627906976744,
+                      0
+                    ],
+                    "bgTransparency": 1,
+                    "text": "Receive 5,000 Coins immediately.",
+                    "textColor": [
+                      184,
+                      202,
+                      211
+                    ],
+                    "textScaled": true,
+                    "textWrapped": true,
+                    "textXAlignment": "Left",
+                    "font": "Ubuntu"
+                  },
+                  {
+                    "type": "TextButton",
+                    "name": "Buy",
+                    "size": [
+                      0.6293279022403259,
+                      0,
+                      0.2441860465116279,
+                      0
+                    ],
+                    "position": [
+                      0.3543788187372709,
+                      0,
+                      0.7034883720930232,
+                      0
+                    ],
+                    "bg": [
+                      225,
+                      157,
+                      40
+                    ],
+                    "corner": 0.12,
+                    "text": " 99",
+                    "textColor": [
+                      255,
+                      255,
+                      255
+                    ],
+                    "textScaled": true,
+                    "font": "Ubuntu",
+                    "fontWeight": "Heavy",
+                    "strokes": [
+                      {
+                        "thickness": 3,
+                        "color": [
+                          100,
+                          57,
+                          8
+                        ],
+                        "applyMode": "Border"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "Frame",
+                "name": "RunBoost",
+                "size": [
+                  0.47855750487329435,
+                  0,
+                  0.3926940639269406,
+                  0
+                ],
+                "position": [
+                  0.5077972709551657,
+                  0,
+                  0.11187214611872145,
+                  0
+                ],
+                "bg": [
+                  11,
+                  43,
+                  59
+                ],
+                "corner": 0.035,
+                "strokes": [
+                  {
+                    "thickness": 3,
+                    "color": [
+                      221,
+                      151,
+                      37
+                    ],
+                    "applyMode": "Border"
+                  }
+                ],
+                "children": [
+                  {
+                    "type": "Frame",
+                    "name": "ArtworkPanel",
+                    "size": [
+                      0.3136456211812627,
+                      0,
+                      0.9069767441860466,
+                      0
+                    ],
+                    "position": [
+                      0.016293279022403257,
+                      0,
+                      0.046511627906976744,
+                      0
+                    ],
+                    "bg": [
+                      2,
+                      15,
+                      25
+                    ],
+                    "corner": 0.05,
+                    "children": [
+                      {
+                        "type": "ImageLabel",
+                        "name": "Artwork",
+                        "size": [
+                          0.8831168831168831,
+                          0,
+                          0.8846153846153846,
+                          0
+                        ],
+                        "position": [
+                          0.5,
+                          0,
+                          0.5,
+                          0
+                        ],
+                        "anchor": [
+                          0.5,
+                          0.5
+                        ],
+                        "bgTransparency": 1,
+                        "icon": "rbxassetid://115042318829702"
+                      },
+                      {
+                        "type": "TextLabel",
+                        "name": "Badge",
+                        "size": [
+                          0.5324675324675324,
+                          0,
+                          0.14102564102564102,
+                          0
+                        ],
+                        "position": [
+                          0.03896103896103896,
+                          0,
+                          0.038461538461538464,
+                          0
+                        ],
+                        "bg": [
+                          225,
+                          157,
+                          40
+                        ],
+                        "text": "FEATURED",
+                        "textColor": [
+                          58,
+                          32,
+                          5
+                        ],
+                        "textScaled": true,
+                        "font": "Ubuntu",
+                        "fontWeight": "Heavy"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "TextLabel",
+                    "name": "Name",
+                    "size": [
+                      0.6293279022403259,
+                      0,
+                      0.18023255813953487,
+                      0
+                    ],
+                    "position": [
+                      0.3543788187372709,
+                      0,
+                      0.06976744186046512,
+                      0
+                    ],
+                    "bgTransparency": 1,
+                    "text": "RUN BOOST",
+                    "textColor": [
+                      255,
+                      255,
+                      255
+                    ],
+                    "textScaled": true,
+                    "textXAlignment": "Left",
+                    "font": "Ubuntu",
+                    "fontWeight": "Heavy"
+                  },
+                  {
+                    "type": "TextLabel",
+                    "name": "Type",
+                    "size": [
+                      0.6293279022403259,
+                      0,
+                      0.09883720930232558,
+                      0
+                    ],
+                    "position": [
+                      0.3543788187372709,
+                      0,
+                      0.27325581395348836,
+                      0
+                    ],
+                    "bgTransparency": 1,
+                    "text": "CURRENT RUN ONLY",
+                    "textColor": [
+                      255,
+                      191,
+                      91
+                    ],
+                    "textScaled": true,
+                    "textXAlignment": "Left",
+                    "font": "Ubuntu",
+                    "fontWeight": "Bold"
+                  },
+                  {
+                    "type": "TextLabel",
+                    "name": "Benefit",
+                    "size": [
+                      0.6293279022403259,
+                      0,
+                      0.2441860465116279,
+                      0
+                    ],
+                    "position": [
+                      0.3543788187372709,
+                      0,
+                      0.4011627906976744,
+                      0
+                    ],
+                    "bgTransparency": 1,
+                    "text": "x2 run Coins and x1.5 XP.",
+                    "textColor": [
+                      184,
+                      202,
+                      211
+                    ],
+                    "textScaled": true,
+                    "textWrapped": true,
+                    "textXAlignment": "Left",
+                    "font": "Ubuntu"
+                  },
+                  {
+                    "type": "TextButton",
+                    "name": "Buy",
+                    "size": [
+                      0.6293279022403259,
+                      0,
+                      0.2441860465116279,
+                      0
+                    ],
+                    "position": [
+                      0.3543788187372709,
+                      0,
+                      0.7034883720930232,
+                      0
+                    ],
+                    "bg": [
+                      225,
+                      157,
+                      40
+                    ],
+                    "corner": 0.12,
+                    "text": " 49",
+                    "textColor": [
+                      255,
+                      255,
+                      255
+                    ],
+                    "textScaled": true,
+                    "font": "Ubuntu",
+                    "fontWeight": "Heavy",
+                    "strokes": [
+                      {
+                        "thickness": 3,
+                        "color": [
+                          100,
+                          57,
+                          8
+                        ],
+                        "applyMode": "Border"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "Frame",
+                "name": "Divider",
+                "size": [
+                  0.9688109161793372,
+                  0,
+                  0.0045662100456621,
+                  0
+                ],
+                "position": [
+                  0.015594541910331383,
+                  0,
+                  0.5388127853881278,
+                  0
+                ],
+                "bg": [
+                  39,
+                  73,
+                  91
+                ],
+                "children": []
+              },
+              {
+                "type": "TextLabel",
+                "name": "CoinsHeader",
+                "size": [
+                  0.9688109161793372,
+                  0,
+                  0.07077625570776255,
+                  0
+                ],
+                "position": [
+                  0.015594541910331383,
+                  0,
+                  0.5662100456621004,
+                  0
+                ],
+                "bgTransparency": 1,
+                "text": "COINS  •  MORE VALUE AT HIGHER TIERS",
+                "textColor": [
+                  255,
+                  205,
+                  91
+                ],
+                "textScaled": true,
+                "textXAlignment": "Left",
+                "font": "Ubuntu",
+                "fontWeight": "Heavy"
+              },
+              {
+                "type": "Frame",
+                "name": "CoinPreviewA",
+                "size": [
+                  0.47855750487329435,
+                  0,
+                  0.2694063926940639,
+                  0
+                ],
+                "position": [
+                  0.01364522417153996,
+                  0,
+                  0.6643835616438356,
+                  0
+                ],
+                "bg": [
+                  10,
+                  35,
+                  50
+                ],
+                "strokes": [
+                  {
+                    "thickness": 2,
+                    "color": [
+                      62,
+                      99,
+                      118
+                    ],
+                    "applyMode": "Border"
+                  }
+                ],
+                "children": [
+                  {
+                    "type": "ImageLabel",
+                    "name": "Artwork",
+                    "size": [
+                      0.19959266802443992,
+                      0,
+                      0.8305084745762712,
+                      0
+                    ],
+                    "position": [
+                      0.020366598778004074,
+                      0,
+                      0.0847457627118644,
+                      0
+                    ],
+                    "bg": [
+                      2,
+                      15,
+                      25
+                    ],
+                    "icon": "rbxassetid://89123200158797"
+                  },
+                  {
+                    "type": "TextLabel",
+                    "name": "Name",
+                    "size": [
+                      0.7352342158859471,
+                      0,
+                      0.2542372881355932,
+                      0
+                    ],
+                    "position": [
+                      0.24439918533604887,
+                      0,
+                      0.1016949152542373,
+                      0
+                    ],
+                    "bgTransparency": 1,
+                    "text": "COIN POUCH",
+                    "textColor": [
+                      255,
+                      255,
+                      255
+                    ],
+                    "textScaled": true,
+                    "textXAlignment": "Left",
+                    "font": "Ubuntu",
+                    "fontWeight": "Heavy"
+                  },
+                  {
+                    "type": "TextButton",
+                    "name": "Buy",
+                    "size": [
+                      0.7311608961303462,
+                      0,
+                      0.3220338983050847,
+                      0
+                    ],
+                    "position": [
+                      0.24439918533604887,
+                      0,
+                      0.5932203389830508,
+                      0
+                    ],
+                    "bg": [
+                      225,
+                      157,
+                      40
+                    ],
+                    "text": " 19",
+                    "textColor": [
+                      255,
+                      255,
+                      255
+                    ],
+                    "textScaled": true,
+                    "font": "Ubuntu",
+                    "fontWeight": "Heavy"
+                  }
+                ]
+              },
+              {
+                "type": "Frame",
+                "name": "CoinPreviewB",
+                "size": [
+                  0.47855750487329435,
+                  0,
+                  0.2694063926940639,
+                  0
+                ],
+                "position": [
+                  0.5077972709551657,
+                  0,
+                  0.6643835616438356,
+                  0
+                ],
+                "bg": [
+                  10,
+                  35,
+                  50
+                ],
+                "strokes": [
+                  {
+                    "thickness": 2,
+                    "color": [
+                      62,
+                      99,
+                      118
+                    ],
+                    "applyMode": "Border"
+                  }
+                ],
+                "children": [
+                  {
+                    "type": "ImageLabel",
+                    "name": "Artwork",
+                    "size": [
+                      0.19959266802443992,
+                      0,
+                      0.8305084745762712,
+                      0
+                    ],
+                    "position": [
+                      0.020366598778004074,
+                      0,
+                      0.0847457627118644,
+                      0
+                    ],
+                    "bg": [
+                      2,
+                      15,
+                      25
+                    ],
+                    "icon": "rbxassetid://106239575713076"
+                  },
+                  {
+                    "type": "TextLabel",
+                    "name": "Name",
+                    "size": [
+                      0.7352342158859471,
+                      0,
+                      0.2542372881355932,
+                      0
+                    ],
+                    "position": [
+                      0.24439918533604887,
+                      0,
+                      0.1016949152542373,
+                      0
+                    ],
+                    "bgTransparency": 1,
+                    "text": "SATCHEL",
+                    "textColor": [
+                      255,
+                      255,
+                      255
+                    ],
+                    "textScaled": true,
+                    "textXAlignment": "Left",
+                    "font": "Ubuntu",
+                    "fontWeight": "Heavy"
+                  },
+                  {
+                    "type": "TextButton",
+                    "name": "Buy",
+                    "size": [
+                      0.7311608961303462,
+                      0,
+                      0.3220338983050847,
+                      0
+                    ],
+                    "position": [
+                      0.24439918533604887,
+                      0,
+                      0.5932203389830508,
+                      0
+                    ],
+                    "bg": [
+                      225,
+                      157,
+                      40
+                    ],
+                    "text": " 49",
+                    "textColor": [
+                      255,
+                      255,
+                      255
+                    ],
+                    "textScaled": true,
+                    "font": "Ubuntu",
+                    "fontWeight": "Heavy"
+                  }
+                ]
+              }
             ]
           }
         ]
       }
     ]
   },
-  "viewport_size": [1280, 720],
+  "viewport_size": [
+    1280,
+    720
+  ],
   "transparent_background": false
 }

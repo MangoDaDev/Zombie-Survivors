@@ -1,59 +1,987 @@
 {
   "pinevex_object": {
-    "type": "Frame", "name": "Preview", "size": [1, 0, 1, 0], "bg": [17, 23, 31],
+    "type": "Frame",
+    "name": "Preview",
+    "size": [
+      1,
+      0,
+      1,
+      0
+    ],
+    "bg": [
+      17,
+      23,
+      31
+    ],
     "children": [
-      { "type": "Frame", "name": "Shadow", "size": [0, 360, 0, 510], "position": [0.5, 4, 0.5, 7], "anchor": [0.5, 0.5], "bg": [0, 5, 10], "children": [] },
       {
-        "type": "Frame", "name": "Panel", "size": [0, 360, 0, 510], "position": [0.5, 0, 0.5, 0], "anchor": [0.5, 0.5], "bg": [2, 10, 18],
-        "strokes": [{ "thickness": 7, "color": [1, 7, 13], "applyMode": "Border" }, { "thickness": 3, "color": [0, 218, 238], "applyMode": "Border" }],
+        "type": "Frame",
+        "name": "Shadow",
+        "size": [
+          0.6000000000000001,
+          125.99999999999999,
+          0.3927725118483412,
+          178.5
+        ],
+        "position": [
+          0.5,
+          4,
+          0.5,
+          7
+        ],
+        "anchor": [
+          0.5,
+          0.5
+        ],
+        "bg": [
+          0,
+          5,
+          10
+        ],
+        "children": []
+      },
+      {
+        "type": "Frame",
+        "name": "Panel",
+        "size": [
+          0.6000000000000001,
+          125.99999999999999,
+          0.3927725118483412,
+          178.5
+        ],
+        "position": [
+          0.5,
+          0,
+          0.5,
+          0
+        ],
+        "anchor": [
+          0.5,
+          0.5
+        ],
+        "bg": [
+          2,
+          10,
+          18
+        ],
+        "strokes": [
+          {
+            "thickness": 7,
+            "color": [
+              1,
+              7,
+              13
+            ],
+            "applyMode": "Border"
+          },
+          {
+            "thickness": 3,
+            "color": [
+              0,
+              218,
+              238
+            ],
+            "applyMode": "Border"
+          }
+        ],
         "children": [
           {
-            "type": "Frame", "name": "Header", "size": [1, -102, 0, 90], "position": [0, 10, 0, 10], "bg": [18, 196, 255],
-            "gradient": { "rotation": 90, "colors": [[0, "#28E8FF"], [1, "#147BFF"]], "transparency": [[0, 0], [1, 0]] },
-            "strokes": [{ "thickness": 5, "color": [0, 7, 14], "applyMode": "Border" }, { "thickness": 2, "color": [121, 244, 255], "applyMode": "Border" }],
+            "type": "Frame",
+            "name": "Header",
+            "size": [
+              0.7166666666666667,
+              0,
+              0.17647058823529413,
+              0
+            ],
+            "position": [
+              0.027777777777777776,
+              0,
+              0.0196078431372549,
+              0
+            ],
+            "bg": [
+              18,
+              196,
+              255
+            ],
+            "gradient": {
+              "rotation": 90,
+              "colors": [
+                [
+                  0,
+                  "#28E8FF"
+                ],
+                [
+                  1,
+                  "#147BFF"
+                ]
+              ],
+              "transparency": [
+                [
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0
+                ]
+              ]
+            },
+            "strokes": [
+              {
+                "thickness": 5,
+                "color": [
+                  0,
+                  7,
+                  14
+                ],
+                "applyMode": "Border"
+              },
+              {
+                "thickness": 2,
+                "color": [
+                  121,
+                  244,
+                  255
+                ],
+                "applyMode": "Border"
+              }
+            ],
             "children": [
-              { "type": "ImageLabel", "name": "StudTexture", "size": [1, 0, 1, 0], "bgTransparency": 1, "icon": "rbxassetid://6927295847", "imageTransparency": 0.77, "scaleType": "Tile", "tileSize": [0, 88, 0, 88] },
-              { "type": "TextLabel", "name": "Title", "size": [1, -20, 0, 48], "position": [0, 12, 0, 8], "bgTransparency": 1, "text": "CREATE PARTY", "textColor": [255, 255, 255], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Heavy", "strokes": [{ "thickness": 4, "color": [0, 0, 0] }] },
-              { "type": "TextLabel", "name": "Subtitle", "size": [1, -20, 0, 18], "position": [0, 13, 0, 63], "bgTransparency": 1, "text": "LIFT 2  •  SETTINGS OPEN", "textColor": [1, 44, 78], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Bold" }
+              {
+                "type": "ImageLabel",
+                "name": "StudTexture",
+                "size": [
+                  1,
+                  0,
+                  1,
+                  0
+                ],
+                "bgTransparency": 1,
+                "icon": "rbxassetid://6927295847",
+                "imageTransparency": 0.77,
+                "scaleType": "Tile",
+                "tileSize": [
+                  0,
+                  88,
+                  0,
+                  88
+                ]
+              },
+              {
+                "type": "TextLabel",
+                "name": "Title",
+                "size": [
+                  0.9224806201550387,
+                  0,
+                  0.5333333333333333,
+                  0
+                ],
+                "position": [
+                  0.046511627906976744,
+                  0,
+                  0.08888888888888889,
+                  0
+                ],
+                "bgTransparency": 1,
+                "text": "CREATE PARTY",
+                "textColor": [
+                  255,
+                  255,
+                  255
+                ],
+                "textScaled": true,
+                "textXAlignment": "Left",
+                "font": "Ubuntu",
+                "fontWeight": "Heavy",
+                "strokes": [
+                  {
+                    "thickness": 4,
+                    "color": [
+                      0,
+                      0,
+                      0
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "TextLabel",
+                "name": "Subtitle",
+                "size": [
+                  0.9224806201550387,
+                  0,
+                  0.2,
+                  0
+                ],
+                "position": [
+                  0.050387596899224806,
+                  0,
+                  0.7,
+                  0
+                ],
+                "bgTransparency": 1,
+                "text": "LIFT 2  •  SETTINGS OPEN",
+                "textColor": [
+                  1,
+                  44,
+                  78
+                ],
+                "textScaled": true,
+                "textXAlignment": "Left",
+                "font": "Ubuntu",
+                "fontWeight": "Bold"
+              }
             ]
           },
-          { "type": "TextButton", "name": "Exit", "size": [0, 72, 0, 90], "position": [1, -10, 0, 10], "anchor": [1, 0], "bg": [244, 48, 58], "text": "X", "textColor": [255, 255, 255], "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy", "gradient": { "rotation": 90, "colors": [[0, "#FF5962"], [1, "#DF202B"]], "transparency": [[0, 0], [1, 0]] }, "strokes": [{ "thickness": 5, "color": [0, 7, 14], "applyMode": "Border" }, { "thickness": 4, "color": [74, 5, 10] }] },
           {
-            "type": "Frame", "name": "Body", "size": [1, -20, 1, -122], "position": [0.5, 0, 1, -10], "anchor": [0.5, 1], "bg": [4, 28, 44],
-            "gradient": { "rotation": 90, "colors": [[0, "#07364F"], [1, "#031827"]], "transparency": [[0, 0], [1, 0]] },
-            "strokes": [{ "thickness": 3, "color": [0, 160, 187], "applyMode": "Border" }],
+            "type": "TextButton",
+            "name": "Exit",
+            "size": [
+              0.2,
+              0,
+              0.17647058823529413,
+              0
+            ],
+            "position": [
+              0.9722222222222222,
+              0,
+              0.0196078431372549,
+              0
+            ],
+            "anchor": [
+              1,
+              0
+            ],
+            "bg": [
+              244,
+              48,
+              58
+            ],
+            "text": "X",
+            "textColor": [
+              255,
+              255,
+              255
+            ],
+            "textScaled": true,
+            "font": "Ubuntu",
+            "fontWeight": "Heavy",
+            "gradient": {
+              "rotation": 90,
+              "colors": [
+                [
+                  0,
+                  "#FF5962"
+                ],
+                [
+                  1,
+                  "#DF202B"
+                ]
+              ],
+              "transparency": [
+                [
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0
+                ]
+              ]
+            },
+            "strokes": [
+              {
+                "thickness": 5,
+                "color": [
+                  0,
+                  7,
+                  14
+                ],
+                "applyMode": "Border"
+              },
+              {
+                "thickness": 4,
+                "color": [
+                  74,
+                  5,
+                  10
+                ]
+              }
+            ]
+          },
+          {
+            "type": "Frame",
+            "name": "Body",
+            "size": [
+              0.9444444444444444,
+              0,
+              0.7607843137254902,
+              0
+            ],
+            "position": [
+              0.5,
+              0,
+              0.9803921568627451,
+              0
+            ],
+            "anchor": [
+              0.5,
+              1
+            ],
+            "bg": [
+              4,
+              28,
+              44
+            ],
+            "gradient": {
+              "rotation": 90,
+              "colors": [
+                [
+                  0,
+                  "#07364F"
+                ],
+                [
+                  1,
+                  "#031827"
+                ]
+              ],
+              "transparency": [
+                [
+                  0,
+                  0
+                ],
+                [
+                  1,
+                  0
+                ]
+              ]
+            },
+            "strokes": [
+              {
+                "thickness": 3,
+                "color": [
+                  0,
+                  160,
+                  187
+                ],
+                "applyMode": "Border"
+              }
+            ],
             "children": [
-              { "type": "ImageLabel", "name": "StudTexture", "size": [1, 0, 1, 0], "bgTransparency": 1, "icon": "rbxassetid://6927295847", "imageTransparency": 0.88, "scaleType": "Tile", "tileSize": [0, 96, 0, 96] },
               {
-                "type": "Frame", "name": "Summary", "size": [1, -22, 0, 66], "position": [0.5, 0, 0, 12], "anchor": [0.5, 0], "bg": [2, 14, 24],
-                "strokes": [{ "thickness": 3, "color": [0, 104, 132], "applyMode": "Border" }],
-                "children": [
-                  { "type": "TextLabel", "name": "LeaderLabel", "size": [0.55, -10, 0, 18], "position": [0, 12, 0, 8], "bgTransparency": 1, "text": "PARTY LEADER", "textColor": [33, 207, 255], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Bold" },
-                  { "type": "TextLabel", "name": "Leader", "size": [0.55, -10, 0, 28], "position": [0, 12, 0, 29], "bgTransparency": 1, "text": "MANGO", "textColor": [255, 255, 255], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Heavy", "strokes": [{ "thickness": 3, "color": [0, 0, 0] }] },
-                  { "type": "TextLabel", "name": "Occupancy", "size": [0.42, -12, 0, 34], "position": [1, -12, 0.5, 0], "anchor": [1, 0.5], "bgTransparency": 1, "text": "2 / 4", "textColor": [57, 221, 255], "textScaled": true, "textXAlignment": "Right", "font": "Ubuntu", "fontWeight": "Heavy", "strokes": [{ "thickness": 3, "color": [0, 15, 25] }] }
+                "type": "ImageLabel",
+                "name": "StudTexture",
+                "size": [
+                  1,
+                  0,
+                  1,
+                  0
+                ],
+                "bgTransparency": 1,
+                "icon": "rbxassetid://6927295847",
+                "imageTransparency": 0.88,
+                "scaleType": "Tile",
+                "tileSize": [
+                  0,
+                  96,
+                  0,
+                  96
                 ]
               },
               {
-                "type": "Frame", "name": "Settings", "size": [1, -22, 0, 184], "position": [0.5, 0, 0, 90], "anchor": [0.5, 0], "bg": [3, 20, 33],
-                "strokes": [{ "thickness": 3, "color": [0, 139, 168], "applyMode": "Border" }],
+                "type": "Frame",
+                "name": "Summary",
+                "size": [
+                  0.9352941176470588,
+                  0,
+                  0.17010309278350516,
+                  0
+                ],
+                "position": [
+                  0.5,
+                  0,
+                  0.030927835051546393,
+                  0
+                ],
+                "anchor": [
+                  0.5,
+                  0
+                ],
+                "bg": [
+                  2,
+                  14,
+                  24
+                ],
+                "strokes": [
+                  {
+                    "thickness": 3,
+                    "color": [
+                      0,
+                      104,
+                      132
+                    ],
+                    "applyMode": "Border"
+                  }
+                ],
                 "children": [
-                  { "type": "TextLabel", "name": "SizeLabel", "size": [1, -24, 0, 27], "position": [0, 12, 0, 8], "bgTransparency": 1, "text": "PARTY SIZE", "textColor": [255, 255, 255], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Heavy", "strokes": [{ "thickness": 3, "color": [0, 0, 0] }] },
-                  { "type": "TextButton", "name": "Minus", "size": [0, 54, 0, 48], "position": [0, 12, 0, 39], "bg": [11, 176, 214], "text": "−", "textColor": [255, 255, 255], "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy", "strokes": [{ "thickness": 4, "color": [0, 43, 62], "applyMode": "Border" }, { "thickness": 3, "color": [0, 43, 62] }] },
-                  { "type": "TextLabel", "name": "Size", "size": [0, 70, 0, 48], "position": [0.5, 0, 0, 39], "anchor": [0.5, 0], "bg": [1, 10, 18], "text": "4", "textColor": [255, 255, 255], "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy", "strokes": [{ "thickness": 3, "color": [0, 105, 132], "applyMode": "Border" }] },
-                  { "type": "TextButton", "name": "Plus", "size": [0, 54, 0, 48], "position": [1, -12, 0, 39], "anchor": [1, 0], "bg": [11, 176, 214], "text": "+", "textColor": [255, 255, 255], "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy", "strokes": [{ "thickness": 4, "color": [0, 43, 62], "applyMode": "Border" }, { "thickness": 3, "color": [0, 43, 62] }] },
-                  { "type": "Frame", "name": "Divider", "size": [1, -24, 0, 2], "position": [0.5, 0, 0, 96], "anchor": [0.5, 0], "bg": [0, 83, 105], "children": [] },
-                  { "type": "TextLabel", "name": "PrivacyLabel", "size": [1, -24, 0, 24], "position": [0, 12, 0, 104], "bgTransparency": 1, "text": "WHO CAN JOIN?", "textColor": [255, 255, 255], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Heavy", "strokes": [{ "thickness": 3, "color": [0, 0, 0] }] },
-                  { "type": "TextButton", "name": "Privacy", "size": [1, -24, 0, 44], "position": [0, 12, 0, 132], "bg": [11, 176, 214], "text": "OPEN TO EVERYONE", "textColor": [255, 255, 255], "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy", "strokes": [{ "thickness": 4, "color": [0, 43, 62], "applyMode": "Border" }, { "thickness": 3, "color": [0, 43, 62] }] }
+                  {
+                    "type": "TextLabel",
+                    "name": "LeaderLabel",
+                    "size": [
+                      0.5185534591194969,
+                      0,
+                      0.2727272727272727,
+                      0
+                    ],
+                    "position": [
+                      0.03773584905660377,
+                      0,
+                      0.12121212121212122,
+                      0
+                    ],
+                    "bgTransparency": 1,
+                    "text": "PARTY LEADER",
+                    "textColor": [
+                      33,
+                      207,
+                      255
+                    ],
+                    "textScaled": true,
+                    "textXAlignment": "Left",
+                    "font": "Ubuntu",
+                    "fontWeight": "Bold"
+                  },
+                  {
+                    "type": "TextLabel",
+                    "name": "Leader",
+                    "size": [
+                      0.5185534591194969,
+                      0,
+                      0.42424242424242425,
+                      0
+                    ],
+                    "position": [
+                      0.03773584905660377,
+                      0,
+                      0.4393939393939394,
+                      0
+                    ],
+                    "bgTransparency": 1,
+                    "text": "MANGO",
+                    "textColor": [
+                      255,
+                      255,
+                      255
+                    ],
+                    "textScaled": true,
+                    "textXAlignment": "Left",
+                    "font": "Ubuntu",
+                    "fontWeight": "Heavy",
+                    "strokes": [
+                      {
+                        "thickness": 3,
+                        "color": [
+                          0,
+                          0,
+                          0
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "TextLabel",
+                    "name": "Occupancy",
+                    "size": [
+                      0.3822641509433962,
+                      0,
+                      0.5151515151515151,
+                      0
+                    ],
+                    "position": [
+                      0.9622641509433962,
+                      0,
+                      0.5,
+                      0
+                    ],
+                    "anchor": [
+                      1,
+                      0.5
+                    ],
+                    "bgTransparency": 1,
+                    "text": "2 / 4",
+                    "textColor": [
+                      57,
+                      221,
+                      255
+                    ],
+                    "textScaled": true,
+                    "textXAlignment": "Right",
+                    "font": "Ubuntu",
+                    "fontWeight": "Heavy",
+                    "strokes": [
+                      {
+                        "thickness": 3,
+                        "color": [
+                          0,
+                          15,
+                          25
+                        ]
+                      }
+                    ]
+                  }
                 ]
               },
-              { "type": "TextLabel", "name": "Status", "size": [1, -28, 0, 28], "position": [0.5, 0, 0, 284], "anchor": [0.5, 0], "bgTransparency": 1, "text": "CONFIRM WITHIN 15s", "textColor": [55, 218, 251], "textScaled": true, "font": "Ubuntu", "fontWeight": "Bold" },
-              { "type": "TextButton", "name": "Confirm", "size": [1, -22, 0, 58], "position": [0.5, 0, 1, -12], "anchor": [0.5, 1], "bg": [54, 225, 93], "text": "CONFIRM PARTY", "textColor": [255, 255, 255], "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy", "gradient": { "rotation": 90, "colors": [[0, "#5CFF82"], [1, "#22B84D"]], "transparency": [[0, 0], [1, 0]] }, "strokes": [{ "thickness": 5, "color": [4, 65, 21], "applyMode": "Border" }, { "thickness": 4, "color": [4, 65, 21] }] }
+              {
+                "type": "Frame",
+                "name": "Settings",
+                "size": [
+                  0.9352941176470588,
+                  0,
+                  0.4742268041237113,
+                  0
+                ],
+                "position": [
+                  0.5,
+                  0,
+                  0.23195876288659795,
+                  0
+                ],
+                "anchor": [
+                  0.5,
+                  0
+                ],
+                "bg": [
+                  3,
+                  20,
+                  33
+                ],
+                "strokes": [
+                  {
+                    "thickness": 3,
+                    "color": [
+                      0,
+                      139,
+                      168
+                    ],
+                    "applyMode": "Border"
+                  }
+                ],
+                "children": [
+                  {
+                    "type": "TextLabel",
+                    "name": "SizeLabel",
+                    "size": [
+                      0.9245283018867925,
+                      0,
+                      0.14673913043478262,
+                      0
+                    ],
+                    "position": [
+                      0.03773584905660377,
+                      0,
+                      0.043478260869565216,
+                      0
+                    ],
+                    "bgTransparency": 1,
+                    "text": "PARTY SIZE",
+                    "textColor": [
+                      255,
+                      255,
+                      255
+                    ],
+                    "textScaled": true,
+                    "textXAlignment": "Left",
+                    "font": "Ubuntu",
+                    "fontWeight": "Heavy",
+                    "strokes": [
+                      {
+                        "thickness": 3,
+                        "color": [
+                          0,
+                          0,
+                          0
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "TextButton",
+                    "name": "Minus",
+                    "size": [
+                      0.16981132075471697,
+                      0,
+                      0.2608695652173913,
+                      0
+                    ],
+                    "position": [
+                      0.03773584905660377,
+                      0,
+                      0.21195652173913043,
+                      0
+                    ],
+                    "bg": [
+                      11,
+                      176,
+                      214
+                    ],
+                    "text": "−",
+                    "textColor": [
+                      255,
+                      255,
+                      255
+                    ],
+                    "textScaled": true,
+                    "font": "Ubuntu",
+                    "fontWeight": "Heavy",
+                    "strokes": [
+                      {
+                        "thickness": 4,
+                        "color": [
+                          0,
+                          43,
+                          62
+                        ],
+                        "applyMode": "Border"
+                      },
+                      {
+                        "thickness": 3,
+                        "color": [
+                          0,
+                          43,
+                          62
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "TextLabel",
+                    "name": "Size",
+                    "size": [
+                      0.22012578616352202,
+                      0,
+                      0.2608695652173913,
+                      0
+                    ],
+                    "position": [
+                      0.5,
+                      0,
+                      0.21195652173913043,
+                      0
+                    ],
+                    "anchor": [
+                      0.5,
+                      0
+                    ],
+                    "bg": [
+                      1,
+                      10,
+                      18
+                    ],
+                    "text": "4",
+                    "textColor": [
+                      255,
+                      255,
+                      255
+                    ],
+                    "textScaled": true,
+                    "font": "Ubuntu",
+                    "fontWeight": "Heavy",
+                    "strokes": [
+                      {
+                        "thickness": 3,
+                        "color": [
+                          0,
+                          105,
+                          132
+                        ],
+                        "applyMode": "Border"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "TextButton",
+                    "name": "Plus",
+                    "size": [
+                      0.16981132075471697,
+                      0,
+                      0.2608695652173913,
+                      0
+                    ],
+                    "position": [
+                      0.9622641509433962,
+                      0,
+                      0.21195652173913043,
+                      0
+                    ],
+                    "anchor": [
+                      1,
+                      0
+                    ],
+                    "bg": [
+                      11,
+                      176,
+                      214
+                    ],
+                    "text": "+",
+                    "textColor": [
+                      255,
+                      255,
+                      255
+                    ],
+                    "textScaled": true,
+                    "font": "Ubuntu",
+                    "fontWeight": "Heavy",
+                    "strokes": [
+                      {
+                        "thickness": 4,
+                        "color": [
+                          0,
+                          43,
+                          62
+                        ],
+                        "applyMode": "Border"
+                      },
+                      {
+                        "thickness": 3,
+                        "color": [
+                          0,
+                          43,
+                          62
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "Frame",
+                    "name": "Divider",
+                    "size": [
+                      0.9245283018867925,
+                      0,
+                      0.010869565217391304,
+                      0
+                    ],
+                    "position": [
+                      0.5,
+                      0,
+                      0.5217391304347826,
+                      0
+                    ],
+                    "anchor": [
+                      0.5,
+                      0
+                    ],
+                    "bg": [
+                      0,
+                      83,
+                      105
+                    ],
+                    "children": []
+                  },
+                  {
+                    "type": "TextLabel",
+                    "name": "PrivacyLabel",
+                    "size": [
+                      0.9245283018867925,
+                      0,
+                      0.13043478260869565,
+                      0
+                    ],
+                    "position": [
+                      0.03773584905660377,
+                      0,
+                      0.5652173913043478,
+                      0
+                    ],
+                    "bgTransparency": 1,
+                    "text": "WHO CAN JOIN?",
+                    "textColor": [
+                      255,
+                      255,
+                      255
+                    ],
+                    "textScaled": true,
+                    "textXAlignment": "Left",
+                    "font": "Ubuntu",
+                    "fontWeight": "Heavy",
+                    "strokes": [
+                      {
+                        "thickness": 3,
+                        "color": [
+                          0,
+                          0,
+                          0
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "TextButton",
+                    "name": "Privacy",
+                    "size": [
+                      0.9245283018867925,
+                      0,
+                      0.2391304347826087,
+                      0
+                    ],
+                    "position": [
+                      0.03773584905660377,
+                      0,
+                      0.717391304347826,
+                      0
+                    ],
+                    "bg": [
+                      11,
+                      176,
+                      214
+                    ],
+                    "text": "OPEN TO EVERYONE",
+                    "textColor": [
+                      255,
+                      255,
+                      255
+                    ],
+                    "textScaled": true,
+                    "font": "Ubuntu",
+                    "fontWeight": "Heavy",
+                    "strokes": [
+                      {
+                        "thickness": 4,
+                        "color": [
+                          0,
+                          43,
+                          62
+                        ],
+                        "applyMode": "Border"
+                      },
+                      {
+                        "thickness": 3,
+                        "color": [
+                          0,
+                          43,
+                          62
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "TextLabel",
+                "name": "Status",
+                "size": [
+                  0.9176470588235294,
+                  0,
+                  0.07216494845360824,
+                  0
+                ],
+                "position": [
+                  0.5,
+                  0,
+                  0.7319587628865979,
+                  0
+                ],
+                "anchor": [
+                  0.5,
+                  0
+                ],
+                "bgTransparency": 1,
+                "text": "CONFIRM WITHIN 15s",
+                "textColor": [
+                  55,
+                  218,
+                  251
+                ],
+                "textScaled": true,
+                "font": "Ubuntu",
+                "fontWeight": "Bold"
+              },
+              {
+                "type": "TextButton",
+                "name": "Confirm",
+                "size": [
+                  0.9352941176470588,
+                  0,
+                  0.14948453608247422,
+                  0
+                ],
+                "position": [
+                  0.5,
+                  0,
+                  0.9690721649484536,
+                  0
+                ],
+                "anchor": [
+                  0.5,
+                  1
+                ],
+                "bg": [
+                  54,
+                  225,
+                  93
+                ],
+                "text": "CONFIRM PARTY",
+                "textColor": [
+                  255,
+                  255,
+                  255
+                ],
+                "textScaled": true,
+                "font": "Ubuntu",
+                "fontWeight": "Heavy",
+                "gradient": {
+                  "rotation": 90,
+                  "colors": [
+                    [
+                      0,
+                      "#5CFF82"
+                    ],
+                    [
+                      1,
+                      "#22B84D"
+                    ]
+                  ],
+                  "transparency": [
+                    [
+                      0,
+                      0
+                    ],
+                    [
+                      1,
+                      0
+                    ]
+                  ]
+                },
+                "strokes": [
+                  {
+                    "thickness": 5,
+                    "color": [
+                      4,
+                      65,
+                      21
+                    ],
+                    "applyMode": "Border"
+                  },
+                  {
+                    "thickness": 4,
+                    "color": [
+                      4,
+                      65,
+                      21
+                    ]
+                  }
+                ]
+              }
             ]
           }
         ]
       }
     ]
   },
-  "viewport_size": [390, 844],
+  "viewport_size": [
+    390,
+    844
+  ],
   "transparent_background": false
 }

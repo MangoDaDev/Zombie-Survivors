@@ -3,6 +3,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
 local ZombieProtocol = require(ReplicatedStorage.Modules.Game.Zombies.ZombieProtocol)
+local CombatPrediction = require(script.Parent.CombatPrediction)
 local ProceduralAnimator = require(script.Parent.ProceduralAnimator)
 
 local DAMAGE_NUMBER_COLOR = Color3.fromRGB(255, 48, 48)
@@ -274,6 +275,7 @@ function ZombieView:ShowDamageNumber(damageAmount)
 		{ TextTransparency = 1, TextStrokeTransparency = 1 }
 	):Play()
 	Debris:AddItem(damageGui, DAMAGE_NUMBER_DURATION + 0.1)
+	return label
 end
 
 function ZombieView:GetRenderCFrame(now)
@@ -329,20 +331,30 @@ function ZombieView:Update(
 			end
 		end
 	end
-	self:SetHealth(health, maximumHealth, false)
+	self:SetHealth(health, maximumHealth, false, serverTime)
 end
 
-function ZombieView:SetHealth(health, maximumHealth, animate: boolean)
+function ZombieView:SetHealth(health, maximumHealth, animate: boolean, serverTime: number?)
 	if type(health) ~= "number" or type(maximumHealth) ~= "number" or maximumHealth <= 0 then
 		return
 	end
+	if type(serverTime) == "number" then
+		if self.healthUpdatedAt and serverTime < self.healthUpdatedAt then
+			return
+		end
+		self.healthUpdatedAt = serverTime
+	end
 	self.health = math.clamp(health, 0, maximumHealth)
 	self.maximumHealth = maximumHealth
+	CombatPrediction.Refresh(self, animate)
+end
+
+function ZombieView:RenderHealth(health: number, animate: boolean)
 	if not self.healthFill then
 		return
 	end
 
-	local ratio = self.health / maximumHealth
+	local ratio = health / self.maximumHealth
 	local goal = {
 		Size = UDim2.fromScale(ratio, 1),
 		BackgroundColor3 = if ratio > 0.55
@@ -366,8 +378,21 @@ function ZombieView:SetHealth(health, maximumHealth, animate: boolean)
 	end
 end
 
-function ZombieView:ApplyDamage(health, maximumHealth, knockbackDirection, knockbackImpulse)
-	self:SetHealth(health, maximumHealth, true)
+function ZombieView:ApplyDamage(health, maximumHealth, knockbackDirection, knockbackImpulse, suppressFlash: boolean?, serverTime: number?)
+	self:SetHealth(health, maximumHealth, true, serverTime)
+	if not suppressFlash then
+		self:FlashHit()
+	end
+
+	if typeof(knockbackDirection) == "Vector3" and type(knockbackImpulse) == "number" then
+		-- Keep knockback translation exclusively in the server simulation so local hit feedback cannot
+		-- visually push a zombie outside its authoritative combat zone between snapshots.
+		self.lastHitDirection = knockbackDirection
+		self.lastKnockbackImpulse = knockbackImpulse
+	end
+end
+
+function ZombieView:FlashHit()
 	if self.hitFlashTween then
 		self.hitFlashTween:Cancel()
 	end
@@ -379,13 +404,6 @@ function ZombieView:ApplyDamage(health, maximumHealth, knockbackDirection, knock
 		{ FillTransparency = 1, OutlineTransparency = 1 }
 	)
 	self.hitFlashTween:Play()
-
-	if typeof(knockbackDirection) == "Vector3" and type(knockbackImpulse) == "number" then
-		-- Keep knockback translation exclusively in the server simulation so local hit feedback cannot
-		-- visually push a zombie outside its authoritative combat zone between snapshots.
-		self.lastHitDirection = knockbackDirection
-		self.lastKnockbackImpulse = knockbackImpulse
-	end
 end
 
 function ZombieView:IsVisible(camera, renderCFrame)
@@ -407,6 +425,13 @@ end
 
 function ZombieView:AppendRender(parts, cframes, camera, localNow, serverNow)
 	local renderCFrame = self:GetRenderCFrame(localNow)
+	if self.predictedDeathAt then
+		-- A reversible local fall gives immediate lethal feedback without destroying the living view.
+		-- Only RemoveZombies can detach it into a real ragdoll; a rejected/expired prediction stands back up.
+		local alpha = math.clamp((localNow - self.predictedDeathAt) / 0.18, 0, 1)
+		renderCFrame *= CFrame.new(0, -self.boundingSize.Y * 0.3 * alpha, 0)
+			* CFrame.Angles(math.rad(80) * alpha, 0, 0)
+	end
 	local SpecialState = ZombieProtocol.SpecialState
 	local showWarning = self.specialState == SpecialState.Windup
 		or self.specialState == SpecialState.Warning

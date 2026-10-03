@@ -7,6 +7,7 @@ local StudTexture = require(script.Parent.Parent.Classes.StudTexture)
 local MonetizationController = require(ReplicatedStorage.Controllers.MonetizationController)
 local RunSessionController = require(ReplicatedStorage.Controllers.RunSessionController)
 local UIStyle = require(ReplicatedStorage.Modules.UI.UIStyle)
+local ResponsiveLayout = require(ReplicatedStorage.Modules.UI.ResponsiveLayout)
 local Vide = require(ReplicatedStorage.Packages.vide)
 
 local action = Vide.action
@@ -23,12 +24,18 @@ local MUTED = Color3.fromRGB(139, 177, 195)
 local HEAVY_FONT = Font.new(UIStyle.Font.Family, Enum.FontWeight.Heavy)
 local BOLD_FONT = Font.new(UIStyle.Font.Family, Enum.FontWeight.Bold)
 
-local function offer(productKey: string, label, detail: string, visible, infoRevision, portrait, teamOffer: boolean)
+local function offer(productKey: string, label, detail: string, visible, infoRevision, portrait, teamOffer: boolean, parentLayout)
+	local layout = {}
+	layout.Viewport = parentLayout
+	layout.Frame = ResponsiveLayout.Child(function() return if portrait() then UDim2.new(1, 0, 0.5, -5) else UDim2.new(0.5, -5, 1, 0) end, layout.Viewport)
+	layout.ArtworkPanel = ResponsiveLayout.Child(function() return if portrait() then UDim2.new(0, 82, 1, -20) else UDim2.new(0, 96, 1, -20) end, layout.Frame)
+	layout.Details = ResponsiveLayout.Child(function() return if portrait() then UDim2.new(1, -112, 1, -18) else UDim2.new(1, -126, 1, -18) end, layout.Frame)
+
 	return create "Frame" {
 		Name = productKey,
 		BackgroundColor3 = CARD,
 		BorderSizePixel = 0,
-		Size = function() return if portrait() then UDim2.new(1, 0, 0.5, -5) else UDim2.new(0.5, -5, 1, 0) end,
+		Size = layout.Frame.Size,
 		Visible = visible,
 		ZIndex = 412,
 		create "UICorner" { CornerRadius = UDim.new(0, 4) },
@@ -41,8 +48,8 @@ local function offer(productKey: string, label, detail: string, visible, infoRev
 			Name = "ArtworkPanel",
 			BackgroundColor3 = CARD_DARK,
 			BorderSizePixel = 0,
-			Position = UDim2.new(0, 10, 0, 10),
-			Size = function() return if portrait() then UDim2.new(0, 82, 1, -20) else UDim2.new(0, 96, 1, -20) end,
+			Position = layout.Frame.Scale(UDim2.new(0, 10, 0, 10)),
+			Size = layout.ArtworkPanel.Size,
 			ZIndex = 413,
 			create "ImageLabel" {
 				Name = productKey .. "Artwork",
@@ -60,8 +67,8 @@ local function offer(productKey: string, label, detail: string, visible, infoRev
 		create "Frame" {
 			Name = "Details",
 			BackgroundTransparency = 1,
-			Position = function() return if portrait() then UDim2.new(0, 102, 0, 9) else UDim2.new(0, 116, 0, 9) end,
-			Size = function() return if portrait() then UDim2.new(1, -112, 1, -18) else UDim2.new(1, -126, 1, -18) end,
+			Position = layout.Frame.Scale(function() return if portrait() then UDim2.new(0, 102, 0, 9) else UDim2.new(0, 116, 0, 9) end),
+			Size = layout.Details.Size,
 			ZIndex = 414,
 			create "TextLabel" {
 				BackgroundTransparency = 1,
@@ -138,6 +145,21 @@ return function()
 	}
 	cleanup(function() for _, connection in connections do connection:Disconnect() end end)
 
+	local layout = {}
+	layout.Viewport = ResponsiveLayout.Viewport(viewportSize)
+	layout.DownedOverlay = layout.Viewport
+	layout.StatusBanner = ResponsiveLayout.Base(function() return if portrait() then UDim2.new(0.9, 0, 0, 72) else UDim2.new(0.41, 0, 0, 76) end, layout.DownedOverlay, function() return if portrait() then 4.5 else 6.84 end)
+	layout.TextLabel2 = ResponsiveLayout.Child(function() return UDim2.fromScale(0.92, if portrait() then 0.34 else 0.24) end, layout.StatusBanner)
+	layout.Dock = ResponsiveLayout.Base(function() return if portrait() then UDim2.fromScale(0.92, 0.46) else UDim2.fromScale(0.86, 0.31) end, layout.DownedOverlay, function() return if portrait() then 1 else 4.04 end)
+	layout.Spectate = ResponsiveLayout.Child(UDim2.new(1, -24, 0, 62), layout.Dock)
+	layout.TextButton = ResponsiveLayout.Child(UDim2.fromOffset(60, 62), layout.Spectate)
+	layout.TextLabel3 = ResponsiveLayout.Child(function() return if portrait() then UDim2.new(1, -156, 0, 18) else UDim2.new(0.3, 0, 0, 18) end, layout.Spectate)
+	layout.TextLabel4 = ResponsiveLayout.Child(function() return if portrait() then UDim2.new(1, -156, 0, 28) else UDim2.new(0.36, 0, 0, 28) end, layout.Spectate)
+	layout.TextLabel5 = ResponsiveLayout.Child(UDim2.new(0.42, 0, 0, 32), layout.Spectate)
+	layout.TextButton2 = ResponsiveLayout.Child(UDim2.fromOffset(60, 62), layout.Spectate)
+	layout.TextLabel6 = ResponsiveLayout.Child(UDim2.new(1, -36, 0, 22), layout.Dock)
+	layout.Offers = ResponsiveLayout.Child(function() return UDim2.new(1, -24, 1, if portrait() then -120 else -99) end, layout.Dock)
+
 	return create "Frame" {
 		Name = "DownedOverlay",
 		Active = visible,
@@ -168,10 +190,13 @@ return function()
 			AnchorPoint = Vector2.new(0.5, 0),
 			BackgroundColor3 = Color3.fromRGB(73, 20, 24),
 			BorderSizePixel = 0,
-			Position = UDim2.new(0.5, 0, 0, 24),
-			Size = function() return if portrait() then UDim2.new(0.9, 0, 0, 72) else UDim2.new(0.41, 0, 0, 76) end,
+			Position = layout.StatusBanner.Position(UDim2.new(0.5, 0, 0, 24), Vector2.new(0.5, 0)),
+			Size = layout.StatusBanner.Size,
 			ZIndex = 405,
-			create "UIAspectRatioConstraint" { AspectRatio = 6.84, AspectType = Enum.AspectType.FitWithinMaxSize },
+			create "UIAspectRatioConstraint" {
+				AspectRatio = function() return if portrait() then 4.5 else 6.84 end,
+				AspectType = Enum.AspectType.FitWithinMaxSize,
+			},
 			create "UIStroke" { ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Color = Color3.fromRGB(202, 72, 70), Thickness = 2 },
 			StudTexture({ ZIndex = 406, ImageTransparency = 0.88, TileSize = UDim2.fromOffset(72, 72) }),
 			create "TextLabel" {
@@ -188,11 +213,12 @@ return function()
 			create "TextLabel" {
 				BackgroundTransparency = 1,
 				FontFace = BOLD_FONT,
-				Position = UDim2.fromScale(0.04, 0.62),
-				Size = UDim2.fromScale(0.92, 0.24),
-				Text = "YOUR RUN CONTINUES WHILE A TEAMMATE IS ALIVE",
+				Position = function() return UDim2.fromScale(0.04, if portrait() then 0.58 else 0.62) end,
+				Size = layout.TextLabel2.Size,
+				Text = function() return if portrait() then "BUY A REVIVE OR WAIT\nFOR A TEAMMATE TO REVIVE YOU" else "BUY A REVIVE OR WAIT FOR A TEAMMATE TO REVIVE YOU" end,
 				TextColor3 = Color3.fromRGB(235, 153, 149),
 				TextScaled = true,
+				TextWrapped = true,
 				ZIndex = 408,
 			},
 		},
@@ -201,11 +227,11 @@ return function()
 			AnchorPoint = Vector2.new(0.5, 1),
 			BackgroundColor3 = PANEL,
 			BorderSizePixel = 0,
-			Position = UDim2.new(0.5, 0, 1, -28),
-			Size = function() return if portrait() then UDim2.fromScale(0.92, 0.46) else UDim2.fromScale(0.86, 0.31) end,
+			Position = layout.Dock.Position(UDim2.new(0.5, 0, 1, -28), Vector2.new(0.5, 1)),
+			Size = layout.Dock.Size,
 			ZIndex = 405,
 			create "UIAspectRatioConstraint" {
-				AspectRatio = function() return if portrait() then 1.32 else 4.04 end,
+				AspectRatio = function() return if portrait() then 1 else 4.04 end,
 				AspectType = Enum.AspectType.FitWithinMaxSize,
 			},
 			create "UIStroke" { ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Color = Color3.fromRGB(98, 122, 137), Thickness = 2 },
@@ -213,15 +239,15 @@ return function()
 				Name = "Spectate",
 				BackgroundColor3 = Color3.fromRGB(4, 29, 45),
 				BorderSizePixel = 0,
-				Position = UDim2.new(0, 12, 0, 12),
-				Size = UDim2.new(1, -24, 0, 62),
+				Position = layout.Dock.Scale(UDim2.new(0, 12, 0, 12)),
+				Size = layout.Spectate.Size,
 				ZIndex = 408,
 				create "UIStroke" { ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Color = Color3.fromRGB(55, 93, 114), Thickness = 2 },
 				create "TextButton" {
 					BackgroundColor3 = Color3.fromRGB(14, 57, 78),
 					BorderSizePixel = 0,
 					FontFace = HEAVY_FONT,
-					Size = UDim2.fromOffset(60, 62),
+					Size = layout.TextButton.Size,
 					Text = "<",
 					TextColor3 = Color3.fromRGB(255, 208, 92),
 					TextScaled = true,
@@ -231,8 +257,8 @@ return function()
 				create "TextLabel" {
 					BackgroundTransparency = 1,
 					FontFace = BOLD_FONT,
-					Position = UDim2.new(0, 78, 0, 8),
-					Size = function() return if portrait() then UDim2.new(1, -156, 0, 18) else UDim2.new(0.3, 0, 0, 18) end,
+					Position = layout.Spectate.Scale(UDim2.new(0, 78, 0, 8)),
+					Size = layout.TextLabel3.Size,
 					Text = "SPECTATING",
 					TextColor3 = Color3.fromRGB(131, 159, 174),
 					TextScaled = true,
@@ -242,8 +268,8 @@ return function()
 				create "TextLabel" {
 					BackgroundTransparency = 1,
 					FontFace = HEAVY_FONT,
-					Position = UDim2.new(0, 78, 0, 27),
-					Size = function() return if portrait() then UDim2.new(1, -156, 0, 28) else UDim2.new(0.36, 0, 0, 28) end,
+					Position = layout.Spectate.Scale(UDim2.new(0, 78, 0, 27)),
+					Size = layout.TextLabel4.Size,
 					Text = spectateName,
 					TextColor3 = Color3.new(1, 1, 1),
 					TextScaled = true,
@@ -255,15 +281,15 @@ return function()
 					AnchorPoint = Vector2.new(1, 0.5),
 					BackgroundTransparency = 1,
 					FontFace = BOLD_FONT,
-					Position = UDim2.new(1, -72, 0.5, 0),
-					Size = UDim2.new(0.42, 0, 0, 32),
+					Position = layout.Spectate.Scale(UDim2.new(1, -72, 0.5, 0)),
+					Size = layout.TextLabel5.Size,
 					Text = function()
 						countdownRevision()
 						local current = state()
 						if current.teamWipeAt then
 							return string.format("TEAM WIPE IN %d — REVIVE TO SAVE THE RUN", math.max(math.ceil(current.teamWipeAt - Workspace:GetServerTimeNow()), 0))
 						end
-						return string.format("FREE TEAM REVIVE AT WAVE %d", current.nextRespawnRound or 5)
+						return "WAIT FOR A TEAMMATE - HOLD 1.5s TO REVIVE"
 					end,
 					TextColor3 = function() return if state().teamWipeAt then Color3.fromRGB(255, 121, 112) else Color3.fromRGB(255, 207, 102) end,
 					TextScaled = true,
@@ -278,7 +304,7 @@ return function()
 					BorderSizePixel = 0,
 					FontFace = HEAVY_FONT,
 					Position = UDim2.fromScale(1, 0),
-					Size = UDim2.fromOffset(60, 62),
+					Size = layout.TextButton2.Size,
 					Text = ">",
 					TextColor3 = Color3.fromRGB(255, 208, 92),
 					TextScaled = true,
@@ -289,15 +315,15 @@ return function()
 			create "TextLabel" {
 				BackgroundTransparency = 1,
 				FontFace = BOLD_FONT,
-				Position = UDim2.new(0, 18, 0, 80),
-				Size = UDim2.new(1, -36, 0, 22),
+				Position = layout.Dock.Scale(UDim2.new(0, 18, 0, 80)),
+				Size = layout.TextLabel6.Size,
 				Text = function()
 					countdownRevision()
 					local current = state()
 					if current.teamWipeAt then
 						return string.format("TEAM WIPE IN %d — REVIVE TO SAVE THE RUN", math.max(math.ceil(current.teamWipeAt - Workspace:GetServerTimeNow()), 0))
 					end
-					return string.format("FREE TEAM REVIVE AT WAVE %d", current.nextRespawnRound or 5)
+					return "WAIT FOR A TEAMMATE - HOLD 1.5s TO REVIVE"
 				end,
 				TextColor3 = function() return if state().teamWipeAt then Color3.fromRGB(255, 121, 112) else Color3.fromRGB(255, 207, 102) end,
 				TextScaled = true,
@@ -307,15 +333,15 @@ return function()
 			create "Frame" {
 				Name = "Offers",
 				BackgroundTransparency = 1,
-				Position = function() return UDim2.new(0, 12, 0, if portrait() then 108 else 87) end,
-				Size = function() return UDim2.new(1, -24, 1, if portrait() then -120 else -99) end,
+				Position = layout.Dock.Scale(function() return UDim2.new(0, 12, 0, if portrait() then 108 else 87) end),
+				Size = layout.Offers.Size,
 				ZIndex = 411,
 				create "UIListLayout" {
 					FillDirection = function() return if portrait() then Enum.FillDirection.Vertical else Enum.FillDirection.Horizontal end,
-					Padding = UDim.new(0, 10),
+					Padding = function() return UDim.new(10 / (if portrait() then layout.Offers.ReferenceSize().Y else layout.Offers.ReferenceSize().X), 0) end,
 					SortOrder = Enum.SortOrder.LayoutOrder,
 				},
-				offer("Revive", "REVIVE YOURSELF", "CONTINUE THIS RUN", visible, infoRevision, portrait, false),
+				offer("Revive", "BUY A REVIVE", "RETURN IMMEDIATELY", visible, infoRevision, portrait, false, layout.Offers),
 				offer(
 					"ReviveTeam",
 					function()
@@ -326,7 +352,8 @@ return function()
 					function() return visible() and (state().eligibleTeamRevives or 0) > 0 end,
 					infoRevision,
 					portrait,
-					true
+					true,
+					layout.Offers
 				),
 			},
 		},

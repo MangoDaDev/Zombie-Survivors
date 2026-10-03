@@ -69,12 +69,13 @@ local function pointToSegmentDistance(point: Vector3, segmentStart: Vector3, seg
 	return (point - segmentStart:Lerp(segmentEnd, alpha)).Magnitude
 end
 
-local function damageTarget(player: Player, definition, stats, target, amount: number, origin: Vector3, knockback: number)
+local function damageTarget(player: Player, definition, stats, target, amount: number, origin: Vector3, knockback: number, predictionKey: string?)
 	local rageMultiplier = if stats.IsRage then definition.Rage.KnockbackMultiplier or 1 else 1
 	return CombatTargets.DamageTarget(target, math.max(1, math.floor(amount + 0.5)), origin, knockback * rageMultiplier, {
 		player = player,
 		source = definition.Id,
 		canApplyHitPassives = true,
+		predictionKey = predictionKey,
 	})
 end
 
@@ -113,6 +114,19 @@ local function countOwnedProjectiles(player: Player, kind: string): number
 	return count
 end
 
+local function sendAuraSchedule(player: Player, runtime, stats, enabled: boolean)
+	runtime.auraSequence = (runtime.auraSequence or 0) + 1
+	abilityNetwork:fire(player, "AuraSchedule", {
+		sequence = runtime.auraSequence,
+		enabled = enabled,
+		nextAt = runtime.nextAttackAt.Aura,
+		radius = if enabled then stats.Radius else 0,
+		damage = if enabled then stats.Damage * ClassController.GetWeaponDamageMultiplier(player) else 0,
+		interval = if enabled then math.ceil(stats.Cooldown * PassiveEffects.GetCooldownMultiplier(player)
+			/ SCHEDULER_INTERVAL) * SCHEDULER_INTERVAL else 0,
+	})
+end
+
 local function sendAuraState(player: Player, runtime, stats, root: BasePart?, force: boolean?)
 	local visible = root ~= nil and runtime.equipped.Aura == true
 	local signature = if visible
@@ -122,6 +136,7 @@ local function sendAuraState(player: Player, runtime, stats, root: BasePart?, fo
 		return
 	end
 	runtime.auraSignature = signature
+	sendAuraSchedule(player, runtime, stats, visible)
 	abilityNetwork:fireAll("AuraState", {
 		ownerUserId = player.UserId,
 		enabled = visible,
@@ -145,7 +160,8 @@ local function attackAura(player: Player, runtime, stats, root: BasePart, now: n
 			target.distance or horizontalDistance(target.position, root.Position)
 		)
 		local zoneDamage = stats.Damage * (if zone then zone.DamageMultiplier else 1)
-		if damageTarget(player, definition, stats, target, zoneDamage, root.Position, definition.Combat.Knockback) then
+		if damageTarget(player, definition, stats, target, zoneDamage, root.Position, definition.Combat.Knockback,
+			tostring(runtime.auraSequence)) then
 			table.insert(hitPositions, target.position)
 			table.insert(hitZoneIndices, zoneIndex or 1)
 		end
@@ -178,7 +194,8 @@ local function attackAura(player: Player, runtime, stats, root: BasePart, now: n
 				target,
 				stats.Damage * stats.PulseDamageMultiplier * (if zone then zone.DamageMultiplier else 1),
 				root.Position,
-				definition.Combat.Knockback
+				definition.Combat.Knockback,
+				"Pulse"
 			)
 		end
 		abilityNetwork:fireAll("AuraPulse", {
@@ -751,6 +768,7 @@ local function cleanupAbility(player: Player, abilityId: string)
 		local runtime = runtimes[player]
 		if runtime then
 			runtime.auraSignature = nil
+			sendAuraSchedule(player, runtime, nil, false)
 		end
 	end
 	abilityNetwork:fireAll("AbilityEffectsCleared", player.UserId, abilityId)
@@ -799,6 +817,9 @@ local function scheduleAttacks(now: number)
 				runtime.nextAttackAt[abilityId] = now + (if attacked
 					then stats.Cooldown * PassiveEffects.GetCooldownMultiplier(player)
 					else math.min(stats.Cooldown, 0.3))
+				if abilityId == "Aura" then
+					sendAuraSchedule(player, runtime, stats, true)
+				end
 			end
 		end
 	end

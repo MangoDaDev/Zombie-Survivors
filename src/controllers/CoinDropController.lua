@@ -53,7 +53,7 @@ local effectsFolder
 local nextPredictionAt = 0
 local nextVisibilityReportAt = 0
 local coinViews: { [number]: CoinView } = {}
-local backpackOpenings: { [number]: Vector3 | boolean } = {}
+local backpackOpenings: { [number]: Vector3 | false } = {}
 
 local function easeOutCubic(alpha: number): number
 	local inverse = 1 - alpha
@@ -270,7 +270,7 @@ local function getFrameBackpackOpening(userId: number?): Vector3?
 	end
 	local cached = backpackOpenings[userId]
 	if cached ~= nil then
-		return if typeof(cached) == "Vector3" then cached else nil
+		return cached or nil
 	end
 	-- All coins collected by this player share the same destination within one frame.
 	-- Refresh every frame so character respawns and authored backpack-stage swaps still track exactly.

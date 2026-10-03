@@ -1,4 +1,5 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
 
 local Button = require(script.Parent.Parent.Classes.Button)
 local StudTexture = require(script.Parent.Parent.Classes.StudTexture)
@@ -7,6 +8,8 @@ local MonetizationConfig = require(ReplicatedStorage.Modules.Game.MonetizationCo
 local Images = require(ReplicatedStorage.Modules.UI.Images)
 local SafeArea = require(ReplicatedStorage.Modules.UI.SafeArea)
 local UIStyle = require(ReplicatedStorage.Modules.UI.UIStyle)
+local ResponsiveLayout = require(ReplicatedStorage.Modules.UI.ResponsiveLayout)
+local ResponsiveViewport = require(script.Parent.Parent.ResponsiveViewport)
 local Vide = require(ReplicatedStorage.Packages.vide)
 
 local action = Vide.action
@@ -37,7 +40,7 @@ local function getProductType(definition): (string, Color3)
 	return "REPEATABLE", Color3.fromRGB(110, 203, 236)
 end
 
-local function productCard(productKey: string, definition, shopState, infoRevision, portrait, variant: string)
+local function productCard(productKey: string, definition, shopState, infoRevision, portrait, variant: string, parentLayout)
 	local owned = derive(function()
 		shopState()
 		return definition.GamepassId ~= nil and MonetizationController.OwnsGamepass(productKey)
@@ -47,6 +50,13 @@ local function productCard(productKey: string, definition, shopState, infoRevisi
 		return MonetizationController.GetImage(productKey)
 	end)
 	local productType, typeColor = getProductType(definition)
+
+	local layout = {}
+	layout.Viewport = parentLayout
+	layout.Frame = ResponsiveLayout.Child(UDim2.fromScale(1, 1), layout.Viewport)
+	layout.ArtworkPanel = ResponsiveLayout.Child(function() return if portrait() then UDim2.new(0.31, -10, 1, -16) else UDim2.new(0, 150, 1, -16) end, layout.Frame)
+	layout.TextLabel = ResponsiveLayout.Child(UDim2.fromOffset(82, 22), layout.ArtworkPanel)
+	layout.Details = ResponsiveLayout.Child(function() return if portrait() then UDim2.new(0.69, -14, 1, -16) else UDim2.new(1, -174, 1, -16) end, layout.Frame)
 
 	return create "Frame" {
 		Name = productKey .. variant,
@@ -65,8 +75,8 @@ local function productCard(productKey: string, definition, shopState, infoRevisi
 			Name = "ArtworkPanel",
 			BackgroundColor3 = CARD_DARK,
 			BorderSizePixel = 0,
-			Position = UDim2.new(0, 8, 0, 8),
-			Size = function() return if portrait() then UDim2.new(0.31, -10, 1, -16) else UDim2.new(0, 150, 1, -16) end,
+			Position = layout.Frame.Scale(UDim2.new(0, 8, 0, 8)),
+			Size = layout.ArtworkPanel.Size,
 			ZIndex = 227,
 			create "UICorner" { CornerRadius = UDim.new(0, 3) },
 			create "ImageLabel" {
@@ -82,8 +92,8 @@ local function productCard(productKey: string, definition, shopState, infoRevisi
 				BackgroundColor3 = GOLD,
 				BorderSizePixel = 0,
 				FontFace = BOLD_FONT,
-				Position = UDim2.new(0, 6, 0, 6),
-				Size = UDim2.fromOffset(82, 22),
+				Position = layout.ArtworkPanel.Scale(UDim2.new(0, 6, 0, 6)),
+				Size = layout.TextLabel.Size,
 				Text = "FEATURED",
 				TextColor3 = Color3.fromRGB(58, 32, 5),
 				TextScaled = true,
@@ -94,8 +104,8 @@ local function productCard(productKey: string, definition, shopState, infoRevisi
 		create "Frame" {
 			Name = "Details",
 			BackgroundTransparency = 1,
-			Position = function() return if portrait() then UDim2.new(0.31, 6, 0, 8) else UDim2.new(0, 166, 0, 8) end,
-			Size = function() return if portrait() then UDim2.new(0.69, -14, 1, -16) else UDim2.new(1, -174, 1, -16) end,
+			Position = layout.Frame.Scale(function() return if portrait() then UDim2.new(0.31, 6, 0, 8) else UDim2.new(0, 166, 0, 8) end),
+			Size = layout.Details.Size,
 			ZIndex = 228,
 			create "TextLabel" {
 				Name = "ProductName",
@@ -216,25 +226,69 @@ return function()
 		for _, connection in connections do connection:Disconnect() end
 	end)
 
-	local sections = {}
-	for sectionOrder, category in MonetizationConfig.Shop.Categories do
-		local cards = {}
-		for _, entry in collectProducts(category) do
-			table.insert(cards, productCard(entry.key, entry.definition, shopState, infoRevision, portrait, category))
+	local layout = {}
+	layout.Viewport = ResponsiveLayout.Viewport(viewportSize)
+	layout.MonetizationShop = layout.Viewport
+	local launcherViewport = ResponsiveViewport()
+	local gameMapPresent = source(Workspace:FindFirstChild("Game") ~= nil)
+	local function updateMap(child: Instance)
+		if child.Name == "Game" then gameMapPresent(Workspace:FindFirstChild("Game") ~= nil) end
+	end
+	local mapAddedConnection = Workspace.ChildAdded:Connect(updateMap)
+	local mapRemovedConnection = Workspace.ChildRemoved:Connect(updateMap)
+	cleanup(function()
+		mapAddedConnection:Disconnect()
+		mapRemovedConnection:Disconnect()
+	end)
+	local compactLauncher = derive(function()
+		return gameMapPresent() and launcherViewport().X < UIStyle.CompactCombatWidth
+	end)
+	layout.Launcher = ResponsiveLayout.Base(function()
+		return if compactLauncher() then UDim2.fromOffset(142, 42) else UDim2.fromOffset(142, 50)
+	end, layout.MonetizationShop, function() return if compactLauncher() then 142 / 42 else 142 / 50 end)
+	layout.Overlay = layout.MonetizationShop
+	layout.BackdropSensor = layout.Overlay
+	layout.Panel = ResponsiveLayout.Base(function()
+		if portrait() then
+			return UDim2.new(0.35, 230, 0.35, 465)
 		end
-		table.insert(sections, create "Frame" {
+		-- Keep growing on larger displays, but more slowly than a predominantly scale-sized panel.
+		return UDim2.new(0.5, 380, 0.6, 220)
+	end, layout.Overlay, function() return if portrait() then 0.72 else 1.7 end)
+	layout.Header = ResponsiveLayout.Child(UDim2.new(1, -84, 0, 76), layout.Panel)
+	layout.TextLabel = ResponsiveLayout.Child(UDim2.new(0.72, 0, 0, 39), layout.Header)
+	layout.TextLabel2 = ResponsiveLayout.Child(UDim2.new(0.74, 0, 0, 17), layout.Header)
+	layout.Close = ResponsiveLayout.Child(UDim2.fromOffset(62, 76), layout.Panel)
+	layout.JumpBar = ResponsiveLayout.Child(UDim2.new(1, -20, 0, 48), layout.Panel)
+	layout.Catalog = ResponsiveLayout.Child(UDim2.new(1, -20, 1, -164), layout.Panel)
+	layout.Content = ResponsiveLayout.Child(function()
+		local height = 0
+		for _, category in MonetizationConfig.Shop.Categories do
+			local rows = math.ceil(#collectProducts(category) / (if portrait() then 1 else 2))
+			height += 52 + rows * ((if portrait() then 150 else 172) + 10)
+		end
+		return UDim2.new(1, -32, 0, math.max(height - 10, 1))
+	end, layout.Catalog)
+
+	local function catalogSection(category, sectionOrder, cards, parentLayout)
+		local layout = {}
+		layout.Viewport = parentLayout
+		layout.Frame = ResponsiveLayout.Child(function() return UDim2.new(1, 0, 0, 52 + math.ceil(#cards / (if portrait() then 1 else 2)) * ((if portrait() then 150 else 172) + 10) - 10) end, layout.Viewport)
+		layout.SectionTitle = ResponsiveLayout.Child(UDim2.new(1, 0, 0, 30), layout.Frame)
+		layout.Products = ResponsiveLayout.Child(function() return UDim2.new(1, 0, 0, math.ceil(#cards / (if portrait() then 1 else 2)) * ((if portrait() then 150 else 172) + 10) - 10) end, layout.Frame)
+
+		return create "Frame" {
 			Name = category .. "Section",
-			AutomaticSize = Enum.AutomaticSize.Y,
 			BackgroundTransparency = 1,
 			LayoutOrder = sectionOrder,
-			Size = UDim2.new(1, 0, 0, 0),
+			Size = layout.Frame.Size,
 			ZIndex = 224,
 			action(function(instance) sectionFrames[category] = instance :: Frame end),
 			create "TextLabel" {
 				Name = "SectionTitle",
 				BackgroundTransparency = 1,
 				FontFace = HEAVY_FONT,
-				Size = UDim2.new(1, 0, 0, 30),
+				Size = layout.SectionTitle.Size,
 				Text = if category == "Featured" then "FEATURED  •  RECOMMENDED UPGRADES" else string.upper(category),
 				TextColor3 = GOLD_LIGHT,
 				TextScaled = true,
@@ -243,23 +297,30 @@ return function()
 			},
 			create "Frame" {
 				Name = "Products",
-				AutomaticSize = Enum.AutomaticSize.Y,
 				BackgroundTransparency = 1,
-				Position = UDim2.new(0, 0, 0, 38),
-				Size = UDim2.new(1, 0, 0, 0),
+				Position = layout.Frame.Scale(UDim2.new(0, 0, 0, 38)),
+				Size = layout.Products.Size,
 				ZIndex = 225,
 				create "UIGridLayout" {
-					CellPadding = UDim2.fromOffset(10, 10),
-					CellSize = function()
+					CellPadding = layout.Products.Scale(UDim2.fromOffset(10, 10)),
+					CellSize = layout.Products.Scale(function()
 						return if portrait() then UDim2.new(1, 0, 0, 150) else UDim2.new(0.5, -5, 0, 172)
-					end,
+					end),
 					FillDirectionMaxCells = function() return if portrait() then 1 else 2 end,
 					SortOrder = Enum.SortOrder.LayoutOrder,
 				},
 				cards,
 			},
-			create "UIPadding" { PaddingBottom = UDim.new(0, 14) },
-		})
+		}
+	end
+
+	local sections = {}
+	for sectionOrder, category in MonetizationConfig.Shop.Categories do
+		local cards = {}
+		for _, entry in collectProducts(category) do
+			table.insert(cards, productCard(entry.key, entry.definition, shopState, infoRevision, portrait, category, ResponsiveLayout.Child(function() return if portrait() then UDim2.new(1, 0, 0, 150) else UDim2.new(0.5, -5, 0, 172) end, layout.Content)))
+		end
+		table.insert(sections, catalogSection(category, sectionOrder, cards, layout.Content))
 	end
 
 	local tabs = {}
@@ -267,7 +328,7 @@ return function()
 		table.insert(tabs, create "Frame" {
 			BackgroundTransparency = 1,
 			LayoutOrder = order,
-			Size = function() return UDim2.new(0, if portrait() then 112 else 146, 1, 0) end,
+			Size = layout.JumpBar.Scale(function() return UDim2.new(0, if portrait() then 112 else 146, 1, 0) end),
 			ZIndex = 223,
 			Button({
 				Text = string.upper(category),
@@ -299,12 +360,23 @@ return function()
 		end),
 		create "Frame" {
 			Name = "Launcher",
-			AnchorPoint = Vector2.new(0, 1),
+			AnchorPoint = function() return if compactLauncher() then Vector2.new(1, 0) else Vector2.new(0, 1) end,
 			BackgroundTransparency = 1,
-			Position = UDim2.new(0, 18, 1, -22),
-			Size = UDim2.fromOffset(142, 50),
+			Position = function()
+				local size = launcherViewport()
+				return if compactLauncher()
+					then UDim2.new(1, -12, 0, topOffset() - 10 + (if size.Y > size.X then 80 else 0))
+					-- Match the user-requested middle-left currency/offer stack during desktop runs.
+					elseif gameMapPresent() then UDim2.new(0, 20, 0.5, 123)
+					else UDim2.new(0, 18, 1, -22)
+			end,
+			Size = layout.Launcher.Size,
 			Visible = function() return not open() end,
 			ZIndex = 90,
+			create "UIAspectRatioConstraint" {
+				AspectRatio = layout.Launcher.AspectRatio,
+				AspectType = Enum.AspectType.FitWithinMaxSize,
+			},
 			Button({
 				Text = "SHOP",
 				LeftIcon = Images.Coin,
@@ -312,6 +384,8 @@ return function()
 				CornerRadius = UDim.new(0, 5),
 				FontFace = HEAVY_FONT,
 				MaxTextSize = 26,
+				BorderThickness = 3,
+				StudTransparency = UIStyle.CombatStudTransparency,
 				Size = UDim2.fromScale(1, 1),
 				OnActivated = function() MonetizationController.SetShopOpen(true) end,
 			}),
@@ -339,14 +413,8 @@ return function()
 				AnchorPoint = Vector2.new(0.5, 0.5),
 				BackgroundColor3 = PANEL,
 				BorderSizePixel = 0,
-				Position = function() return UDim2.new(0.5, 0, 0.5, topOffset() * 0.5) end,
-				Size = function()
-					if portrait() then
-						return UDim2.new(0.35, 230, 0.35, 465)
-					end
-					-- Keep growing on larger displays, but more slowly than a predominantly scale-sized panel.
-					return UDim2.new(0.5, 380, 0.6, 220)
-				end,
+				Position = layout.Panel.Position(function() return UDim2.new(0.5, 0, 0.5, topOffset() * 0.5) end, Vector2.new(0.5, 0.5)),
+				Size = layout.Panel.Size,
 				ZIndex = 215,
 				create "UIAspectRatioConstraint" {
 					AspectRatio = function() return if portrait() then 0.72 else 1.7 end,
@@ -359,8 +427,8 @@ return function()
 					Name = "Header",
 					BackgroundColor3 = GOLD,
 					BorderSizePixel = 0,
-					Position = UDim2.new(0, 10, 0, 10),
-					Size = UDim2.new(1, -84, 0, 76),
+					Position = layout.Panel.Scale(UDim2.new(0, 10, 0, 10)),
+					Size = layout.Header.Size,
 					ZIndex = 218,
 					create "UIGradient" {
 						Color = ColorSequence.new(Color3.fromRGB(255, 212, 90), Color3.fromRGB(215, 142, 29)),
@@ -369,10 +437,10 @@ return function()
 					create "UIStroke" { ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Color = GOLD_LIGHT, Thickness = 2 },
 					StudTexture({ ZIndex = 219, ImageColor3 = Color3.fromRGB(90, 49, 8), ImageTransparency = 0.84 }),
 					create "TextLabel" {
-						BackgroundTransparency = 1,
+			BackgroundTransparency = 1,
 						FontFace = HEAVY_FONT,
-						Position = UDim2.new(0, 18, 0, 5),
-						Size = UDim2.new(0.72, 0, 0, 39),
+						Position = layout.Header.Scale(UDim2.new(0, 18, 0, 5)),
+						Size = layout.TextLabel.Size,
 						Text = "SURVIVOR SHOP",
 						TextColor3 = PAPER,
 						TextScaled = true,
@@ -381,10 +449,10 @@ return function()
 						create "UIStroke" { Color = Color3.fromRGB(70, 39, 7), Thickness = 4 },
 					},
 					create "TextLabel" {
-						BackgroundTransparency = 1,
+			BackgroundTransparency = 1,
 						FontFace = BOLD_FONT,
-						Position = UDim2.new(0, 20, 0, 49),
-						Size = UDim2.new(0.74, 0, 0, 17),
+						Position = layout.Header.Scale(UDim2.new(0, 20, 0, 49)),
+						Size = layout.TextLabel2.Size,
 						Text = "COINS, PERMANENT PERKS & RUN UPGRADES",
 						TextColor3 = Color3.fromRGB(79, 47, 8),
 						TextScaled = true,
@@ -396,8 +464,8 @@ return function()
 					Name = "Close",
 					AnchorPoint = Vector2.new(1, 0),
 					BackgroundTransparency = 1,
-					Position = UDim2.new(1, -10, 0, 10),
-					Size = UDim2.fromOffset(62, 76),
+					Position = layout.Panel.Scale(UDim2.new(1, -10, 0, 10)),
+					Size = layout.Close.Size,
 					ZIndex = 221,
 					Button({
 						Text = "X",
@@ -415,14 +483,14 @@ return function()
 					BackgroundColor3 = PANEL_MID,
 					BorderSizePixel = 0,
 					CanvasSize = UDim2.fromScale(0, 0),
-					Position = UDim2.new(0, 10, 0, 96),
+					Position = layout.Panel.Scale(UDim2.new(0, 10, 0, 96)),
 					ScrollBarThickness = 0,
 					ScrollingDirection = Enum.ScrollingDirection.X,
-					Size = UDim2.new(1, -20, 0, 48),
+					Size = layout.JumpBar.Size,
 					ZIndex = 222,
 					create "UIStroke" { ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Color = Color3.fromRGB(54, 91, 111), Thickness = 2 },
-					create "UIPadding" { PaddingLeft = UDim.new(0, 6), PaddingRight = UDim.new(0, 6), PaddingTop = UDim.new(0, 6), PaddingBottom = UDim.new(0, 6) },
-					create "UIListLayout" { FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 7), SortOrder = Enum.SortOrder.LayoutOrder },
+					create "UIPadding" { PaddingLeft = layout.JumpBar.Padding(UDim.new(0, 6), "X"), PaddingRight = layout.JumpBar.Padding(UDim.new(0, 6), "X"), PaddingTop = layout.JumpBar.Padding(UDim.new(0, 6), "Y"), PaddingBottom = layout.JumpBar.Padding(UDim.new(0, 6), "Y")},
+					create "UIListLayout" { FillDirection = Enum.FillDirection.Horizontal, Padding = layout.JumpBar.Padding(UDim.new(0, 7), "X"), SortOrder = Enum.SortOrder.LayoutOrder },
 					tabs,
 				},
 				create "ScrollingFrame" {
@@ -431,10 +499,10 @@ return function()
 					BackgroundColor3 = Color3.fromRGB(4, 24, 38),
 					BorderSizePixel = 0,
 					CanvasSize = UDim2.fromScale(0, 0),
-					Position = UDim2.new(0, 10, 0, 154),
+					Position = layout.Panel.Scale(UDim2.new(0, 10, 0, 154)),
 					ScrollBarImageColor3 = GOLD,
 					ScrollBarThickness = 5,
-					Size = UDim2.new(1, -20, 1, -164),
+					Size = layout.Catalog.Size,
 					ZIndex = 222,
 					action(function(instance)
 						catalog = instance :: ScrollingFrame
@@ -456,12 +524,11 @@ return function()
 					create "UIStroke" { ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Color = Color3.fromRGB(38, 80, 101), Thickness = 2 },
 					create "Frame" {
 						Name = "Content",
-						AutomaticSize = Enum.AutomaticSize.Y,
-						BackgroundTransparency = 1,
-						Position = UDim2.new(0, 14, 0, 12),
-						Size = UDim2.new(1, -32, 0, 0),
+			BackgroundTransparency = 1,
+						Position = layout.Catalog.Scale(UDim2.new(0, 14, 0, 12)),
+						Size = layout.Content.Size,
 						ZIndex = 224,
-						create "UIListLayout" { Padding = UDim.new(0, 10), SortOrder = Enum.SortOrder.LayoutOrder },
+						create "UIListLayout" { Padding = layout.Content.Padding(UDim.new(0, 10), "Y"), SortOrder = Enum.SortOrder.LayoutOrder },
 						sections,
 					},
 				},

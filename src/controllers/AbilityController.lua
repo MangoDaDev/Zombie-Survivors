@@ -19,6 +19,9 @@ local CrowdWeaponEffects = require(script.Parent.Ability.CrowdWeaponEffects)
 local ExpandedWeaponEffects = require(script.Parent.Ability.ExpandedWeaponEffects)
 local OrbitingSwordsView = require(script.Parent.Ability.OrbitingSwordsView)
 local PassiveEffectsView = require(script.Parent.Ability.PassiveEffectsView)
+local DaggerPrediction = require(script.Parent.Ability.DaggerPrediction)
+local ZombieController = require(script.Parent.ZombieController)
+local AuraPrediction = require(script.Parent.Ability.AuraPrediction)
 
 local AbilityController = {}
 
@@ -203,7 +206,7 @@ local function spawnDagger(packet)
 	if launchEffect and packet.daggerIndex == 1 then
 		Sounds.Play("Swoosh", launchEffect, 120)
 	end
-	table.insert(projectiles, {
+	local projectile = {
 		model = model,
 		startPosition = packet.startPosition,
 		targetPosition = packet.targetPosition,
@@ -211,13 +214,40 @@ local function spawnDagger(packet)
 		duration = packet.duration,
 		rage = packet.rage,
 		daggerIndex = packet.daggerIndex,
-	})
+		predicted = packet.predicted == true,
+		targetId = packet.targetId,
+		damage = packet.damage,
+		predictionKey = packet.predictionKey,
+		ownerUserId = packet.ownerUserId or Players.LocalPlayer.UserId,
+	}
+	table.insert(projectiles, projectile)
+	return projectile
+end
+
+local function playDaggerImpact(projectile)
+	if projectile.ownerUserId == Players.LocalPlayer.UserId and type(projectile.targetId) == "number"
+		and type(projectile.damage) == "number" and type(projectile.predictionKey) == "string" then
+		ZombieController.PredictHit(projectile.targetId, "Dagger", projectile.predictionKey, projectile.damage)
+	end
+	local impactEffect = emitAt(projectile.targetPosition, 1, if projectile.rage then 11 else 8, projectile.rage)
+	if impactEffect and projectile.daggerIndex == 1 then
+		Sounds.Play("AbilityBladeImpact", impactEffect, 120)
+	end
 end
 
 local function renderProjectiles(deltaTime: number)
 	local now = Workspace:GetServerTimeNow()
+	DaggerPrediction.Render(now)
+	AuraPrediction.Render(now)
 	for index = #projectiles, 1, -1 do
 		local projectile = projectiles[index]
+		if not projectile.model.Parent then
+			table.remove(projectiles, index)
+			continue
+		end
+		if projectile.correctedTargetPosition then
+			projectile.targetPosition = projectile.targetPosition:Lerp(projectile.correctedTargetPosition, 1 - math.exp(-24 * deltaTime))
+		end
 		local alpha = math.clamp((now - projectile.launchAt) / projectile.duration, 0, 1)
 		local position = projectile.startPosition:Lerp(projectile.targetPosition, alpha)
 		position += Vector3.yAxis * math.sin(alpha * math.pi) * 0.55
@@ -225,16 +255,8 @@ local function renderProjectiles(deltaTime: number)
 		projectile.model:PivotTo(getFlightCFrame(position, projectile.targetPosition, spin))
 
 		if alpha >= 1 then
-			local impactEffect = emitAt(
-				projectile.targetPosition,
-				1,
-				if projectile.rage then 11 else 8,
-				projectile.rage
-			)
-			if impactEffect and projectile.daggerIndex == 1 then
-			-- Daggers share the blade-family impact cue instead of the generic bullet hit.
-			Sounds.Play("AbilityBladeImpact", impactEffect, 120)
-			end
+			projectile.targetPosition = projectile.correctedTargetPosition or projectile.targetPosition
+			playDaggerImpact(projectile)
 			projectile.model:Destroy()
 			table.remove(projectiles, index)
 		end
@@ -295,11 +317,27 @@ function AbilityController.DaggerThrown(_, packet)
 	then
 		return
 	end
+	if DaggerPrediction.Confirm(packet) then
+		return
+	end
 
 	local delayDuration = math.max(packet.launchAt - Workspace:GetServerTimeNow(), 0)
 	task.delay(delayDuration, function()
 		spawnDagger(packet)
 	end)
+end
+
+function AbilityController.DaggerSchedule(_, packet)
+	DaggerPrediction.ApplySchedule(packet)
+end
+
+function AbilityController.AuraSchedule(_, packet)
+	AuraPrediction.ApplySchedule(packet)
+end
+
+function AbilityController.OnCharacterAdded(_character: Model)
+	DaggerPrediction.Clear()
+	AuraPrediction.Clear()
 end
 
 function AbilityController.OrbitingSwordsState(_, packet)
@@ -573,6 +611,12 @@ function AbilityController.OverchargeTriggered(_, packet)
 end
 
 function AbilityController.AbilityEffectsCleared(_, ownerUserId, abilityId)
+	if ownerUserId == Players.LocalPlayer.UserId then
+		ZombieController.ClearPredictedHits(abilityId)
+		if abilityId == "Aura" then
+			AuraPrediction.Clear()
+		end
+	end
 	ActiveWeaponEffects.AbilityEffectsCleared(ownerUserId, abilityId)
 	CrowdWeaponEffects.AbilityEffectsCleared(ownerUserId, abilityId)
 	AdditionalWeaponEffects.AbilityEffectsCleared(ownerUserId, abilityId)
@@ -594,6 +638,7 @@ function AbilityController.Init()
 	ExpandedWeaponEffects.Init(effectsFolder)
 	OrbitingSwordsView.Init(effectsFolder)
 	PassiveEffectsView.Init(effectsFolder)
+	DaggerPrediction.Init(spawnDagger)
 	renderConnection = RunService.RenderStepped:Connect(renderProjectiles)
 	dataService:getChangedSignal(AbilityDefinitions.DataKey):Connect(function()
 		stateChanged:Fire(AbilityController.GetState())

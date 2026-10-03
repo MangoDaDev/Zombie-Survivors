@@ -10,6 +10,7 @@ local AnalyticsController = require(script.Parent.AnalyticsController)
 local GameReadyController = {}
 
 local readyNetwork
+local packetRevision = 0
 local active = false
 local started = false
 local startedAt: number? = nil
@@ -39,7 +40,9 @@ local function getReadyCount(): number
 end
 
 local function makePacket(player: Player)
+	packetRevision += 1
 	return {
+		revision = packetRevision,
 		active = active,
 		started = started,
 		startedAt = startedAt,
@@ -158,6 +161,15 @@ function GameReadyController.IsStarted(): boolean
 	return started
 end
 
+function GameReadyController.RequestReady(_, player: Player, requestId: any)
+	if type(requestId) ~= "number" or requestId % 1 ~= 0 or requestId <= 0 or requestId >= math.huge then
+		return
+	end
+	GameReadyController.ReadyUp(nil, player)
+	-- Every valid intent receives an acknowledgement, including a request rejected by the combat gate.
+	readyNetwork:fire(player, "ReadyResolved", requestId, makePacket(player))
+end
+
 function GameReadyController.GetStartedSignal()
 	return gameStarted
 end
@@ -166,6 +178,7 @@ function GameReadyController.Init()
 	readyNetwork = Networker.server.new("GameReadyController", GameReadyController, {
 		GameReadyController.GetState,
 		GameReadyController.ReadyUp,
+		GameReadyController.RequestReady,
 	})
 end
 

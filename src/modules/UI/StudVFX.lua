@@ -236,4 +236,143 @@ function StudVFX.Ring(
 	end
 end
 
+function StudVFX.Explosion(
+	parent: Instance?,
+	position: Vector3,
+	color: Color3,
+	radius: number,
+	duration: number,
+	intensity: number?,
+	accentColor: Color3?
+): Part?
+	if not parent or radius <= 0 or duration <= 0 then
+		return nil
+	end
+
+	local strength = math.clamp(intensity or 1, 0.65, 1.8)
+	local hotColor = accentColor or color:Lerp(Color3.new(1, 1, 1), 0.72)
+	local emberColor = color:Lerp(Color3.fromRGB(92, 24, 8), 0.28)
+	local coreHeight = math.clamp(radius * 0.42, 1.4, 6.5)
+	local core = StudVFX.CreateBlock(
+		parent,
+		"StudExplosionCore",
+		Vector3.one * math.max(radius * 0.08, 0.3),
+		hotColor,
+		0.02
+	)
+	core.CFrame = CFrame.new(position + Vector3.yAxis * coreHeight * 0.28)
+		* CFrame.Angles(math.rad(18), math.rad(34), math.rad(-12))
+
+	local light = Instance.new("PointLight")
+	light.Name = "StudExplosionLight"
+	light.Color = color
+	light.Brightness = EffectLightingConfig.Scale(math.clamp(2.4 * strength, 1.5, 5.5))
+	light.Range = math.clamp(radius * 1.8, 6, 28)
+	light.Parent = core
+
+	-- A stack of offset blocks forms a fast, chunky fireball silhouette instead of an expanding primitive.
+	-- Counts stay fixed because explosive passives can chain through a dense horde in the same frame.
+	for layerIndex = 1, 6 do
+		local alpha = (layerIndex - 1) / 5
+		local layerRadius = radius * (0.17 + math.sin(alpha * math.pi) * 0.16)
+		local startOffset = Vector3.new(
+			random:NextNumber(-0.12, 0.12),
+			alpha * coreHeight * 0.18,
+			random:NextNumber(-0.12, 0.12)
+		)
+		local endOffset = Vector3.new(
+			random:NextNumber(-0.16, 0.16) * radius,
+			alpha * coreHeight,
+			random:NextNumber(-0.16, 0.16) * radius
+		)
+		local layer = StudVFX.CreateBlock(
+			parent,
+			"StudExplosionLayer",
+			Vector3.one * math.max(layerRadius * 0.22, 0.24),
+			if layerIndex <= 2 then hotColor else if layerIndex <= 4 then color else emberColor,
+			0.04 + alpha * 0.12
+		)
+		layer.CFrame = CFrame.new(position + startOffset)
+			* CFrame.Angles(alpha * 1.8, layerIndex * 0.83, -alpha * 1.1)
+		TweenService:Create(
+			layer,
+			TweenInfo.new(duration * (0.72 + alpha * 0.28), Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+			{
+				CFrame = CFrame.new(position + endOffset)
+					* CFrame.Angles(alpha * 3.2, layerIndex * 1.37, alpha * 2.4),
+				Size = Vector3.new(layerRadius * 1.25, layerRadius * (1.1 + alpha * 0.45), layerRadius * 1.25),
+				Transparency = 1,
+			}
+		):Play()
+		Debris:AddItem(layer, duration + 0.05)
+	end
+
+	-- Ground chunks kick outward with an arcing midpoint. Two short tweens make the motion feel weighty
+	-- without a frame loop or physics ownership, and the final pieces remain non-queryable presentation.
+	local chunkCount = math.clamp(math.floor(6 + strength * 4), 8, 13)
+	for chunkIndex = 1, chunkCount do
+		local angle = TAU * (chunkIndex - 1) / chunkCount + random:NextNumber(-0.13, 0.13)
+		local direction = Vector3.new(math.cos(angle), 0, math.sin(angle))
+		local travel = radius * random:NextNumber(0.48, 0.92)
+		local chunkSize = math.clamp(radius * random:NextNumber(0.055, 0.1), 0.28, 1.35)
+		local chunk = StudVFX.CreateBlock(
+			parent,
+			"StudExplosionChunk",
+			Vector3.new(chunkSize * 1.35, chunkSize * 0.55, chunkSize),
+			if chunkIndex % 3 == 0 then hotColor else emberColor,
+			0.06
+		)
+		local startPosition = position + direction * radius * 0.08 + Vector3.yAxis * chunkSize * 0.3
+		local peakPosition = position + direction * travel * 0.58
+			+ Vector3.yAxis * random:NextNumber(radius * 0.16, radius * 0.34)
+		local endPosition = position + direction * travel + Vector3.yAxis * chunkSize * 0.12
+		chunk.CFrame = CFrame.new(startPosition) * CFrame.Angles(0, -angle, 0)
+		local rise = TweenService:Create(
+			chunk,
+			TweenInfo.new(duration * 0.46, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+			{ CFrame = CFrame.new(peakPosition) * CFrame.Angles(angle * 1.4, angle, -angle * 0.7) }
+		)
+		local fall = TweenService:Create(
+			chunk,
+			TweenInfo.new(duration * 0.54, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+			{
+				CFrame = CFrame.new(endPosition) * CFrame.Angles(angle * 2.2, -angle * 1.4, angle),
+				Size = chunk.Size * 0.58,
+				Transparency = 1,
+			}
+		)
+		rise.Completed:Once(function()
+			if chunk.Parent then
+				fall:Play()
+			end
+		end)
+		rise:Play()
+		Debris:AddItem(chunk, duration + 0.08)
+	end
+
+	TweenService:Create(core, TweenInfo.new(duration * 0.7, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+		CFrame = core.CFrame * CFrame.Angles(math.rad(55), math.rad(80), math.rad(35)),
+		Size = Vector3.new(radius * 0.58, coreHeight * 0.72, radius * 0.58),
+		Transparency = 1,
+	}):Play()
+	TweenService:Create(light, TweenInfo.new(duration * 0.72, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+		Brightness = 0,
+		Range = radius * 0.7,
+	}):Play()
+
+	StudVFX.Ring(parent, position + Vector3.yAxis * 0.08, hotColor, radius * 0.72, duration * 0.58, 14)
+	StudVFX.Ring(parent, position + Vector3.yAxis * 0.13, color, radius, duration * 0.92, 20)
+	StudVFX.Burst(
+		parent,
+		position + Vector3.yAxis * math.min(radius * 0.16, 1.1),
+		color,
+		math.clamp(math.floor(8 + radius * 0.45 * strength), 10, 20),
+		math.min(radius * 0.82, 14),
+		duration * 0.78,
+		hotColor
+	)
+	Debris:AddItem(core, duration + 0.08)
+	return core
+end
+
 return StudVFX

@@ -22,8 +22,21 @@ local UIStyle = {
 	OutlineThickness = 3,
 	InsideStrokeTransparency = 0.55,
 	StudTransparency = 0.82,
-	-- Composed menus use one uniform visual reduction so fixed-offset descendants scale together.
-	-- ClassInterface intentionally does not consume this value and retains its authored size.
+	-- User-required combat identity: keep studs clearly visible when polishing the HUD.
+	CombatStudTransparency = 0.72,
+	CombatStudTileSize = UDim2.fromOffset(64, 64),
+	ReferenceViewport = Vector2.new(1280, 720),
+	-- For requests to make UI bigger/smaller specifically on high-resolution screens,
+	-- tune this Scale share (lower = slower growth), preserving the reference-size pixel base.
+	BaseContainerScaleWeight = 0.65,
+	RoundStatusSize = UDim2.fromScale(0.9, 0.095),
+	RoundStatusAspectRatio = 520 / 68,
+	NarrowRoundStatusAspectRatio = 396 / 68,
+	-- Combat meters share one width and height; narrow phones expand them across the bottom dock.
+	CombatMeterSize = UDim2.new(0.22, 160, 0, 52),
+	CompactCombatWidth = 1400,
+	-- Preserve the existing authored menu reduction; high-resolution growth belongs to
+	-- BaseContainerScaleWeight. ClassInterface retains its original reference-size scale.
 	NonClassMenuScale = 0.84,
 }
 

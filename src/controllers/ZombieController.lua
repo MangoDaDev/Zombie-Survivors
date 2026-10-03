@@ -10,6 +10,8 @@ local ZombieDefinitions = require(ReplicatedStorage.Modules.Game.Zombies.ZombieD
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
 local StudVFX = require(ReplicatedStorage.Modules.UI.StudVFX)
 local ZombieView = require(script.Parent.Zombie.ZombieView)
+local CombatPrediction = require(script.Parent.Zombie.CombatPrediction)
+local Players = game:GetService("Players")
 
 local ZombieController = {}
 local zombieNetwork
@@ -169,7 +171,7 @@ local function updateZombie(packet, serverTime, receivedAt)
 			receivedAt
 		)
 		if view.definition.IsBoss then
-			setBossState(true, id, view.typeName, health, maximumHealth)
+			setBossState(true, id, view.typeName, view.health, view.maximumHealth)
 		end
 	end
 end
@@ -517,25 +519,36 @@ function ZombieController.ZombieAbility(_, packet)
 		return
 	end
 	local color = if typeof(packet.Color) == "Color3" then packet.Color else Color3.fromRGB(255, 100, 75)
+	if packet.Kind == "Explosion" then
+		-- Bomber deaths need an unmistakable volume and shock front, not the lighter generic hit recipe.
+		StudVFX.Explosion(renderFolder, packet.Position, color, radius, 0.48, 1.2)
+		return
+	end
 	StudVFX.Impact(renderFolder, packet.Position, color, radius, 0.45,
 		if STUD_EFFECT_KINDS[packet.Kind] then 1.15 else 0.9)
 end
 
-function ZombieController.ZombieDamaged(_, id, health, maximumHealth, knockbackDirection, knockbackImpulse)
+function ZombieController.ZombieDamaged(_, id, health, maximumHealth, knockbackDirection, knockbackImpulse,
+	ownerUserId, source, predictionKey, serverTime, actualDamage)
 	local view = type(id) == "number" and zombieViews[id]
 	if view then
-		playZombieDamageSound(view, type(health) == "number" and health <= 0)
-		view:ApplyDamage(health, maximumHealth, knockbackDirection, knockbackImpulse)
-		if view.definition.IsBoss then
-			setBossState(true, id, view.typeName, health, maximumHealth)
+		local matched = false
+		local suppressCue = false
+		local predictedDeath = view.predictedDeathAt ~= nil
+		if ownerUserId == Players.LocalPlayer.UserId and type(actualDamage) == "number" then
+			matched, suppressCue = CombatPrediction.Resolve(view, source, predictionKey, serverTime, actualDamage)
+			if not matched and actualDamage > 0 then
+				view:ShowDamageNumber(actualDamage)
+			end
 		end
-	end
-end
-
-function ZombieController.ZombieDamageNumber(_, id, damageAmount)
-	local view = type(id) == "number" and zombieViews[id]
-	if view then
-		view:ShowDamageNumber(damageAmount)
+		local killed = type(health) == "number" and health <= 0
+		if not suppressCue or (killed and not predictedDeath) then
+			playZombieDamageSound(view, killed)
+		end
+		view:ApplyDamage(health, maximumHealth, knockbackDirection, knockbackImpulse, suppressCue, serverTime)
+		if view.definition.IsBoss then
+			setBossState(true, id, view.typeName, view.health, view.maximumHealth)
+		end
 	end
 end
 
@@ -592,6 +605,7 @@ local function renderZombies()
 	local now = os.clock()
 	local serverNow = Workspace:GetServerTimeNow()
 	for _, view in zombieViews do
+		CombatPrediction.Step(view, serverNow)
 		view:AppendRender(renderParts, renderCFrames, camera, now, serverNow)
 	end
 
@@ -604,6 +618,70 @@ end
 function ZombieController.GetZombieWorldPosition(id: number): Vector3?
 	local view = zombieViews[id]
 	return if view then view:GetRenderCFrame(os.clock()).Position else nil
+end
+
+function ZombieController.GetNearestZombiePositions(origin: Vector3, range: number, count: number)
+	-- Prediction queries the existing view registry only once per scheduled volley, never the hierarchy per frame.
+	local candidates = {}
+	for id, view in zombieViews do
+		if CombatPrediction.GetHealth(view) > 0 then
+			local position = view:GetRenderCFrame(os.clock()).Position
+			local distance = (position - origin).Magnitude
+			if distance <= range then
+				table.insert(candidates, { id = id, position = position, distance = distance })
+			end
+		end
+	end
+	table.sort(candidates, function(left, right)
+		return if left.distance == right.distance then left.id < right.id else left.distance < right.distance
+	end)
+	while #candidates > count do
+		table.remove(candidates)
+	end
+	return candidates
+end
+
+function ZombieController.PredictHit(id: number, source: string, key: string, damage: number): boolean
+	local view = zombieViews[id]
+	if type(damage) ~= "number" or damage ~= damage or damage <= 0 or damage == math.huge
+		or not view or not CombatPrediction.Add(view, source, key, damage, Workspace:GetServerTimeNow()) then
+		return false
+	end
+	view:FlashHit()
+	playZombieDamageSound(view, view.predictedDeathAt ~= nil)
+	return true
+end
+
+function ZombieController.ClearPredictedHits(source: string?)
+	for _, view in zombieViews do
+		CombatPrediction.Cancel(view, source)
+	end
+end
+
+function ZombieController.CancelPredictedHit(id: number, source: string, key: string)
+	local view = zombieViews[id]
+	if view then
+		CombatPrediction.Cancel(view, source, key)
+	end
+end
+
+function ZombieController.OnCharacterAdded(_character: Model)
+	ZombieController.ClearPredictedHits()
+end
+
+function ZombieController.GetContactCandidates(origin: Vector3, range: number)
+	local candidates = {}
+	local now = os.clock()
+	for id, view in zombieViews do
+		if CombatPrediction.GetHealth(view) > 0 then
+			local position = view:GetRenderCFrame(now).Position
+			local offset = position - origin
+			if math.abs(offset.Y) <= 7 and Vector2.new(offset.X, offset.Z).Magnitude <= range then
+				table.insert(candidates, { id = id, position = position })
+			end
+		end
+	end
+	return candidates
 end
 
 function ZombieController.GetBossState()

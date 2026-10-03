@@ -2,6 +2,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Networker = require(ReplicatedStorage.Packages.networker)
 local Signal = require(ReplicatedStorage.Packages.signal)
+local ClientActionState = require(ReplicatedStorage.Modules.Core.ClientActionState)
 local RunProgressionConfig = require(ReplicatedStorage.Modules.Game.RunProgressionConfig)
 
 local RunProgressionController = {}
@@ -18,9 +19,14 @@ local state = {
 	choices = nil,
 	abilities = {},
 }
+local presentation = ClientActionState.new(state, function(packet)
+	state = packet
+	stateChanged:Fire(packet)
+end)
 
 local function isValidPacket(packet): boolean
 	return type(packet) == "table"
+		and type(packet.revision) == "number" and packet.revision % 1 == 0 and packet.revision >= 0
 		and type(packet.active) == "boolean"
 		and type(packet.level) == "number"
 		and type(packet.xp) == "number"
@@ -33,17 +39,21 @@ end
 
 function RunProgressionController.RunStateChanged(_, packet)
 	if isValidPacket(packet) then
-		state = packet
-		stateChanged:Fire(state)
+		presentation:Apply(packet, not packet.active or packet.choiceSetId ~= state.choiceSetId)
+	end
+end
+
+function RunProgressionController.ChoiceResolved(_, requestId, packet)
+	if isValidPacket(packet) then
+		presentation:Resolve(requestId, packet)
 	end
 end
 
 function RunProgressionController.Init()
 	progressionNetwork = Networker.client.new("RunProgressionController", RunProgressionController)
-	local snapshot = progressionNetwork:fetch("GetSnapshot")
-	if isValidPacket(snapshot) then
-		state = snapshot
-	end
+	task.spawn(function()
+		RunProgressionController.RunStateChanged(nil, progressionNetwork:fetch("GetSnapshot"))
+	end)
 end
 
 function RunProgressionController.GetState()
@@ -56,8 +66,20 @@ function RunProgressionController.SelectChoice(choiceSetId: number, choiceIndex:
 		and choiceSetId % 1 == 0
 		and type(choiceIndex) == "number"
 		and choiceIndex % 1 == 0
+		and state.active and state.choiceSetId == choiceSetId
+		and type(state.choices) == "table" and state.choices[choiceIndex] ~= nil
 	then
-		progressionNetwork:fire("SelectChoice", choiceSetId, choiceIndex)
+		local requestId = presentation:Begin(function(authoritative)
+			local predicted = table.clone(authoritative)
+			if predicted.choiceSetId == choiceSetId then
+				-- Consume only the visible offer. Levels, XP, abilities and rewards await server confirmation.
+				predicted.choices = nil
+			end
+			return predicted
+		end)
+		if requestId then
+			progressionNetwork:fire("RequestChoice", requestId, choiceSetId, choiceIndex)
+		end
 	end
 end
 

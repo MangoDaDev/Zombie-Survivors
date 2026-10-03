@@ -9,6 +9,8 @@ local RunSessionController = require(ReplicatedStorage.Controllers.RunSessionCon
 local FormatNumber = require(ReplicatedStorage.Modules.Math.FormatNumber)
 local Images = require(ReplicatedStorage.Modules.UI.Images)
 local UIStyle = require(ReplicatedStorage.Modules.UI.UIStyle)
+local ResponsiveLayout = require(ReplicatedStorage.Modules.UI.ResponsiveLayout)
+local ResponsiveViewport = require(script.Parent.Parent.ResponsiveViewport)
 local Vide = require(ReplicatedStorage.Packages.vide)
 
 local cleanup = Vide.cleanup
@@ -33,7 +35,8 @@ local function statTile(name: string, label: string, value, order: number, icon:
 		BackgroundColor3 = PANEL_LIGHT,
 		BorderSizePixel = 0,
 		LayoutOrder = order,
-		Size = UDim2.new(0.5, -6, 0, 72),
+		-- The parent grid owns each tile's proportional bounds.
+		Size = UDim2.fromScale(1, 1),
 		ZIndex = 406,
 		create "UICorner" { CornerRadius = UDim.new(0, 6) },
 		StudTexture({ ZIndex = 407, ImageTransparency = 0.88 }),
@@ -75,6 +78,7 @@ local function statTile(name: string, label: string, value, order: number, icon:
 end
 
 return function()
+	local responsiveViewport = ResponsiveViewport()
 	local initialState = RunSessionController.GetState()
 	local initialRoundState = RoundController.GetState()
 	local state = source(initialState)
@@ -130,6 +134,17 @@ return function()
 		heartbeatConnection:Disconnect()
 	end)
 
+	local layout = {}
+	layout.Viewport = ResponsiveLayout.Viewport(responsiveViewport)
+	layout.GameOver = layout.Viewport
+	layout.Vignette = layout.GameOver
+	layout.Panel = ResponsiveLayout.Base(UDim2.fromScale(0.88, 0.78), layout.GameOver, 1)
+	layout.Stats = ResponsiveLayout.Child(UDim2.fromScale(0.88, 0.31), layout.Panel)
+	layout.CountdownTrack = ResponsiveLayout.Child(UDim2.fromScale(0.84, 0.035), layout.Panel)
+	layout.Fill = ResponsiveLayout.Child(function()
+		return UDim2.fromScale(math.clamp(remaining() / RETURN_DELAY, 0, 1), 1)
+	end, layout.CountdownTrack)
+
 	return create "Frame" {
 		Name = "GameOver",
 		Active = visible,
@@ -156,8 +171,8 @@ return function()
 			AnchorPoint = Vector2.new(0.5, 0.5),
 			BackgroundColor3 = PANEL,
 			BorderSizePixel = 0,
-			Position = UDim2.fromScale(0.5, 0.5),
-			Size = UDim2.fromScale(0.88, 0.78),
+			Position = layout.Panel.Position(UDim2.fromScale(0.5, 0.5), Vector2.new(0.5, 0.5)),
+			Size = layout.Panel.Size,
 			ZIndex = 402,
 			-- The results menu is authored as a square so its proportional sections cannot stretch.
 			create "UIAspectRatioConstraint" {
@@ -233,8 +248,8 @@ return function()
 				Size = UDim2.fromScale(0.88, 0.31),
 				ZIndex = 406,
 				create "UIGridLayout" {
-					CellPadding = UDim2.fromOffset(12, 12),
-					CellSize = UDim2.new(0.5, -6, 0.5, -6),
+					CellPadding = layout.Stats.Scale(UDim2.fromOffset(12, 12)),
+					CellSize = layout.Stats.Scale(UDim2.new(0.5, -6, 0.5, -6)),
 					FillDirectionMaxCells = 2,
 					SortOrder = Enum.SortOrder.LayoutOrder,
 				},
@@ -296,9 +311,7 @@ return function()
 					Name = "Fill",
 					BackgroundColor3 = RED,
 					BorderSizePixel = 0,
-					Size = function()
-						return UDim2.fromScale(math.clamp(remaining() / RETURN_DELAY, 0, 1), 1)
-					end,
+					Size = layout.Fill.Size,
 					ZIndex = 406,
 					create "UICorner" { CornerRadius = UDim.new(1, 0) },
 				},

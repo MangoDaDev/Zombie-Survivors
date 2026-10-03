@@ -2,28 +2,76 @@
   "pinevex_object": {
     "type": "Frame",
     "name": "BossHealthBarPreview",
-    "size": [1, 0, 1, 0],
-    "bg": [20, 25, 31],
+    "size": [
+      1,
+      0,
+      1,
+      0
+    ],
+    "bg": [
+      20,
+      25,
+      31
+    ],
     "children": [
       {
         "type": "Frame",
         "name": "BossHealthBar",
-        "size": [0, 620, 0, 72],
-        "position": [0.5, 0, 0, 82],
-        "anchor": [0.5, 0],
-        "bg": [31, 16, 20],
+        "size": [
+          0.31484375000000003,
+          217,
+          0.065,
+          25.2
+        ],
+        "position": [
+          0.5,
+          0,
+          0,
+          82
+        ],
+        "anchor": [
+          0.5,
+          0
+        ],
+        "bg": [
+          31,
+          16,
+          20
+        ],
         "strokes": [
-          { "thickness": 3, "color": [154, 47, 58], "applyMode": "Border" }
+          {
+            "thickness": 3,
+            "color": [
+              154,
+              47,
+              58
+            ],
+            "applyMode": "Border"
+          }
         ],
         "children": [
           {
             "type": "TextLabel",
             "name": "Title",
-            "size": [0.35, -12, 0, 24],
-            "position": [0, 12, 0, 7],
+            "size": [
+              0.33064516129032256,
+              0,
+              0.3333333333333333,
+              0
+            ],
+            "position": [
+              0.01935483870967742,
+              0,
+              0.09722222222222222,
+              0
+            ],
             "bgTransparency": 1,
             "text": "GRAVE TITAN",
-            "textColor": [255, 226, 211],
+            "textColor": [
+              255,
+              226,
+              211
+            ],
             "textScaled": true,
             "textXAlignment": "Left",
             "font": "Ubuntu",
@@ -32,12 +80,29 @@
           {
             "type": "TextLabel",
             "name": "PhaseLabel",
-            "size": [0.3, -8, 0, 16],
-            "position": [0.5, 0, 0, 11],
-            "anchor": [0.5, 0],
+            "size": [
+              0.2870967741935484,
+              0,
+              0.2222222222222222,
+              0
+            ],
+            "position": [
+              0.5,
+              0,
+              0.1527777777777778,
+              0
+            ],
+            "anchor": [
+              0.5,
+              0
+            ],
             "bgTransparency": 1,
             "text": "ENRAGES AT 50%",
-            "textColor": [255, 211, 137],
+            "textColor": [
+              255,
+              211,
+              137
+            ],
             "textScaled": true,
             "font": "Ubuntu",
             "fontWeight": "Bold"
@@ -45,12 +110,29 @@
           {
             "type": "TextLabel",
             "name": "Value",
-            "size": [0.35, -12, 0, 22],
-            "position": [1, -12, 0, 8],
-            "anchor": [1, 0],
+            "size": [
+              0.33064516129032256,
+              0,
+              0.3055555555555556,
+              0
+            ],
+            "position": [
+              0.9806451612903225,
+              0,
+              0.1111111111111111,
+              0
+            ],
+            "anchor": [
+              1,
+              0
+            ],
             "bgTransparency": 1,
             "text": "3.65K / 6K",
-            "textColor": [222, 178, 173],
+            "textColor": [
+              222,
+              178,
+              173
+            ],
             "textScaled": true,
             "textXAlignment": "Right",
             "font": "Ubuntu",
@@ -59,24 +141,67 @@
           {
             "type": "Frame",
             "name": "Track",
-            "size": [1, -24, 0, 24],
-            "position": [0.5, 0, 1, -10],
-            "anchor": [0.5, 1],
-            "bg": [58, 37, 41],
+            "size": [
+              0.9612903225806452,
+              0,
+              0.3333333333333333,
+              0
+            ],
+            "position": [
+              0.5,
+              0,
+              0.8611111111111112,
+              0
+            ],
+            "anchor": [
+              0.5,
+              1
+            ],
+            "bg": [
+              58,
+              37,
+              41
+            ],
             "children": [
               {
                 "type": "Frame",
                 "name": "Fill",
-                "size": [0.61, 0, 1, 0],
-                "bg": [195, 48, 61]
+                "size": [
+                  0.61,
+                  0,
+                  1,
+                  0
+                ],
+                "bg": [
+                  195,
+                  48,
+                  61
+                ]
               },
               {
                 "type": "Frame",
                 "name": "EnrageMarker",
-                "size": [0, 3, 1, 4],
-                "position": [0.5, 0, 0.5, 0],
-                "anchor": [0.5, 0.5],
-                "bg": [255, 222, 158]
+                "size": [
+                  0.0050335570469798654,
+                  0,
+                  1.1666666666666667,
+                  0
+                ],
+                "position": [
+                  0.5,
+                  0,
+                  0.5,
+                  0
+                ],
+                "anchor": [
+                  0.5,
+                  0.5
+                ],
+                "bg": [
+                  255,
+                  222,
+                  158
+                ]
               }
             ]
           }
@@ -84,6 +209,9 @@
       }
     ]
   },
-  "viewport_size": [1280, 720],
+  "viewport_size": [
+    1280,
+    720
+  ],
   "transparent_background": false
 }

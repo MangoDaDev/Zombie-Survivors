@@ -8,6 +8,8 @@ local RageController = require(ReplicatedStorage.Controllers.RageController)
 local RageConfig = require(ReplicatedStorage.Modules.Game.Rage.RageConfig)
 local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
 local UIStyle = require(ReplicatedStorage.Modules.UI.UIStyle)
+local ResponsiveLayout = require(ReplicatedStorage.Modules.UI.ResponsiveLayout)
+local ResponsiveViewport = require(script.Parent.Parent.ResponsiveViewport)
 local Vide = require(ReplicatedStorage.Packages.vide)
 
 local cleanup = Vide.cleanup
@@ -17,6 +19,7 @@ local source = Vide.source
 local spring = Vide.spring
 
 return function()
+	local responsiveViewport = ResponsiveViewport()
 	local initialState = RageController.GetState()
 	local state = source(initialState)
 	local displayedRage = source(initialState.rage)
@@ -66,23 +69,44 @@ return function()
 		childRemovedConnection:Disconnect()
 	end)
 
+	local layout = {}
+	layout.Viewport = ResponsiveLayout.Viewport(responsiveViewport)
+	local function meterSize()
+		return if responsiveViewport().X < 700
+			then UDim2.new(1, -24, 0, UIStyle.CombatMeterSize.Y.Offset)
+			else UIStyle.CombatMeterSize
+	end
+	local function meterAspectRatio()
+		local size = meterSize()
+		local reference = layout.Viewport.ReferenceSize()
+		return (size.X.Scale * reference.X + size.X.Offset) / size.Y.Offset
+	end
+	layout.RageBar = ResponsiveLayout.Base(meterSize, layout.Viewport, meterAspectRatio)
+	layout.Track = ResponsiveLayout.Child(UDim2.fromScale(0.66, 0.25), layout.RageBar)
+	layout.Fill = ResponsiveLayout.Child(function()
+		return UDim2.fromScale(math.clamp(smoothProgress(), 0, 1), 1)
+	end, layout.Track)
+
 	return create "Frame" {
 		Name = "RageBar",
 		AnchorPoint = Vector2.new(0.5, 1),
-		BackgroundColor3 = Color3.fromRGB(31, 22, 22),
+		BackgroundColor3 = Color3.fromRGB(3, 24, 39),
 		BorderSizePixel = 0,
 		-- Keep Rage in the same centered HUD stack, directly above the level/XP bar on every viewport.
-		Position = UDim2.new(0.5, 0, 1, -76),
+		Position = layout.RageBar.Position(UDim2.new(0.5, 0, 1, -76), Vector2.new(0.5, 1)),
 		-- Both axes provide a responsive bounding box; the constraint selects the limiting one per viewport.
-		Size = UDim2.fromScale(0.88, 0.067),
+		Size = layout.RageBar.Size,
 		Visible = inGame,
 		ZIndex = 90,
 		create "UIAspectRatioConstraint" {
-			AspectRatio = 470 / 48,
+			AspectRatio = function()
+				local size = layout.RageBar.Size()
+				return (size.X.Scale * responsiveViewport().X + size.X.Offset) / size.Y.Offset
+			end,
 			AspectType = Enum.AspectType.FitWithinMaxSize,
 		},
 		create "UICorner" { CornerRadius = UDim.new(0, 5) },
-		StudTexture({ ZIndex = 91, ImageTransparency = 0.86 }),
+		StudTexture({ ZIndex = 91, ImageTransparency = UIStyle.CombatStudTransparency, TileSize = UIStyle.CombatStudTileSize }),
 		create "UIStroke" {
 			ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
 			Color = function()
@@ -96,8 +120,8 @@ return function()
 			Name = "Status",
 			BackgroundTransparency = 1,
 			FontFace = Font.new(UIStyle.Font.Family, Enum.FontWeight.Bold),
-			Position = UDim2.fromScale(0.02, 0.08),
-			Size = UDim2.fromScale(0.76, 0.38),
+			Position = UDim2.fromScale(0.025, 0.1),
+			Size = UDim2.fromScale(0.66, 0.38),
 			Text = function()
 				if state().active then
 					return string.format("RAGE  %.1fs", remaining())
@@ -119,22 +143,17 @@ return function()
 			BackgroundColor3 = Color3.fromRGB(53, 35, 34),
 			BorderSizePixel = 0,
 			ClipsDescendants = true,
-			Position = UDim2.fromScale(0.02, 0.84),
-			Size = UDim2.fromScale(0.76, 0.25),
+			Position = UDim2.fromScale(0.025, 0.83),
+			Size = UDim2.fromScale(0.66, 0.25),
 			ZIndex = 91,
 			create "UICorner" { CornerRadius = UDim.new(0, 3) },
 			create "Frame" {
 				Name = "Fill",
-				BackgroundColor3 = Color3.fromRGB(239, 80, 43),
+				BackgroundColor3 = Color3.fromRGB(221, 116, 57),
 				BorderSizePixel = 0,
-				Size = function()
-					return UDim2.fromScale(math.clamp(smoothProgress(), 0, 1), 1)
-				end,
+				Size = layout.Fill.Size,
 				ZIndex = 92,
 				create "UICorner" { CornerRadius = UDim.new(0, 3) },
-				create "UIGradient" {
-					Color = ColorSequence.new(Color3.fromRGB(221, 66, 47), Color3.fromRGB(255, 179, 71)),
-				},
 			},
 		},
 		create "TextButton" {
@@ -153,7 +172,7 @@ return function()
 			BorderSizePixel = 0,
 			Position = UDim2.fromScale(0.985, 0.5),
 			Selectable = ready,
-			Size = UDim2.fromScale(0.19, 0.75),
+			Size = UDim2.fromScale(0.28, 0.75),
 			Text = function()
 				return if state().active then "ACTIVE" elseif ready() then "ACTIVATE [R]" else "CHARGING"
 			end,
@@ -165,7 +184,7 @@ return function()
 			TextScaled = true,
 			ZIndex = 93,
 			create "UICorner" { CornerRadius = UDim.new(0, 4) },
-			StudTexture({ ZIndex = 94, ImageTransparency = 0.82, TileSize = UDim2.fromOffset(32, 32) }),
+			StudTexture({ ZIndex = 94, ImageTransparency = UIStyle.CombatStudTransparency, TileSize = UDim2.fromOffset(32, 32) }),
 			create "UIStroke" {
 				Color = Color3.fromRGB(70, 31, 26),
 				Thickness = 2,

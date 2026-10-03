@@ -597,6 +597,17 @@ function ClassController.EquipClass(_, player: Player, classId: any)
 	sendResult(player, true, definition.Name .. " equipped!")
 end
 
+function ClassController.RequestEquipClass(_, player: Player, requestId: any, classId: any)
+	if type(requestId) ~= "number" or requestId % 1 ~= 0 or requestId <= 0 or requestId >= math.huge then
+		return
+	end
+	ClassController.EquipClass(nil, player, classId)
+	if player.Parent == Players then
+		-- Include the actual class even when a cooldown/prerequisite/tutorial check rejected the request.
+		classNetwork:fire(player, "EquipResolved", requestId, getData(player).Equipped)
+	end
+end
+
 function ClassController.SetDataService(service)
 	dataService = service
 end
@@ -605,6 +616,7 @@ function ClassController.Init()
 	classNetwork = Networker.server.new("ClassController", ClassController, {
 		ClassController.UnlockClass,
 		ClassController.EquipClass,
+		ClassController.RequestEquipClass,
 	})
 end
 

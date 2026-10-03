@@ -283,7 +283,7 @@ function CharacterController.OnCharacterAdded(character: Model)
 	end
 	deathConnection = humanoid.Died:Connect(function()
 		-- The shared run continues while any teammate lives. The session controller selects the spectate
-		-- target and authorizes either the fifth-wave checkpoint respawn or a purchased revive.
+		-- target and authorizes either a completed teammate prompt or a purchased revive.
 		if Workspace:FindFirstChild("Game") then
 			return
 		end

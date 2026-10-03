@@ -1,56 +1,1018 @@
 {
   "pinevex_object": {
-    "type": "Frame", "name": "Preview", "size": [1, 0, 1, 0], "bg": [8, 16, 25], "children": [
-      { "type": "Frame", "name": "Panel", "size": [0, 374, 0, 690], "position": [0.5, 0, 0, 75], "anchor": [0.5, 0], "bgTransparency": 1, "children": [
-        { "type": "Frame", "name": "Header", "size": [1, -76, 0, 76], "position": [0, 12, 0, 12], "bg": [16, 168, 219], "children": [
-          { "type": "TextLabel", "name": "Title", "size": [1, -20, 0, 36], "position": [0, 10, 0, 7], "bgTransparency": 1, "text": "CLASSES", "textColor": [255, 255, 255], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Heavy" },
-          { "type": "TextLabel", "name": "Balance", "size": [1, -20, 0, 22], "position": [0, 10, 0, 47], "bg": [37, 31, 20], "text": "COINS  2,450", "textColor": [255, 228, 146], "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy" }
-        ] },
-        { "type": "Frame", "name": "ClassList", "size": [0, 157, 0, 578], "position": [0, 12, 0, 100], "bg": [4, 29, 45], "strokes": [{ "thickness": 2, "color": [0, 120, 148], "applyMode": "Border" }], "children": [
-          { "type": "TextLabel", "name": "ListTitle", "size": [1, -16, 0, 22], "position": [0, 8, 0, 8], "bgTransparency": 1, "text": "CLASSES  1/3", "textColor": [160, 214, 228], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Heavy" },
-          { "type": "Frame", "name": "Survivor", "size": [1, -16, 0, 70], "position": [0, 8, 0, 38], "bg": [12, 73, 98], "strokes": [{ "thickness": 3, "color": [102, 205, 147], "applyMode": "Border" }], "children": [
-            { "type": "ImageLabel", "name": "Icon", "size": [0, 34, 0, 34], "position": [0, 8, 0, 7], "bgTransparency": 1, "icon": "rbxassetid://90721390422076" },
-            { "type": "TextLabel", "name": "Badge", "size": [0, 70, 0, 20], "position": [1, -8, 0, 9], "anchor": [1, 0], "bg": [41, 155, 87], "text": "EQUIPPED", "textColor": [255, 255, 255], "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy" },
-            { "type": "TextLabel", "name": "Name", "size": [1, -16, 0, 20], "position": [0, 8, 0, 46], "bgTransparency": 1, "text": "SURVIVOR", "textColor": [255, 255, 255], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Heavy" }
-          ] },
-          { "type": "Frame", "name": "Scout", "size": [1, -16, 0, 70], "position": [0, 8, 0, 114], "bg": [18, 46, 61], "children": [
-            { "type": "ImageLabel", "name": "Icon", "size": [0, 34, 0, 34], "position": [0, 8, 0, 7], "bgTransparency": 1, "icon": "rbxassetid://90733680856488" },
-            { "type": "TextLabel", "name": "Cost", "size": [0, 70, 0, 20], "position": [1, -8, 0, 9], "anchor": [1, 0], "bg": [67, 55, 26], "text": "600", "textColor": [255, 224, 129], "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy" },
-            { "type": "TextLabel", "name": "Name", "size": [1, -16, 0, 20], "position": [0, 8, 0, 46], "bgTransparency": 1, "text": "SCOUT", "textColor": [255, 255, 255], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Heavy" }
-          ] },
-          { "type": "Frame", "name": "Pyromaniac", "size": [1, -16, 0, 70], "position": [0, 8, 0, 190], "bg": [18, 46, 61], "children": [
-            { "type": "ImageLabel", "name": "Icon", "size": [0, 34, 0, 34], "position": [0, 8, 0, 7], "bgTransparency": 1, "icon": "rbxassetid://107539350715780" },
-            { "type": "TextLabel", "name": "Cost", "size": [0, 70, 0, 20], "position": [1, -8, 0, 9], "anchor": [1, 0], "bg": [67, 55, 26], "text": "1,200", "textColor": [255, 224, 129], "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy" },
-            { "type": "TextLabel", "name": "Name", "size": [1, -16, 0, 20], "position": [0, 8, 0, 46], "bgTransparency": 1, "text": "PYROMANIAC", "textColor": [255, 255, 255], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Heavy" }
-          ] }
-        ] },
-        { "type": "Frame", "name": "Workspace3DApproximation", "size": [0, 197, 0, 258], "position": [0, 173, 0, 100], "bg": [84, 106, 119], "children": [
-          { "type": "Frame", "name": "Head", "size": [0, 48, 0, 44], "position": [0.5, 0, 0, 20], "anchor": [0.5, 0], "bg": [228, 185, 136] },
-          { "type": "Frame", "name": "Bandana", "size": [0, 54, 0, 10], "position": [0.5, 0, 0, 28], "anchor": [0.5, 0], "bg": [175, 52, 55] },
-          { "type": "Frame", "name": "Torso", "size": [0, 72, 0, 100], "position": [0.5, 0, 0, 68], "anchor": [0.5, 0], "bg": [79, 131, 143] },
-          { "type": "Frame", "name": "LeftArm", "size": [0, 22, 0, 100], "position": [0.5, -60, 0, 68], "anchor": [0.5, 0], "bg": [228, 185, 136] },
-          { "type": "Frame", "name": "RightArm", "size": [0, 22, 0, 100], "position": [0.5, 60, 0, 68], "anchor": [0.5, 0], "bg": [228, 185, 136] },
-          { "type": "Frame", "name": "LeftLeg", "size": [0, 30, 0, 86], "position": [0.5, -20, 0, 171], "anchor": [0.5, 0], "bg": [43, 56, 69] },
-          { "type": "Frame", "name": "RightLeg", "size": [0, 30, 0, 86], "position": [0.5, 20, 0, 171], "anchor": [0.5, 0], "bg": [43, 56, 69] }
-        ] },
-        { "type": "Frame", "name": "Details", "size": [0, 197, 0, 310], "position": [0, 173, 0, 368], "bg": [235, 242, 247], "children": [
-          { "type": "ImageLabel", "name": "Icon", "size": [0, 42, 0, 42], "position": [0, 12, 0, 10], "bgTransparency": 1, "icon": "rbxassetid://90721390422076" },
-          { "type": "TextLabel", "name": "Name", "size": [1, -72, 0, 24], "position": [0, 62, 0, 10], "bgTransparency": 1, "text": "SURVIVOR", "textColor": [40, 133, 82], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Heavy" },
-          { "type": "TextLabel", "name": "Description", "size": [1, -24, 0, 53], "position": [0, 12, 0, 58], "bgTransparency": 1, "text": "A durable scavenger who keeps every pickup within reach.", "textColor": [24, 41, 52], "textScaled": true, "textWrapped": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Regular" },
-          { "type": "Frame", "name": "Ability", "size": [1, -24, 0, 50], "position": [0, 12, 0, 116], "bg": [205, 220, 229], "children": [
-            { "type": "TextLabel", "name": "Label", "size": [1, -20, 0, 17], "position": [0, 10, 0, 4], "bgTransparency": 1, "text": "STARTING ABILITY", "textColor": [36, 92, 120], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Heavy" },
-            { "type": "TextLabel", "name": "Value", "size": [1, -20, 0, 18], "position": [0, 10, 0, 27], "bgTransparency": 1, "text": "DAGGER", "textColor": [24, 41, 52], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Bold" }
-          ] },
-          { "type": "Frame", "name": "Perks", "size": [1, -24, 0, 70], "position": [0, 12, 0, 176], "bg": [218, 239, 246], "children": [
-            { "type": "TextLabel", "name": "Label", "size": [1, -20, 0, 19], "position": [0, 10, 0, 5], "bgTransparency": 1, "text": "CLASS PERKS", "textColor": [17, 76, 96], "textScaled": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Heavy" },
-            { "type": "TextLabel", "name": "Value", "size": [1, -20, 0, 38], "position": [0, 10, 0, 28], "bgTransparency": 1, "text": "+15% health and +25% pickup range", "textColor": [24, 41, 52], "textScaled": true, "textWrapped": true, "textXAlignment": "Left", "font": "Ubuntu", "fontWeight": "Bold" }
-          ] },
-          { "type": "TextButton", "name": "Action", "size": [1, -24, 0, 42], "position": [0, 12, 0, 256], "bg": [42, 164, 91], "text": "EQUIPPED", "textColor": [255, 255, 255], "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy" }
-        ] },
-        { "type": "TextButton", "name": "Close", "size": [0, 52, 0, 76], "position": [1, -12, 0, 12], "anchor": [1, 0], "bg": [221, 57, 67], "text": "X", "textColor": [255, 255, 255], "textScaled": true, "font": "Ubuntu", "fontWeight": "Heavy" }
-      ] }
+    "type": "Frame",
+    "name": "Preview",
+    "size": [
+      1,
+      0,
+      1,
+      0
+    ],
+    "bg": [
+      8,
+      16,
+      25
+    ],
+    "children": [
+      {
+        "type": "Frame",
+        "name": "Panel",
+        "size": [
+          0.6233333333333334,
+          130.9,
+          0.5313981042654028,
+          241.49999999999997
+        ],
+        "position": [
+          0.5,
+          0,
+          0,
+          75
+        ],
+        "anchor": [
+          0.5,
+          0
+        ],
+        "bgTransparency": 1,
+        "children": [
+          {
+            "type": "Frame",
+            "name": "Header",
+            "size": [
+              0.7967914438502673,
+              0,
+              0.11014492753623188,
+              0
+            ],
+            "position": [
+              0.03208556149732621,
+              0,
+              0.017391304347826087,
+              0
+            ],
+            "bg": [
+              16,
+              168,
+              219
+            ],
+            "children": [
+              {
+                "type": "TextLabel",
+                "name": "Title",
+                "size": [
+                  0.9328859060402684,
+                  0,
+                  0.47368421052631576,
+                  0
+                ],
+                "position": [
+                  0.03355704697986577,
+                  0,
+                  0.09210526315789473,
+                  0
+                ],
+                "bgTransparency": 1,
+                "text": "CLASSES",
+                "textColor": [
+                  255,
+                  255,
+                  255
+                ],
+                "textScaled": true,
+                "textXAlignment": "Left",
+                "font": "Ubuntu",
+                "fontWeight": "Heavy"
+              },
+              {
+                "type": "TextLabel",
+                "name": "Balance",
+                "size": [
+                  0.9328859060402684,
+                  0,
+                  0.2894736842105263,
+                  0
+                ],
+                "position": [
+                  0.03355704697986577,
+                  0,
+                  0.618421052631579,
+                  0
+                ],
+                "bg": [
+                  37,
+                  31,
+                  20
+                ],
+                "text": "COINS  2,450",
+                "textColor": [
+                  255,
+                  228,
+                  146
+                ],
+                "textScaled": true,
+                "font": "Ubuntu",
+                "fontWeight": "Heavy"
+              }
+            ]
+          },
+          {
+            "type": "Frame",
+            "name": "ClassList",
+            "size": [
+              0.4197860962566845,
+              0,
+              0.8376811594202899,
+              0
+            ],
+            "position": [
+              0.03208556149732621,
+              0,
+              0.14492753623188406,
+              0
+            ],
+            "bg": [
+              4,
+              29,
+              45
+            ],
+            "strokes": [
+              {
+                "thickness": 2,
+                "color": [
+                  0,
+                  120,
+                  148
+                ],
+                "applyMode": "Border"
+              }
+            ],
+            "children": [
+              {
+                "type": "TextLabel",
+                "name": "ListTitle",
+                "size": [
+                  0.8980891719745223,
+                  0,
+                  0.03806228373702422,
+                  0
+                ],
+                "position": [
+                  0.050955414012738856,
+                  0,
+                  0.01384083044982699,
+                  0
+                ],
+                "bgTransparency": 1,
+                "text": "CLASSES  1/3",
+                "textColor": [
+                  160,
+                  214,
+                  228
+                ],
+                "textScaled": true,
+                "textXAlignment": "Left",
+                "font": "Ubuntu",
+                "fontWeight": "Heavy"
+              },
+              {
+                "type": "Frame",
+                "name": "Survivor",
+                "size": [
+                  0.8980891719745223,
+                  0,
+                  0.12110726643598616,
+                  0
+                ],
+                "position": [
+                  0.050955414012738856,
+                  0,
+                  0.0657439446366782,
+                  0
+                ],
+                "bg": [
+                  12,
+                  73,
+                  98
+                ],
+                "strokes": [
+                  {
+                    "thickness": 3,
+                    "color": [
+                      102,
+                      205,
+                      147
+                    ],
+                    "applyMode": "Border"
+                  }
+                ],
+                "children": [
+                  {
+                    "type": "ImageLabel",
+                    "name": "Icon",
+                    "size": [
+                      0.24113475177304963,
+                      0,
+                      0.4857142857142857,
+                      0
+                    ],
+                    "position": [
+                      0.05673758865248227,
+                      0,
+                      0.1,
+                      0
+                    ],
+                    "bgTransparency": 1,
+                    "icon": "rbxassetid://90721390422076"
+                  },
+                  {
+                    "type": "TextLabel",
+                    "name": "Badge",
+                    "size": [
+                      0.49645390070921985,
+                      0,
+                      0.2857142857142857,
+                      0
+                    ],
+                    "position": [
+                      0.9432624113475178,
+                      0,
+                      0.12857142857142856,
+                      0
+                    ],
+                    "anchor": [
+                      1,
+                      0
+                    ],
+                    "bg": [
+                      41,
+                      155,
+                      87
+                    ],
+                    "text": "EQUIPPED",
+                    "textColor": [
+                      255,
+                      255,
+                      255
+                    ],
+                    "textScaled": true,
+                    "font": "Ubuntu",
+                    "fontWeight": "Heavy"
+                  },
+                  {
+                    "type": "TextLabel",
+                    "name": "Name",
+                    "size": [
+                      0.8865248226950355,
+                      0,
+                      0.2857142857142857,
+                      0
+                    ],
+                    "position": [
+                      0.05673758865248227,
+                      0,
+                      0.6571428571428571,
+                      0
+                    ],
+                    "bgTransparency": 1,
+                    "text": "SURVIVOR",
+                    "textColor": [
+                      255,
+                      255,
+                      255
+                    ],
+                    "textScaled": true,
+                    "textXAlignment": "Left",
+                    "font": "Ubuntu",
+                    "fontWeight": "Heavy"
+                  }
+                ]
+              },
+              {
+                "type": "Frame",
+                "name": "Scout",
+                "size": [
+                  0.8980891719745223,
+                  0,
+                  0.12110726643598616,
+                  0
+                ],
+                "position": [
+                  0.050955414012738856,
+                  0,
+                  0.1972318339100346,
+                  0
+                ],
+                "bg": [
+                  18,
+                  46,
+                  61
+                ],
+                "children": [
+                  {
+                    "type": "ImageLabel",
+                    "name": "Icon",
+                    "size": [
+                      0.24113475177304963,
+                      0,
+                      0.4857142857142857,
+                      0
+                    ],
+                    "position": [
+                      0.05673758865248227,
+                      0,
+                      0.1,
+                      0
+                    ],
+                    "bgTransparency": 1,
+                    "icon": "rbxassetid://90733680856488"
+                  },
+                  {
+                    "type": "TextLabel",
+                    "name": "Cost",
+                    "size": [
+                      0.49645390070921985,
+                      0,
+                      0.2857142857142857,
+                      0
+                    ],
+                    "position": [
+                      0.9432624113475178,
+                      0,
+                      0.12857142857142856,
+                      0
+                    ],
+                    "anchor": [
+                      1,
+                      0
+                    ],
+                    "bg": [
+                      67,
+                      55,
+                      26
+                    ],
+                    "text": "600",
+                    "textColor": [
+                      255,
+                      224,
+                      129
+                    ],
+                    "textScaled": true,
+                    "font": "Ubuntu",
+                    "fontWeight": "Heavy"
+                  },
+                  {
+                    "type": "TextLabel",
+                    "name": "Name",
+                    "size": [
+                      0.8865248226950355,
+                      0,
+                      0.2857142857142857,
+                      0
+                    ],
+                    "position": [
+                      0.05673758865248227,
+                      0,
+                      0.6571428571428571,
+                      0
+                    ],
+                    "bgTransparency": 1,
+                    "text": "SCOUT",
+                    "textColor": [
+                      255,
+                      255,
+                      255
+                    ],
+                    "textScaled": true,
+                    "textXAlignment": "Left",
+                    "font": "Ubuntu",
+                    "fontWeight": "Heavy"
+                  }
+                ]
+              },
+              {
+                "type": "Frame",
+                "name": "Pyromaniac",
+                "size": [
+                  0.8980891719745223,
+                  0,
+                  0.12110726643598616,
+                  0
+                ],
+                "position": [
+                  0.050955414012738856,
+                  0,
+                  0.328719723183391,
+                  0
+                ],
+                "bg": [
+                  18,
+                  46,
+                  61
+                ],
+                "children": [
+                  {
+                    "type": "ImageLabel",
+                    "name": "Icon",
+                    "size": [
+                      0.24113475177304963,
+                      0,
+                      0.4857142857142857,
+                      0
+                    ],
+                    "position": [
+                      0.05673758865248227,
+                      0,
+                      0.1,
+                      0
+                    ],
+                    "bgTransparency": 1,
+                    "icon": "rbxassetid://107539350715780"
+                  },
+                  {
+                    "type": "TextLabel",
+                    "name": "Cost",
+                    "size": [
+                      0.49645390070921985,
+                      0,
+                      0.2857142857142857,
+                      0
+                    ],
+                    "position": [
+                      0.9432624113475178,
+                      0,
+                      0.12857142857142856,
+                      0
+                    ],
+                    "anchor": [
+                      1,
+                      0
+                    ],
+                    "bg": [
+                      67,
+                      55,
+                      26
+                    ],
+                    "text": "1,200",
+                    "textColor": [
+                      255,
+                      224,
+                      129
+                    ],
+                    "textScaled": true,
+                    "font": "Ubuntu",
+                    "fontWeight": "Heavy"
+                  },
+                  {
+                    "type": "TextLabel",
+                    "name": "Name",
+                    "size": [
+                      0.8865248226950355,
+                      0,
+                      0.2857142857142857,
+                      0
+                    ],
+                    "position": [
+                      0.05673758865248227,
+                      0,
+                      0.6571428571428571,
+                      0
+                    ],
+                    "bgTransparency": 1,
+                    "text": "PYROMANIAC",
+                    "textColor": [
+                      255,
+                      255,
+                      255
+                    ],
+                    "textScaled": true,
+                    "textXAlignment": "Left",
+                    "font": "Ubuntu",
+                    "fontWeight": "Heavy"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "Frame",
+            "name": "Workspace3DApproximation",
+            "size": [
+              0.5267379679144385,
+              0,
+              0.3739130434782609,
+              0
+            ],
+            "position": [
+              0.4625668449197861,
+              0,
+              0.14492753623188406,
+              0
+            ],
+            "bg": [
+              84,
+              106,
+              119
+            ],
+            "children": [
+              {
+                "type": "Frame",
+                "name": "Head",
+                "size": [
+                  0.2436548223350254,
+                  0,
+                  0.17054263565891473,
+                  0
+                ],
+                "position": [
+                  0.5,
+                  0,
+                  0.07751937984496124,
+                  0
+                ],
+                "anchor": [
+                  0.5,
+                  0
+                ],
+                "bg": [
+                  228,
+                  185,
+                  136
+                ]
+              },
+              {
+                "type": "Frame",
+                "name": "Bandana",
+                "size": [
+                  0.27411167512690354,
+                  0,
+                  0.03875968992248062,
+                  0
+                ],
+                "position": [
+                  0.5,
+                  0,
+                  0.10852713178294573,
+                  0
+                ],
+                "anchor": [
+                  0.5,
+                  0
+                ],
+                "bg": [
+                  175,
+                  52,
+                  55
+                ]
+              },
+              {
+                "type": "Frame",
+                "name": "Torso",
+                "size": [
+                  0.36548223350253806,
+                  0,
+                  0.3875968992248062,
+                  0
+                ],
+                "position": [
+                  0.5,
+                  0,
+                  0.26356589147286824,
+                  0
+                ],
+                "anchor": [
+                  0.5,
+                  0
+                ],
+                "bg": [
+                  79,
+                  131,
+                  143
+                ]
+              },
+              {
+                "type": "Frame",
+                "name": "LeftArm",
+                "size": [
+                  0.1116751269035533,
+                  0,
+                  0.3875968992248062,
+                  0
+                ],
+                "position": [
+                  0.19543147208121825,
+                  0,
+                  0.26356589147286824,
+                  0
+                ],
+                "anchor": [
+                  0.5,
+                  0
+                ],
+                "bg": [
+                  228,
+                  185,
+                  136
+                ]
+              },
+              {
+                "type": "Frame",
+                "name": "RightArm",
+                "size": [
+                  0.1116751269035533,
+                  0,
+                  0.3875968992248062,
+                  0
+                ],
+                "position": [
+                  0.8045685279187818,
+                  0,
+                  0.26356589147286824,
+                  0
+                ],
+                "anchor": [
+                  0.5,
+                  0
+                ],
+                "bg": [
+                  228,
+                  185,
+                  136
+                ]
+              },
+              {
+                "type": "Frame",
+                "name": "LeftLeg",
+                "size": [
+                  0.15228426395939088,
+                  0,
+                  0.3333333333333333,
+                  0
+                ],
+                "position": [
+                  0.3984771573604061,
+                  0,
+                  0.6627906976744186,
+                  0
+                ],
+                "anchor": [
+                  0.5,
+                  0
+                ],
+                "bg": [
+                  43,
+                  56,
+                  69
+                ]
+              },
+              {
+                "type": "Frame",
+                "name": "RightLeg",
+                "size": [
+                  0.15228426395939088,
+                  0,
+                  0.3333333333333333,
+                  0
+                ],
+                "position": [
+                  0.6015228426395939,
+                  0,
+                  0.6627906976744186,
+                  0
+                ],
+                "anchor": [
+                  0.5,
+                  0
+                ],
+                "bg": [
+                  43,
+                  56,
+                  69
+                ]
+              }
+            ]
+          },
+          {
+            "type": "Frame",
+            "name": "Details",
+            "size": [
+              0.5267379679144385,
+              0,
+              0.4492753623188406,
+              0
+            ],
+            "position": [
+              0.4625668449197861,
+              0,
+              0.5333333333333333,
+              0
+            ],
+            "bg": [
+              235,
+              242,
+              247
+            ],
+            "children": [
+              {
+                "type": "ImageLabel",
+                "name": "Icon",
+                "size": [
+                  0.2131979695431472,
+                  0,
+                  0.13548387096774195,
+                  0
+                ],
+                "position": [
+                  0.06091370558375635,
+                  0,
+                  0.03225806451612903,
+                  0
+                ],
+                "bgTransparency": 1,
+                "icon": "rbxassetid://90721390422076"
+              },
+              {
+                "type": "TextLabel",
+                "name": "Name",
+                "size": [
+                  0.6345177664974619,
+                  0,
+                  0.07741935483870968,
+                  0
+                ],
+                "position": [
+                  0.3147208121827411,
+                  0,
+                  0.03225806451612903,
+                  0
+                ],
+                "bgTransparency": 1,
+                "text": "SURVIVOR",
+                "textColor": [
+                  40,
+                  133,
+                  82
+                ],
+                "textScaled": true,
+                "textXAlignment": "Left",
+                "font": "Ubuntu",
+                "fontWeight": "Heavy"
+              },
+              {
+                "type": "TextLabel",
+                "name": "Description",
+                "size": [
+                  0.8781725888324873,
+                  0,
+                  0.17096774193548386,
+                  0
+                ],
+                "position": [
+                  0.06091370558375635,
+                  0,
+                  0.1870967741935484,
+                  0
+                ],
+                "bgTransparency": 1,
+                "text": "A durable scavenger who keeps every pickup within reach.",
+                "textColor": [
+                  24,
+                  41,
+                  52
+                ],
+                "textScaled": true,
+                "textWrapped": true,
+                "textXAlignment": "Left",
+                "font": "Ubuntu",
+                "fontWeight": "Regular"
+              },
+              {
+                "type": "Frame",
+                "name": "Ability",
+                "size": [
+                  0.8781725888324873,
+                  0,
+                  0.16129032258064516,
+                  0
+                ],
+                "position": [
+                  0.06091370558375635,
+                  0,
+                  0.3741935483870968,
+                  0
+                ],
+                "bg": [
+                  205,
+                  220,
+                  229
+                ],
+                "children": [
+                  {
+                    "type": "TextLabel",
+                    "name": "Label",
+                    "size": [
+                      0.8843930635838151,
+                      0,
+                      0.34,
+                      0
+                    ],
+                    "position": [
+                      0.057803468208092484,
+                      0,
+                      0.08,
+                      0
+                    ],
+                    "bgTransparency": 1,
+                    "text": "STARTING ABILITY",
+                    "textColor": [
+                      36,
+                      92,
+                      120
+                    ],
+                    "textScaled": true,
+                    "textXAlignment": "Left",
+                    "font": "Ubuntu",
+                    "fontWeight": "Heavy"
+                  },
+                  {
+                    "type": "TextLabel",
+                    "name": "Value",
+                    "size": [
+                      0.8843930635838151,
+                      0,
+                      0.36,
+                      0
+                    ],
+                    "position": [
+                      0.057803468208092484,
+                      0,
+                      0.54,
+                      0
+                    ],
+                    "bgTransparency": 1,
+                    "text": "DAGGER",
+                    "textColor": [
+                      24,
+                      41,
+                      52
+                    ],
+                    "textScaled": true,
+                    "textXAlignment": "Left",
+                    "font": "Ubuntu",
+                    "fontWeight": "Bold"
+                  }
+                ]
+              },
+              {
+                "type": "Frame",
+                "name": "Perks",
+                "size": [
+                  0.8781725888324873,
+                  0,
+                  0.22580645161290322,
+                  0
+                ],
+                "position": [
+                  0.06091370558375635,
+                  0,
+                  0.567741935483871,
+                  0
+                ],
+                "bg": [
+                  218,
+                  239,
+                  246
+                ],
+                "children": [
+                  {
+                    "type": "TextLabel",
+                    "name": "Label",
+                    "size": [
+                      0.8843930635838151,
+                      0,
+                      0.2714285714285714,
+                      0
+                    ],
+                    "position": [
+                      0.057803468208092484,
+                      0,
+                      0.07142857142857142,
+                      0
+                    ],
+                    "bgTransparency": 1,
+                    "text": "CLASS PERKS",
+                    "textColor": [
+                      17,
+                      76,
+                      96
+                    ],
+                    "textScaled": true,
+                    "textXAlignment": "Left",
+                    "font": "Ubuntu",
+                    "fontWeight": "Heavy"
+                  },
+                  {
+                    "type": "TextLabel",
+                    "name": "Value",
+                    "size": [
+                      0.8843930635838151,
+                      0,
+                      0.5428571428571428,
+                      0
+                    ],
+                    "position": [
+                      0.057803468208092484,
+                      0,
+                      0.4,
+                      0
+                    ],
+                    "bgTransparency": 1,
+                    "text": "+15% health and +25% pickup range",
+                    "textColor": [
+                      24,
+                      41,
+                      52
+                    ],
+                    "textScaled": true,
+                    "textWrapped": true,
+                    "textXAlignment": "Left",
+                    "font": "Ubuntu",
+                    "fontWeight": "Bold"
+                  }
+                ]
+              },
+              {
+                "type": "TextButton",
+                "name": "Action",
+                "size": [
+                  0.8781725888324873,
+                  0,
+                  0.13548387096774195,
+                  0
+                ],
+                "position": [
+                  0.06091370558375635,
+                  0,
+                  0.8258064516129032,
+                  0
+                ],
+                "bg": [
+                  42,
+                  164,
+                  91
+                ],
+                "text": "EQUIPPED",
+                "textColor": [
+                  255,
+                  255,
+                  255
+                ],
+                "textScaled": true,
+                "font": "Ubuntu",
+                "fontWeight": "Heavy"
+              }
+            ]
+          },
+          {
+            "type": "TextButton",
+            "name": "Close",
+            "size": [
+              0.13903743315508021,
+              0,
+              0.11014492753623188,
+              0
+            ],
+            "position": [
+              0.9679144385026738,
+              0,
+              0.017391304347826087,
+              0
+            ],
+            "anchor": [
+              1,
+              0
+            ],
+            "bg": [
+              221,
+              57,
+              67
+            ],
+            "text": "X",
+            "textColor": [
+              255,
+              255,
+              255
+            ],
+            "textScaled": true,
+            "font": "Ubuntu",
+            "fontWeight": "Heavy"
+          }
+        ]
+      }
     ]
   },
-  "viewport_size": [390, 844],
+  "viewport_size": [
+    390,
+    844
+  ],
   "transparent_background": false
 }

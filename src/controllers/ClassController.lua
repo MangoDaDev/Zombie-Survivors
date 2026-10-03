@@ -24,6 +24,9 @@ local stateChanged = Signal.new()
 local openChanged = Signal.new()
 local previewChanged = Signal.new()
 local actionResult = Signal.new()
+local nextEquipRequestId = 0
+local equipRequest
+local confirmedEquipped: string? = nil
 
 local function isClassesPrompt(instance: Instance): boolean
 	local promptPart = instance.Parent
@@ -57,6 +60,22 @@ function ClassController.ActionResult(_, success, message)
 	NotificationManager.Notify(message, 2.5, if success then UIStyle.Colors.Green else UIStyle.Colors.Red)
 end
 
+function ClassController.EquipResolved(_, requestId, equippedClassId)
+	if not equipRequest or requestId ~= equipRequest.id or not ClassDefinitions.ById[equippedClassId] then
+		return
+	end
+	equipRequest = nil
+	local authoritative = dataService and dataService:get(ClassDefinitions.DataKey)
+	confirmedEquipped = if authoritative and authoritative.Equipped == equippedClassId then nil else equippedClassId
+	stateChanged:Fire(ClassController.GetState())
+	task.delay(8, function()
+		if nextEquipRequestId == requestId and confirmedEquipped then
+			confirmedEquipped = nil
+			stateChanged:Fire(ClassController.GetState())
+		end
+	end)
+end
+
 function ClassController.KillEffect(_, kind, position, radius)
 	if (kind ~= "Star" and kind ~= "Void")
 		or typeof(position) ~= "Vector3"
@@ -86,6 +105,11 @@ end
 function ClassController.Init()
 	classNetwork = Networker.client.new("ClassController", ClassController)
 	dataService:getChangedSignal(ClassDefinitions.DataKey):Connect(function()
+		-- Keep an acknowledged selection visible until DataService catches up with the response.
+		local authoritative = dataService:get(ClassDefinitions.DataKey)
+		if authoritative and authoritative.Equipped == confirmedEquipped then
+			confirmedEquipped = nil
+		end
 		stateChanged:Fire(ClassController.GetState())
 	end)
 	RunProgressionController.GetStateChangedSignal():Connect(function(runState)
@@ -111,10 +135,16 @@ end
 
 function ClassController.GetState()
 	local state = dataService and dataService:get(ClassDefinitions.DataKey)
-	return if type(state) == "table" then state else {
+	local current = if type(state) == "table" then state else {
 		Owned = { [ClassDefinitions.DefaultId] = true },
 		Equipped = ClassDefinitions.DefaultId,
 	}
+	if equipRequest or confirmedEquipped then
+		current = table.clone(current)
+		current.Equipped = if equipRequest then equipRequest.classId else confirmedEquipped
+		current.PendingEquip = equipRequest and equipRequest.classId or nil
+	end
+	return current
 end
 
 function ClassController.IsOpen(): boolean
@@ -172,8 +202,21 @@ function ClassController.UnlockClass(classId: string)
 end
 
 function ClassController.EquipClass(classId: string)
-	if classNetwork and ClassDefinitions.ById[classId] then
-		classNetwork:fire("EquipClass", classId)
+	local current = ClassController.GetState()
+	if classNetwork and ClassDefinitions.ById[classId] and current.Owned[classId]
+		and not equipRequest and current.Equipped ~= classId and not RunProgressionController.GetState().active then
+		nextEquipRequestId += 1
+		local requestId = nextEquipRequestId
+		-- Predict menu selection only. Character gear, class stats and persistence remain server-owned.
+		equipRequest = { id = requestId, classId = classId }
+		stateChanged:Fire(ClassController.GetState())
+		classNetwork:fire("RequestEquipClass", requestId, classId)
+		task.delay(8, function()
+			if equipRequest and equipRequest.id == requestId then
+				equipRequest = nil
+				stateChanged:Fire(ClassController.GetState())
+			end
+		end)
 	end
 end
 

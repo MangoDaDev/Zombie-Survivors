@@ -1,0 +1,2439 @@
+{
+  "pinevex_object": {
+    "type": "Frame",
+    "name": "CombatHUD",
+    "size": [
+      1,
+      0,
+      1,
+      0
+    ],
+    "bg": [
+      66,
+      196,
+      43
+    ],
+    "children": [
+      {
+        "type": "ImageLabel",
+        "name": "ArenaStuds",
+        "size": [
+          1,
+          0,
+          1,
+          0
+        ],
+        "bgTransparency": 1,
+        "icon": "rbxassetid://6927295847",
+        "scaleType": "Tile",
+        "tileSize": [
+          0,
+          64,
+          0,
+          64
+        ],
+        "imageTransparency": 0.75
+      },
+      {
+        "type": "Frame",
+        "name": "RoundStatus",
+        "size": [
+          0,
+          440.47058823529414,
+          0,
+          57.6
+        ],
+        "position": [
+          0,
+          640.0,
+          0,
+          44
+        ],
+        "anchor": [
+          0.5,
+          0
+        ],
+        "bg": [
+          3,
+          24,
+          39
+        ],
+        "children": [
+          {
+            "type": "ImageLabel",
+            "name": "StudTexture",
+            "size": [
+              1,
+              0,
+              1,
+              0
+            ],
+            "bgTransparency": 1,
+            "icon": "rbxassetid://6927295847",
+            "scaleType": "Tile",
+            "tileSize": [
+              0,
+              64,
+              0,
+              64
+            ],
+            "imageTransparency": 0.72
+          },
+          {
+            "type": "TextLabel",
+            "name": "Round",
+            "text": "ROUND 5",
+            "size": [
+              0,
+              114.52235294117648,
+              0,
+              36.864000000000004
+            ],
+            "position": [
+              0,
+              11.011764705882355,
+              0,
+              10.368
+            ],
+            "bgTransparency": 1,
+            "textColor": [
+              237,
+              243,
+              247
+            ],
+            "textScaled": true,
+            "textXAlignment": "Left",
+            "font": "Ubuntu",
+            "fontWeight": "Bold"
+          },
+          {
+            "type": "TextLabel",
+            "name": "Remaining",
+            "text": "7 REMAINING",
+            "size": [
+              0,
+              149.76000000000002,
+              0,
+              16.128000000000004
+            ],
+            "position": [
+              0,
+              140.95058823529413,
+              0,
+              10.368
+            ],
+            "bgTransparency": 1,
+            "textColor": [
+              165,
+              180,
+              192
+            ],
+            "textScaled": true,
+            "textXAlignment": "Left",
+            "font": "Ubuntu",
+            "fontWeight": "Bold"
+          },
+          {
+            "type": "TextLabel",
+            "name": "Timer",
+            "text": "01:00",
+            "size": [
+              0,
+              149.76000000000002,
+              0,
+              14.976
+            ],
+            "position": [
+              0,
+              140.95058823529413,
+              0,
+              31.680000000000003
+            ],
+            "bgTransparency": 1,
+            "textColor": [
+              237,
+              243,
+              247
+            ],
+            "textScaled": true,
+            "textXAlignment": "Left",
+            "font": "Ubuntu",
+            "fontWeight": "Bold"
+          },
+          {
+            "type": "Frame",
+            "name": "Skip",
+            "size": [
+              0,
+              118.92705882352942,
+              0,
+              38.016000000000005
+            ],
+            "position": [
+              0,
+              310.5317647058824,
+              0,
+              9.792000000000002
+            ],
+            "anchor": [
+              0,
+              0
+            ],
+            "bg": [
+              219,
+              112,
+              45
+            ],
+            "children": [
+              {
+                "type": "ImageLabel",
+                "name": "StudTexture",
+                "size": [
+                  1,
+                  0,
+                  1,
+                  0
+                ],
+                "bgTransparency": 1,
+                "icon": "rbxassetid://6927295847",
+                "scaleType": "Tile",
+                "tileSize": [
+                  0,
+                  108,
+                  0,
+                  108
+                ],
+                "imageTransparency": 0.72
+              },
+              {
+                "type": "TextLabel",
+                "name": "Label",
+                "text": "SKIP 0/1",
+                "size": [
+                  0,
+                  101.30823529411765,
+                  0,
+                  20.736
+                ],
+                "position": [
+                  0,
+                  8.809411764705883,
+                  0,
+                  8.64
+                ],
+                "bgTransparency": 1,
+                "textColor": [
+                  237,
+                  243,
+                  247
+                ],
+                "textScaled": true,
+                "textXAlignment": "Left",
+                "font": "Ubuntu",
+                "fontWeight": "Bold"
+              }
+            ],
+            "corner": 4,
+            "strokes": [
+              {
+                "thickness": 3,
+                "color": [
+                  122,
+                  62,
+                  25
+                ],
+                "applyMode": "Border"
+              }
+            ]
+          }
+        ],
+        "corner": 4,
+        "strokes": [
+          {
+            "thickness": 2,
+            "color": [
+              42,
+              79,
+              102
+            ],
+            "applyMode": "Border"
+          }
+        ]
+      },
+      {
+        "type": "Frame",
+        "name": "XPBar",
+        "size": [
+          0,
+          441.6,
+          0,
+          52
+        ],
+        "position": [
+          0,
+          640.0,
+          0,
+          704
+        ],
+        "anchor": [
+          0.5,
+          1
+        ],
+        "bg": [
+          3,
+          24,
+          39
+        ],
+        "children": [
+          {
+            "type": "ImageLabel",
+            "name": "StudTexture",
+            "size": [
+              1,
+              0,
+              1,
+              0
+            ],
+            "bgTransparency": 1,
+            "icon": "rbxassetid://6927295847",
+            "scaleType": "Tile",
+            "tileSize": [
+              0,
+              64,
+              0,
+              64
+            ],
+            "imageTransparency": 0.72
+          },
+          {
+            "type": "TextLabel",
+            "name": "Level",
+            "text": "LEVEL 6",
+            "size": [
+              0,
+              150.144,
+              0,
+              18
+            ],
+            "position": [
+              0,
+              10,
+              0,
+              4
+            ],
+            "bgTransparency": 1,
+            "textColor": [
+              237,
+              243,
+              247
+            ],
+            "textScaled": true,
+            "textXAlignment": "Left",
+            "font": "Ubuntu",
+            "fontWeight": "Bold"
+          },
+          {
+            "type": "TextLabel",
+            "name": "XP",
+            "text": "55 / 65 XP",
+            "size": [
+              0,
+              167.80800000000002,
+              0,
+              18
+            ],
+            "position": [
+              0,
+              263.79200000000003,
+              0,
+              4
+            ],
+            "bgTransparency": 1,
+            "textColor": [
+              165,
+              180,
+              192
+            ],
+            "textScaled": true,
+            "textXAlignment": "Left",
+            "font": "Ubuntu",
+            "fontWeight": "Bold"
+          },
+          {
+            "type": "Frame",
+            "name": "Track",
+            "size": [
+              0,
+              421.6,
+              0,
+              16
+            ],
+            "position": [
+              0,
+              10,
+              0,
+              28
+            ],
+            "anchor": [
+              0,
+              0
+            ],
+            "bg": [
+              30,
+              43,
+              52
+            ],
+            "children": [
+              {
+                "type": "Frame",
+                "name": "Fill",
+                "size": [
+                  0,
+                  356.73846153846154,
+                  0,
+                  16
+                ],
+                "position": [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                "anchor": [
+                  0,
+                  0
+                ],
+                "bg": [
+                  67,
+                  222,
+                  143
+                ],
+                "children": [],
+                "corner": 0,
+                "strokes": []
+              }
+            ],
+            "corner": 0,
+            "strokes": []
+          }
+        ],
+        "corner": 4,
+        "strokes": [
+          {
+            "thickness": 2,
+            "color": [
+              42,
+              79,
+              102
+            ],
+            "applyMode": "Border"
+          }
+        ]
+      },
+      {
+        "type": "Frame",
+        "name": "RageBar",
+        "size": [
+          0,
+          441.6,
+          0,
+          52
+        ],
+        "position": [
+          0,
+          640.0,
+          0,
+          644
+        ],
+        "anchor": [
+          0.5,
+          1
+        ],
+        "bg": [
+          3,
+          24,
+          39
+        ],
+        "children": [
+          {
+            "type": "ImageLabel",
+            "name": "StudTexture",
+            "size": [
+              1,
+              0,
+              1,
+              0
+            ],
+            "bgTransparency": 1,
+            "icon": "rbxassetid://6927295847",
+            "scaleType": "Tile",
+            "tileSize": [
+              0,
+              64,
+              0,
+              64
+            ],
+            "imageTransparency": 0.72
+          },
+          {
+            "type": "TextLabel",
+            "name": "Status",
+            "text": "RAGE 100%",
+            "size": [
+              0,
+              291.456,
+              0,
+              20
+            ],
+            "position": [
+              0,
+              11.040000000000001,
+              0,
+              5
+            ],
+            "bgTransparency": 1,
+            "textColor": [
+              255,
+              226,
+              184
+            ],
+            "textScaled": true,
+            "textXAlignment": "Left",
+            "font": "Ubuntu",
+            "fontWeight": "Bold"
+          },
+          {
+            "type": "Frame",
+            "name": "Track",
+            "size": [
+              0,
+              291.456,
+              0,
+              13
+            ],
+            "position": [
+              0,
+              11.040000000000001,
+              0,
+              30
+            ],
+            "anchor": [
+              0,
+              0
+            ],
+            "bg": [
+              53,
+              35,
+              34
+            ],
+            "children": [
+              {
+                "type": "Frame",
+                "name": "Fill",
+                "size": [
+                  0,
+                  291.456,
+                  0,
+                  13
+                ],
+                "position": [
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                "anchor": [
+                  0,
+                  0
+                ],
+                "bg": [
+                  221,
+                  116,
+                  57
+                ],
+                "children": [],
+                "corner": 0,
+                "strokes": []
+              }
+            ],
+            "corner": 0,
+            "strokes": []
+          },
+          {
+            "type": "Frame",
+            "name": "Activate",
+            "size": [
+              0,
+              123.64800000000002,
+              0,
+              39
+            ],
+            "position": [
+              0,
+              311.328,
+              0,
+              6.5
+            ],
+            "anchor": [
+              0,
+              0
+            ],
+            "bg": [
+              230,
+              79,
+              42
+            ],
+            "children": [
+              {
+                "type": "ImageLabel",
+                "name": "StudTexture",
+                "size": [
+                  1,
+                  0,
+                  1,
+                  0
+                ],
+                "bgTransparency": 1,
+                "icon": "rbxassetid://6927295847",
+                "scaleType": "Tile",
+                "tileSize": [
+                  0,
+                  108,
+                  0,
+                  108
+                ],
+                "imageTransparency": 0.72
+              },
+              {
+                "type": "TextLabel",
+                "name": "Label",
+                "text": "ACTIVATE [R]",
+                "size": [
+                  0,
+                  107.7504,
+                  0,
+                  19
+                ],
+                "position": [
+                  0,
+                  7.948799999999999,
+                  0,
+                  10
+                ],
+                "bgTransparency": 1,
+                "textColor": [
+                  237,
+                  243,
+                  247
+                ],
+                "textScaled": true,
+                "textXAlignment": "Left",
+                "font": "Ubuntu",
+                "fontWeight": "Bold"
+              }
+            ],
+            "corner": 4,
+            "strokes": [
+              {
+                "thickness": 3,
+                "color": [
+                  128,
+                  44,
+                  23
+                ],
+                "applyMode": "Border"
+              }
+            ]
+          }
+        ],
+        "corner": 4,
+        "strokes": [
+          {
+            "thickness": 2,
+            "color": [
+              239,
+              91,
+              43
+            ],
+            "applyMode": "Border"
+          }
+        ]
+      },
+      {
+        "type": "Frame",
+        "name": "AbilityHUD",
+        "size": [
+          0,
+          370,
+          0,
+          106.0
+        ],
+        "position": [
+          0,
+          1260,
+          0,
+          94
+        ],
+        "anchor": [
+          1,
+          0
+        ],
+        "bg": [
+          3,
+          24,
+          39
+        ],
+        "children": [
+          {
+            "type": "TextLabel",
+            "name": "WEAPONS",
+            "text": "WEAPONS",
+            "size": [
+              0,
+              66.0,
+              0,
+              14.0
+            ],
+            "position": [
+              0,
+              4.0,
+              0,
+              8.0
+            ],
+            "bgTransparency": 1,
+            "textColor": [
+              165,
+              180,
+              192
+            ],
+            "textScaled": true,
+            "textXAlignment": "Center",
+            "font": "Ubuntu",
+            "fontWeight": "Bold"
+          },
+          {
+            "type": "TextLabel",
+            "name": "WEAPONSCount",
+            "text": "1 / 5",
+            "size": [
+              0,
+              48.0,
+              0,
+              19.0
+            ],
+            "position": [
+              0,
+              14.0,
+              0,
+              27.0
+            ],
+            "bgTransparency": 1,
+            "textColor": [
+              237,
+              243,
+              247
+            ],
+            "textScaled": true,
+            "textXAlignment": "Center",
+            "font": "Ubuntu",
+            "fontWeight": "Bold"
+          },
+          {
+            "type": "Frame",
+            "name": "Slot",
+            "size": [
+              0,
+              42.0,
+              0,
+              42.0
+            ],
+            "position": [
+              0,
+              78.0,
+              0,
+              0.0
+            ],
+            "anchor": [
+              0,
+              0
+            ],
+            "bg": [
+              28,
+              39,
+              49
+            ],
+            "children": [
+              {
+                "type": "ImageLabel",
+                "name": "StudTexture",
+                "size": [
+                  1,
+                  0,
+                  1,
+                  0
+                ],
+                "bgTransparency": 1,
+                "icon": "rbxassetid://6927295847",
+                "scaleType": "Tile",
+                "tileSize": [
+                  0,
+                  48,
+                  0,
+                  48
+                ],
+                "imageTransparency": 0.86
+              },
+              {
+                "type": "ImageLabel",
+                "name": "Icon",
+                "icon": "rbxassetid://102194989748667",
+                "position": [
+                  0,
+                  6.72,
+                  0,
+                  2.9400000000000004
+                ],
+                "size": [
+                  0,
+                  28.560000000000002,
+                  0,
+                  28.560000000000002
+                ],
+                "bgTransparency": 1,
+                "scaleType": "Fit"
+              },
+              {
+                "type": "TextLabel",
+                "name": "Level",
+                "text": "LV.5",
+                "size": [
+                  0,
+                  35.699999999999996,
+                  0,
+                  9.66
+                ],
+                "position": [
+                  0,
+                  3.15,
+                  0,
+                  30.66
+                ],
+                "bgTransparency": 1,
+                "textColor": [
+                  237,
+                  243,
+                  247
+                ],
+                "textScaled": true,
+                "textXAlignment": "Left",
+                "font": "Ubuntu",
+                "fontWeight": "Bold"
+              }
+            ],
+            "corner": 4,
+            "strokes": [
+              {
+                "thickness": 2,
+                "color": [
+                  145,
+                  102,
+                  211
+                ],
+                "applyMode": "Border"
+              }
+            ]
+          },
+          {
+            "type": "Frame",
+            "name": "Slot",
+            "size": [
+              0,
+              42.0,
+              0,
+              42.0
+            ],
+            "position": [
+              0,
+              125.0,
+              0,
+              0.0
+            ],
+            "anchor": [
+              0,
+              0
+            ],
+            "bg": [
+              3,
+              24,
+              39
+            ],
+            "children": [
+              {
+                "type": "ImageLabel",
+                "name": "StudTexture",
+                "size": [
+                  1,
+                  0,
+                  1,
+                  0
+                ],
+                "bgTransparency": 1,
+                "icon": "rbxassetid://6927295847",
+                "scaleType": "Tile",
+                "tileSize": [
+                  0,
+                  48,
+                  0,
+                  48
+                ],
+                "imageTransparency": 0.86
+              }
+            ],
+            "corner": 4,
+            "strokes": [
+              {
+                "thickness": 2,
+                "color": [
+                  54,
+                  85,
+                  103
+                ],
+                "applyMode": "Border"
+              }
+            ]
+          },
+          {
+            "type": "Frame",
+            "name": "Slot",
+            "size": [
+              0,
+              42.0,
+              0,
+              42.0
+            ],
+            "position": [
+              0,
+              172.0,
+              0,
+              0.0
+            ],
+            "anchor": [
+              0,
+              0
+            ],
+            "bg": [
+              3,
+              24,
+              39
+            ],
+            "children": [
+              {
+                "type": "ImageLabel",
+                "name": "StudTexture",
+                "size": [
+                  1,
+                  0,
+                  1,
+                  0
+                ],
+                "bgTransparency": 1,
+                "icon": "rbxassetid://6927295847",
+                "scaleType": "Tile",
+                "tileSize": [
+                  0,
+                  48,
+                  0,
+                  48
+                ],
+                "imageTransparency": 0.86
+              }
+            ],
+            "corner": 4,
+            "strokes": [
+              {
+                "thickness": 2,
+                "color": [
+                  54,
+                  85,
+                  103
+                ],
+                "applyMode": "Border"
+              }
+            ]
+          },
+          {
+            "type": "Frame",
+            "name": "Slot",
+            "size": [
+              0,
+              42.0,
+              0,
+              42.0
+            ],
+            "position": [
+              0,
+              219.0,
+              0,
+              0.0
+            ],
+            "anchor": [
+              0,
+              0
+            ],
+            "bg": [
+              3,
+              24,
+              39
+            ],
+            "children": [
+              {
+                "type": "ImageLabel",
+                "name": "StudTexture",
+                "size": [
+                  1,
+                  0,
+                  1,
+                  0
+                ],
+                "bgTransparency": 1,
+                "icon": "rbxassetid://6927295847",
+                "scaleType": "Tile",
+                "tileSize": [
+                  0,
+                  48,
+                  0,
+                  48
+                ],
+                "imageTransparency": 0.86
+              }
+            ],
+            "corner": 4,
+            "strokes": [
+              {
+                "thickness": 2,
+                "color": [
+                  54,
+                  85,
+                  103
+                ],
+                "applyMode": "Border"
+              }
+            ]
+          },
+          {
+            "type": "Frame",
+            "name": "Slot",
+            "size": [
+              0,
+              42.0,
+              0,
+              42.0
+            ],
+            "position": [
+              0,
+              266.0,
+              0,
+              0.0
+            ],
+            "anchor": [
+              0,
+              0
+            ],
+            "bg": [
+              3,
+              24,
+              39
+            ],
+            "children": [
+              {
+                "type": "ImageLabel",
+                "name": "StudTexture",
+                "size": [
+                  1,
+                  0,
+                  1,
+                  0
+                ],
+                "bgTransparency": 1,
+                "icon": "rbxassetid://6927295847",
+                "scaleType": "Tile",
+                "tileSize": [
+                  0,
+                  48,
+                  0,
+                  48
+                ],
+                "imageTransparency": 0.86
+              }
+            ],
+            "corner": 4,
+            "strokes": [
+              {
+                "thickness": 2,
+                "color": [
+                  54,
+                  85,
+                  103
+                ],
+                "applyMode": "Border"
+              }
+            ]
+          },
+          {
+            "type": "Frame",
+            "name": "Slot",
+            "size": [
+              0,
+              42.0,
+              0,
+              42.0
+            ],
+            "position": [
+              0,
+              313.0,
+              0,
+              0.0
+            ],
+            "anchor": [
+              0,
+              0
+            ],
+            "bg": [
+              3,
+              24,
+              39
+            ],
+            "children": [
+              {
+                "type": "ImageLabel",
+                "name": "StudTexture",
+                "size": [
+                  1,
+                  0,
+                  1,
+                  0
+                ],
+                "bgTransparency": 1,
+                "icon": "rbxassetid://6927295847",
+                "scaleType": "Tile",
+                "tileSize": [
+                  0,
+                  48,
+                  0,
+                  48
+                ],
+                "imageTransparency": 0.86
+              },
+              {
+                "type": "ImageLabel",
+                "name": "Lock",
+                "icon": "rbxassetid://18209587260",
+                "position": [
+                  0,
+                  12.18,
+                  0,
+                  6.3
+                ],
+                "size": [
+                  0,
+                  17.64,
+                  0,
+                  17.64
+                ],
+                "bgTransparency": 1,
+                "scaleType": "Fit"
+              },
+              {
+                "type": "TextLabel",
+                "name": "Unlock",
+                "text": "+ SLOT",
+                "size": [
+                  0,
+                  35.28,
+                  0,
+                  9.66
+                ],
+                "position": [
+                  0,
+                  3.36,
+                  0,
+                  30.66
+                ],
+                "bgTransparency": 1,
+                "textColor": [
+                  185,
+                  162,
+                  114
+                ],
+                "textScaled": true,
+                "textXAlignment": "Left",
+                "font": "Ubuntu",
+                "fontWeight": "Bold"
+              }
+            ],
+            "corner": 4,
+            "strokes": [
+              {
+                "thickness": 2,
+                "color": [
+                  136,
+                  108,
+                  52
+                ],
+                "applyMode": "Border"
+              }
+            ]
+          },
+          {
+            "type": "TextLabel",
+            "name": "PASSIVES",
+            "text": "PASSIVES",
+            "size": [
+              0,
+              66.0,
+              0,
+              14.0
+            ],
+            "position": [
+              0,
+              4.0,
+              0,
+              62.0
+            ],
+            "bgTransparency": 1,
+            "textColor": [
+              165,
+              180,
+              192
+            ],
+            "textScaled": true,
+            "textXAlignment": "Center",
+            "font": "Ubuntu",
+            "fontWeight": "Bold"
+          },
+          {
+            "type": "TextLabel",
+            "name": "PASSIVESCount",
+            "text": "1 / 5",
+            "size": [
+              0,
+              48.0,
+              0,
+              19.0
+            ],
+            "position": [
+              0,
+              14.0,
+              0,
+              81.0
+            ],
+            "bgTransparency": 1,
+            "textColor": [
+              237,
+              243,
+              247
+            ],
+            "textScaled": true,
+            "textXAlignment": "Center",
+            "font": "Ubuntu",
+            "fontWeight": "Bold"
+          },
+          {
+            "type": "Frame",
+            "name": "Slot",
+            "size": [
+              0,
+              42.0,
+              0,
+              42.0
+            ],
+            "position": [
+              0,
+              78.0,
+              0,
+              54.0
+            ],
+            "anchor": [
+              0,
+              0
+            ],
+            "bg": [
+              28,
+              39,
+              49
+            ],
+            "children": [
+              {
+                "type": "ImageLabel",
+                "name": "StudTexture",
+                "size": [
+                  1,
+                  0,
+                  1,
+                  0
+                ],
+                "bgTransparency": 1,
+                "icon": "rbxassetid://6927295847",
+                "scaleType": "Tile",
+                "tileSize": [
+                  0,
+                  48,
+                  0,
+                  48
+                ],
+                "imageTransparency": 0.86
+              },
+              {
+                "type": "ImageLabel",
+                "name": "Icon",
+                "icon": "rbxassetid://109206613200684",
+                "position": [
+                  0,
+                  6.72,
+                  0,
+                  2.9400000000000004
+                ],
+                "size": [
+                  0,
+                  28.560000000000002,
+                  0,
+                  28.560000000000002
+                ],
+                "bgTransparency": 1,
+                "scaleType": "Fit"
+              },
+              {
+                "type": "TextLabel",
+                "name": "Level",
+                "text": "LV.1",
+                "size": [
+                  0,
+                  35.699999999999996,
+                  0,
+                  9.66
+                ],
+                "position": [
+                  0,
+                  3.15,
+                  0,
+                  30.66
+                ],
+                "bgTransparency": 1,
+                "textColor": [
+                  237,
+                  243,
+                  247
+                ],
+                "textScaled": true,
+                "textXAlignment": "Left",
+                "font": "Ubuntu",
+                "fontWeight": "Bold"
+              }
+            ],
+            "corner": 4,
+            "strokes": [
+              {
+                "thickness": 2,
+                "color": [
+                  145,
+                  102,
+                  211
+                ],
+                "applyMode": "Border"
+              }
+            ]
+          },
+          {
+            "type": "Frame",
+            "name": "Slot",
+            "size": [
+              0,
+              42.0,
+              0,
+              42.0
+            ],
+            "position": [
+              0,
+              125.0,
+              0,
+              54.0
+            ],
+            "anchor": [
+              0,
+              0
+            ],
+            "bg": [
+              3,
+              24,
+              39
+            ],
+            "children": [
+              {
+                "type": "ImageLabel",
+                "name": "StudTexture",
+                "size": [
+                  1,
+                  0,
+                  1,
+                  0
+                ],
+                "bgTransparency": 1,
+                "icon": "rbxassetid://6927295847",
+                "scaleType": "Tile",
+                "tileSize": [
+                  0,
+                  48,
+                  0,
+                  48
+                ],
+                "imageTransparency": 0.86
+              }
+            ],
+            "corner": 4,
+            "strokes": [
+              {
+                "thickness": 2,
+                "color": [
+                  54,
+                  85,
+                  103
+                ],
+                "applyMode": "Border"
+              }
+            ]
+          },
+          {
+            "type": "Frame",
+            "name": "Slot",
+            "size": [
+              0,
+              42.0,
+              0,
+              42.0
+            ],
+            "position": [
+              0,
+              172.0,
+              0,
+              54.0
+            ],
+            "anchor": [
+              0,
+              0
+            ],
+            "bg": [
+              3,
+              24,
+              39
+            ],
+            "children": [
+              {
+                "type": "ImageLabel",
+                "name": "StudTexture",
+                "size": [
+                  1,
+                  0,
+                  1,
+                  0
+                ],
+                "bgTransparency": 1,
+                "icon": "rbxassetid://6927295847",
+                "scaleType": "Tile",
+                "tileSize": [
+                  0,
+                  48,
+                  0,
+                  48
+                ],
+                "imageTransparency": 0.86
+              }
+            ],
+            "corner": 4,
+            "strokes": [
+              {
+                "thickness": 2,
+                "color": [
+                  54,
+                  85,
+                  103
+                ],
+                "applyMode": "Border"
+              }
+            ]
+          },
+          {
+            "type": "Frame",
+            "name": "Slot",
+            "size": [
+              0,
+              42.0,
+              0,
+              42.0
+            ],
+            "position": [
+              0,
+              219.0,
+              0,
+              54.0
+            ],
+            "anchor": [
+              0,
+              0
+            ],
+            "bg": [
+              3,
+              24,
+              39
+            ],
+            "children": [
+              {
+                "type": "ImageLabel",
+                "name": "StudTexture",
+                "size": [
+                  1,
+                  0,
+                  1,
+                  0
+                ],
+                "bgTransparency": 1,
+                "icon": "rbxassetid://6927295847",
+                "scaleType": "Tile",
+                "tileSize": [
+                  0,
+                  48,
+                  0,
+                  48
+                ],
+                "imageTransparency": 0.86
+              }
+            ],
+            "corner": 4,
+            "strokes": [
+              {
+                "thickness": 2,
+                "color": [
+                  54,
+                  85,
+                  103
+                ],
+                "applyMode": "Border"
+              }
+            ]
+          },
+          {
+            "type": "Frame",
+            "name": "Slot",
+            "size": [
+              0,
+              42.0,
+              0,
+              42.0
+            ],
+            "position": [
+              0,
+              266.0,
+              0,
+              54.0
+            ],
+            "anchor": [
+              0,
+              0
+            ],
+            "bg": [
+              3,
+              24,
+              39
+            ],
+            "children": [
+              {
+                "type": "ImageLabel",
+                "name": "StudTexture",
+                "size": [
+                  1,
+                  0,
+                  1,
+                  0
+                ],
+                "bgTransparency": 1,
+                "icon": "rbxassetid://6927295847",
+                "scaleType": "Tile",
+                "tileSize": [
+                  0,
+                  48,
+                  0,
+                  48
+                ],
+                "imageTransparency": 0.86
+              }
+            ],
+            "corner": 4,
+            "strokes": [
+              {
+                "thickness": 2,
+                "color": [
+                  54,
+                  85,
+                  103
+                ],
+                "applyMode": "Border"
+              }
+            ]
+          },
+          {
+            "type": "Frame",
+            "name": "Slot",
+            "size": [
+              0,
+              42.0,
+              0,
+              42.0
+            ],
+            "position": [
+              0,
+              313.0,
+              0,
+              54.0
+            ],
+            "anchor": [
+              0,
+              0
+            ],
+            "bg": [
+              3,
+              24,
+              39
+            ],
+            "children": [
+              {
+                "type": "ImageLabel",
+                "name": "StudTexture",
+                "size": [
+                  1,
+                  0,
+                  1,
+                  0
+                ],
+                "bgTransparency": 1,
+                "icon": "rbxassetid://6927295847",
+                "scaleType": "Tile",
+                "tileSize": [
+                  0,
+                  48,
+                  0,
+                  48
+                ],
+                "imageTransparency": 0.86
+              },
+              {
+                "type": "ImageLabel",
+                "name": "Lock",
+                "icon": "rbxassetid://18209587260",
+                "position": [
+                  0,
+                  12.18,
+                  0,
+                  6.3
+                ],
+                "size": [
+                  0,
+                  17.64,
+                  0,
+                  17.64
+                ],
+                "bgTransparency": 1,
+                "scaleType": "Fit"
+              },
+              {
+                "type": "TextLabel",
+                "name": "Unlock",
+                "text": "+ SLOT",
+                "size": [
+                  0,
+                  35.28,
+                  0,
+                  9.66
+                ],
+                "position": [
+                  0,
+                  3.36,
+                  0,
+                  30.66
+                ],
+                "bgTransparency": 1,
+                "textColor": [
+                  185,
+                  162,
+                  114
+                ],
+                "textScaled": true,
+                "textXAlignment": "Left",
+                "font": "Ubuntu",
+                "fontWeight": "Bold"
+              }
+            ],
+            "corner": 4,
+            "strokes": [
+              {
+                "thickness": 2,
+                "color": [
+                  136,
+                  108,
+                  52
+                ],
+                "applyMode": "Border"
+              }
+            ]
+          }
+        ],
+        "corner": 0,
+        "strokes": []
+      },
+      {
+        "type": "Frame",
+        "name": "RunBoost",
+        "size": [
+          0,
+          220,
+          0,
+          58
+        ],
+        "position": [
+          0,
+          12,
+          0,
+          88
+        ],
+        "anchor": [
+          0,
+          0
+        ],
+        "bg": [
+          3,
+          24,
+          39
+        ],
+        "children": [
+          {
+            "type": "ImageLabel",
+            "name": "StudTexture",
+            "size": [
+              1,
+              0,
+              1,
+              0
+            ],
+            "bgTransparency": 1,
+            "icon": "rbxassetid://6927295847",
+            "scaleType": "Tile",
+            "tileSize": [
+              0,
+              64,
+              0,
+              64
+            ],
+            "imageTransparency": 0.72
+          },
+          {
+            "type": "ImageLabel",
+            "name": "Artwork",
+            "icon": "rbxassetid://115042318829702",
+            "position": [
+              0,
+              6,
+              0,
+              6
+            ],
+            "size": [
+              0,
+              34,
+              0,
+              46
+            ],
+            "bgTransparency": 1,
+            "scaleType": "Fit"
+          },
+          {
+            "type": "TextLabel",
+            "name": "Title",
+            "text": "RUN BOOST",
+            "size": [
+              0,
+              108,
+              0,
+              18.56
+            ],
+            "position": [
+              0,
+              46,
+              0,
+              8.120000000000001
+            ],
+            "bgTransparency": 1,
+            "textColor": [
+              237,
+              243,
+              247
+            ],
+            "textScaled": true,
+            "textXAlignment": "Left",
+            "font": "Ubuntu",
+            "fontWeight": "Bold"
+          },
+          {
+            "type": "TextLabel",
+            "name": "Detail",
+            "text": "THIS RUN",
+            "size": [
+              0,
+              108,
+              0,
+              12.76
+            ],
+            "position": [
+              0,
+              46,
+              0,
+              35.38
+            ],
+            "bgTransparency": 1,
+            "textColor": [
+              165,
+              180,
+              192
+            ],
+            "textScaled": true,
+            "textXAlignment": "Left",
+            "font": "Ubuntu",
+            "fontWeight": "Bold"
+          },
+          {
+            "type": "Frame",
+            "name": "Price",
+            "size": [
+              0,
+              54,
+              0,
+              46
+            ],
+            "position": [
+              0,
+              160,
+              0,
+              6
+            ],
+            "anchor": [
+              0,
+              0
+            ],
+            "bg": [
+              241,
+              180,
+              67
+            ],
+            "children": [
+              {
+                "type": "ImageLabel",
+                "name": "StudTexture",
+                "size": [
+                  1,
+                  0,
+                  1,
+                  0
+                ],
+                "bgTransparency": 1,
+                "icon": "rbxassetid://6927295847",
+                "scaleType": "Tile",
+                "tileSize": [
+                  0,
+                  108,
+                  0,
+                  108
+                ],
+                "imageTransparency": 0.72
+              },
+              {
+                "type": "TextLabel",
+                "name": "Value",
+                "text": "20 R$",
+                "size": [
+                  0,
+                  44,
+                  0,
+                  18
+                ],
+                "position": [
+                  0,
+                  5,
+                  0,
+                  14.0
+                ],
+                "bgTransparency": 1,
+                "textColor": [
+                  237,
+                  243,
+                  247
+                ],
+                "textScaled": true,
+                "textXAlignment": "Left",
+                "font": "Ubuntu",
+                "fontWeight": "Bold"
+              }
+            ],
+            "corner": 4,
+            "strokes": [
+              {
+                "thickness": 3,
+                "color": [
+                  134,
+                  100,
+                  37
+                ],
+                "applyMode": "Border"
+              }
+            ]
+          }
+        ],
+        "corner": 4,
+        "strokes": [
+          {
+            "thickness": 2,
+            "color": [
+              42,
+              79,
+              102
+            ],
+            "applyMode": "Border"
+          }
+        ]
+      },
+      {
+        "type": "Frame",
+        "name": "ReviveTeam",
+        "size": [
+          0,
+          220,
+          0,
+          58
+        ],
+        "position": [
+          0,
+          12,
+          0,
+          154
+        ],
+        "anchor": [
+          0,
+          0
+        ],
+        "bg": [
+          3,
+          24,
+          39
+        ],
+        "children": [
+          {
+            "type": "ImageLabel",
+            "name": "StudTexture",
+            "size": [
+              1,
+              0,
+              1,
+              0
+            ],
+            "bgTransparency": 1,
+            "icon": "rbxassetid://6927295847",
+            "scaleType": "Tile",
+            "tileSize": [
+              0,
+              64,
+              0,
+              64
+            ],
+            "imageTransparency": 0.72
+          },
+          {
+            "type": "ImageLabel",
+            "name": "Artwork",
+            "icon": "rbxassetid://99546721866961",
+            "position": [
+              0,
+              6,
+              0,
+              6
+            ],
+            "size": [
+              0,
+              34,
+              0,
+              46
+            ],
+            "bgTransparency": 1,
+            "scaleType": "Fit"
+          },
+          {
+            "type": "TextLabel",
+            "name": "Title",
+            "text": "REVIVE 1",
+            "size": [
+              0,
+              108,
+              0,
+              18.56
+            ],
+            "position": [
+              0,
+              46,
+              0,
+              8.120000000000001
+            ],
+            "bgTransparency": 1,
+            "textColor": [
+              237,
+              243,
+              247
+            ],
+            "textScaled": true,
+            "textXAlignment": "Left",
+            "font": "Ubuntu",
+            "fontWeight": "Bold"
+          },
+          {
+            "type": "TextLabel",
+            "name": "Detail",
+            "text": "TEAMMATES",
+            "size": [
+              0,
+              108,
+              0,
+              12.76
+            ],
+            "position": [
+              0,
+              46,
+              0,
+              35.38
+            ],
+            "bgTransparency": 1,
+            "textColor": [
+              165,
+              180,
+              192
+            ],
+            "textScaled": true,
+            "textXAlignment": "Left",
+            "font": "Ubuntu",
+            "fontWeight": "Bold"
+          },
+          {
+            "type": "Frame",
+            "name": "Price",
+            "size": [
+              0,
+              54,
+              0,
+              46
+            ],
+            "position": [
+              0,
+              160,
+              0,
+              6
+            ],
+            "anchor": [
+              0,
+              0
+            ],
+            "bg": [
+              241,
+              180,
+              67
+            ],
+            "children": [
+              {
+                "type": "ImageLabel",
+                "name": "StudTexture",
+                "size": [
+                  1,
+                  0,
+                  1,
+                  0
+                ],
+                "bgTransparency": 1,
+                "icon": "rbxassetid://6927295847",
+                "scaleType": "Tile",
+                "tileSize": [
+                  0,
+                  108,
+                  0,
+                  108
+                ],
+                "imageTransparency": 0.72
+              },
+              {
+                "type": "TextLabel",
+                "name": "Value",
+                "text": "20 R$",
+                "size": [
+                  0,
+                  44,
+                  0,
+                  18
+                ],
+                "position": [
+                  0,
+                  5,
+                  0,
+                  14.0
+                ],
+                "bgTransparency": 1,
+                "textColor": [
+                  237,
+                  243,
+                  247
+                ],
+                "textScaled": true,
+                "textXAlignment": "Left",
+                "font": "Ubuntu",
+                "fontWeight": "Bold"
+              }
+            ],
+            "corner": 4,
+            "strokes": [
+              {
+                "thickness": 3,
+                "color": [
+                  134,
+                  100,
+                  37
+                ],
+                "applyMode": "Border"
+              }
+            ]
+          }
+        ],
+        "corner": 4,
+        "strokes": [
+          {
+            "thickness": 2,
+            "color": [
+              42,
+              79,
+              102
+            ],
+            "applyMode": "Border"
+          }
+        ]
+      },
+      {
+        "type": "Frame",
+        "name": "Coins",
+        "size": [
+          0,
+          220,
+          0,
+          44
+        ],
+        "position": [
+          0,
+          12,
+          0,
+          44
+        ],
+        "anchor": [
+          0,
+          0
+        ],
+        "bg": [
+          3,
+          24,
+          39
+        ],
+        "children": [
+          {
+            "type": "ImageLabel",
+            "name": "StudTexture",
+            "size": [
+              1,
+              0,
+              1,
+              0
+            ],
+            "bgTransparency": 1,
+            "icon": "rbxassetid://6927295847",
+            "scaleType": "Tile",
+            "tileSize": [
+              0,
+              64,
+              0,
+              64
+            ],
+            "imageTransparency": 0.72
+          },
+          {
+            "type": "ImageLabel",
+            "name": "Coin",
+            "icon": "rbxassetid://117589844207603",
+            "position": [
+              0,
+              8,
+              0,
+              7
+            ],
+            "size": [
+              0,
+              30,
+              0,
+              30
+            ],
+            "bgTransparency": 1,
+            "scaleType": "Fit"
+          },
+          {
+            "type": "TextLabel",
+            "name": "Balance",
+            "text": "1,284",
+            "size": [
+              0,
+              144,
+              0,
+              26
+            ],
+            "position": [
+              0,
+              46,
+              0,
+              8
+            ],
+            "bgTransparency": 1,
+            "textColor": [
+              255,
+              231,
+              158
+            ],
+            "textScaled": true,
+            "textXAlignment": "Left",
+            "font": "Ubuntu",
+            "fontWeight": "Bold"
+          }
+        ],
+        "corner": 4,
+        "strokes": [
+          {
+            "thickness": 2,
+            "color": [
+              42,
+              79,
+              102
+            ],
+            "applyMode": "Border"
+          }
+        ]
+      },
+      {
+        "type": "Frame",
+        "name": "Shop",
+        "size": [
+          0,
+          142,
+          0,
+          42
+        ],
+        "position": [
+          0,
+          1126,
+          0,
+          44
+        ],
+        "anchor": [
+          0,
+          0
+        ],
+        "bg": [
+          225,
+          157,
+          40
+        ],
+        "children": [
+          {
+            "type": "ImageLabel",
+            "name": "StudTexture",
+            "size": [
+              1,
+              0,
+              1,
+              0
+            ],
+            "bgTransparency": 1,
+            "icon": "rbxassetid://6927295847",
+            "scaleType": "Tile",
+            "tileSize": [
+              0,
+              108,
+              0,
+              108
+            ],
+            "imageTransparency": 0.72
+          },
+          {
+            "type": "ImageLabel",
+            "name": "Coin",
+            "icon": "rbxassetid://117589844207603",
+            "position": [
+              0,
+              10,
+              0,
+              10
+            ],
+            "size": [
+              0,
+              24,
+              0,
+              24
+            ],
+            "bgTransparency": 1,
+            "scaleType": "Fit"
+          },
+          {
+            "type": "TextLabel",
+            "name": "Label",
+            "text": "SHOP",
+            "size": [
+              0,
+              88,
+              0,
+              26
+            ],
+            "position": [
+              0,
+              42,
+              0,
+              8
+            ],
+            "bgTransparency": 1,
+            "textColor": [
+              237,
+              243,
+              247
+            ],
+            "textScaled": true,
+            "textXAlignment": "Left",
+            "font": "Ubuntu",
+            "fontWeight": "Bold"
+          }
+        ],
+        "corner": 4,
+        "strokes": [
+          {
+            "thickness": 3,
+            "color": [
+              126,
+              87,
+              22
+            ],
+            "applyMode": "Border"
+          }
+        ]
+      },
+      {
+        "type": "Frame",
+        "name": "PlayerHealth",
+        "size": [
+          0,
+          79.19999999999999,
+          0,
+          15.8
+        ],
+        "position": [
+          0,
+          640.0,
+          0,
+          360.0
+        ],
+        "anchor": [
+          0.5,
+          0.5
+        ],
+        "bg": [
+          3,
+          24,
+          39
+        ],
+        "children": [
+          {
+            "type": "Frame",
+            "name": "Fill",
+            "size": [
+              0,
+              79.19999999999999,
+              0,
+              15.8
+            ],
+            "position": [
+              0,
+              0,
+              0,
+              0
+            ],
+            "anchor": [
+              0,
+              0
+            ],
+            "bg": [
+              69,
+              205,
+              105
+            ],
+            "children": [],
+            "corner": 0,
+            "strokes": []
+          },
+          {
+            "type": "TextLabel",
+            "name": "Value",
+            "text": "100",
+            "size": [
+              0,
+              75.19999999999999,
+              0,
+              13.8
+            ],
+            "position": [
+              0,
+              2,
+              0,
+              1
+            ],
+            "bgTransparency": 1,
+            "textColor": [
+              237,
+              243,
+              247
+            ],
+            "textScaled": true,
+            "textXAlignment": "Center",
+            "font": "Ubuntu",
+            "fontWeight": "Bold"
+          }
+        ],
+        "corner": 0,
+        "strokes": [
+          {
+            "thickness": 1,
+            "color": [
+              15,
+              20,
+              18
+            ],
+            "applyMode": "Border"
+          }
+        ],
+        "bgTransparency": 1
+      }
+    ]
+  },
+  "viewport_size": [
+    1280,
+    720
+  ],
+  "transparent_background": false
+}

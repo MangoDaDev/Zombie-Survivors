@@ -4,6 +4,8 @@ local ZombieController = require(ReplicatedStorage.Controllers.ZombieController)
 local FormatNumber = require(ReplicatedStorage.Modules.Math.FormatNumber)
 local SafeArea = require(ReplicatedStorage.Modules.UI.SafeArea)
 local UIStyle = require(ReplicatedStorage.Modules.UI.UIStyle)
+local ResponsiveLayout = require(ReplicatedStorage.Modules.UI.ResponsiveLayout)
+local ResponsiveViewport = require(script.Parent.Parent.ResponsiveViewport)
 local Vide = require(ReplicatedStorage.Packages.vide)
 
 local cleanup = Vide.cleanup
@@ -12,6 +14,7 @@ local source = Vide.source
 local spring = Vide.spring
 
 return function()
+	local responsiveViewport = ResponsiveViewport()
 	local initialState = ZombieController.GetBossState()
 	local state = source(initialState)
 	local progressTarget = source(
@@ -35,6 +38,24 @@ return function()
 		safeAreaConnection:Disconnect()
 	end)
 
+	local viewport = ResponsiveLayout.Viewport(responsiveViewport)
+	local roundLayout = ResponsiveLayout.Base(UIStyle.RoundStatusSize, viewport, function()
+		local size = responsiveViewport()
+		return if size.X < 700 then UIStyle.NarrowRoundStatusAspectRatio else UIStyle.RoundStatusAspectRatio
+	end)
+
+	local layout = {}
+	layout.Viewport = ResponsiveLayout.Viewport(responsiveViewport)
+	layout.BossHealthBar = ResponsiveLayout.Base(UDim2.fromScale(0.88, 0.1), layout.Viewport, 620 / 72)
+	layout.Title = ResponsiveLayout.Child(UDim2.new(0.35, -12, 0.34, 0), layout.BossHealthBar)
+	layout.PhaseLabel = ResponsiveLayout.Child(UDim2.new(0.3, -8, 0.22, 0), layout.BossHealthBar)
+	layout.Value = ResponsiveLayout.Child(UDim2.new(0.35, -12, 0.31, 0), layout.BossHealthBar)
+	layout.Track = ResponsiveLayout.Child(UDim2.new(1, -24, 0.33, 0), layout.BossHealthBar)
+	layout.Fill = ResponsiveLayout.Child(function()
+		return UDim2.fromScale(math.clamp(smoothProgress(), 0, 1), 1)
+	end, layout.Track)
+	layout.EnrageMarker = ResponsiveLayout.Child(UDim2.new(0, 3, 1, 4), layout.Track)
+
 	return create "Frame" {
 		Name = "BossHealthBar",
 		AnchorPoint = Vector2.new(0.5, 0),
@@ -42,11 +63,11 @@ return function()
 			return Color3.fromRGB(18, 16, 20):Lerp(state().color, 0.12)
 		end,
 		BorderSizePixel = 0,
-		Position = function()
+		Position = layout.BossHealthBar.Position(function()
 			-- The round panel owns the first top-center row; the boss bar stays directly below it.
-			return UDim2.new(0.5, 0, 0, topOffset() + 78)
-		end,
-		Size = UDim2.fromScale(0.88, 0.1),
+			return UDim2.new(0.5, 0, 0, topOffset() + roundLayout.FittedSize(responsiveViewport()).Y + 10)
+		end, Vector2.new(0.5, 0)),
+		Size = layout.BossHealthBar.Size,
 		Visible = function()
 			return state().active
 		end,
@@ -67,8 +88,8 @@ return function()
 			Name = "Title",
 			BackgroundTransparency = 1,
 			FontFace = Font.new(UIStyle.Font.Family, Enum.FontWeight.Heavy),
-			Position = UDim2.new(0, 12, 0, 7),
-			Size = UDim2.new(0.35, -12, 0.34, 0),
+			Position = layout.BossHealthBar.Scale(UDim2.new(0, 12, 0, 7)),
+			Size = layout.Title.Size,
 			Text = function()
 				return string.upper(state().displayName)
 			end,
@@ -84,8 +105,8 @@ return function()
 			AnchorPoint = Vector2.new(0.5, 0),
 			BackgroundTransparency = 1,
 			FontFace = Font.new(UIStyle.Font.Family, Enum.FontWeight.Bold),
-			Position = UDim2.new(0.5, 0, 0, 11),
-			Size = UDim2.new(0.3, -8, 0.22, 0),
+			Position = layout.BossHealthBar.Scale(UDim2.new(0.5, 0, 0, 11)),
+			Size = layout.PhaseLabel.Size,
 			Text = function()
 				return state().hint
 			end,
@@ -98,8 +119,8 @@ return function()
 			AnchorPoint = Vector2.new(1, 0),
 			BackgroundTransparency = 1,
 			FontFace = Font.new(UIStyle.Font.Family, Enum.FontWeight.Bold),
-			Position = UDim2.new(1, -12, 0, 8),
-			Size = UDim2.new(0.35, -12, 0.31, 0),
+			Position = layout.BossHealthBar.Scale(UDim2.new(1, -12, 0, 8)),
+			Size = layout.Value.Size,
 			Text = function()
 				local current = state()
 				return string.format(
@@ -119,8 +140,8 @@ return function()
 			BackgroundColor3 = Color3.fromRGB(58, 37, 41),
 			BorderSizePixel = 0,
 			ClipsDescendants = false,
-			Position = UDim2.new(0.5, 0, 1, -10),
-			Size = UDim2.new(1, -24, 0.33, 0),
+			Position = layout.BossHealthBar.Scale(UDim2.new(0.5, 0, 1, -10)),
+			Size = layout.Track.Size,
 			ZIndex = 96,
 			create "UICorner" { CornerRadius = UDim.new(0, 3) },
 			create "Frame" {
@@ -130,9 +151,7 @@ return function()
 				end,
 				BorderSizePixel = 0,
 				ClipsDescendants = true,
-				Size = function()
-					return UDim2.fromScale(math.clamp(smoothProgress(), 0, 1), 1)
-				end,
+				Size = layout.Fill.Size,
 				ZIndex = 97,
 				create "UICorner" { CornerRadius = UDim.new(0, 3) },
 				create "UIGradient" {
@@ -148,7 +167,7 @@ return function()
 				BackgroundColor3 = Color3.fromRGB(255, 222, 158),
 				BorderSizePixel = 0,
 				Position = UDim2.fromScale(0.5, 0.5),
-				Size = UDim2.new(0, 3, 1, 4),
+				Size = layout.EnrageMarker.Size,
 				Visible = function()
 					return state().typeName == "Boss"
 				end,

@@ -2,6 +2,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Networker = require(ReplicatedStorage.Packages.networker)
 local Signal = require(ReplicatedStorage.Packages.signal)
+local ClientActionState = require(ReplicatedStorage.Modules.Core.ClientActionState)
 
 local GameReadyController = {}
 
@@ -16,6 +17,10 @@ local state = {
 	isReady = false,
 }
 local stateChanged = Signal.new()
+local presentation = ClientActionState.new(state, function(packet)
+	state = packet
+	stateChanged:Fire(packet)
+end)
 
 local function isFiniteNumber(value): boolean
 	return type(value) == "number" and value == value and math.abs(value) < math.huge
@@ -23,6 +28,7 @@ end
 
 local function isValidState(packet): boolean
 	return type(packet) == "table"
+		and isFiniteNumber(packet.revision) and packet.revision % 1 == 0 and packet.revision >= 0
 		and type(packet.active) == "boolean"
 		and type(packet.started) == "boolean"
 		and (packet.startedAt == nil or isFiniteNumber(packet.startedAt))
@@ -40,8 +46,13 @@ local function setState(packet)
 	if not isValidState(packet) then
 		return
 	end
-	state = packet
-	stateChanged:Fire(state)
+	presentation:Apply(packet, not packet.active or packet.isReady)
+end
+
+function GameReadyController.ReadyResolved(_, requestId, packet)
+	if isValidState(packet) then
+		presentation:Resolve(requestId, packet)
+	end
 end
 
 function GameReadyController.ReadyStateChanged(_, packet)
@@ -50,7 +61,9 @@ end
 
 function GameReadyController.Init()
 	readyNetwork = Networker.client.new("GameReadyController", GameReadyController)
-	setState((readyNetwork :: Networker.Client):fetch("GetState"))
+	task.spawn(function()
+		setState((readyNetwork :: Networker.Client):fetch("GetState"))
+	end)
 end
 
 function GameReadyController.GetState()
@@ -63,7 +76,18 @@ end
 
 function GameReadyController.ReadyUp()
 	if readyNetwork and state.active and not state.isReady then
-		(readyNetwork :: Networker.Client):fire("ReadyUp")
+		local requestId = presentation:Begin(function(authoritative)
+			local predicted = table.clone(authoritative)
+			if predicted.active and not predicted.isReady then
+				predicted.isReady = true
+				predicted.readyCount = math.min(predicted.readyCount + 1, predicted.requiredCount)
+			end
+			-- Combat never starts from this prediction, even when the local ready count reaches its target.
+			return predicted
+		end)
+		if requestId then
+			(readyNetwork :: Networker.Client):fire("RequestReady", requestId)
+		end
 	end
 end
 

@@ -3,6 +3,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local StudTexture = require(script.Parent.Parent.Classes.StudTexture)
 local RoundController = require(ReplicatedStorage.Controllers.RoundController)
 local UIStyle = require(ReplicatedStorage.Modules.UI.UIStyle)
+local ResponsiveLayout = require(ReplicatedStorage.Modules.UI.ResponsiveLayout)
+local ResponsiveViewport = require(script.Parent.Parent.ResponsiveViewport)
 local Vide = require(ReplicatedStorage.Packages.vide)
 
 local cleanup = Vide.cleanup
@@ -20,6 +22,7 @@ local function getStageTitle(stage: string): string
 end
 
 return function()
+	local responsiveViewport = ResponsiveViewport()
 	local state = source(RoundController.GetState().bossAnnouncement)
 	local scaleTarget = source(if state().active then 1 else 0.9)
 	local animatedScale = spring(scaleTarget, 0.18, 0.78)
@@ -31,6 +34,15 @@ return function()
 		stateConnection:Disconnect()
 	end)
 
+	local layout = {}
+	layout.Viewport = ResponsiveLayout.Viewport(responsiveViewport)
+	layout.BossWarning = ResponsiveLayout.Base(UDim2.fromScale(0.9, 0.16), layout.Viewport, 580 / 112)
+	layout.LeftAccent = ResponsiveLayout.Child(UDim2.new(0, 7, 1, -20), layout.BossWarning)
+	layout.RightAccent = ResponsiveLayout.Child(UDim2.new(0, 7, 1, -20), layout.BossWarning)
+	layout.Stage = ResponsiveLayout.Child(UDim2.new(1, -58, 0.2, 0), layout.BossWarning)
+	layout.BossName = ResponsiveLayout.Child(UDim2.new(1, -58, 0.34, 0), layout.BossWarning)
+	layout.Message = ResponsiveLayout.Child(UDim2.new(1, -58, 0.16, 0), layout.BossWarning)
+
 	return create "Frame" {
 		Name = "BossWarning",
 		AnchorPoint = Vector2.new(0.5, 0),
@@ -38,8 +50,8 @@ return function()
 			return Color3.fromRGB(18, 14, 18):Lerp(state().color, 0.12)
 		end,
 		BorderSizePixel = 0,
-		Position = UDim2.new(0.5, 0, 0.18, 0),
-		Size = UDim2.fromScale(0.9, 0.16),
+		Position = layout.BossWarning.Position(UDim2.new(0.5, 0, 0.18, 0), Vector2.new(0.5, 0)),
+		Size = layout.BossWarning.Size,
 		Visible = function()
 			return state().active
 		end,
@@ -63,8 +75,8 @@ return function()
 				return state().color
 			end,
 			BorderSizePixel = 0,
-			Position = UDim2.fromOffset(10, 10),
-			Size = UDim2.new(0, 7, 1, -20),
+			Position = layout.BossWarning.Scale(UDim2.fromOffset(10, 10)),
+			Size = layout.LeftAccent.Size,
 			ZIndex = 142,
 		},
 		create "Frame" {
@@ -74,16 +86,16 @@ return function()
 				return state().color
 			end,
 			BorderSizePixel = 0,
-			Position = UDim2.new(1, -10, 0, 10),
-			Size = UDim2.new(0, 7, 1, -20),
+			Position = layout.BossWarning.Scale(UDim2.new(1, -10, 0, 10)),
+			Size = layout.RightAccent.Size,
 			ZIndex = 142,
 		},
 		create "TextLabel" {
 			Name = "Stage",
 			BackgroundTransparency = 1,
 			FontFace = Font.new(UIStyle.Font.Family, Enum.FontWeight.Heavy),
-			Position = UDim2.new(0, 29, 0, 9),
-			Size = UDim2.new(1, -58, 0.2, 0),
+			Position = layout.BossWarning.Scale(UDim2.new(0, 29, 0, 9)),
+			Size = layout.Stage.Size,
 			Text = function()
 				return getStageTitle(state().stage)
 			end,
@@ -97,8 +109,8 @@ return function()
 			Name = "BossName",
 			BackgroundTransparency = 1,
 			FontFace = Font.new(UIStyle.Font.Family, Enum.FontWeight.Heavy),
-			Position = UDim2.new(0, 29, 0.31, 0),
-			Size = UDim2.new(1, -58, 0.34, 0),
+			Position = layout.BossWarning.Scale(UDim2.new(0, 29, 0.31, 0)),
+			Size = layout.BossName.Size,
 			Text = function()
 				return string.upper(state().bossName)
 			end,
@@ -115,8 +127,8 @@ return function()
 			Name = "Message",
 			BackgroundTransparency = 1,
 			FontFace = Font.new(UIStyle.Font.Family, Enum.FontWeight.Bold),
-			Position = UDim2.new(0, 29, 0.72, 0),
-			Size = UDim2.new(1, -58, 0.16, 0),
+			Position = layout.BossWarning.Scale(UDim2.new(0, 29, 0.72, 0)),
+			Size = layout.Message.Size,
 			Text = function()
 				return state().message
 			end,

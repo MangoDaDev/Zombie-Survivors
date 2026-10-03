@@ -129,8 +129,8 @@ local function playerHealthBar(player: Player, inGame)
 		end,
 		LightInfluence = 0,
 		MaxDistance = 90,
-		-- The entire bar, including its children and strokes, scales with world studs, never pixel offsets.
-		Size = UDim2.fromScale(3.8, 0.5),
+		-- User-requested mixed sizing: larger world dimensions plus a small readable pixel base at distance.
+		Size = UDim2.new(4.6, 24, 0.65, 8),
 		StudsOffsetWorldSpace = Vector3.new(0, 1.3, 0),
 		create "Frame" {
 			Name = "Bar",
