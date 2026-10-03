@@ -53,6 +53,7 @@ local effectsFolder
 local nextPredictionAt = 0
 local nextVisibilityReportAt = 0
 local coinViews: { [number]: CoinView } = {}
+local backpackOpenings: { [number]: Vector3 | boolean } = {}
 
 local function easeOutCubic(alpha: number): number
 	local inverse = 1 - alpha
@@ -60,6 +61,9 @@ local function easeOutCubic(alpha: number): number
 end
 
 local function setGuiScale(view: CoinView, scale: number)
+	if view.displayScale == scale then
+		return
+	end
 	view.displayScale = scale
 	local size = COIN_STUD_SIZE * scale
 	view.gui.Size = UDim2.fromScale(size, size)
@@ -200,7 +204,7 @@ local function createView(id: number, value: number, position: Vector3, scale: n
 		id = id,
 		value = value,
 		scale = scale,
-		displayScale = scale,
+		displayScale = 1,
 		holder = holder,
 		gui = gui,
 		image = image,
@@ -260,13 +264,28 @@ local function cubicBezier(startPosition: Vector3, control1: Vector3, control2: 
 		+ destination * alpha ^ 3
 end
 
-local function startMagnet(view: CoinView, userId: number, startAt: number, duration: number)
+local function getFrameBackpackOpening(userId: number?): Vector3?
+	if not userId then
+		return nil
+	end
+	local cached = backpackOpenings[userId]
+	if cached ~= nil then
+		return if typeof(cached) == "Vector3" then cached else nil
+	end
+	-- All coins collected by this player share the same destination within one frame.
+	-- Refresh every frame so character respawns and authored backpack-stage swaps still track exactly.
+	local destination = getBackpackOpening(userId)
+	backpackOpenings[userId] = destination or false
+	return destination
+end
+
+local function startMagnet(view: CoinView, userId: number, startAt: number, duration: number, destination: Vector3?)
 	view.phase = "Magnet"
 	view.startPosition = view.holder.Position
 	view.startAt = startAt
 	view.duration = math.max(duration, 0.05)
 	view.playerUserId = userId
-	local destination = getBackpackOpening(userId)
+	destination = destination or getBackpackOpening(userId)
 	if destination then
 		view.targetPosition = destination
 	end
@@ -326,7 +345,7 @@ local function renderView(view: CoinView, now: number)
 			destroyView(view.id)
 		end
 	elseif view.phase == "Magnet" then
-		local destination = getBackpackOpening(view.playerUserId)
+		local destination = getFrameBackpackOpening(view.playerUserId)
 		if destination then
 			local alpha = math.clamp((now - view.startAt) / view.duration, 0, 1)
 			-- Start moving immediately, then hand off to the stronger power curve for a responsive accelerating snap.
@@ -341,7 +360,7 @@ local function renderView(view: CoinView, now: number)
 		end
 	elseif view.phase == "Collected" then
 		local alpha = math.clamp((now - view.startAt) / COLLECTED_SINK_DURATION, 0, 1)
-		local destination = getBackpackOpening(view.playerUserId) or view.targetPosition
+		local destination = getFrameBackpackOpening(view.playerUserId) or view.targetPosition
 		view.targetPosition = destination
 		view.holder.Position = view.startPosition:Lerp(destination - Vector3.new(0, COLLECTED_SINK_DISTANCE, 0), alpha ^ 2)
 		setGuiScale(view, view.startScale * math.max(0.02, 1 - alpha))
@@ -504,7 +523,8 @@ local function predictLocalCollections(now: number)
 		local collectionPosition = if view.phase == "Scatter" then view.targetPosition else view.position
 		if isCollectible and (root.Position - collectionPosition).Magnitude <= CoinDropConfig.MagnetRadius then
 			-- Prediction only owns presentation; the server validates this claim before it awards any coins.
-			startMagnet(view, Players.LocalPlayer.UserId, now, CoinDropConfig.CollectionDuration)
+			startMagnet(view, Players.LocalPlayer.UserId, now, CoinDropConfig.CollectionDuration,
+				getFrameBackpackOpening(Players.LocalPlayer.UserId))
 			table.insert(predictedIds, id)
 			if #predictedIds >= CoinDropConfig.MaxPredictionBatch then
 				break
@@ -540,10 +560,12 @@ end
 
 local function renderCoins()
 	local now = Workspace:GetServerTimeNow()
+	table.clear(backpackOpenings)
 	for _, view in coinViews do
 		renderView(view, now)
 	end
 	predictLocalCollections(now)
+	table.clear(backpackOpenings)
 	reportVisibility(now)
 end
 

@@ -113,11 +113,27 @@ local function buildCandidates(player: Player)
 	return candidates
 end
 
-local function takeUniform(candidates)
-	return table.remove(candidates, random:NextInteger(1, #candidates))
+local function takeCandidate(candidates, passiveWeight: number)
+	if passiveWeight == 1 then
+		return table.remove(candidates, random:NextInteger(1, #candidates))
+	end
+	local totalWeight = 0
+	for _, candidate in candidates do
+		local category = AbilityDefinitions.ById[candidate.abilityId].Category
+		totalWeight += if category == AbilityDefinitions.Categories.Passive then passiveWeight else 1
+	end
+	local roll = random:NextNumber() * totalWeight
+	for index, candidate in candidates do
+		local category = AbilityDefinitions.ById[candidate.abilityId].Category
+		roll -= if category == AbilityDefinitions.Categories.Passive then passiveWeight else 1
+		if roll <= 0 then
+			return table.remove(candidates, index)
+		end
+	end
+	return table.remove(candidates, #candidates)
 end
 
-local function chooseWithoutReplacement(candidates, count: number, slotFillRatio: number): { Choice }
+local function chooseWithoutReplacement(candidates, count: number, slotFillRatio: number, passiveWeight: number): { Choice }
 	local choices = {}
 	local upgrades = {}
 	local newAbilities = {}
@@ -130,18 +146,18 @@ local function chooseWithoutReplacement(candidates, count: number, slotFillRatio
 	local offeredNew = false
 	local guaranteedUpgradeCount = math.min(2, #upgrades)
 	while #choices < count and (#upgrades > 0 or #newAbilities > 0) do
-		-- Preserve the authored preference for abilities already owned in this run, while selecting
-		-- uniformly inside each group so rarity and current level never change an ability's weight.
+		-- Preserve the owned-ability preference; only the passive catch-up bonus changes weights
+		-- inside each group. Rarity and current level never affect candidate selection.
 		local selected
 		if #upgrades > 0 and (#choices < guaranteedUpgradeCount or #newAbilities == 0) then
-			selected = takeUniform(upgrades)
+			selected = takeCandidate(upgrades, passiveWeight)
 		elseif not offeredNew and #newAbilities > 0 and (#upgrades == 0 or random:NextNumber() < newOfferChance) then
-			selected = takeUniform(newAbilities)
+			selected = takeCandidate(newAbilities, passiveWeight)
 			offeredNew = true
 		elseif #upgrades > 0 then
-			selected = takeUniform(upgrades)
+			selected = takeCandidate(upgrades, passiveWeight)
 		else
-			selected = takeUniform(newAbilities)
+			selected = takeCandidate(newAbilities, passiveWeight)
 			offeredNew = true
 		end
 		table.insert(choices, {
@@ -167,10 +183,16 @@ local function offerNextChoice(player: Player, state: PlayerRunState)
 	local equippedCount = #runData.Equipped.Weapon + #runData.Equipped.Passive
 	local totalSlots = AbilityController.GetEquipLimit(player, "Weapon")
 		+ AbilityController.GetEquipLimit(player, "Passive")
+	-- Count distinct equipped abilities, not their levels. Passives get a catch-up bonus only
+	-- while the player has fewer passives than active weapons in the authoritative run loadout.
+	local passiveWeight = if #runData.Equipped.Passive < #runData.Equipped.Weapon
+		then RunProgressionConfig.Abilities.PassiveCatchUpWeight
+		else 1
 	local choices = chooseWithoutReplacement(
 		buildCandidates(player),
 		RunProgressionConfig.Abilities.ChoiceCount,
-		equippedCount / totalSlots
+		equippedCount / totalSlots,
+		passiveWeight
 	)
 	if #choices == 0 then
 		-- This only occurs after every legal run ability reaches its configured maximum.

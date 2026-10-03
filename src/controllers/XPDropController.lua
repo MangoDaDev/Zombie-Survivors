@@ -36,6 +36,7 @@ local effectsFolder: Folder?
 local renderConnection: RBXScriptConnection?
 local nextVisibilityReportAt = 0
 local views: { [number]: XPView } = {}
+local frameDestinations: { [number]: Vector3 | boolean } = {}
 
 local function getRoot(userId: number?): BasePart?
 	local player = userId and Players:GetPlayerByUserId(userId)
@@ -43,6 +44,22 @@ local function getRoot(userId: number?): BasePart?
 	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
 	local root = character and character:FindFirstChild("HumanoidRootPart")
 	return if humanoid and humanoid.Health > 0 and root and root:IsA("BasePart") then root else nil
+end
+
+local function getFrameDestination(userId: number?): Vector3?
+	if not userId then
+		return nil
+	end
+	local cached = frameDestinations[userId]
+	if cached ~= nil then
+		return if typeof(cached) == "Vector3" then cached else nil
+	end
+	-- A magnet burst shares one collector destination for this frame. Refresh before the
+	-- next frame so health, respawns, and root replication keep their existing behavior.
+	local root = getRoot(userId)
+	local destination = root and root.Position + Vector3.new(0, 1.25, 0)
+	frameDestinations[userId] = destination or false
+	return destination
 end
 
 local function destroyView(id: number)
@@ -147,9 +164,8 @@ local function renderView(view: XPView, now: number, deltaTime: number)
 	elseif view.phase == "Idle" then
 		view.position = view.targetPosition
 	elseif view.phase == "Magnet" then
-		local root = getRoot(view.collectorUserId)
-		if root then
-			local destination = root.Position + Vector3.new(0, 1.25, 0)
+		local destination = getFrameDestination(view.collectorUserId)
+		if destination then
 			local alpha = 1 - math.exp(-MAGNET_ACCELERATION * deltaTime)
 			view.position = view.position:Lerp(destination, alpha)
 		end
@@ -233,9 +249,11 @@ end
 
 local function render(deltaTime: number)
 	local now = Workspace:GetServerTimeNow()
+	table.clear(frameDestinations)
 	for _, view in views do
 		renderView(view, now, deltaTime)
 	end
+	table.clear(frameDestinations)
 	if now >= nextVisibilityReportAt and xpNetwork then
 		local camera = Workspace.CurrentCamera
 		if camera then

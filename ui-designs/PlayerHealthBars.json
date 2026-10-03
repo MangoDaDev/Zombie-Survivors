@@ -1,0 +1,1104 @@
+{
+  "pinevex_object": {
+    "type": "Frame",
+    "name": "PlayerHealthBarPreview",
+    "size": [
+      1,
+      0,
+      1,
+      0
+    ],
+    "bg": [
+      71,
+      82,
+      65
+    ],
+    "children": [
+      {
+        "type": "Frame",
+        "name": "Bar0_0",
+        "size": [
+          0,
+          228,
+          0,
+          30
+        ],
+        "position": [
+          0,
+          150,
+          0,
+          65
+        ],
+        "anchor": [
+          0.5,
+          0.5
+        ],
+        "bgTransparency": 1,
+        "strokes": [
+          {
+            "thickness": 2.1,
+            "color": [
+              15,
+              20,
+              18
+            ],
+            "applyMode": "Border"
+          }
+        ],
+        "children": [
+          {
+            "type": "Frame",
+            "name": "Fill",
+            "size": [
+              1,
+              0,
+              1,
+              0
+            ],
+            "bg": [
+              69,
+              205,
+              105
+            ]
+          },
+          {
+            "type": "TextLabel",
+            "name": "Value",
+            "size": [
+              0.9,
+              0,
+              0.9,
+              0
+            ],
+            "position": [
+              0.5,
+              0,
+              0.5,
+              0
+            ],
+            "anchor": [
+              0.5,
+              0.5
+            ],
+            "bgTransparency": 1,
+            "text": "100",
+            "textColor": [
+              255,
+              255,
+              255
+            ],
+            "textScaled": true,
+            "font": "Ubuntu",
+            "fontWeight": "Bold",
+            "strokes": [
+              {
+                "thickness": 1.485,
+                "color": [
+                  15,
+                  20,
+                  18
+                ],
+                "applyMode": "Contextual"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "Frame",
+        "name": "Bar0_1",
+        "size": [
+          0,
+          152,
+          0,
+          20
+        ],
+        "position": [
+          0,
+          410,
+          0,
+          65
+        ],
+        "anchor": [
+          0.5,
+          0.5
+        ],
+        "bgTransparency": 1,
+        "strokes": [
+          {
+            "thickness": 1.4000000000000001,
+            "color": [
+              15,
+              20,
+              18
+            ],
+            "applyMode": "Border"
+          }
+        ],
+        "children": [
+          {
+            "type": "Frame",
+            "name": "Fill",
+            "size": [
+              1,
+              0,
+              1,
+              0
+            ],
+            "bg": [
+              69,
+              205,
+              105
+            ]
+          },
+          {
+            "type": "TextLabel",
+            "name": "Value",
+            "size": [
+              0.9,
+              0,
+              0.9,
+              0
+            ],
+            "position": [
+              0.5,
+              0,
+              0.5,
+              0
+            ],
+            "anchor": [
+              0.5,
+              0.5
+            ],
+            "bgTransparency": 1,
+            "text": "100",
+            "textColor": [
+              255,
+              255,
+              255
+            ],
+            "textScaled": true,
+            "font": "Ubuntu",
+            "fontWeight": "Bold",
+            "strokes": [
+              {
+                "thickness": 0.99,
+                "color": [
+                  15,
+                  20,
+                  18
+                ],
+                "applyMode": "Contextual"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "Frame",
+        "name": "Bar0_2",
+        "size": [
+          0,
+          114,
+          0,
+          15
+        ],
+        "position": [
+          0,
+          670,
+          0,
+          65
+        ],
+        "anchor": [
+          0.5,
+          0.5
+        ],
+        "bgTransparency": 1,
+        "strokes": [
+          {
+            "thickness": 1.05,
+            "color": [
+              15,
+              20,
+              18
+            ],
+            "applyMode": "Border"
+          }
+        ],
+        "children": [
+          {
+            "type": "Frame",
+            "name": "Fill",
+            "size": [
+              1,
+              0,
+              1,
+              0
+            ],
+            "bg": [
+              69,
+              205,
+              105
+            ]
+          },
+          {
+            "type": "TextLabel",
+            "name": "Value",
+            "size": [
+              0.9,
+              0,
+              0.9,
+              0
+            ],
+            "position": [
+              0.5,
+              0,
+              0.5,
+              0
+            ],
+            "anchor": [
+              0.5,
+              0.5
+            ],
+            "bgTransparency": 1,
+            "text": "100",
+            "textColor": [
+              255,
+              255,
+              255
+            ],
+            "textScaled": true,
+            "font": "Ubuntu",
+            "fontWeight": "Bold",
+            "strokes": [
+              {
+                "thickness": 0.7425,
+                "color": [
+                  15,
+                  20,
+                  18
+                ],
+                "applyMode": "Contextual"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "Frame",
+        "name": "Bar1_0",
+        "size": [
+          0,
+          228,
+          0,
+          30
+        ],
+        "position": [
+          0,
+          150,
+          0,
+          145
+        ],
+        "anchor": [
+          0.5,
+          0.5
+        ],
+        "bgTransparency": 1,
+        "strokes": [
+          {
+            "thickness": 2.1,
+            "color": [
+              15,
+              20,
+              18
+            ],
+            "applyMode": "Border"
+          }
+        ],
+        "children": [
+          {
+            "type": "Frame",
+            "name": "Fill",
+            "size": [
+              0.5,
+              0,
+              1,
+              0
+            ],
+            "bg": [
+              235,
+              180,
+              60
+            ]
+          },
+          {
+            "type": "TextLabel",
+            "name": "Value",
+            "size": [
+              0.9,
+              0,
+              0.9,
+              0
+            ],
+            "position": [
+              0.5,
+              0,
+              0.5,
+              0
+            ],
+            "anchor": [
+              0.5,
+              0.5
+            ],
+            "bgTransparency": 1,
+            "text": "50",
+            "textColor": [
+              255,
+              255,
+              255
+            ],
+            "textScaled": true,
+            "font": "Ubuntu",
+            "fontWeight": "Bold",
+            "strokes": [
+              {
+                "thickness": 1.485,
+                "color": [
+                  15,
+                  20,
+                  18
+                ],
+                "applyMode": "Contextual"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "Frame",
+        "name": "Bar1_1",
+        "size": [
+          0,
+          152,
+          0,
+          20
+        ],
+        "position": [
+          0,
+          410,
+          0,
+          145
+        ],
+        "anchor": [
+          0.5,
+          0.5
+        ],
+        "bgTransparency": 1,
+        "strokes": [
+          {
+            "thickness": 1.4000000000000001,
+            "color": [
+              15,
+              20,
+              18
+            ],
+            "applyMode": "Border"
+          }
+        ],
+        "children": [
+          {
+            "type": "Frame",
+            "name": "Fill",
+            "size": [
+              0.5,
+              0,
+              1,
+              0
+            ],
+            "bg": [
+              235,
+              180,
+              60
+            ]
+          },
+          {
+            "type": "TextLabel",
+            "name": "Value",
+            "size": [
+              0.9,
+              0,
+              0.9,
+              0
+            ],
+            "position": [
+              0.5,
+              0,
+              0.5,
+              0
+            ],
+            "anchor": [
+              0.5,
+              0.5
+            ],
+            "bgTransparency": 1,
+            "text": "50",
+            "textColor": [
+              255,
+              255,
+              255
+            ],
+            "textScaled": true,
+            "font": "Ubuntu",
+            "fontWeight": "Bold",
+            "strokes": [
+              {
+                "thickness": 0.99,
+                "color": [
+                  15,
+                  20,
+                  18
+                ],
+                "applyMode": "Contextual"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "Frame",
+        "name": "Bar1_2",
+        "size": [
+          0,
+          114,
+          0,
+          15
+        ],
+        "position": [
+          0,
+          670,
+          0,
+          145
+        ],
+        "anchor": [
+          0.5,
+          0.5
+        ],
+        "bgTransparency": 1,
+        "strokes": [
+          {
+            "thickness": 1.05,
+            "color": [
+              15,
+              20,
+              18
+            ],
+            "applyMode": "Border"
+          }
+        ],
+        "children": [
+          {
+            "type": "Frame",
+            "name": "Fill",
+            "size": [
+              0.5,
+              0,
+              1,
+              0
+            ],
+            "bg": [
+              235,
+              180,
+              60
+            ]
+          },
+          {
+            "type": "TextLabel",
+            "name": "Value",
+            "size": [
+              0.9,
+              0,
+              0.9,
+              0
+            ],
+            "position": [
+              0.5,
+              0,
+              0.5,
+              0
+            ],
+            "anchor": [
+              0.5,
+              0.5
+            ],
+            "bgTransparency": 1,
+            "text": "50",
+            "textColor": [
+              255,
+              255,
+              255
+            ],
+            "textScaled": true,
+            "font": "Ubuntu",
+            "fontWeight": "Bold",
+            "strokes": [
+              {
+                "thickness": 0.7425,
+                "color": [
+                  15,
+                  20,
+                  18
+                ],
+                "applyMode": "Contextual"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "Frame",
+        "name": "Bar2_0",
+        "size": [
+          0,
+          228,
+          0,
+          30
+        ],
+        "position": [
+          0,
+          150,
+          0,
+          225
+        ],
+        "anchor": [
+          0.5,
+          0.5
+        ],
+        "bgTransparency": 1,
+        "strokes": [
+          {
+            "thickness": 2.1,
+            "color": [
+              15,
+              20,
+              18
+            ],
+            "applyMode": "Border"
+          }
+        ],
+        "children": [
+          {
+            "type": "Frame",
+            "name": "Fill",
+            "size": [
+              0.2,
+              0,
+              1,
+              0
+            ],
+            "bg": [
+              220,
+              75,
+              75
+            ]
+          },
+          {
+            "type": "TextLabel",
+            "name": "Value",
+            "size": [
+              0.9,
+              0,
+              0.9,
+              0
+            ],
+            "position": [
+              0.5,
+              0,
+              0.5,
+              0
+            ],
+            "anchor": [
+              0.5,
+              0.5
+            ],
+            "bgTransparency": 1,
+            "text": "20",
+            "textColor": [
+              255,
+              255,
+              255
+            ],
+            "textScaled": true,
+            "font": "Ubuntu",
+            "fontWeight": "Bold",
+            "strokes": [
+              {
+                "thickness": 1.485,
+                "color": [
+                  15,
+                  20,
+                  18
+                ],
+                "applyMode": "Contextual"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "Frame",
+        "name": "Bar2_1",
+        "size": [
+          0,
+          152,
+          0,
+          20
+        ],
+        "position": [
+          0,
+          410,
+          0,
+          225
+        ],
+        "anchor": [
+          0.5,
+          0.5
+        ],
+        "bgTransparency": 1,
+        "strokes": [
+          {
+            "thickness": 1.4000000000000001,
+            "color": [
+              15,
+              20,
+              18
+            ],
+            "applyMode": "Border"
+          }
+        ],
+        "children": [
+          {
+            "type": "Frame",
+            "name": "Fill",
+            "size": [
+              0.2,
+              0,
+              1,
+              0
+            ],
+            "bg": [
+              220,
+              75,
+              75
+            ]
+          },
+          {
+            "type": "TextLabel",
+            "name": "Value",
+            "size": [
+              0.9,
+              0,
+              0.9,
+              0
+            ],
+            "position": [
+              0.5,
+              0,
+              0.5,
+              0
+            ],
+            "anchor": [
+              0.5,
+              0.5
+            ],
+            "bgTransparency": 1,
+            "text": "20",
+            "textColor": [
+              255,
+              255,
+              255
+            ],
+            "textScaled": true,
+            "font": "Ubuntu",
+            "fontWeight": "Bold",
+            "strokes": [
+              {
+                "thickness": 0.99,
+                "color": [
+                  15,
+                  20,
+                  18
+                ],
+                "applyMode": "Contextual"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "Frame",
+        "name": "Bar2_2",
+        "size": [
+          0,
+          114,
+          0,
+          15
+        ],
+        "position": [
+          0,
+          670,
+          0,
+          225
+        ],
+        "anchor": [
+          0.5,
+          0.5
+        ],
+        "bgTransparency": 1,
+        "strokes": [
+          {
+            "thickness": 1.05,
+            "color": [
+              15,
+              20,
+              18
+            ],
+            "applyMode": "Border"
+          }
+        ],
+        "children": [
+          {
+            "type": "Frame",
+            "name": "Fill",
+            "size": [
+              0.2,
+              0,
+              1,
+              0
+            ],
+            "bg": [
+              220,
+              75,
+              75
+            ]
+          },
+          {
+            "type": "TextLabel",
+            "name": "Value",
+            "size": [
+              0.9,
+              0,
+              0.9,
+              0
+            ],
+            "position": [
+              0.5,
+              0,
+              0.5,
+              0
+            ],
+            "anchor": [
+              0.5,
+              0.5
+            ],
+            "bgTransparency": 1,
+            "text": "20",
+            "textColor": [
+              255,
+              255,
+              255
+            ],
+            "textScaled": true,
+            "font": "Ubuntu",
+            "fontWeight": "Bold",
+            "strokes": [
+              {
+                "thickness": 0.7425,
+                "color": [
+                  15,
+                  20,
+                  18
+                ],
+                "applyMode": "Contextual"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "Frame",
+        "name": "Bar3_0",
+        "size": [
+          0,
+          228,
+          0,
+          30
+        ],
+        "position": [
+          0,
+          150,
+          0,
+          305
+        ],
+        "anchor": [
+          0.5,
+          0.5
+        ],
+        "bgTransparency": 1,
+        "strokes": [
+          {
+            "thickness": 2.1,
+            "color": [
+              15,
+              20,
+              18
+            ],
+            "applyMode": "Border"
+          }
+        ],
+        "children": [
+          {
+            "type": "Frame",
+            "name": "Fill",
+            "size": [
+              0,
+              0,
+              1,
+              0
+            ],
+            "bg": [
+              220,
+              75,
+              75
+            ]
+          },
+          {
+            "type": "TextLabel",
+            "name": "Value",
+            "size": [
+              0.9,
+              0,
+              0.9,
+              0
+            ],
+            "position": [
+              0.5,
+              0,
+              0.5,
+              0
+            ],
+            "anchor": [
+              0.5,
+              0.5
+            ],
+            "bgTransparency": 1,
+            "text": "0",
+            "textColor": [
+              255,
+              255,
+              255
+            ],
+            "textScaled": true,
+            "font": "Ubuntu",
+            "fontWeight": "Bold",
+            "strokes": [
+              {
+                "thickness": 1.485,
+                "color": [
+                  15,
+                  20,
+                  18
+                ],
+                "applyMode": "Contextual"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "Frame",
+        "name": "Bar3_1",
+        "size": [
+          0,
+          152,
+          0,
+          20
+        ],
+        "position": [
+          0,
+          410,
+          0,
+          305
+        ],
+        "anchor": [
+          0.5,
+          0.5
+        ],
+        "bgTransparency": 1,
+        "strokes": [
+          {
+            "thickness": 1.4000000000000001,
+            "color": [
+              15,
+              20,
+              18
+            ],
+            "applyMode": "Border"
+          }
+        ],
+        "children": [
+          {
+            "type": "Frame",
+            "name": "Fill",
+            "size": [
+              0,
+              0,
+              1,
+              0
+            ],
+            "bg": [
+              220,
+              75,
+              75
+            ]
+          },
+          {
+            "type": "TextLabel",
+            "name": "Value",
+            "size": [
+              0.9,
+              0,
+              0.9,
+              0
+            ],
+            "position": [
+              0.5,
+              0,
+              0.5,
+              0
+            ],
+            "anchor": [
+              0.5,
+              0.5
+            ],
+            "bgTransparency": 1,
+            "text": "0",
+            "textColor": [
+              255,
+              255,
+              255
+            ],
+            "textScaled": true,
+            "font": "Ubuntu",
+            "fontWeight": "Bold",
+            "strokes": [
+              {
+                "thickness": 0.99,
+                "color": [
+                  15,
+                  20,
+                  18
+                ],
+                "applyMode": "Contextual"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "Frame",
+        "name": "Bar3_2",
+        "size": [
+          0,
+          114,
+          0,
+          15
+        ],
+        "position": [
+          0,
+          670,
+          0,
+          305
+        ],
+        "anchor": [
+          0.5,
+          0.5
+        ],
+        "bgTransparency": 1,
+        "strokes": [
+          {
+            "thickness": 1.05,
+            "color": [
+              15,
+              20,
+              18
+            ],
+            "applyMode": "Border"
+          }
+        ],
+        "children": [
+          {
+            "type": "Frame",
+            "name": "Fill",
+            "size": [
+              0,
+              0,
+              1,
+              0
+            ],
+            "bg": [
+              220,
+              75,
+              75
+            ]
+          },
+          {
+            "type": "TextLabel",
+            "name": "Value",
+            "size": [
+              0.9,
+              0,
+              0.9,
+              0
+            ],
+            "position": [
+              0.5,
+              0,
+              0.5,
+              0
+            ],
+            "anchor": [
+              0.5,
+              0.5
+            ],
+            "bgTransparency": 1,
+            "text": "0",
+            "textColor": [
+              255,
+              255,
+              255
+            ],
+            "textScaled": true,
+            "font": "Ubuntu",
+            "fontWeight": "Bold",
+            "strokes": [
+              {
+                "thickness": 0.7425,
+                "color": [
+                  15,
+                  20,
+                  18
+                ],
+                "applyMode": "Contextual"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "viewport_size": [
+    800,
+    360
+  ],
+  "transparent_background": false
+}

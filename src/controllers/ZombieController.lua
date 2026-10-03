@@ -413,6 +413,25 @@ local function playBossChargeTelegraph(packet)
 	playEffectSound("SlowSwoosh", renderFolder, 0.62)
 end
 
+local function playBossAreaTelegraph(packet)
+	local radius = if type(packet.Radius) == "number" then math.clamp(packet.Radius, 1, 30) else 8
+	local duration = if type(packet.Duration) == "number" then math.clamp(packet.Duration, 0.5, 3) else 1.4
+	local color = if typeof(packet.Color) == "Color3" then packet.Color else Color3.fromRGB(180, 220, 65)
+	local position = packet.Position + Vector3.yAxis * 0.1
+	-- Additional volley targets need their own stationary warning for the entire server windup.
+	-- Twelve stud segments bound the cost and exactly outline the authoritative damage radius.
+	for index = 1, 12 do
+		local angle = TAU * (index - 1) / 12
+		local segment = makeStudEffectPart("BossAreaWarning", color)
+		segment.Size = Vector3.new(0.35, 0.14, TAU * radius / 12)
+		segment.CFrame = CFrame.new(position + Vector3.new(math.cos(angle), 0, math.sin(angle)) * radius)
+			* CFrame.Angles(0, -angle, 0)
+		segment.Transparency = 0.45
+		TweenService:Create(segment, TweenInfo.new(duration, Enum.EasingStyle.Linear), { Transparency = 0.08 }):Play()
+		Debris:AddItem(segment, duration + 0.08)
+	end
+end
+
 function ZombieController.ZombieAbility(_, packet)
 	if type(packet) ~= "table" or type(packet.Kind) ~= "string" then
 		return
@@ -470,6 +489,10 @@ function ZombieController.ZombieAbility(_, packet)
 	end
 	if packet.Kind == "BossChargeTelegraph" then
 		playBossChargeTelegraph(packet)
+		return
+	end
+	if packet.Kind == "BossAreaTelegraph" then
+		playBossAreaTelegraph(packet)
 		return
 	end
 	local radius = if type(packet.Radius) == "number" then math.clamp(packet.Radius, 1, 30) else 2.5

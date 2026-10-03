@@ -892,9 +892,84 @@ local function initializeMilestoneBoss(zombie)
 	local now = workspace:GetServerTimeNow()
 	zombie.specialRuntime.nextUseAt = now + BOSS_ENTRANCE_POSE_DURATION + config.InitialDelay
 	zombie.specialRuntime.entranceEndsAt = now + BOSS_ENTRANCE_POSE_DURATION
+	zombie.specialRuntime.nextSummonAt = now + BOSS_ENTRANCE_POSE_DURATION + config.SummonInitialDelay
+	zombie.specialRuntime.enraged = false
 	beginSpecial(zombie, SpecialState.Entrance, now, zombie.cframe.Position, BOSS_ENTRANCE_POSE_DURATION)
 	-- Every milestone boss is heavy enough to resist ordinary crowd-control without becoming immune.
 	zombie.knockbackResistance = config.KnockbackResistance
+end
+
+local function getBossCooldown(zombie, cooldown)
+	return cooldown * (if zombie.specialRuntime.enraged then zombie.definition.Special.EnrageCooldownMultiplier else 1)
+end
+
+local function getBossGroundPosition(zombie)
+	local position = zombie.cframe.Position
+	-- Huge boss pivots sit above player roots. Radius hits belong to the floor, not pivot height.
+	return Vector3.new(position.X, zombie.arena.GroundY, position.Z)
+end
+
+local function stepBossSummon(zombie, target, now, facing)
+	local config = zombie.definition.Special
+	local runtime = zombie.specialRuntime
+	if runtime.phase == "SummonWindup" then
+		zombie.state = ZombieProtocol.State.Attacking
+		zombie.cframe = CFrame.new(zombie.cframe.Position) * facing
+		if now >= runtime.phaseEndsAt then
+			zombie.services.QueueBossSummons(zombie)
+			zombie.services.BroadcastAbility({
+				Kind = "BossSummon",
+				Position = getBossGroundPosition(zombie),
+				Radius = config.SummonRadius,
+				Color = zombie.definition.EffectColor,
+			})
+			runtime.phase = nil
+			runtime.nextSummonAt = now + getBossCooldown(zombie, config.SummonCooldown)
+			setSpecialState(zombie, SpecialState.None, now)
+		end
+		return true
+	end
+	-- Every boss summons on an independent timer even when its attack cannot reach the target.
+	-- Finish active attacks/recovery first so summoning never interrupts a committed telegraph.
+	if not runtime.phase and target and now >= runtime.nextSummonAt then
+		runtime.phase = "SummonWindup"
+		runtime.phaseEndsAt = now + config.SummonWindup
+		zombie.state = ZombieProtocol.State.Attacking
+		beginSpecial(zombie, SpecialState.Windup, now, zombie.cframe.Position, config.SummonRadius)
+		return true
+	end
+	return false
+end
+
+local function enrageMilestoneBoss(zombie, _amount, now)
+	local config = zombie.definition.Special
+	local runtime = zombie.specialRuntime
+	if runtime.enraged or zombie.health <= 0 or zombie.health > zombie.maximumHealth * config.EnrageHealthThreshold then
+		return
+	end
+	-- Every boss permanently escalates at half health, including faster attack and summon cadence.
+	-- Active warnings retain their full promised dodge time; only future cooldowns are shortened.
+	runtime.enraged = true
+	zombie.specialMoveSpeedMultiplier *= config.EnrageSpeedMultiplier
+	zombie.damageGrowthMultiplier *= config.EnrageDamageMultiplier
+	runtime.nextUseAt = now + math.max(runtime.nextUseAt - now, 0) * config.EnrageCooldownMultiplier
+	runtime.nextSummonAt = now + math.max(runtime.nextSummonAt - now, 0) * config.EnrageCooldownMultiplier
+	zombie.services.BroadcastAbility({
+		Kind = "BossEnrage",
+		Position = getBossGroundPosition(zombie),
+		Radius = config.Radius,
+		Color = zombie.definition.EffectColor,
+	})
+end
+
+local function broadcastBossAreaTelegraph(zombie, position, radius, duration)
+	zombie.services.BroadcastAbility({
+		Kind = "BossAreaTelegraph",
+		Position = position,
+		Radius = radius,
+		Duration = duration,
+		Color = zombie.definition.EffectColor,
+	})
 end
 
 local function holdMilestoneBossEntrance(zombie, now): boolean
@@ -928,18 +1003,13 @@ end
 ZombieSpecialBehaviors.Boss = {}
 
 function ZombieSpecialBehaviors.Boss.Initialize(zombie)
-	local config = zombie.definition.Special
-	local runtime = zombie.specialRuntime
 	initializeMilestoneBoss(zombie)
-	runtime.nextAbility = "Slam"
-	runtime.enraged = false
 end
 
 local function finishBossAbility(zombie, now)
 	local runtime = zombie.specialRuntime
 	runtime.phase = nil
-	runtime.nextUseAt = now + zombie.definition.Special.Cooldown
-	runtime.nextAbility = if runtime.nextAbility == "Slam" then "Summon" else "Slam"
+	runtime.nextUseAt = now + getBossCooldown(zombie, zombie.definition.Special.Cooldown)
 	setSpecialState(zombie, SpecialState.None, now)
 end
 
@@ -949,35 +1019,19 @@ function ZombieSpecialBehaviors.Boss.Step(zombie, _deltaTime, target, now, dista
 	if holdMilestoneBossEntrance(zombie, now) then
 		return true
 	end
+	if stepBossSummon(zombie, target, now, facing) then
+		return true
+	end
 
 	if runtime.phase == "SlamWindup" then
 		zombie.state = ZombieProtocol.State.Attacking
 		zombie.cframe = CFrame.new(zombie.cframe.Position) * facing
 		if now >= runtime.phaseEndsAt then
-			zombie.services.DamagePlayersInRadius(zombie, zombie.cframe.Position, config.Radius, config.SlamDamage)
+			zombie.services.DamagePlayersInRadius(zombie, getBossGroundPosition(zombie), config.Radius, config.SlamDamage)
 			zombie.services.BroadcastAbility({
 				Kind = "Shockwave",
-				Position = zombie.cframe.Position,
+				Position = getBossGroundPosition(zombie),
 				Radius = config.Radius,
-				Color = zombie.definition.EffectColor,
-			})
-			finishBossAbility(zombie, now)
-		end
-		return true
-	elseif runtime.phase == "SummonWindup" then
-		zombie.state = ZombieProtocol.State.Attacking
-		zombie.cframe = CFrame.new(zombie.cframe.Position) * facing
-		if now >= runtime.phaseEndsAt then
-			for index = 1, config.SummonCount do
-				local angle = math.pi * 2 * index / config.SummonCount
-				local offset = Vector3.new(math.cos(angle), 0, math.sin(angle)) * config.SummonRadius
-				local spawnType = config.SummonTypes[(index - 1) % #config.SummonTypes + 1]
-				zombie.services.QueueSpawn(spawnType, zombie.cframe.Position + offset, zombie.arena, zombie.roundNumber)
-			end
-			zombie.services.BroadcastAbility({
-				Kind = "BossSummon",
-				Position = zombie.cframe.Position,
-				Radius = config.SummonRadius,
 				Color = zombie.definition.EffectColor,
 			})
 			finishBossAbility(zombie, now)
@@ -988,40 +1042,17 @@ function ZombieSpecialBehaviors.Boss.Step(zombie, _deltaTime, target, now, dista
 	if not target or now < runtime.nextUseAt then
 		return false
 	end
-	if runtime.nextAbility == "Slam" then
-		if distance > config.SlamTriggerRange then
-			-- Chase until the circular warning can truthfully cover the intended victim.
-			return false
-		end
-		runtime.phase = "SlamWindup"
-		runtime.phaseEndsAt = now + config.SlamWindup
-		beginSpecial(zombie, SpecialState.Windup, now, zombie.cframe.Position, config.Radius)
-	else
-		runtime.phase = "SummonWindup"
-		runtime.phaseEndsAt = now + config.SummonWindup
-		beginSpecial(zombie, SpecialState.Windup, now, zombie.cframe.Position, config.SummonRadius)
+	if distance > config.SlamTriggerRange then
+		-- Chase until the circular warning can truthfully cover the intended victim.
+		return false
 	end
+	runtime.phase = "SlamWindup"
+	runtime.phaseEndsAt = now + config.SlamWindup
+	beginSpecial(zombie, SpecialState.Windup, now, zombie.cframe.Position, config.Radius)
 	return true
 end
 
-function ZombieSpecialBehaviors.Boss.OnDamaged(zombie, _amount, _now)
-	local config = zombie.definition.Special
-	local runtime = zombie.specialRuntime
-	if runtime.enraged or zombie.health > zombie.maximumHealth * config.EnrageHealthThreshold then
-		return
-	end
-	runtime.enraged = true
-	-- The half-health phase is permanent so the fight escalates instead of periodically resetting.
-	zombie.specialMoveSpeedMultiplier *= config.EnrageSpeedMultiplier
-	zombie.damageGrowthMultiplier *= config.EnrageDamageMultiplier
-	zombie.specialSequence += 1
-	zombie.services.BroadcastAbility({
-		Kind = "BossEnrage",
-		Position = zombie.cframe.Position,
-		Radius = config.Radius,
-		Color = zombie.definition.EffectColor,
-	})
-end
+ZombieSpecialBehaviors.Boss.OnDamaged = enrageMilestoneBoss
 
 function ZombieSpecialBehaviors.Boss.OnDeath(zombie)
 	finishMilestoneBossDeath(zombie)
@@ -1039,28 +1070,36 @@ function ZombieSpecialBehaviors.PlagueMatron.Step(zombie, deltaTime, target, now
 	if holdMilestoneBossEntrance(zombie, now) then
 		return true
 	end
+	if stepBossSummon(zombie, target, now, facing) then
+		return true
+	end
 	if runtime.phase == "PoolWindup" then
 		zombie.state = ZombieProtocol.State.Attacking
 		zombie.cframe = CFrame.new(zombie.cframe.Position) * facing
 		if now >= runtime.phaseEndsAt then
-			-- Damage happens only after the complete floor marker, then the same area remains dangerous as
-			-- a slow field. Players can dodge the hit and still need to route around the lingering pool.
-			zombie.services.DamagePlayersInRadius(zombie, runtime.targetPosition, config.Radius, config.ImpactDamage)
-			zombie.services.CreateSlowHazard(
-				runtime.targetPosition,
-				config.Radius,
-				config.PoolDuration,
-				config.SlowMultiplier,
-				zombie.definition.EffectColor
-			)
-			zombie.services.BroadcastAbility({
-				Kind = "PlagueBurst",
-				Position = runtime.targetPosition,
-				Radius = config.Radius,
-				Color = zombie.definition.EffectColor,
-			})
+			-- Each pool receives its own full warning before impact; lingering damage makes safe ground
+			-- valuable instead of allowing players to ignore a slow-only puddle while firing continuously.
+			for _, position in runtime.poolPositions do
+				zombie.services.DamagePlayersInRadius(zombie, position, config.Radius, config.ImpactDamage)
+				zombie.services.CreateSlowHazard(
+					position,
+					config.Radius,
+					config.PoolDuration,
+					config.SlowMultiplier,
+					zombie.definition.EffectColor,
+					zombie,
+					config.PoolTickDamage
+				)
+				zombie.services.BroadcastAbility({
+					Kind = "PlagueBurst",
+					Position = position,
+					Radius = config.Radius,
+					Color = zombie.definition.EffectColor,
+				})
+			end
+			runtime.poolPositions = nil
 			runtime.phase = nil
-			runtime.nextUseAt = now + config.Cooldown
+			runtime.nextUseAt = now + getBossCooldown(zombie, config.Cooldown)
 			setSpecialState(zombie, SpecialState.None, now)
 		end
 		return true
@@ -1071,6 +1110,17 @@ function ZombieSpecialBehaviors.PlagueMatron.Step(zombie, deltaTime, target, now
 		local predicted = target.position
 			+ Vector3.new(velocity.X, 0, velocity.Z) * config.PredictionTime
 		runtime.targetPosition = Vector3.new(predicted.X, zombie.arena.GroundY, predicted.Z)
+		local count = if runtime.enraged then config.EnragedPoolCount else config.PoolCount
+		local sideDirection = Vector3.new(-direction.Z, 0, direction.X)
+		runtime.poolPositions = { runtime.targetPosition }
+		for index = 2, count do
+			local offset = if index == 2 then sideDirection * config.PoolSpread
+				elseif index == 3 then -sideDirection * config.PoolSpread
+				else direction * config.PoolSpread
+			local position = runtime.targetPosition + offset
+			table.insert(runtime.poolPositions, position)
+			broadcastBossAreaTelegraph(zombie, position, config.Radius, config.Windup)
+		end
 		runtime.phase = "PoolWindup"
 		runtime.phaseEndsAt = now + config.Windup
 		beginSpecial(zombie, SpecialState.Windup, now, runtime.targetPosition, config.Radius)
@@ -1088,6 +1138,8 @@ function ZombieSpecialBehaviors.PlagueMatron.Step(zombie, deltaTime, target, now
 	return true
 end
 
+ZombieSpecialBehaviors.PlagueMatron.OnDamaged = enrageMilestoneBoss
+
 function ZombieSpecialBehaviors.PlagueMatron.OnDeath(zombie)
 	finishMilestoneBossDeath(zombie)
 end
@@ -1098,10 +1150,13 @@ function ZombieSpecialBehaviors.RiftStalker.Initialize(zombie)
 	initializeMilestoneBoss(zombie)
 end
 
-function ZombieSpecialBehaviors.RiftStalker.Step(zombie, _deltaTime, target, now)
+function ZombieSpecialBehaviors.RiftStalker.Step(zombie, _deltaTime, target, now, _distance, _direction, facing)
 	local config = zombie.definition.Special
 	local runtime = zombie.specialRuntime
 	if holdMilestoneBossEntrance(zombie, now) then
+		return true
+	end
+	if stepBossSummon(zombie, target, now, facing) then
 		return true
 	end
 	if runtime.phase == "Burrowed" then
@@ -1112,6 +1167,12 @@ function ZombieSpecialBehaviors.RiftStalker.Step(zombie, _deltaTime, target, now
 				and (target.position + Vector3.new(velocity.X, 0, velocity.Z) * config.PredictionTime)
 				or zombie.cframe.Position
 			runtime.targetPosition = Vector3.new(targetPosition.X, zombie.cframe.Position.Y, targetPosition.Z)
+			-- Clamp before showing the marker so arena edges never move the eruption away from its warning.
+			local previousCFrame = zombie.cframe
+			zombie.cframe = CFrame.new(runtime.targetPosition) * previousCFrame.Rotation
+			zombie:_constrainToArena()
+			runtime.targetPosition = zombie.cframe.Position
+			zombie.cframe = previousCFrame
 			runtime.phase = "Warning"
 			runtime.phaseEndsAt = now + config.WarningDuration
 			setSpecialState(zombie, SpecialState.Warning, now, runtime.targetPosition, config.Radius)
@@ -1122,10 +1183,10 @@ function ZombieSpecialBehaviors.RiftStalker.Step(zombie, _deltaTime, target, now
 		if now >= runtime.phaseEndsAt then
 			zombie.cframe = CFrame.new(runtime.targetPosition) * zombie.cframe.Rotation
 			zombie:_constrainToArena()
-			zombie.services.DamagePlayersInRadius(zombie, zombie.cframe.Position, config.Radius, config.EruptionDamage)
+			zombie.services.DamagePlayersInRadius(zombie, getBossGroundPosition(zombie), config.Radius, config.EruptionDamage)
 			zombie.services.BroadcastAbility({
 				Kind = "BossEruption",
-				Position = zombie.cframe.Position,
+				Position = getBossGroundPosition(zombie),
 				Radius = config.Radius,
 				Color = zombie.definition.EffectColor,
 			})
@@ -1137,22 +1198,31 @@ function ZombieSpecialBehaviors.RiftStalker.Step(zombie, _deltaTime, target, now
 	elseif runtime.phase == "Emerging" then
 		zombie.state = ZombieProtocol.State.Attacking
 		if now >= runtime.phaseEndsAt then
-			runtime.phase = "Recovery"
-			runtime.phaseEndsAt = now + config.RecoveryDuration
-			setSpecialState(zombie, SpecialState.Recovery, now, zombie.cframe.Position, config.RecoveryDuration)
+			runtime.eruptionsRemaining -= 1
+			if target and runtime.eruptionsRemaining > 0 then
+				-- A chain reacquires the moving target but always repeats the complete underground warning.
+				runtime.phase = "Burrowed"
+				runtime.phaseEndsAt = now + config.HiddenDuration
+				beginSpecial(zombie, SpecialState.Burrowed, now, zombie.cframe.Position, config.HiddenDuration)
+			else
+				runtime.phase = "Recovery"
+				runtime.phaseEndsAt = now + config.RecoveryDuration
+				setSpecialState(zombie, SpecialState.Recovery, now, zombie.cframe.Position, config.RecoveryDuration)
+			end
 		end
 		return true
 	elseif runtime.phase == "Recovery" then
 		zombie.state = ZombieProtocol.State.Idle
 		if now >= runtime.phaseEndsAt then
 			runtime.phase = nil
-			runtime.nextUseAt = now + config.Cooldown
+			runtime.nextUseAt = now + getBossCooldown(zombie, config.Cooldown)
 			setSpecialState(zombie, SpecialState.None, now)
 		end
 		return true
 	end
 
 	if target and now >= runtime.nextUseAt then
+		runtime.eruptionsRemaining = if runtime.enraged then config.EnragedEruptionCount else config.EruptionCount
 		runtime.phase = "Burrowed"
 		runtime.phaseEndsAt = now + config.HiddenDuration
 		beginSpecial(zombie, SpecialState.Burrowed, now, zombie.cframe.Position, config.HiddenDuration)
@@ -1160,6 +1230,8 @@ function ZombieSpecialBehaviors.RiftStalker.Step(zombie, _deltaTime, target, now
 	end
 	return false
 end
+
+ZombieSpecialBehaviors.RiftStalker.OnDamaged = enrageMilestoneBoss
 
 function ZombieSpecialBehaviors.RiftStalker.ModifyDamage(zombie, amount)
 	local phase = zombie.specialRuntime.phase
@@ -1185,24 +1257,43 @@ function ZombieSpecialBehaviors.BoneColossus.Step(zombie, deltaTime, target, now
 	if holdMilestoneBossEntrance(zombie, now) then
 		return true
 	end
+	if stepBossSummon(zombie, target, now, facing) then
+		return true
+	end
 	if runtime.phase == "ChargeWindup" then
 		zombie.state = ZombieProtocol.State.Attacking
 		zombie.cframe = CFrame.new(zombie.cframe.Position) * CFrame.lookAt(Vector3.zero, runtime.chargeDirection).Rotation
 		if now >= runtime.phaseEndsAt then
 			runtime.phase = "Charging"
 			runtime.phaseEndsAt = now + config.ChargeDuration
+			runtime.lastChargeStepAt = now
 			runtime.hitPlayers = {}
 			setSpecialState(zombie, SpecialState.Active, now, runtime.chargeTarget, config.ChargeDuration)
 		end
 		return true
 	elseif runtime.phase == "Charging" then
-		local travel = runtime.chargeDirection * config.ChargeSpeed * deltaTime
+		local previousPosition = zombie.cframe.Position
+		-- Limit the final update to remaining travel time; a slow server frame cannot extend the lane.
+		local travelTime = math.min(deltaTime, math.max(runtime.phaseEndsAt - runtime.lastChargeStepAt, 0))
+		runtime.lastChargeStepAt = now
+		local travel = runtime.chargeDirection * config.ChargeSpeed * travelTime
 		zombie.cframe = CFrame.new(zombie.cframe.Position + travel)
 			* CFrame.lookAt(Vector3.zero, runtime.chargeDirection).Rotation
+		zombie:_constrainToArena()
 		zombie.state = ZombieProtocol.State.Moving
+		local segment = zombie.cframe.Position - previousPosition
+		local horizontalSegment = Vector3.new(segment.X, 0, segment.Z)
+		local segmentLengthSquared = horizontalSegment:Dot(horizontalSegment)
 		for _, candidate in candidates or {} do
+			local offset = candidate.position - previousPosition
+			local horizontalOffset = Vector3.new(offset.X, 0, offset.Z)
+			local alpha = if segmentLengthSquared > 0
+				then math.clamp(horizontalOffset:Dot(horizontalSegment) / segmentLengthSquared, 0, 1)
+				else 0
+			-- Sweep the entire horizontal lane, once per player, regardless of the tall boss's pivot.
 			if not runtime.hitPlayers[candidate.player]
-				and (candidate.position - zombie.cframe.Position).Magnitude <= config.ChargeWidth
+				and math.abs(candidate.position.Y - zombie.arena.GroundY) <= 8
+				and (horizontalOffset - horizontalSegment * alpha).Magnitude <= config.ChargeWidth
 			then
 				runtime.hitPlayers[candidate.player] = true
 				zombie:DamagePlayer(candidate, config.ChargeDamage)
@@ -1214,25 +1305,48 @@ function ZombieSpecialBehaviors.BoneColossus.Step(zombie, deltaTime, target, now
 			setSpecialState(zombie, SpecialState.Recovery, now, zombie.cframe.Position, config.RecoveryDuration)
 		end
 		return true
+	elseif runtime.phase == "StompWindup" then
+		zombie.state = ZombieProtocol.State.Attacking
+		if now >= runtime.phaseEndsAt then
+			local position = getBossGroundPosition(zombie)
+			zombie.services.DamagePlayersInRadius(zombie, position, config.StompRadius, config.StompDamage)
+			zombie.services.BroadcastAbility({
+				Kind = "Shockwave",
+				Position = position,
+				Radius = config.StompRadius,
+				Color = zombie.definition.EffectColor,
+			})
+			runtime.phase = "Recovery"
+			runtime.phaseEndsAt = now + config.RecoveryDuration
+			setSpecialState(zombie, SpecialState.Recovery, now, position, config.RecoveryDuration)
+		end
+		return true
 	elseif runtime.phase == "Recovery" then
 		zombie.state = ZombieProtocol.State.Idle
 		if now >= runtime.phaseEndsAt then
 			runtime.phase = nil
-			runtime.nextUseAt = now + config.Cooldown
+			runtime.nextUseAt = now + getBossCooldown(zombie, config.Cooldown)
 			setSpecialState(zombie, SpecialState.None, now)
 		end
 		return true
 	end
 
-	if target and now >= runtime.nextUseAt and distance >= config.MinimumRange and distance <= config.MaximumRange then
+	if target and now >= runtime.nextUseAt and distance <= config.StompRadius then
+		-- Close-range builds must face a real special attack instead of disabling the boss's only move.
+		runtime.phase = "StompWindup"
+		runtime.phaseEndsAt = now + config.StompWindup
+		beginSpecial(zombie, SpecialState.Windup, now, zombie.cframe.Position, config.StompRadius)
+		return true
+	end
+	if target and now >= runtime.nextUseAt and distance <= config.MaximumRange then
 		runtime.phase = "ChargeWindup"
 		runtime.phaseEndsAt = now + config.Windup
 		runtime.chargeDirection = direction
-		runtime.chargeTarget = zombie.cframe.Position + direction * config.ChargeSpeed * config.ChargeDuration
+		runtime.chargeTarget = getBossGroundPosition(zombie) + direction * config.ChargeSpeed * config.ChargeDuration
 		beginSpecial(zombie, SpecialState.Windup, now, runtime.chargeTarget, config.Radius)
 		zombie.services.BroadcastAbility({
 			Kind = "BossChargeTelegraph",
-			Position = zombie.cframe.Position,
+			Position = getBossGroundPosition(zombie),
 			Target = runtime.chargeTarget,
 			Width = config.ChargeWidth,
 			Duration = config.Windup,
@@ -1242,6 +1356,8 @@ function ZombieSpecialBehaviors.BoneColossus.Step(zombie, deltaTime, target, now
 	end
 	return false
 end
+
+ZombieSpecialBehaviors.BoneColossus.OnDamaged = enrageMilestoneBoss
 
 function ZombieSpecialBehaviors.BoneColossus.ModifyDamage(zombie, amount)
 	if zombie.specialRuntime.phase == "Recovery" then

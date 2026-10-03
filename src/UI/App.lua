@@ -9,7 +9,7 @@ local ClassInterface = require(script.Parent.HUD.ClassInterface)
 local ClassesAbilitiesTutorial = require(script.Parent.HUD.ClassesAbilitiesTutorial)
 local DownedOverlay = require(script.Parent.HUD.DownedOverlay)
 local GameOver = require(script.Parent.HUD.GameOver)
-local HealthBar = require(script.Parent.HUD.HealthBar)
+local PlayerHealthBars = require(script.Parent.World.PlayerHealthBars)
 local LevelUpChoices = require(script.Parent.HUD.LevelUpChoices)
 local MonetizationShop = require(script.Parent.HUD.MonetizationShop)
 local Notifications = require(script.Parent.HUD.Notifications)
@@ -64,8 +64,6 @@ return function()
 			RunHUD(),
 			-- Offscreen teammates remain findable without adding replicated state or changing character ownership.
 			OffscreenPlayerIndicators(),
-			-- Local Humanoid health is presentation-only here; damage and maximum-health changes remain authoritative.
-			HealthBar(),
 			-- Boss health mirrors authoritative zombie snapshots and exists only while the encounter boss is alive.
 			BossHealthBar(),
 			-- Milestone warning stages stay visible while players move through the guard wave and entrance.
@@ -82,6 +80,8 @@ return function()
 			-- RageBar owns reactive Game-map visibility so Studio destination promotion needs no App remount.
 			RageBar(),
 		},
+		-- World health remains visible above all players, including the teammate a downed player spectates.
+		PlayerHealthBars(),
 		-- Downed players spectate living teammates and can deliberately revive; results appear only after a team wipe.
 		DownedOverlay(),
 		GameOver(),

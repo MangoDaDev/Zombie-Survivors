@@ -444,7 +444,11 @@ function ZombieView:AppendRender(parts, cframes, camera, localNow, serverNow)
 
 	if showWarning then
 		local radius = 3
-		if self.specialState == SpecialState.Countdown then
+		if self.definition.IsBoss and self.specialValue > 0 then
+			-- Bosses share one state channel but summon, stomp, and primary attacks have different radii.
+			-- Use the cast's authoritative radius so the warning never shrinks a Colossus stomp to four studs.
+			radius = self.specialValue
+		elseif self.specialState == SpecialState.Countdown then
 			radius = self.definition.Special.Radius or self.definition.Special.SpawnRadius or radius
 		elseif self.typeName == "Tank" then
 			radius = self.definition.Special.Radius

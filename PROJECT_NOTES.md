@@ -94,6 +94,12 @@ Concise project-specific decisions that should survive future changes. General w
 
 - `PlayerStatController` owns baseline natural regeneration at 0.25% of maximum health per second; the empty mapped `StarterCharacterScripts.Health` only suppresses Roblox's competing default. Heart recovery and other authored healing remain separate.
 
+## Player health presentation
+
+- `UI.World.PlayerHealthBars` replaces the screen health HUD with a 3.8-by-0.5-stud BillboardGui above every player during Game sessions. Every client reads all replicated Humanoids; damage and healing remain server-owned.
+- Keep the empty bar transparent, with a scaled outline, health fill, and only the remaining health number centered inside. Do not restore a HEALTH caption, backing panel, pixel-sized billboard, or duplicate native overhead/screen health display.
+- World health bars sit outside App's ordinary screen-UI spectator gate so downed players can still see their observed teammates' health.
+
 ## Character placement
 
 - The server bootstrap dispatches `CharacterController` before yield-prone character hooks so initial map placement cannot arrive late and teleport a player after gameplay has begun.
@@ -103,17 +109,29 @@ Concise project-specific decisions that should survive future changes. General w
 - Client-local part effects share `Modules.UI.StudVFX` for studded Plastic blocks, layered flashes, segmented rings, and bounded two-tone debris bursts; keep gameplay timing and authority in their existing controllers.
 - Impact and area effects use layered stud compositions (crossed rays, echo rings, debris, broken tiles, or moving segments) rather than a single expanding sphere, cylinder, or plate; keep persistent effect part counts bounded for dense multiplayer hordes.
 
+## Rendering performance
+
+- Optimisations must preserve the exact visuals, animation frequency, timing, and mechanics; do not introduce culling, reduced VFX density, or gameplay/balance changes as performance shortcuts.
+- Keep native `PivotTo` for weapon/sword models. Detached asset comparisons found that rebuilding 39-part Dagger and 61-part Sword poses in Luau for bulk submission costs more than Roblox's native model transform cache.
+- Coin backpack opening positions are shared only within the current frame, preserving respawns and authored backpack-stage swaps. Keep holder movement before pickup prediction and camera-visibility reads, and avoid redundant billboard size writes.
+- XP magnet destinations and sword-owner roots also share only frame-local lookups. Runtime burst/ring/warning fade targets are captured after construction and released with the existing effect state; preserve all segments, scale pulses, opacity formulas, and lifetimes.
+
 ## Ability progression
 
 - Permanent weapon and passive unlocks use explicit simulator-style prices instead of rarity-only pricing. Class-linked weapons cost roughly half their corresponding class benchmark, culminating in Vortex at 750,000 Coins against Void Emperor at 1,500,000; starter abilities remain free.
 - Weapon progression is capped at level 25, with its already-condensed special milestones culminating at that cap. The shorter continuous curve preserves the former level-one baseline and level-50 maximum power; passive progression remains capped at level 50 with its gentler curve.
 - Weapon balance reviews must model dense-horde mechanics from the server implementation—including retargeting, unique-hit chains, persistent overlap, geometry, active caps, and crowd control—not rank weapons from displayed stats or single-target damage alone.
-- Level-up spins preserve the higher offer chance for abilities already owned in the current run, but all abilities within the upgrade and new-ability groups have equal weight. Rarity and current level never bias candidates; max levels and available category slots still determine eligibility.
+- Level-up spins preserve the higher offer chance for abilities already owned in the current run. While fewer passives than active weapons are equipped, passive candidates have twice the active weight within both upgrade and new-ability groups; otherwise candidates have equal weight. Rarity and current level never bias candidates; max levels and available category slots still determine eligibility. `RunProgressionConfig.Abilities.PassiveCatchUpWeight` owns the bonus.
 - Aura begins at a 5-stud radius and gains a diminishing but always-positive amount of radius every level with no radius cap. Its radius unlocks shared color-coded Outer, Inner, and Core zones whose damage increases toward the player; final modified radius controls both authoritative zones and visuals.
+- Aura damage zones stay visibly filled with translucent studded disk rows and stronger segmented outlines; outline-only rings are too difficult to see. Each zone uses 16 fill rows regardless of radius, with inner colors layered above the outer field.
 - The 3D lobby Abilities booth opens the permanent unlock menu through the `Abilities > PromptPart` proximity prompt; prompt binding follows the booth hierarchy and normalizes its labels to `Abilities` / `Open Abilities` because the Studio-authored prompt may retain duplicated Classes metadata.
 
 ## Round difficulty
 
+- Every boss snapshots living player count at spawn and gains 25% health per additional player, capped at 2x solo health; downed players do not add scaling, and existing bosses never rescale mid-fight. `RunProgressionConfig.Rounds` owns the tuning.
+- Every milestone boss summons on an independent timer, including while its primary attack is out of range; finish committed attacks/recovery first. Per-boss surviving and pending summon caps are 10/12/14/16 for Grave Titan/Plague Matron/Rift Stalker/Bone Colossus, and offspring keep the boss's originating round. Never add recursive summoner types to boss packs.
+- Solo boss health progresses through 6,000/24,000/60,000/120,000. All bosses permanently enrage at half health with faster movement, damage, and future cooldowns; active telegraphs keep their complete dodge time. Plague Matron casts three damaging/slowing pools (four enraged), Rift Stalker chains two fully warned eruptions (three enraged), and Bone Colossus uses swept charges plus close-range stomps with punish windows.
+- Boss area damage and lane warnings use arena-floor height, never elevated model pivots; charges sweep the full constrained horizontal travel segment once per player. Boss circular warnings use the cast's replicated radius so summon/stomp areas match their damage geometry. Plague pools tick through the existing authoritative damage path once per second and disappear with their owner or arena clear.
 - Round one starts with six zombies, then population grows through gentle bounded density and post-round-15 slopes so the run does not hit a population/replication cliff around round 30. Reinforcement batches grow slowly and remain capped at 12 initially/10 thereafter; never lower the interval below 1.4 seconds. Strong-archetype weighting remains secondary and gradual.
 - Shielders enter after the first boss and reduce frontal direct damage instead of nullifying it, so every solo build can still defeat them while flanking and bypass effects remain rewarded.
 - The persisted `RoundsSurvived` public stat is a personal best: it stores the highest authoritative round the player completed while alive, never a cumulative lifetime total.

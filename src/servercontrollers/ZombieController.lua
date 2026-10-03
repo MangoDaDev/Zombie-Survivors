@@ -225,7 +225,7 @@ local function slowPlayersInCone(attacker, position, direction, range, dotThresh
 	end
 end
 
-local function createSlowHazard(position, radius, duration, speedMultiplier, color)
+local function createSlowHazard(position, radius, duration, speedMultiplier, color, attacker, tickDamage)
 	nextSlowHazardId += 1
 	local groundPosition = Vector3.new(position.X, arena.GroundY, position.Z)
 	table.insert(slowHazards, {
@@ -235,6 +235,10 @@ local function createSlowHazard(position, radius, duration, speedMultiplier, col
 		speedMultiplier = speedMultiplier,
 		expiresAt = workspace:GetServerTimeNow() + duration,
 		nextApplyAt = 0,
+		-- Ordinary sludge only slows; boss plague also deals one authoritative tick per second.
+		attacker = attacker,
+		tickDamage = tickDamage,
+		nextDamageAt = workspace:GetServerTimeNow() + 1,
 	})
 	broadcastAbility({ Kind = "SlowHazard", Position = groundPosition, Radius = radius, Duration = duration, Color = color })
 end
@@ -277,14 +281,47 @@ local function killAllZombies(excludedId, origin, killer)
 	end
 end
 
-local function queueSpawn(typeName, position, spawnArena, roundNumber)
+local function queueSpawn(typeName, position, spawnArena, roundNumber, summonerId)
 	if not arenaClearInProgress and ZombieDefinitions[typeName] then
 		table.insert(pendingSpawnRequests, {
 			typeName = typeName,
 			position = Vector3.new(position.X, spawnArena.GroundY, position.Z),
 			arena = spawnArena,
 			roundNumber = roundNumber,
+			summonerId = summonerId,
 		})
+	end
+end
+
+local function queueBossSummons(attacker)
+	if arenaClearInProgress or attacker:IsDead() then
+		return
+	end
+	local config = attacker.definition.Special
+	local activeCount = 0
+	-- Every boss can summon, but surviving adds and pending requests share a strict per-boss cap.
+	-- Count only on a summon cast; no extra frame loop or Instance hierarchy scan is needed.
+	for _, zombie in zombies do
+		if zombie.summonerId == attacker.id and not zombie:IsDead() then
+			activeCount += 1
+		end
+	end
+	for _, request in pendingSpawnRequests do
+		if request.summonerId == attacker.id then
+			activeCount += 1
+		end
+	end
+	local count = math.min(config.SummonCount, config.MaximumActiveSummons - activeCount)
+	for index = 1, count do
+		local angle = TAU * index / count
+		local offset = Vector3.new(math.cos(angle), 0, math.sin(angle)) * config.SummonRadius
+		queueSpawn(
+			config.SummonTypes[(index - 1) % #config.SummonTypes + 1],
+			attacker.cframe.Position + offset,
+			attacker.arena,
+			attacker.roundNumber,
+			attacker.id
+		)
 	end
 end
 
@@ -326,6 +363,7 @@ local zombieServices = {
 	ReleaseStolenRewards = releaseStolenRewards,
 	KillAllZombies = killAllZombies,
 	QueueSpawn = queueSpawn,
+	QueueBossSummons = queueBossSummons,
 	LaunchProjectile = launchProjectile,
 }
 
@@ -462,7 +500,7 @@ local function getGroupedSpawnPosition(spawnArena, groupCenter, candidates)
 	return nil
 end
 
-local function createZombie(spawnArena, typeName, surfacePosition, roundNumber)
+local function createZombie(spawnArena, typeName, surfacePosition, roundNumber, summonerId)
 	local definition = ZombieDefinitions[typeName]
 	local groundOffset = groundOffsets[typeName]
 	local boundaryRadius = boundaryRadii[typeName]
@@ -486,6 +524,14 @@ local function createZombie(spawnArena, typeName, surfacePosition, roundNumber)
 		roundNumber,
 		zombieServices
 	)
+	zombie.summonerId = summonerId
+	if definition.IsBoss then
+		-- Snapshot living players at spawn: downed teammates add no pressure, and health never jumps mid-fight.
+		local candidates = getLivePlayerCandidates()
+		local healthMultiplier = RunProgressionConfig.GetBossHealthMultiplier(#candidates)
+		zombie.maximumHealth = math.max(1, math.floor(zombie.maximumHealth * healthMultiplier + 0.5))
+		zombie.health = zombie.maximumHealth
+	end
 	-- Summons and split offspring can originate beside a boundary; constrain before their first packet.
 	zombie:_constrainToArena()
 	zombies[zombie.id] = zombie
@@ -892,15 +938,22 @@ local function stepSimulation(deltaTime)
 
 	for index = #slowHazards, 1, -1 do
 		local hazard = slowHazards[index]
-		if now >= hazard.expiresAt then
+		if now >= hazard.expiresAt or (hazard.attacker and hazard.attacker:IsDead()) then
 			table.remove(slowHazards, index)
 		elseif now >= hazard.nextApplyAt then
 			hazard.nextApplyAt = now + 0.15
+			local shouldDamage = hazard.attacker and now >= hazard.nextDamageAt
+			if shouldDamage then
+				hazard.nextDamageAt = now + 1
+			end
 			for _, candidate in candidates do
 				local offset = candidate.position - hazard.position
 				if math.abs(offset.Y) <= 8 and Vector2.new(offset.X, offset.Z).Magnitude <= hazard.radius then
 					-- All sludge shares one refreshable modifier so overlapping puddles never stack exponentially.
 					applyPlayerSlow({ id = "Sludge" }, candidate.player, hazard.speedMultiplier, 0.2)
+					if shouldDamage then
+						hazard.attacker:DamagePlayer(candidate, hazard.tickDamage)
+					end
 				end
 			end
 		end
@@ -964,7 +1017,7 @@ local function stepSimulation(deltaTime)
 	if #pendingSpawnRequests > 0 then
 		local spawnPackets = {}
 		for _, request in pendingSpawnRequests do
-			local packet = createZombie(request.arena, request.typeName, request.position, request.roundNumber)
+			local packet = createZombie(request.arena, request.typeName, request.position, request.roundNumber, request.summonerId)
 			if packet then
 				table.insert(spawnPackets, packet)
 			end

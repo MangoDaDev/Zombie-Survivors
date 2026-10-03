@@ -27,6 +27,18 @@ local function makeBlock(name: string, size: Vector3, color: Color3, transparenc
 	return StudVFX.CreateBlock(nil, name, size, color, transparency)
 end
 
+local function getRingParts(model: Model): { BasePart }
+	local parts = {}
+	-- These runtime rings have a fixed hierarchy. Cache their fade targets once;
+	-- retain every segment and the original opacity/scale animation at full frame rate.
+	for _, child in model:GetChildren() do
+		if child:IsA("BasePart") and child.Name ~= "Pivot" then
+			table.insert(parts, child)
+		end
+	end
+	return parts
+end
+
 local function makeRing(name: string, radius: number, color: Color3, segmentCount: number): Model?
 	if not effectsFolder then
 		return nil
@@ -63,7 +75,7 @@ local function pulse(position: Vector3, radius: number, color: Color3, duration:
 	end
 	ring:PivotTo(CFrame.new(position + Vector3.yAxis * 0.2))
 	ring:ScaleTo(0.2)
-	table.insert(bursts, { model = ring, startedAt = os.clock(), duration = duration, radius = radius })
+	table.insert(bursts, { model = ring, parts = getRingParts(ring), startedAt = os.clock(), duration = duration, radius = radius })
 	-- The restrained flash and outward studs give every impact a readable hit frame while the ring communicates range.
 	flash(position + Vector3.yAxis * 0.35, color, math.min(radius * 0.55, 4.5), duration * 0.72)
 	burstStuds(position + Vector3.yAxis * 0.25, color, math.clamp(math.floor(radius * 0.7), 4, 10), math.min(radius * 0.6, 5), duration)
@@ -262,6 +274,7 @@ function AdditionalWeaponEffects.FrostGroundCreated(packet)
 	model:PivotTo(CFrame.new(packet.position - Vector3.yAxis * 1.7))
 	table.insert(groundRings, {
 		model = model, ownerUserId = packet.ownerUserId,
+		parts = getRingParts(model),
 		startedAt = os.clock(),
 		expiresAt = os.clock() + packet.duration,
 	})
@@ -284,6 +297,7 @@ function AdditionalWeaponEffects.MeteorWarned(packet)
 	flash(packet.position + Vector3.yAxis * 0.25, Color3.fromRGB(255, 112, 42), math.min(packet.radius * 0.22, 3), 0.3)
 	meteors[packet.id] = {
 		ring = ring, model = model, position = packet.position, radius = packet.radius,
+		ringParts = getRingParts(ring),
 		ownerUserId = packet.ownerUserId, impactAt = packet.impactAt,
 		startedAt = Workspace:GetServerTimeNow(),
 	}
@@ -459,10 +473,8 @@ function AdditionalWeaponEffects.Render(now: number)
 			table.remove(bursts, index)
 		else
 			burst.model:ScaleTo(0.2 + burst.radius * alpha)
-			for _, part in burst.model:GetChildren() do
-				if part:IsA("BasePart") and part.Name ~= "Pivot" then
-					part.Transparency = 0.22 + alpha * 0.78
-				end
+			for _, part in burst.parts do
+				part.Transparency = 0.22 + alpha * 0.78
 			end
 		end
 	end
@@ -475,10 +487,9 @@ function AdditionalWeaponEffects.Render(now: number)
 			local remaining = ground.expiresAt - clock
 			local entranceAlpha = math.clamp((clock - ground.startedAt) / 0.2, 0, 1)
 			local fadeAlpha = math.clamp(remaining / 0.4, 0, 1)
-			for _, part in ground.model:GetChildren() do
-				if part:IsA("BasePart") and part.Name ~= "Pivot" then
-					part.Transparency = 1 - math.min(entranceAlpha, fadeAlpha) * 0.72
-				end
+			local transparency = 1 - math.min(entranceAlpha, fadeAlpha) * 0.72
+			for _, part in ground.parts do
+				part.Transparency = transparency
 			end
 		end
 	end
@@ -497,10 +508,8 @@ function AdditionalWeaponEffects.Render(now: number)
 		strike.model:PivotTo(CFrame.new(strike.position + Vector3.yAxis * (22 * (1 - alpha) + 1.7))
 			* CFrame.Angles(alpha * 3, alpha * 1.4, 0))
 		local warningPulse = 0.16 + math.max(0, math.sin(clock * 11)) * 0.34
-		for _, part in strike.ring:GetChildren() do
-			if part:IsA("BasePart") and part.Name ~= "Pivot" then
-				part.Transparency = warningPulse
-			end
+		for _, part in strike.ringParts do
+			part.Transparency = warningPulse
 		end
 		if now > strike.impactAt + 1 then
 			AdditionalWeaponEffects.MeteorCancelled(id)

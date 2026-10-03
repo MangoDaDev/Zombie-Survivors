@@ -52,9 +52,12 @@ local RunProgressionConfig = {
 	Abilities = {
 		ChoiceCount = 3,
 		-- Abilities already owned in the current run remain more likely to be offered for upgrades.
-		-- The choice roller applies this preference between groups, never as different per-ability weights.
+		-- The choice roller applies the owned-ability preference between upgrade and new-ability groups.
 		NewOfferChanceAtEmpty = 0.4,
 		NewOfferChanceAtFull = 0.08,
+		-- Passive offers have twice the active weight while fewer passives than active weapons are equipped.
+		-- This applies to both upgrades and new abilities, then stops once the category counts are balanced.
+		PassiveCatchUpWeight = 2,
 		-- Permanent ownership is the authoritative gate for new run choices. Keep this escape hatch empty
 		-- unless a future global event deliberately makes an ability available without unlocking it.
 		AlwaysAvailable = {},
@@ -91,6 +94,9 @@ local RunProgressionConfig = {
 		RoundDurationEquivalent = 20,
 		DifficultyRoundsPerStep = 20,
 		MaximumClusterSize = 4,
+		-- Extra players modestly raise boss health while preserving solo balance and bounding fight length.
+		BossHealthBonusPerAdditionalPlayer = 0.25,
+		MaximumBossHealthMultiplier = 2,
 		-- Bosses are deliberately fifteen rounds apart. Each milestone gets a short warning, a
 		-- manageable ring wave, and a telegraphed entrance instead of revealing the full roster early.
 		BossEncounters = {
@@ -180,6 +186,15 @@ function RunProgressionConfig.GetBossEncounter(roundNumber: number)
 		return nil
 	end
 	return RunProgressionConfig.Rounds.BossEncounters[roundNumber]
+end
+
+function RunProgressionConfig.GetBossHealthMultiplier(playerCount: number): number
+	local additionalPlayers = math.max(0, math.floor(playerCount) - 1)
+	local rounds = RunProgressionConfig.Rounds
+	return math.min(
+		1 + additionalPlayers * rounds.BossHealthBonusPerAdditionalPlayer,
+		rounds.MaximumBossHealthMultiplier
+	)
 end
 
 function RunProgressionConfig.GetRoundZombieCount(roundNumber: number, playerCount: number): number

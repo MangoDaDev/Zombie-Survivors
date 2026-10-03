@@ -89,23 +89,39 @@ local function createAuraField(name: string, zones, rage: boolean, transparency:
 	pivot.Parent = model
 	model.PrimaryPart = pivot
 	local segmentCount = 12
+	local fillRowCount = 16
 	for _, zone in zones do
 		local color = if rage then zone.Color:Lerp(Color3.fromRGB(255, 178, 48), 0.38) else zone.Color
+		-- Keep the Aura visibly filled: contiguous studded rows approximate each disk with a fixed part
+		-- budget. Inner disks sit above outer ones, beneath their outlines, to preserve the zone colors.
+		local rowDepth = zone.Radius * 2 / fillRowCount
+		local fillHeight = (zone.Index - 1) * 0.06
+		for rowIndex = 1, fillRowCount do
+			local rowZ = -zone.Radius + (rowIndex - 0.5) * rowDepth
+			local halfWidth = math.sqrt(zone.Radius * zone.Radius - rowZ * rowZ)
+			local fill = makeBlock(
+				zone.Name .. "ZoneFill",
+				Vector3.new(halfWidth * 2, 0.04, rowDepth),
+				color,
+				math.max(transparency + 0.12 - (zone.Index - 1) * 0.05, 0.34)
+			)
+			fill.CFrame = CFrame.new(0, fillHeight, rowZ)
+			fill.Parent = model
+		end
 		for index = 1, segmentCount do
 			local angle = (index - 1) / segmentCount * math.pi * 2
 			local segment = makeBlock(
 				zone.Name .. "ZoneBoundary",
 				Vector3.new(0.3, 0.1, math.max(math.pi * 2 * zone.Radius / segmentCount * 0.72, 0.45)),
 				if index % 3 == 0 then color:Lerp(Color3.new(1, 1, 1), 0.28) else color,
-				math.max(transparency - (zone.Index - 1) * 0.08, 0.42)
+				math.max(transparency - (zone.Index - 1) * 0.08, 0.24)
 			)
-			segment.CFrame = CFrame.new(math.cos(angle) * zone.Radius, (zone.Index - 1) * 0.025, math.sin(angle) * zone.Radius)
+			segment.CFrame = CFrame.new(math.cos(angle) * zone.Radius, fillHeight + 0.08, math.sin(angle) * zone.Radius)
 				* CFrame.Angles(0, -angle, 0)
 			segment.Parent = model
 		end
 	end
-	-- Short colored currents make the concentric boundaries read as damaging bands without filling the
-	-- ground with a translucent plate or adding any per-frame emitters.
+	-- Short colored currents sit above the filled field and rotate with its existing shared render loop.
 	local outerZone = zones[1]
 	for spokeIndex = 1, 5 do
 		local angle = (spokeIndex - 1) / 5 * math.pi * 2
@@ -115,12 +131,24 @@ local function createAuraField(name: string, zones, rage: boolean, transparency:
 			outerZone.Color:Lerp(Color3.new(1, 1, 1), 0.18),
 			math.min(transparency + 0.1, 0.88)
 		)
-		spoke.CFrame = CFrame.new(math.cos(angle) * outerZone.Radius * 0.31, 0.025, math.sin(angle) * outerZone.Radius * 0.31)
+		spoke.CFrame = CFrame.new(math.cos(angle) * outerZone.Radius * 0.31, 0.22, math.sin(angle) * outerZone.Radius * 0.31)
 			* CFrame.Angles(0, -angle - math.rad(18), 0)
 		spoke.Parent = model
 	end
 	model.Parent = effectsFolder
 	return model
+end
+
+local function getBurstParts(model: Model): { BasePart }
+	local parts = {}
+	-- Burst hierarchies are complete at creation; keep their exact fade targets without
+	-- rescanning descendants or allocating an Instance list on every rendered frame.
+	for _, descendant in model:GetDescendants() do
+		if descendant:IsA("BasePart") and descendant.Name ~= "Pivot" then
+			table.insert(parts, descendant)
+		end
+	end
+	return parts
 end
 
 local function addBurst(position: Vector3, radius: number, color: Color3, duration: number, soundName: string?)
@@ -132,6 +160,7 @@ local function addBurst(position: Vector3, radius: number, color: Color3, durati
 	ring:ScaleTo(0.4)
 	table.insert(bursts, {
 		model = ring,
+		parts = getBurstParts(ring),
 		startedAt = os.clock(),
 		duration = duration,
 		maximumScale = radius,
@@ -179,6 +208,7 @@ local function addImpact(position: Vector3, color: Color3, rage: boolean, soundN
 	StudVFX.Flash(effectsFolder, position + Vector3.yAxis * 0.45, color, if rage then 2.1 else 1.5, 0.18)
 	table.insert(bursts, {
 		model = model,
+		parts = getBurstParts(model),
 		startedAt = os.clock(),
 		duration = 0.22,
 		maximumScale = if rage then 1.8 else 1.35,
@@ -367,9 +397,9 @@ function CrowdWeaponEffects.AuraState(packet)
 	if #zones == 0 then
 		return
 	end
-	-- Each unlocked damage zone owns one segmented boundary. The shared definition keeps these colors and
-	-- radii identical to the server-authoritative damage bands while retaining a bounded part count.
-	local model = createAuraField("Aura", zones, packet.rage, if packet.rage then 0.58 else 0.72)
+	-- Each unlocked damage zone owns a filled disk and segmented boundary. The shared definition keeps
+	-- colors and radii aligned with the authoritative damage bands while retaining a bounded part count.
+	local model = createAuraField("Aura", zones, packet.rage, if packet.rage then 0.34 else 0.46)
 	if model then
 		auras[packet.ownerUserId] = {
 			model = model,
@@ -799,10 +829,9 @@ function CrowdWeaponEffects.Render(now: number, deltaTime: number)
 			table.remove(bursts, index)
 		else
 			burst.model:ScaleTo(0.4 + burst.maximumScale * alpha)
-			for _, descendant in burst.model:GetDescendants() do
-				if descendant:IsA("BasePart") and descendant.Name ~= "Pivot" then
-					descendant.Transparency = math.clamp(0.12 + alpha * 0.88, 0, 1)
-				end
+			local transparency = math.clamp(0.12 + alpha * 0.88, 0, 1)
+			for _, part in burst.parts do
+				part.Transparency = transparency
 			end
 		end
 	end

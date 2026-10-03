@@ -18,6 +18,22 @@ local OrbitingSwordsView = {}
 local effectsFolder: Folder?
 local views = {}
 local releasedBlades = {}
+local framePlayers: { [number]: Player | boolean } = {}
+local frameRoots: { [number]: BasePart | boolean } = {}
+
+local function getFrameOwner(userId: number): (Player?, BasePart?)
+	if framePlayers[userId] == nil then
+		local player = Players:GetPlayerByUserId(userId)
+		local character = player and player.Character
+		local root = character and character:FindFirstChild("HumanoidRootPart")
+		framePlayers[userId] = player or false
+		frameRoots[userId] = if root and root:IsA("BasePart") then root else false
+	end
+	local player = framePlayers[userId]
+	local root = frameRoots[userId]
+	return if typeof(player) == "Instance" then player else nil,
+		if typeof(root) == "Instance" then root else nil
+end
 
 local function isFiniteNumber(value: any): boolean
 	return type(value) == "number" and value == value and math.abs(value) < math.huge
@@ -303,10 +319,12 @@ function OrbitingSwordsView.SpawnReleased(packet): boolean
 end
 
 function OrbitingSwordsView.Render(now: number, deltaTime: number)
+	-- Resolve each owner once per frame, including all released return flights. Frame-local
+	-- references preserve character swaps and late root replication without a stale lifetime cache.
+	table.clear(framePlayers)
+	table.clear(frameRoots)
 	for userId, view in views do
-		local player = Players:GetPlayerByUserId(userId)
-		local character = player and player.Character
-		local root = character and character:FindFirstChild("HumanoidRootPart")
+		local player, root = getFrameOwner(userId)
 		if not player then
 			destroyView(userId)
 		elseif root and root:IsA("BasePart") then
@@ -344,8 +362,7 @@ function OrbitingSwordsView.Render(now: number, deltaTime: number)
 		local blade = releasedBlades[index]
 		local elapsed = now - blade.launchAt
 		local outwardAlpha = math.clamp(elapsed / blade.outwardDuration, 0, 1)
-		local player = Players:GetPlayerByUserId(blade.ownerUserId)
-		local root = player and player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+		local _, root = getFrameOwner(blade.ownerUserId)
 		local returnPosition = if root and root:IsA("BasePart") then root.Position + Vector3.new(0, 1.2, 0) else blade.startPosition
 		local position
 		local targetDirection
@@ -372,6 +389,8 @@ function OrbitingSwordsView.Render(now: number, deltaTime: number)
 			table.remove(releasedBlades, index)
 		end
 	end
+	table.clear(framePlayers)
+	table.clear(frameRoots)
 end
 
 return OrbitingSwordsView
