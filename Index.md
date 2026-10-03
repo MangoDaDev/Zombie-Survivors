@@ -128,7 +128,7 @@ These modules provide shared game configuration, persistent player-data defaults
 | `src/modules/Game/SurvivalStatsConfig.lua` | Defines the persistent lifetime rounds-survived data key and default. |
 | `src/modules/Game/ClassesAbilitiesTutorialConfig.lua` | Defines the persistent completion key and predetermined Blade Dancer tutorial reward. |
 | `src/modules/Game/Abilities/AbilityDefinitions.lua` | Defines the starter unlock pool (including Orbiting Swords), authored permanent-unlock prices with a rarity fallback, five free plus one purchasable active/passive slot per player, expandable ability metadata, upgrade costs, per-level stats, milestones, and Rage tuning. |
-| `src/modules/Game/Abilities/AbilityLevelScaling.lua` | Defines distinct shared weapon/passive effectiveness curves, compressing weapons into 25 levels while preserving their level-one baselines and former level-50 continuous-stat totals. |
+| `src/modules/Game/Abilities/AbilityLevelScaling.lua` | Defines distinct shared back-loaded weapon/passive effectiveness curves, starting below the former level-one baselines while preserving maximum-level continuous-stat totals and compressing weapons into 25 levels. |
 | `src/modules/Game/Abilities/AdditionalAbilityDefinitions.lua` | Defines Shotgun, Frost Nova, Meteor, Turret, Vortex, Giant, Greed, Critical, Adrenaline, and Impact level stats, milestone perks, and Rage tuning. |
 | `src/modules/Game/Abilities/ExpandedAbilityDefinitions.lua` | Defines Crowbar, Crossfire, Buzzsaw, Crusher, Laser Sweep, Armor, Magnet, Executioner, Training Manual, and Overcharge level stats, upgrade milestones, descriptions, and Rage tuning. |
 | `src/modules/Game/Classes/ClassDefinitions.lua` | Defines the extensible 17-class catalog, costs, starting abilities, descriptions, prerequisites, colors, perk values, and native same-name Accessory/Hat contract. |
@@ -201,8 +201,8 @@ These modules provide shared game configuration, persistent player-data defaults
 | `src/UI/Effects/Notification.lua` | Provides a reusable counted attention badge. |
 | `src/UI/HUD/CoinsDisplay.lua` | **Archived/dormant:** reusable responsive permanent-currency display. |
 | `src/UI/HUD/RunRewardsDisplay.lua` | **Archived/dormant:** pending-reward claim and backpack-to-balance presentation. |
-| `src/UI/HUD/AbilityInterface.lua` | Renders the responsive lobby Ability Arsenal, its shared bottom launcher dock, unlocked counts, rarity-priced locked cards, live coin affordability, and permanent run-choice unlock requests. |
-| `src/UI/HUD/ClassInterface.lua` | Renders the responsive Classes launcher plus the left-side selector and right-side description, ability, perks, unlock/equip action, and separate Coin/Robux choices for eligible classes over the Workspace changing-room scene. |
+| `src/UI/HUD/AbilityInterface.lua` | Renders the responsive lobby Ability Arsenal, its shared bottom launcher dock, unlocked counts, equipped/unlocked/price-sorted cards, live coin affordability, and permanent run-choice unlock requests. |
+| `src/UI/HUD/ClassInterface.lua` | Renders the responsive Classes launcher plus the equipped/unlocked/price-sorted selector and right-side description, ability, perks, unlock/equip action, and separate Coin/Robux choices for eligible classes over the Workspace changing-room scene. |
 | `src/UI/HUD/ClassesAbilitiesTutorial.lua` | Renders the returning-player instruction banner and animated camera-relative arrow toward the existing Classes booth. |
 | `src/UI/HUD/ZombieIndex.lua` | Renders the responsive lobby index launcher and zombie collection with hidden undiscovered entries, kill counts, behavior details, portraits, and discovery reward actions. |
 | `src/UI/HUD/RageBar.lua` | Renders the centered navy STUD Rage meter sharing XP dimensions, with orange activation, live charge/duration progress, reactive Game-session visibility, and keyboard/touch activation. |

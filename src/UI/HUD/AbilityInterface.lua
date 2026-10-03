@@ -49,6 +49,37 @@ local function isOwned(state, abilityId: string): boolean
 		and state.Owned[abilityId] == true
 end
 
+local function isEquipped(state, ability): boolean
+	local equippedByCategory = type(state) == "table" and state.Equipped
+	local equipped = type(equippedByCategory) == "table" and equippedByCategory[ability.Category]
+	return type(equipped) == "table" and table.find(equipped, ability.Id) ~= nil
+end
+
+local function getShopTier(state, ability): number
+	if isEquipped(state, ability) then return 1 end
+	if isOwned(state, ability.Id) then return 2 end
+	return 3
+end
+
+local function getShopLayoutOrder(state, ability, authoredOrder: number): number
+	local tier = getShopTier(state, ability)
+	local cost = AbilityDefinitions.GetUnlockCost(ability) or 0
+	local order = 1
+	for otherOrder, otherAbility in AbilityDefinitions.List do
+		if otherAbility.Category == ability.Category then
+			local otherTier = getShopTier(state, otherAbility)
+			local otherCost = AbilityDefinitions.GetUnlockCost(otherAbility) or 0
+			if otherTier < tier
+				or (otherTier == tier and otherCost < cost)
+				or (otherTier == tier and otherCost == cost and otherOrder < authoredOrder)
+			then
+				order += 1
+			end
+		end
+	end
+	return order
+end
+
 local function countCategory(state, category: string): (number, number)
 	local unlocked = 0
 	local total = 0
@@ -110,7 +141,10 @@ local function abilityCard(ability, order: number, props)
 			return if owned() then Color3.fromRGB(13, 50, 63) else Color3.fromRGB(18, 38, 50)
 		end,
 		BorderSizePixel = 0,
-		LayoutOrder = order,
+		-- Every non-premium catalog keeps the actionable progression order: equipped, unlocked, then price.
+		LayoutOrder = function()
+			return getShopLayoutOrder(props.state(), ability, order)
+		end,
 		Size = layout.Frame.Size,
 		Visible = function()
 			return props.category() == ability.Category

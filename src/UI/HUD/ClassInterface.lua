@@ -40,6 +40,34 @@ local function isOwned(state, classId: string): boolean
 	return type(state) == "table" and type(state.Owned) == "table" and state.Owned[classId] == true
 end
 
+local function getShopTier(state, definition): number
+	if type(state) == "table" and state.Equipped == definition.Id then return 1 end
+	local premium = MonetizationConfig.GetPremiumClass(definition.Id)
+	if isOwned(state, definition.Id)
+		or (premium ~= nil and MonetizationController.OwnsPremiumClass(definition.Id))
+	then
+		return 2
+	end
+	return 3
+end
+
+local function getShopLayoutOrder(state, definition, authoredOrder: number): number
+	local tier = getShopTier(state, definition)
+	local cost = definition.UnlockCost
+	local order = 1
+	for otherOrder, otherDefinition in ClassDefinitions.List do
+		local otherTier = getShopTier(state, otherDefinition)
+		local otherCost = otherDefinition.UnlockCost
+		if otherTier < tier
+			or (otherTier == tier and otherCost < cost)
+			or (otherTier == tier and otherCost == cost and otherOrder < authoredOrder)
+		then
+			order += 1
+		end
+	end
+	return order
+end
+
 local function getAbility(definition)
 	return AbilityDefinitions.ById[definition.AbilityId]
 end
@@ -112,7 +140,12 @@ local function classCard(definition, order: number, props)
 			return if selected() then Color3.fromRGB(12, 73, 98) else Color3.fromRGB(18, 46, 61)
 		end,
 		BorderSizePixel = 0,
-		LayoutOrder = order,
+		-- Coin-shop cards stay ordered by equipped state, ownership, then ascending unlock price.
+		LayoutOrder = function()
+			-- Re-evaluate when verified Gamepass ownership arrives, since it also authoritatively unlocks the class.
+			props.monetizationState()
+			return getShopLayoutOrder(props.state(), definition, order)
+		end,
 		Size = layout.Frame.Size,
 		ZIndex = 365,
 		create "UIScale" { Scale = scale },
@@ -797,71 +830,71 @@ return function()
 							Name = "CoinAction",
 							BackgroundTransparency = 1,
 							Size = function()
-								return if showRobuxOption() then UDim2.new(0.62, -4, 1, 0) else UDim2.fromScale(1, 1)
+								return if showRobuxOption() then UDim2.fromScale(0.61, 1) else UDim2.fromScale(1, 1)
 							end,
 							Button({
-							Text = function()
-								if tutorialState().active then
-									return if selectedTutorialTarget() then "CLAIM CLASS FOR FREE" else "SELECT BLADE DANCER"
-								end
-								if state().PendingEquip == selectedDefinition().Id then return "EQUIPPING..." end
-								if selectedEquipped() then return "EQUIPPED" end
-								if not prerequisiteMet() then
-									local ability = requiredAbility()
-									-- Missing prerequisite definitions must disable the class without breaking the entire Vide effect.
-									return if ability then "UNLOCK " .. string.upper(ability.Name) .. " FIRST" else "REQUIRED ABILITY UNAVAILABLE"
-								end
-								if selectedOwned() then return "EQUIP CLASS" end
-								local cost = FormatNumber(selectedDefinition().UnlockCost) or tostring(selectedDefinition().UnlockCost)
-								if showRobuxOption() then return if canAfford() then cost else "NEED " .. cost end
-								return if canAfford() then "UNLOCK FOR " .. cost .. " COINS" else "NEED " .. cost .. " COINS"
-							end,
-							LeftIcon = Images.Coin,
-							LeftIconVisible = function()
-								return not tutorialState().active
-									and prerequisiteMet()
-									and not selectedOwned()
-									and not selectedEquipped()
-							end,
-							Enabled = function()
-								if tutorialState().active then return selectedTutorialTarget() and prerequisiteMet() end
-								return prerequisiteMet() and not selectedEquipped()
-							end,
-							BackgroundColor3 = function()
-								if selectedTutorialTarget() then return UIStyle.Colors.Gold end
-								if selectedEquipped() then return UIStyle.Colors.Green end
-								if not prerequisiteMet() then return UIStyle.Colors.Muted end
-								if selectedOwned() then return Color3.fromRGB(16, 155, 211) end
-								return if canAfford() then UIStyle.Colors.Gold else UIStyle.Colors.Muted
-							end,
-							FontFace = HEAVY_FONT,
-							MaxTextSize = 30,
-							Size = UDim2.fromScale(1, 1),
-							OnActivated = function()
-								if not prerequisiteMet() then return end
-								local definition = selectedDefinition()
-								if tutorialState().active then
-									if selectedTutorialTarget() then ClassController.UnlockClass(definition.Id) end
-									return
-								end
-								if selectedOwned() then
-									if state().Equipped ~= definition.Id then ClassController.EquipClass(definition.Id) end
-								elseif not isOwned(state(), definition.Id) then
-									if canAfford() then
-										ClassController.UnlockClass(definition.Id)
-									else
-										ClassController.SetOpen(false)
-										MonetizationController.SetShopOpen(true, "Coins")
+								Text = function()
+									if tutorialState().active then
+										return if selectedTutorialTarget() then "CLAIM CLASS FOR FREE" else "SELECT BLADE DANCER"
 									end
-								end
-							end,
+									if state().PendingEquip == selectedDefinition().Id then return "EQUIPPING..." end
+									if selectedEquipped() then return "EQUIPPED" end
+									if not prerequisiteMet() then
+										local ability = requiredAbility()
+										-- Missing prerequisite definitions must disable the class without breaking the entire Vide effect.
+										return if ability then "UNLOCK " .. string.upper(ability.Name) .. " FIRST" else "REQUIRED ABILITY UNAVAILABLE"
+									end
+									if selectedOwned() then return "EQUIP CLASS" end
+									local cost = FormatNumber(selectedDefinition().UnlockCost) or tostring(selectedDefinition().UnlockCost)
+									if showRobuxOption() then return if canAfford() then cost else "NEED " .. cost end
+									return if canAfford() then "UNLOCK FOR " .. cost .. " COINS" else "NEED " .. cost .. " COINS"
+								end,
+								LeftIcon = Images.Coin,
+								LeftIconVisible = function()
+									return not tutorialState().active
+										and prerequisiteMet()
+										and not selectedOwned()
+										and not selectedEquipped()
+								end,
+								Enabled = function()
+									if tutorialState().active then return selectedTutorialTarget() and prerequisiteMet() end
+									return prerequisiteMet() and not selectedEquipped()
+								end,
+								BackgroundColor3 = function()
+									if selectedTutorialTarget() then return UIStyle.Colors.Gold end
+									if selectedEquipped() then return UIStyle.Colors.Green end
+									if not prerequisiteMet() then return UIStyle.Colors.Muted end
+									if selectedOwned() then return Color3.fromRGB(16, 155, 211) end
+									return if canAfford() then UIStyle.Colors.Gold else UIStyle.Colors.Muted
+								end,
+								FontFace = HEAVY_FONT,
+								MaxTextSize = 30,
+								Size = UDim2.fromScale(1, 1),
+								OnActivated = function()
+									if not prerequisiteMet() then return end
+									local definition = selectedDefinition()
+									if tutorialState().active then
+										if selectedTutorialTarget() then ClassController.UnlockClass(definition.Id) end
+										return
+									end
+									if selectedOwned() then
+										if state().Equipped ~= definition.Id then ClassController.EquipClass(definition.Id) end
+									elseif not isOwned(state(), definition.Id) then
+										if canAfford() then
+											ClassController.UnlockClass(definition.Id)
+										else
+											ClassController.SetOpen(false)
+											MonetizationController.SetShopOpen(true, "Coins")
+										end
+									end
+								end,
 							}),
 						},
 						create "Frame" {
 							Name = "RobuxAction",
 							BackgroundTransparency = 1,
-							Position = UDim2.new(0.62, 4, 0, 0),
-							Size = UDim2.new(0.38, -4, 1, 0),
+							Position = UDim2.fromScale(0.63, 0),
+							Size = UDim2.fromScale(0.37, 1),
 							Visible = showRobuxOption,
 							Button({
 								Text = function()

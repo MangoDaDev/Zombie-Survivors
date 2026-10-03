@@ -381,7 +381,8 @@ function magnet.GetStats(level: number)
 	local valid = levelOf(level)
 	return {
 		RadiusBonusPercent = math.min(110, 18 + upgradeProgress(valid) * 1.05 + (if valid >= 2 then 10 else 0) + (if valid >= 25 then 18 else 0)),
-		PullSpeedBonusPercent = math.min(100, upgradeProgress(valid) * 0.9 + (if valid >= 5 then 20 else 0) + (if valid >= 25 then 20 else 0)),
+		-- Magnet may start smaller, but equipping level one must never make existing pulls slower.
+		PullSpeedBonusPercent = math.clamp(upgradeProgress(valid) * 0.9 + (if valid >= 5 then 20 else 0) + (if valid >= 25 then 20 else 0), 0, 100),
 		CoinRadiusBonusPercent = if valid >= 10 then 20 else 0,
 		BurstRadius = if valid >= 17 then (if valid >= 25 then 44 else 34) else 0,
 		BurstInterval = if valid >= 25 then 8 elseif valid >= 17 then 12 else 0,

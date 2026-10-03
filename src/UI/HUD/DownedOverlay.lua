@@ -29,6 +29,13 @@ local BOLD_FONT = Font.new(UIStyle.Font.Family, Enum.FontWeight.Bold)
 -- dock's wide aspect ratio is fitted inside a short landscape viewport.
 local SPECTATE_POSITION = UDim2.fromScale(12 / 880, 12 / 218)
 local SPECTATE_SIZE = UDim2.fromScale(856 / 880, 62 / 218)
+local SPECTATE_ARROW_SIZE = UDim2.fromScale(60 / 856, 1)
+local SPECTATE_LABEL_POSITION = UDim2.fromScale(78 / 856, 8 / 62)
+local SPECTATE_LABEL_SIZE = UDim2.fromScale(138 / 856, 18 / 62)
+local SPECTATE_NAME_POSITION = UDim2.fromScale(78 / 856, 27 / 62)
+local SPECTATE_NAME_SIZE = UDim2.fromScale(300 / 856, 28 / 62)
+local SPECTATE_HELP_POSITION = UDim2.fromScale(790 / 856, 0.5)
+local SPECTATE_HELP_SIZE = UDim2.fromScale(320 / 856, 32 / 62)
 local OFFERS_POSITION = UDim2.fromScale(12 / 880, 87 / 218)
 local OFFERS_SIZE = UDim2.fromScale(856 / 880, 118 / 218)
 local OFFER_GAP = UDim.new(10 / 856, 0)
@@ -165,11 +172,11 @@ return function()
 	layout.TextLabel2 = ResponsiveLayout.Child(function() return UDim2.fromScale(0.92, if portrait() then 0.34 else 0.24) end, layout.StatusBanner)
 	layout.Dock = ResponsiveLayout.Base(function() return if portrait() then UDim2.fromScale(0.92, 0.46) else UDim2.fromScale(0.86, 0.31) end, layout.DownedOverlay, function() return if portrait() then 1 else 4.04 end)
 	layout.Spectate = ResponsiveLayout.Child(SPECTATE_SIZE, layout.Dock)
-	layout.TextButton = ResponsiveLayout.Child(UDim2.fromOffset(60, 62), layout.Spectate)
-	layout.TextLabel3 = ResponsiveLayout.Child(function() return if portrait() then UDim2.new(1, -156, 0, 18) else UDim2.new(0.3, 0, 0, 18) end, layout.Spectate)
-	layout.TextLabel4 = ResponsiveLayout.Child(function() return if portrait() then UDim2.new(1, -156, 0, 28) else UDim2.new(0.36, 0, 0, 28) end, layout.Spectate)
-	layout.TextLabel5 = ResponsiveLayout.Child(UDim2.new(0.42, 0, 0, 32), layout.Spectate)
-	layout.TextButton2 = ResponsiveLayout.Child(UDim2.fromOffset(60, 62), layout.Spectate)
+	layout.TextButton = ResponsiveLayout.Child(SPECTATE_ARROW_SIZE, layout.Spectate)
+	layout.TextLabel3 = ResponsiveLayout.Child(SPECTATE_LABEL_SIZE, layout.Spectate)
+	layout.TextLabel4 = ResponsiveLayout.Child(SPECTATE_NAME_SIZE, layout.Spectate)
+	layout.TextLabel5 = ResponsiveLayout.Child(SPECTATE_HELP_SIZE, layout.Spectate)
+	layout.TextButton2 = ResponsiveLayout.Child(SPECTATE_ARROW_SIZE, layout.Spectate)
 	layout.TextLabel6 = ResponsiveLayout.Child(UDim2.new(1, -36, 0, 22), layout.Dock)
 	layout.Offers = ResponsiveLayout.Child(OFFERS_SIZE, layout.Dock)
 
@@ -270,7 +277,7 @@ return function()
 				create "TextLabel" {
 					BackgroundTransparency = 1,
 					FontFace = BOLD_FONT,
-					Position = layout.Spectate.Scale(UDim2.new(0, 78, 0, 8)),
+					Position = SPECTATE_LABEL_POSITION,
 					Size = layout.TextLabel3.Size,
 					Text = "SPECTATING",
 					TextColor3 = Color3.fromRGB(131, 159, 174),
@@ -281,7 +288,7 @@ return function()
 				create "TextLabel" {
 					BackgroundTransparency = 1,
 					FontFace = HEAVY_FONT,
-					Position = layout.Spectate.Scale(UDim2.new(0, 78, 0, 27)),
+					Position = SPECTATE_NAME_POSITION,
 					Size = layout.TextLabel4.Size,
 					Text = spectateName,
 					TextColor3 = Color3.new(1, 1, 1),
@@ -294,7 +301,7 @@ return function()
 					AnchorPoint = Vector2.new(1, 0.5),
 					BackgroundTransparency = 1,
 					FontFace = BOLD_FONT,
-					Position = layout.Spectate.Scale(UDim2.new(1, -72, 0.5, 0)),
+					Position = SPECTATE_HELP_POSITION,
 					Size = layout.TextLabel5.Size,
 					Text = function()
 						countdownRevision()
