@@ -4,14 +4,12 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Networker = require(ReplicatedStorage.Packages.networker)
 local ClassDefinitions = require(ReplicatedStorage.Modules.Game.Classes.ClassDefinitions)
 local AbilityDefinitions = require(ReplicatedStorage.Modules.Game.Abilities.AbilityDefinitions)
-local MonetizationConfig = require(ReplicatedStorage.Modules.Game.MonetizationConfig)
 local CoinsController = require(script.Parent.CoinsController)
 local AnalyticsController = require(script.Parent.AnalyticsController)
 local PlayerStatController = require(script.Parent.PlayerStatController)
 local ServerContext = require(script.Parent.ServerContext)
 local ClassesAbilitiesTutorialController = require(script.Parent.ClassesAbilitiesTutorialController)
 local ClassesAbilitiesTutorialConfig = require(ReplicatedStorage.Modules.Game.ClassesAbilitiesTutorialConfig)
-local MonetizationController = require(script.Parent.MonetizationController)
 
 local REQUEST_COOLDOWN = 0.2
 local MOVEMENT_THRESHOLD = 0.5
@@ -512,13 +510,6 @@ function ClassController.UnlockClass(_, player: Player, classId: any)
 	if not definition then
 		return
 	end
-	local premium = MonetizationConfig.GetPremiumClass(classId)
-	if premium and not MonetizationController.OwnsGamepass(player, classId) then
-		-- Premium classes can never be reached through the legacy coin-unlock remote; only verified
-		-- Gamepass ownership grants them into the shared class inventory.
-		sendResult(player, false, "This premium class requires its Gamepass.")
-		return
-	end
 	local tutorialActive = ClassesAbilitiesTutorialController.IsActive(player)
 	if tutorialActive and classId ~= ClassesAbilitiesTutorialConfig.TargetClassId then
 		sendResult(player, false, "Claim Blade Dancer to finish the tutorial first.")
@@ -553,7 +544,8 @@ function ClassController.UnlockClass(_, player: Player, classId: any)
 		sendResult(player, false, "Not enough Coins to unlock " .. definition.Name .. ".")
 		return
 	end
-	-- The server chooses the fixed price and persists ownership only after the authoritative debit succeeds.
+	-- Every class with a configured coin price uses this authoritative path, including classes that also
+	-- offer a Gamepass shortcut. The alternate Gamepass grant includes the prerequisite ability instead.
 	data.Owned[classId] = true
 	dataService:set(player, ClassDefinitions.DataKey, data)
 	AnalyticsController.TrackShopPurchaseCompleted(player, "Class", classId)

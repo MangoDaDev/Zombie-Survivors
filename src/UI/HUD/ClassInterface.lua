@@ -72,7 +72,7 @@ local function classCard(definition, order: number, props)
 		return props.state().Equipped == definition.Id
 	end)
 	local prerequisiteMet = derive(function()
-		return premium ~= nil or hasRequiredAbility(props.abilityState(), definition)
+		return hasRequiredAbility(props.abilityState(), definition)
 	end)
 	local scale = spring(function()
 		return if hovered() then 1.015 else 1
@@ -101,7 +101,7 @@ local function classCard(definition, order: number, props)
 		return UDim2.fromOffset(size, size)
 	end, layout.StateBadge)
 	layout.TextLabel = ResponsiveLayout.Child(function()
-		return if premium or tutorialTarget() or owned() or not prerequisiteMet()
+		return if tutorialTarget() or owned() or not prerequisiteMet()
 			then UDim2.fromScale(1, 1)
 			else UDim2.new(1, if props.portrait() then -25 else -33, 1, 0)
 	end, layout.StateBadge)
@@ -192,7 +192,7 @@ local function classCard(definition, order: number, props)
 				Position = layout.StateBadge.Scale(UDim2.new(0, 6, 0.5, 0)),
 				Size = layout.Coin.Size,
 				Visible = function()
-					return not premium and not tutorialTarget() and not owned() and prerequisiteMet()
+					return not tutorialTarget() and not owned() and prerequisiteMet()
 				end,
 				ZIndex = 368,
 			},
@@ -200,7 +200,7 @@ local function classCard(definition, order: number, props)
 				BackgroundTransparency = 1,
 				FontFace = HEAVY_FONT,
 				Position = layout.StateBadge.Scale(function()
-					return if premium or tutorialTarget() or owned() or not prerequisiteMet()
+					return if tutorialTarget() or owned() or not prerequisiteMet()
 						then UDim2.fromScale(0, 0)
 						else UDim2.new(0, if props.portrait() then 22 else 29, 0, 0)
 				end),
@@ -212,7 +212,6 @@ local function classCard(definition, order: number, props)
 					-- class never looks purchasable before its starting ability has been unlocked.
 					if not prerequisiteMet() then return "ABILITY LOCKED" end
 					if owned() then return "OWNED" end
-					if premium then return UIStyle.RobuxSymbol .. " " .. MonetizationController.GetPriceText(definition.Id) end
 					return FormatNumber(definition.UnlockCost) or tostring(definition.UnlockCost)
 				end,
 				TextColor3 = function()
@@ -262,20 +261,12 @@ return function()
 	local viewportConnection: RBXScriptConnection?
 	local connections = {}
 
-	local portrait = derive(function()
-		local size = viewportSize()
-		return size.X < 600 and size.X < size.Y
-	end)
-	local compactPortrait = derive(function()
-		return portrait() and viewportSize().Y < 820
-	end)
-	local shortLandscape = derive(function()
-		local size = viewportSize()
-		return not portrait() and size.Y < 560
-	end)
-	local compactLauncher = derive(function()
-		return viewportSize().X < 700
-	end)
+	-- User invariant: screen size may scale this interface, but it must never select a
+	-- separate mobile, portrait, short-screen, or compact composition.
+	local function portrait() return false end
+	local function compactPortrait() return false end
+	local function shortLandscape() return false end
+	local function compactLauncher() return false end
 	local inRun = derive(function()
 		return runState().active == true
 	end)
@@ -310,7 +301,10 @@ return function()
 		return balance() >= selectedDefinition().UnlockCost
 	end)
 	local prerequisiteMet = derive(function()
-		return selectedPremium() ~= nil or hasRequiredAbility(abilityState(), selectedDefinition())
+		return hasRequiredAbility(abilityState(), selectedDefinition())
+	end)
+	local showRobuxOption = derive(function()
+		return selectedPremium() ~= nil and not selectedOwned() and not tutorialState().active
 	end)
 	local selectedTutorialTarget = derive(function()
 		local currentTutorial = tutorialState()
@@ -799,7 +793,13 @@ return function()
 						Position = layout.Details.Scale(function() return UDim2.fromOffset(12, if portrait() then 256 else 199) end),
 						Size = layout.Action.Size,
 						ZIndex = 370,
-						Button({
+						create "Frame" {
+							Name = "CoinAction",
+							BackgroundTransparency = 1,
+							Size = function()
+								return if showRobuxOption() then UDim2.new(0.62, -4, 1, 0) else UDim2.fromScale(1, 1)
+							end,
+							Button({
 							Text = function()
 								if tutorialState().active then
 									return if selectedTutorialTarget() then "CLAIM CLASS FOR FREE" else "SELECT BLADE DANCER"
@@ -812,16 +812,13 @@ return function()
 									return if ability then "UNLOCK " .. string.upper(ability.Name) .. " FIRST" else "REQUIRED ABILITY UNAVAILABLE"
 								end
 								if selectedOwned() then return "EQUIP CLASS" end
-								if selectedPremium() then
-									return UIStyle.RobuxSymbol .. " " .. MonetizationController.GetPriceText(selectedDefinition().Id)
-								end
 								local cost = FormatNumber(selectedDefinition().UnlockCost) or tostring(selectedDefinition().UnlockCost)
+								if showRobuxOption() then return if canAfford() then cost else "NEED " .. cost end
 								return if canAfford() then "UNLOCK FOR " .. cost .. " COINS" else "NEED " .. cost .. " COINS"
 							end,
 							LeftIcon = Images.Coin,
 							LeftIconVisible = function()
-								return not selectedPremium()
-									and not tutorialState().active
+								return not tutorialState().active
 									and prerequisiteMet()
 									and not selectedOwned()
 									and not selectedEquipped()
@@ -835,7 +832,6 @@ return function()
 								if selectedEquipped() then return UIStyle.Colors.Green end
 								if not prerequisiteMet() then return UIStyle.Colors.Muted end
 								if selectedOwned() then return Color3.fromRGB(16, 155, 211) end
-								if selectedPremium() then return UIStyle.Colors.Gold end
 								return if canAfford() then UIStyle.Colors.Gold else UIStyle.Colors.Muted
 							end,
 							FontFace = HEAVY_FONT,
@@ -848,8 +844,8 @@ return function()
 									if selectedTutorialTarget() then ClassController.UnlockClass(definition.Id) end
 									return
 								end
-								if selectedPremium() and not selectedOwned() then
-									MonetizationController.PromptGamepass(definition.Id)
+								if selectedOwned() then
+									if state().Equipped ~= definition.Id then ClassController.EquipClass(definition.Id) end
 								elseif not isOwned(state(), definition.Id) then
 									if canAfford() then
 										ClassController.UnlockClass(definition.Id)
@@ -857,11 +853,32 @@ return function()
 										ClassController.SetOpen(false)
 										MonetizationController.SetShopOpen(true, "Coins")
 									end
-								elseif state().Equipped ~= definition.Id then
-									ClassController.EquipClass(definition.Id)
 								end
 							end,
-						}),
+							}),
+						},
+						create "Frame" {
+							Name = "RobuxAction",
+							BackgroundTransparency = 1,
+							Position = UDim2.new(0.62, 4, 0, 0),
+							Size = UDim2.new(0.38, -4, 1, 0),
+							Visible = showRobuxOption,
+							Button({
+								Text = function()
+									return UIStyle.RobuxSymbol .. " " .. MonetizationController.GetPriceText(selectedDefinition().Id)
+								end,
+								BackgroundColor3 = UIStyle.Colors.Gold,
+								FontFace = HEAVY_FONT,
+								MaxTextSize = 30,
+								Size = UDim2.fromScale(1, 1),
+								OnActivated = function()
+									local premium = selectedPremium()
+									if premium and not selectedOwned() then
+										MonetizationController.PromptGamepass(selectedDefinition().Id)
+									end
+								end,
+							}),
+						},
 						create "Frame" {
 							Name = "TutorialHighlight",
 							Active = false,

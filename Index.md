@@ -60,7 +60,7 @@ Quick reference for the reusable first-party Luau foundation. Generated Wally de
 | `src/servercontrollers/PartyTeleporterController.lua` | Owns closed-elevator entry/exit, leader-approved join requests, explicitly confirmed setup with timeout ejection, party settings/countdowns, Studio loading/completion tracking, and whole-party ejection on teleport failure. |
 | `src/servercontrollers/GameReadyController.lua` | Owns the combat ready gate, versioned snapshots and explicit ready acknowledgements; starts onboarding/gameplay funnels only after the roster is ready or fallback expires. |
 | `src/servercontrollers/AbilityController.lua` | Owns purchases/unlocks, transient loadouts/levels, replay cleanup, Rage, authoritative damage, and Dagger prediction schedules/hit identities with original-character/run-bound pending impacts. |
-| `src/servercontrollers/ClassController.lua` | Owns saved class purchases/equipment with explicit equip acknowledgements, checkout analytics, starting abilities, combat/stat perks, and intact native Accessory/Hat class gear. |
+| `src/servercontrollers/ClassController.lua` | Owns saved Coin class purchases (including Gamepass-alternative classes), equipment with explicit acknowledgements, checkout analytics, starting abilities, combat/stat perks, and intact native Accessory/Hat class gear. |
 | `src/servercontrollers/ClassesAbilitiesTutorialController.lua` | Snapshots post-first-round lobby eligibility at join, persists completion only after the free Blade Dancer claim, and replicates the active tutorial state. |
 | `src/servercontrollers/SurvivalStatsController.lua` | Persists each player's server-awarded highest completed round, records progression-funnel milestones, and exposes each lobby player's public best and equipped class. |
 | `src/servercontrollers/LeaderstatsController.lua` | Mirrors authoritative Coins and highest-round data into display-only Roblox player-list leaderstats. |
@@ -180,8 +180,8 @@ These modules provide shared game configuration, persistent player-data defaults
 | Path | Responsibility |
 | --- | --- |
 | `src/UI/App.lua` | Composes the `App` ScreenGui, groups ordinary lobby/in-match UI behind the downed-spectator visibility gate, and keeps the spectate and game-over overlays independently visible. |
-| `src/UI/HUD/RunHUD.lua` | Renders the classic STUD combat HUD with proportional round columns, readable icon/level cards and separate category counts, cooldown tooltips, short-landscape offers, edge-anchored commerce/ability docks, compact routing, round voting, and shared thick XP meter dimensions. |
-| `src/UI/HUD/MonetizationShop.lua` | Renders the responsive navy-and-gold one-scroll product catalog and gold STUD safe-edge combat launcher, with category jump controls, prominent artwork, live Robux prices, ownership state, and reusable Marketplace purchase routes. |
+| `src/UI/HUD/RunHUD.lua` | Renders the classic STUD combat HUD with one screen-size-independent composition, proportional round columns, readable icon/level cards and separate category counts, cooldown tooltips, edge-anchored commerce/ability docks, round voting, and shared thick XP meter dimensions. |
+| `src/UI/HUD/MonetizationShop.lua` | Renders the responsive navy-and-gold one-scroll product catalog and animated image-first middle-right Shop launcher, with category jump controls, prominent artwork, live Robux prices, ownership state, and reusable Marketplace purchase routes. |
 | `src/UI/HUD/PurchaseCelebration.lua` | Presents the shared animated success banner and reward audio only after a Developer Product is applied or prompted Gamepass ownership is verified. |
 | `src/UI/HUD/DownedOverlay.lua` | Extends the death flow with a low-profile spectate/action dock, teammate cycling, buy-or-wait teammate-revive guidance, the team-wipe grace countdown, and contextual self/team revive offers. |
 | `src/UI/HUD/OffscreenPlayerIndicators.lua` | Renders safe-area-aware in-run arrows with Roblox headshots for offscreen teammates and red downed/revive markers at safe edges or above visible bodies. |
@@ -202,7 +202,7 @@ These modules provide shared game configuration, persistent player-data defaults
 | `src/UI/HUD/CoinsDisplay.lua` | **Archived/dormant:** reusable responsive permanent-currency display. |
 | `src/UI/HUD/RunRewardsDisplay.lua` | **Archived/dormant:** pending-reward claim and backpack-to-balance presentation. |
 | `src/UI/HUD/AbilityInterface.lua` | Renders the responsive lobby Ability Arsenal, its shared bottom launcher dock, unlocked counts, rarity-priced locked cards, live coin affordability, and permanent run-choice unlock requests. |
-| `src/UI/HUD/ClassInterface.lua` | Renders the responsive Classes launcher plus the left-side selector and right-side description, ability, perks, and unlock/equip action over the Workspace changing-room scene. |
+| `src/UI/HUD/ClassInterface.lua` | Renders the responsive Classes launcher plus the left-side selector and right-side description, ability, perks, unlock/equip action, and separate Coin/Robux choices for eligible classes over the Workspace changing-room scene. |
 | `src/UI/HUD/ClassesAbilitiesTutorial.lua` | Renders the returning-player instruction banner and animated camera-relative arrow toward the existing Classes booth. |
 | `src/UI/HUD/ZombieIndex.lua` | Renders the responsive lobby index launcher and zombie collection with hidden undiscovered entries, kill counts, behavior details, portraits, and discovery reward actions. |
 | `src/UI/HUD/RageBar.lua` | Renders the centered navy STUD Rage meter sharing XP dimensions, with orange activation, live charge/duration progress, reactive Game-session visibility, and keyboard/touch activation. |
@@ -213,10 +213,10 @@ These modules provide shared game configuration, persistent player-data defaults
 | `src/modules/UI/NotificationManager.lua` | Emits reusable transient notification events. |
 | `src/modules/UI/PlayVFX.lua` | Clones, starts, and cleans up reusable effects and sounds. |
 | `src/modules/UI/EffectLightingConfig.lua` | Applies the shared 50% intensity scale to runtime lights, emissive particles/trails/beams, and effect post-processing. |
-| `src/modules/UI/StudVFX.lua` | Creates consistent client-local crossed stud flashes, layered impacts, volumetric block explosions, segmented shock rings, and two-tone debris bursts with bounded counts and automatic cleanup. |
+| `src/modules/UI/StudVFX.lua` | Creates consistent client-local crossed stud flashes, layered impacts, spherical-envelope block explosions with falling debris, segmented shock rings, and two-tone debris bursts with bounded counts and automatic cleanup. |
 | `src/modules/UI/SafeArea.lua` | Provides dynamic Roblox topbar-safe offsets. |
 | `src/modules/UI/Sounds.lua` | Resolves optional Studio-owned sound templates and plays self-cleaning clones from stable 2D or snapshotted positional emitters, independent of temporary visual lifetimes. |
-| `src/modules/UI/UIStyle.lua` | Centralizes reusable design tokens, combat meter dimensions and dock breakpoint, reference viewport, and high-resolution base-container growth weight. |
+| `src/modules/UI/UIStyle.lua` | Centralizes reusable design tokens, combat meter dimensions, reference viewport, and high-resolution base-container growth weight. |
 | `src/modules/UI/ResponsiveLayout.lua` | Resolves authored reference dimensions into mixed Scale + Offset screen containers and Scale-only child sizing, positioning, padding, and grid/list spacing without pixel ceilings or hierarchy scans. |
 
 ## Local developer tools

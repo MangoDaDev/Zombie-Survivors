@@ -24,12 +24,24 @@ local MUTED = Color3.fromRGB(139, 177, 195)
 local HEAVY_FONT = Font.new(UIStyle.Font.Family, Enum.FontWeight.Heavy)
 local BOLD_FONT = Font.new(UIStyle.Font.Family, Enum.FontWeight.Bold)
 
+-- These proportions come from the authored 1280x720 composition. Keep the dock's bands and
+-- offer contents proportional: fixed vertical pixels collapse the purchase button when the
+-- dock's wide aspect ratio is fitted inside a short landscape viewport.
+local SPECTATE_POSITION = UDim2.fromScale(12 / 880, 12 / 218)
+local SPECTATE_SIZE = UDim2.fromScale(856 / 880, 62 / 218)
+local OFFERS_POSITION = UDim2.fromScale(12 / 880, 87 / 218)
+local OFFERS_SIZE = UDim2.fromScale(856 / 880, 118 / 218)
+local OFFER_GAP = UDim.new(10 / 856, 0)
+local OFFER_SIZE = UDim2.fromScale(423 / 856, 1)
+local ARTWORK_POSITION = UDim2.fromScale(10 / 423, 10 / 118)
+local ARTWORK_SIZE = UDim2.fromScale(96 / 423, 98 / 118)
+local DETAILS_POSITION = UDim2.fromScale(116 / 423, 9 / 118)
+local DETAILS_SIZE = UDim2.fromScale(297 / 423, 100 / 118)
+
 local function offer(productKey: string, label, detail: string, visible, infoRevision, portrait, teamOffer: boolean, parentLayout)
 	local layout = {}
 	layout.Viewport = parentLayout
-	layout.Frame = ResponsiveLayout.Child(function() return if portrait() then UDim2.new(1, 0, 0.5, -5) else UDim2.new(0.5, -5, 1, 0) end, layout.Viewport)
-	layout.ArtworkPanel = ResponsiveLayout.Child(function() return if portrait() then UDim2.new(0, 82, 1, -20) else UDim2.new(0, 96, 1, -20) end, layout.Frame)
-	layout.Details = ResponsiveLayout.Child(function() return if portrait() then UDim2.new(1, -112, 1, -18) else UDim2.new(1, -126, 1, -18) end, layout.Frame)
+	layout.Frame = ResponsiveLayout.Child(function() return if portrait() then UDim2.new(1, 0, 0.5, -5) else OFFER_SIZE end, layout.Viewport)
 
 	return create "Frame" {
 		Name = productKey,
@@ -48,8 +60,8 @@ local function offer(productKey: string, label, detail: string, visible, infoRev
 			Name = "ArtworkPanel",
 			BackgroundColor3 = CARD_DARK,
 			BorderSizePixel = 0,
-			Position = layout.Frame.Scale(UDim2.new(0, 10, 0, 10)),
-			Size = layout.ArtworkPanel.Size,
+			Position = ARTWORK_POSITION,
+			Size = ARTWORK_SIZE,
 			ZIndex = 413,
 			create "ImageLabel" {
 				Name = productKey .. "Artwork",
@@ -67,8 +79,8 @@ local function offer(productKey: string, label, detail: string, visible, infoRev
 		create "Frame" {
 			Name = "Details",
 			BackgroundTransparency = 1,
-			Position = layout.Frame.Scale(function() return if portrait() then UDim2.new(0, 102, 0, 9) else UDim2.new(0, 116, 0, 9) end),
-			Size = layout.Details.Size,
+			Position = DETAILS_POSITION,
+			Size = DETAILS_SIZE,
 			ZIndex = 414,
 			create "TextLabel" {
 				BackgroundTransparency = 1,
@@ -121,7 +133,8 @@ return function()
 	local infoRevision = source(0)
 	local countdownRevision = source(0)
 	local viewportSize = source(Vector2.new(1280, 720))
-	local portrait = derive(function() return viewportSize().X < viewportSize().Y * 0.9 end)
+	-- User invariant: preserve one composition at every screen size.
+	local function portrait() return false end
 	local visible = derive(function() return state().dead == true and state().active ~= true end)
 	local function refreshSpectate(player)
 		spectateName(if player then string.upper(player.DisplayName) else "NO LIVING TEAMMATE")
@@ -151,14 +164,14 @@ return function()
 	layout.StatusBanner = ResponsiveLayout.Base(function() return if portrait() then UDim2.new(0.9, 0, 0, 72) else UDim2.new(0.41, 0, 0, 76) end, layout.DownedOverlay, function() return if portrait() then 4.5 else 6.84 end)
 	layout.TextLabel2 = ResponsiveLayout.Child(function() return UDim2.fromScale(0.92, if portrait() then 0.34 else 0.24) end, layout.StatusBanner)
 	layout.Dock = ResponsiveLayout.Base(function() return if portrait() then UDim2.fromScale(0.92, 0.46) else UDim2.fromScale(0.86, 0.31) end, layout.DownedOverlay, function() return if portrait() then 1 else 4.04 end)
-	layout.Spectate = ResponsiveLayout.Child(UDim2.new(1, -24, 0, 62), layout.Dock)
+	layout.Spectate = ResponsiveLayout.Child(SPECTATE_SIZE, layout.Dock)
 	layout.TextButton = ResponsiveLayout.Child(UDim2.fromOffset(60, 62), layout.Spectate)
 	layout.TextLabel3 = ResponsiveLayout.Child(function() return if portrait() then UDim2.new(1, -156, 0, 18) else UDim2.new(0.3, 0, 0, 18) end, layout.Spectate)
 	layout.TextLabel4 = ResponsiveLayout.Child(function() return if portrait() then UDim2.new(1, -156, 0, 28) else UDim2.new(0.36, 0, 0, 28) end, layout.Spectate)
 	layout.TextLabel5 = ResponsiveLayout.Child(UDim2.new(0.42, 0, 0, 32), layout.Spectate)
 	layout.TextButton2 = ResponsiveLayout.Child(UDim2.fromOffset(60, 62), layout.Spectate)
 	layout.TextLabel6 = ResponsiveLayout.Child(UDim2.new(1, -36, 0, 22), layout.Dock)
-	layout.Offers = ResponsiveLayout.Child(function() return UDim2.new(1, -24, 1, if portrait() then -120 else -99) end, layout.Dock)
+	layout.Offers = ResponsiveLayout.Child(OFFERS_SIZE, layout.Dock)
 
 	return create "Frame" {
 		Name = "DownedOverlay",
@@ -239,7 +252,7 @@ return function()
 				Name = "Spectate",
 				BackgroundColor3 = Color3.fromRGB(4, 29, 45),
 				BorderSizePixel = 0,
-				Position = layout.Dock.Scale(UDim2.new(0, 12, 0, 12)),
+				Position = SPECTATE_POSITION,
 				Size = layout.Spectate.Size,
 				ZIndex = 408,
 				create "UIStroke" { ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Color = Color3.fromRGB(55, 93, 114), Thickness = 2 },
@@ -333,12 +346,12 @@ return function()
 			create "Frame" {
 				Name = "Offers",
 				BackgroundTransparency = 1,
-				Position = layout.Dock.Scale(function() return UDim2.new(0, 12, 0, if portrait() then 108 else 87) end),
+				Position = OFFERS_POSITION,
 				Size = layout.Offers.Size,
 				ZIndex = 411,
 				create "UIListLayout" {
 					FillDirection = function() return if portrait() then Enum.FillDirection.Vertical else Enum.FillDirection.Horizontal end,
-					Padding = function() return UDim.new(10 / (if portrait() then layout.Offers.ReferenceSize().Y else layout.Offers.ReferenceSize().X), 0) end,
+					Padding = function() return if portrait() then UDim.new(10 / layout.Offers.ReferenceSize().Y, 0) else OFFER_GAP end,
 					SortOrder = Enum.SortOrder.LayoutOrder,
 				},
 				offer("Revive", "BUY A REVIVE", "RETURN IMMEDIATELY", visible, infoRevision, portrait, false, layout.Offers),

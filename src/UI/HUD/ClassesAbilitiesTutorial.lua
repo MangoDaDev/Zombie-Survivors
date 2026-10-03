@@ -134,9 +134,7 @@ return function()
 	local layout = {}
 	layout.Viewport = ResponsiveLayout.Viewport(rootSize)
 	layout.ClassesAbilitiesTutorial = layout.Viewport
-	layout.Instruction = ResponsiveLayout.Base(function()
-		return if rootSize().X < 600 then UDim2.new(0.84, 0, 0.08, 0) else UDim2.new(0.42, 0, 0.08, 0)
-	end, layout.ClassesAbilitiesTutorial, 7.2)
+	layout.Instruction = ResponsiveLayout.Base(UDim2.new(0.42, 0, 0.08, 0), layout.ClassesAbilitiesTutorial, 7.2)
 	layout.WorldArrow = ResponsiveLayout.Base(UDim2.fromOffset(96, 52), layout.ClassesAbilitiesTutorial)
 	layout.Shaft = ResponsiveLayout.Child(UDim2.fromOffset(68, 16), layout.WorldArrow)
 	layout.ArrowHeadUpper = ResponsiveLayout.Child(UDim2.fromOffset(38, 16), layout.WorldArrow)

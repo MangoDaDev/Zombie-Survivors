@@ -27,10 +27,8 @@ function ResponsiveLayout.Viewport(viewportSize)
 	return {
 		ReferenceSize = function()
 			local size = read(viewportSize)
-			local reference = if size.Y > size.X
-				then Vector2.new(UIStyle.ReferenceViewport.Y, UIStyle.ReferenceViewport.X)
-				else UIStyle.ReferenceViewport
-			-- Preserve mobile envelopes and aspect ratios; only high-resolution growth is damped.
+			-- Preserve the single authored composition and its aspect ratios; only high-resolution growth is damped.
+			local reference = UIStyle.ReferenceViewport
 			local factor = math.min(1, reference.X / math.max(size.X, 1), reference.Y / math.max(size.Y, 1))
 			return Vector2.new(math.max(size.X * factor, 1), math.max(size.Y * factor, 1))
 		end,

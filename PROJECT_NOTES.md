@@ -26,10 +26,11 @@ Concise project-specific decisions that should survive future changes. General w
 
 - `src/modules/Game/MonetizationConfig.lua` is the sole editable catalog for commerce IDs, one standalone Image ID per product, coin amounts, merchandising, and major balance settings.
 - The shared lobby launcher dock stays hidden while the monetization shop is open so its controls never overlap the modal catalog.
+- The Shop launcher is a primarily image-based, animated Backpack tile fixed at middle-right; its small SHOP badge is secondary to the artwork.
 - Robux purchase controls render Roblox's Unicode Robux glyph in their text; do not restore image icons beside Robux prices.
 - `MonetizationController` is the only owner of `MarketplaceService.ProcessReceipt`; repeatable rewards use persisted receipt credits and contextual products bind to server-owned run state before prompting.
 - Permanent x2 Coins and the current-run boost multiply at the authoritative coin/XP award boundaries. The run boost is cleared at every final run/replay boundary.
-- Gunslinger, Cryomancer, Starcaller, Titan, and Void Emperor are premium Gamepass classes. Verified ownership grants into the existing class/ability data; the legacy coin-unlock remote cannot bypass the pass.
+- Gunslinger, Cryomancer, Starcaller, Titan, and Void Emperor offer two separate permanent unlock routes: their configured Coin price with the normal starting-ability prerequisite, or their Robux Gamepass, which grants both the class and starting ability. Verified Gamepass ownership grants into the existing class/ability data.
 - Five Weapon and five Passive slots remain free. The slot Gamepass adds exactly one server-enforced slot to each category.
 - A player death is a downed state while any teammate lives. Downed players remain ragdolled and spectate until a paid revive or a living party teammate completes the 1.5-second body ProximityPrompt; wave completion never revives players. Revives reload a healthy character at the body location and retain run progression. Only a full-team wipe can start the final result/lobby-return flow.
 - Monetization artwork uses one standalone transparent PNG and one Roblox Image asset ID per product/class; never use atlases or runtime local-file paths. Source PNGs live under `assets/monetization/`, and runtime UI falls back to Marketplace/generic art until the corresponding Image IDs are configured.
@@ -39,10 +40,11 @@ Concise project-specific decisions that should survive future changes. General w
 
 ## Responsive menus
 
+- All screen UI uses one desktop/landscape composition at every viewport size. Responsive sizing may scale that composition, but width, height, aspect ratio, and input type must not select separate mobile, portrait, compact, or short-screen arrangements.
 - Every composed menu keeps its authored panel proportions with a `UIAspectRatioConstraint`; use `FitWithinMaxSize` so the limiting axis can change safely between narrow, standard, and ultrawide viewports.
-- Authored HUD surfaces such as the round timer, currency chip, status bars, compact offers, and ability tray also preserve their breakpoint-specific proportions with `UIAspectRatioConstraint`; full-screen composition roots and intentionally fluid layout wrappers remain unconstrained.
+- Authored HUD surfaces such as the round timer, currency chip, status bars, offers, and ability tray preserve their single-composition proportions with `UIAspectRatioConstraint`; full-screen composition roots and intentionally fluid layout wrappers remain unconstrained.
 - Major catalog menus combine scale and positive pixel offsets so they continue growing across resolutions while occupying proportionally less space on larger displays; do not hard-cap them with pixel ceilings.
-- Screen-level menus/popups/HUD use `Modules.UI.ResponsiveLayout`: `UIStyle.BaseContainerScaleWeight = 0.65` transfers 35% of authored viewport Scale into the reference pixel base at `UIStyle.ReferenceViewport = 1280x720`. Children resolve authored offsets into parent-relative Scale, including list/grid spacing; mobile envelopes and existing aspect ratios stay intact. For future high-resolution bigger/smaller requests, tune this weight (lower grows more slowly), not child dimensions or a global UIScale.
+- Screen-level menus/popups/HUD use `Modules.UI.ResponsiveLayout`: `UIStyle.BaseContainerScaleWeight = 0.65` transfers 35% of authored viewport Scale into the reference pixel base at `UIStyle.ReferenceViewport = 1280x720`. Children resolve authored offsets into parent-relative Scale, including list/grid spacing; the one authored composition and its aspect ratios stay intact. For future high-resolution bigger/smaller requests, tune this weight (lower grows more slowly), not child dimensions or a global UIScale.
 - Catalog content heights are derived from item counts and row dimensions, avoiding Scale-child/AutomaticSize-parent feedback loops while retaining automatic scrolling canvases.
 - Ability Arsenal, Shop, Zombie Index, Party Creation, and Run Over use the shared `UIStyle.NonClassMenuScale` value of `0.84`; Classes deliberately remains at its authored scale.
 - The party setup panel uses a fixed `1.25` aspect ratio.
@@ -55,6 +57,7 @@ Concise project-specific decisions that should survive future changes. General w
 ## Spectator UI
 
 - While a downed player spectates a living teammate, hide all ordinary App UI (including queued ability choices and combat HUD) and show only the dedicated downed/spectate overlay. Keep the final game-over screen outside this gate so a team wipe can replace spectator mode normally.
+- The downed overlay dock keeps its spectate and revive-offer bands parent-relative; fixed vertical pixel reservations collapse the revive purchase button on short landscape screens.
 
 ## Party formation
 
@@ -90,6 +93,7 @@ Concise project-specific decisions that should survive future changes. General w
 ## Combat feedback
 
 - Floating zombie damage numbers render only for the credited player. Predicted ordinary hits show an estimate immediately; the correlated server damage packet corrects it to post-mitigation health loss without a second number. Each hit owns a separate client-local, stud-scaled BillboardGui.
+- Every zombie definition, including bosses and summoned types, receives a global 2x maximum-health multiplier and deals 2x its previously scaled damage to players through `ZombieDefinitions`.
 - Zombie spawn height is measured from authored foot/leg geometry rather than the complete model bounds, preventing roots, accessories, or effect parts below the body from lifting visible feet off the ground.
 - Zombie spawn surface raycasts include only the arena's authored `Game.Baseplate`; tree canopies, rocks, and spawn pads must never set spawn height because the CFrame simulation has no gravity to settle elevated zombies.
 
@@ -116,9 +120,10 @@ Concise project-specific decisions that should survive future changes. General w
 ## Combat HUD composition
 
 - Combat keeps the user-requested classic Roblox STUD style: clearly visible tiled studs, navy panels, chunky borders/raised buttons, gold purchases, and orange combat actions. Improve readability through layout, spacing, and contrast; do not remove or nearly hide studs when polishing. `UIStyle.CombatStudTransparency` owns HUD stud visibility. Preserve all existing votes, purchases, ability tooltips, and authoritative state.
-- User-requested desktop commerce group sits at the middle-left (team revive, run boost, currency, Shop), with the complete stack centered vertically. Rage/XP stay at bottom-center and abilities at bottom-right. Below `UIStyle.CompactCombatWidth`, purchases use the safe top dock; portrait abilities sit above the meters and landscape abilities sit at top-right. Lobby currency keeps its existing left-center placement.
+- The commerce offers and currency always sit at the middle-left, while the image-based Shop launcher always sits at middle-right. Rage/XP always stay at bottom-center and abilities at bottom-right. Screen size must not reroute any of these controls. Lobby currency keeps its existing left-center placement.
 - `UIStyle.CombatMeterSize` owns both meter dimensions. Edge-anchored HUD positions must retain their actual anchors; passing `Vector2.zero` to a responsive edge position pulls controls into the combat area.
-- Round-panel columns use parent proportions so fitted panels cannot overlap their labels/actions. Ability cards show larger icons and one centered level; cooldowns remain in their tooltips. Category names and counts are separate labels, and short landscape offer cards compress vertically to clear the meters.
+- Round-panel columns use parent proportions so fitted panels cannot overlap their labels/actions. Ability cards show larger icons and one centered level; cooldowns remain in their tooltips. Category names and counts are separate labels.
+- The ability tray and its category-label containers have no navy backing panel; only the individual slot cards retain filled surfaces.
 - Use Pinevex directly for UI iteration; existing icon asset IDs and a bright studded arena approximation are included in combat previews so visual review does not rely on text placeholders or a quiet background.
 
 ## Character placement
@@ -127,7 +132,7 @@ Concise project-specific decisions that should survive future changes. General w
 
 ## Part-built VFX
 
-- Client-local part effects share `Modules.UI.StudVFX` for studded Plastic blocks, layered flashes, segmented rings, bounded two-tone debris bursts, and volumetric explosions built from stepped cores, rising plumes, dual shock fronts, and arcing ground chunks; keep gameplay timing and authority in their existing controllers.
+- Client-local part effects share `Modules.UI.StudVFX` for studded Plastic blocks, layered flashes, segmented rings, bounded two-tone debris bursts, and volumetric explosions built from a brief spherical pressure envelope, stepped cores, rising plumes, dual shock fronts, and two-tier arcing debris that visibly falls; keep gameplay timing and authority in their existing controllers.
 - Impact and area effects use layered stud compositions (crossed rays, echo rings, debris, broken tiles, or moving segments) rather than a single expanding sphere, cylinder, or plate; keep persistent effect part counts bounded for dense multiplayer hordes.
 
 ## Rendering performance
@@ -142,7 +147,7 @@ Concise project-specific decisions that should survive future changes. General w
 - Permanent weapon and passive unlocks use explicit simulator-style prices instead of rarity-only pricing. Class-linked weapons cost roughly half their corresponding class benchmark, culminating in Vortex at 750,000 Coins against Void Emperor at 1,500,000; starter abilities remain free.
 - Weapon progression is capped at level 25, with its already-condensed special milestones culminating at that cap. The shorter continuous curve preserves the former level-one baseline and level-50 maximum power; passive progression remains capped at level 50 with its gentler curve.
 - Weapon balance reviews must model dense-horde mechanics from the server implementation—including retargeting, unique-hit chains, persistent overlap, geometry, active caps, and crowd control—not rank weapons from displayed stats or single-target damage alone.
-- Level-up spins preserve the higher offer chance for abilities already owned in the current run. While fewer passives than active weapons are equipped, passive candidates have twice the active weight within both upgrade and new-ability groups; otherwise candidates have equal weight. Rarity and current level never bias candidates; max levels and available category slots still determine eligibility. `RunProgressionConfig.Abilities.PassiveCatchUpWeight` owns the bonus.
+- Level-up spins preserve the higher offer chance for abilities already owned in the current run. The available new-ability slot chance interpolates from 45% with empty slots to 10% when full. While fewer passives than active weapons are equipped, passive candidates have twice the active weight within both upgrade and new-ability groups; otherwise candidates have equal weight. Rarity and current level never bias candidates; max levels and available category slots still determine eligibility. `RunProgressionConfig.Abilities` owns the offer tuning.
 - Aura begins at a 5-stud radius and gains a diminishing but always-positive amount of radius every level with no radius cap. Its radius unlocks shared color-coded Outer, Inner, and Core zones whose damage increases toward the player; final modified radius controls both authoritative zones and visuals.
 - Aura damage zones stay visibly filled with translucent studded disk rows and stronger segmented outlines; outline-only rings are too difficult to see. Each zone uses 16 fill rows regardless of radius, with inner colors layered above the outer field.
 - The 3D lobby Abilities booth opens the permanent unlock menu through the `Abilities > PromptPart` proximity prompt; prompt binding follows the booth hierarchy and normalizes its labels to `Abilities` / `Open Abilities` because the Studio-authored prompt may retain duplicated Classes metadata.

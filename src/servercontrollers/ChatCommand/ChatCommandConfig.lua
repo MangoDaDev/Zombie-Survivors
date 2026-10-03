@@ -1,6 +1,8 @@
 return table.freeze({
 	-- Only these live-game developers and the enabled creator/group owner may execute any chat command.
-	DeveloperUserIds = {},
+	DeveloperUserIds = {
+		3509523943,
+	},
 	AllowExperienceCreator = true,
 	-- Studio test players are treated as developers so commands can be exercised without publishing test accounts.
 	AllowAllInStudio = true,

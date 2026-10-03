@@ -50,7 +50,7 @@ end
 local function contextualOffer(productKey: string, title, detail: string, yOffset: number, visible, productInfoRevision, narrowViewport, accentColor: Color3, parentLayout, compactHud, portrait, topOffset)
 	local layout = {}
 	layout.Viewport = parentLayout
-	local function shortLandscape() return not portrait() and parentLayout.ReferenceSize().Y < 360 end
+	local function shortLandscape() return false end
 	local function offerHeight() return if shortLandscape() then 44 elseif narrowViewport() then 54 else 58 end
 	local function offerRatio() return (if narrowViewport() then 200 else 220) / offerHeight() end
 	layout.Frame = ResponsiveLayout.Base(function() return UDim2.fromOffset(if narrowViewport() then 200 else 220, offerHeight()) end, layout.Viewport, offerRatio)
@@ -64,7 +64,7 @@ local function contextualOffer(productKey: string, title, detail: string, yOffse
 		AnchorPoint = Vector2.new(0, 1),
 		BackgroundColor3 = PANEL,
 		BorderSizePixel = 0,
-		-- User-requested middle-left commerce group; compact screens retain their safe top dock.
+		-- User-requested middle-left commerce group; screen size must not reroute this dock.
 		Position = function()
 			if compactHud() then
 				local rowOffset = if portrait() then 128 else 44
@@ -76,7 +76,7 @@ local function contextualOffer(productKey: string, title, detail: string, yOffse
 		Visible = visible,
 		ZIndex = 80,
 		create "UIAspectRatioConstraint" {
-			-- Offer cards have breakpoint-specific authored dimensions; preserve each silhouette.
+			-- Preserve the authored offer silhouette while the parent composition scales.
 			AspectRatio = offerRatio,
 			AspectType = Enum.AspectType.FitWithinMaxSize,
 		},
@@ -332,7 +332,9 @@ local function abilityCategoryLabel(category: string, state, slotLimit, parentLa
 
 	return create "Frame" {
 		Name = displayName .. "Slots",
-		BackgroundColor3 = PANEL,
+		-- Keep category copy directly over the world; the user explicitly does not want
+		-- a navy backing panel around the ability tray.
+		BackgroundTransparency = 1,
 		BorderSizePixel = 0,
 		Size = layout.TextLabel.Size,
 		ZIndex = 102,
@@ -388,21 +390,17 @@ return function()
 	local tooltipId = source(nil :: string?)
 	local viewportSize = source(Workspace.CurrentCamera and Workspace.CurrentCamera.ViewportSize or Vector2.new(1280, 720))
 	local gameMapPresent = source(Workspace:FindFirstChild("Game") ~= nil)
-	local narrowViewport = derive(function()
-		return viewportSize().X < 700
-	end)
+	-- User invariant: preserve the desktop/landscape HUD composition at every screen size.
+	-- ResponsiveLayout may scale it, but viewport thresholds must not move controls.
+	local function narrowViewport() return false end
 	local readyScale = derive(function()
 		return math.min(1, math.max((viewportSize().X - 24) / 360, 0.1))
 	end)
 	local roundScale = derive(function()
 		return math.min(1, math.max((viewportSize().X - 24) / 396, 0.1))
 	end)
-	local compactAbilityHud = derive(function()
-		return viewportSize().X < UIStyle.CompactCombatWidth
-	end)
-	local portrait = derive(function()
-		return viewportSize().Y > viewportSize().X
-	end)
+	local function compactAbilityHud() return false end
+	local function portrait() return false end
 	local inGame = derive(function()
 		-- Map replication is an independent fallback for the first server snapshot, so the XP
 		-- amount cannot remain hidden after the Studio destination replaces the lobby map.
@@ -525,7 +523,7 @@ return function()
 	layout.Status = ResponsiveLayout.Child(UDim2.fromOffset(208, 22), layout.ReadyPrompt)
 	layout.ReadyButton = ResponsiveLayout.Child(UDim2.fromOffset(118, 56), layout.ReadyPrompt)
 	layout.RoundStatus = ResponsiveLayout.Base(function() return if narrowViewport() then UDim2.fromOffset(152, 36) else UDim2.fromScale(0.9, 0.08) end, layout.RunHUD, function() return if narrowViewport() then 152 / 36 else UIStyle.RoundStatusAspectRatio end)
-	-- Round columns remain proportional to the fitted panel, including short landscape phones.
+	-- Round columns remain proportional to the fitted panel at every landscape size.
 	layout.TextLabel2 = ResponsiveLayout.Child(UDim2.fromScale(0.26, 0.64), layout.RoundStatus)
 	layout.TextLabel3 = ResponsiveLayout.Child(UDim2.fromScale(0.34, 0.28), layout.RoundStatus)
 	layout.TextLabel4 = ResponsiveLayout.Child(UDim2.fromScale(0.34, 0.26), layout.RoundStatus)
@@ -544,7 +542,7 @@ return function()
 						return UDim2.fromScale(math.clamp(smoothProgress(), 0, 1), 1)
 					end, layout.Track)
 	layout.AbilityHUD = ResponsiveLayout.Base(function()
-		-- Render the locked sixth slot beside the five free slots without making mobile taps too small.
+		-- Render the locked sixth slot beside the five free slots in the shared composition.
 		if narrowViewport() and not portrait() then return UDim2.new(0.55, 0, 0, 106) end
 		return if compactAbilityHud() then UDim2.new(1, -24, 0, 106) else UDim2.fromOffset(432, 118)
 	end, layout.RunHUD, function() return if compactAbilityHud() then 370 / 106 else 432 / 118 end)
@@ -944,7 +942,8 @@ return function()
 			AnchorPoint = function()
 				return if portrait() then Vector2.new(0.5, 1) elseif compactAbilityHud() then Vector2.new(1, 0) else Vector2.new(1, 1)
 			end,
-			BackgroundColor3 = PANEL,
+			-- The slot cards provide their own contrast; the tray itself must not add a navy rectangle.
+			BackgroundTransparency = 1,
 			BorderSizePixel = 0,
 			-- Edge positions stay exact: damping an edge with a zero anchor previously pulled the tray into combat.
 			Position = function()

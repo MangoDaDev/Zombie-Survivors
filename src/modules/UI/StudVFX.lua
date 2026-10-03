@@ -270,6 +270,42 @@ function StudVFX.Explosion(
 	light.Range = math.clamp(radius * 1.8, 6, 28)
 	light.Parent = core
 
+	-- The spherical envelope is the instant pressure wave. It stays translucent and short-lived so the
+	-- studded fire blocks, shock rings, and debris remain readable instead of becoming one flat orb.
+	local blastSphere = StudVFX.CreateBlock(
+		parent,
+		"StudExplosionBlastSphere",
+		Vector3.one * math.max(radius * 0.08, 0.28),
+		hotColor,
+		0.28
+	)
+	blastSphere.Shape = Enum.PartType.Ball
+	blastSphere.CFrame = CFrame.new(position + Vector3.yAxis * math.min(radius * 0.08, 0.65))
+	local spherePeakSize = Vector3.one * radius * (1.42 + strength * 0.12)
+	local sphereExpand = TweenService:Create(
+		blastSphere,
+		TweenInfo.new(duration * 0.38, Enum.EasingStyle.Quint, Enum.EasingDirection.Out),
+		{
+			Size = spherePeakSize,
+			Transparency = 0.48,
+		}
+	)
+	local sphereDissipate = TweenService:Create(
+		blastSphere,
+		TweenInfo.new(duration * 0.62, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+		{
+			Size = spherePeakSize * 1.18,
+			Transparency = 1,
+		}
+	)
+	sphereExpand.Completed:Once(function()
+		if blastSphere.Parent then
+			sphereDissipate:Play()
+		end
+	end)
+	sphereExpand:Play()
+	Debris:AddItem(blastSphere, duration + 0.08)
+
 	-- A stack of offset blocks forms a fast, chunky fireball silhouette instead of an expanding primitive.
 	-- Counts stay fixed because explosive passives can chain through a dense horde in the same frame.
 	for layerIndex = 1, 6 do
@@ -348,6 +384,66 @@ function StudVFX.Explosion(
 		end)
 		rise:Play()
 		Debris:AddItem(chunk, duration + 0.08)
+	end
+
+	-- A second, higher debris tier sells the explosive force: fragments shoot past the shock front,
+	-- hang for a beat, then tumble down. The motion is tweened and bounded for chain explosions.
+	local fragmentCount = math.clamp(math.floor(5 + strength * 3), 7, 11)
+	local fragmentLifetime = math.max(duration * 1.65, 0.52)
+	for fragmentIndex = 1, fragmentCount do
+		local angle = TAU * (fragmentIndex - 1) / fragmentCount + random:NextNumber(-0.22, 0.22)
+		local direction = Vector3.new(math.cos(angle), 0, math.sin(angle))
+		local travel = radius * random:NextNumber(0.62, 1.08)
+		local fragmentSize = math.clamp(radius * random:NextNumber(0.035, 0.07), 0.22, 0.82)
+		local fragment = StudVFX.CreateBlock(
+			parent,
+			"StudExplosionFallingFragment",
+			Vector3.new(fragmentSize * random:NextNumber(0.65, 1.15), fragmentSize, fragmentSize * 1.6),
+			if fragmentIndex % 3 == 0 then hotColor else emberColor,
+			0.02
+		)
+		local startPosition = position
+			+ direction * radius * random:NextNumber(0.04, 0.14)
+			+ Vector3.yAxis * random:NextNumber(fragmentSize * 0.4, radius * 0.15)
+		local peakPosition = position
+			+ direction * travel * random:NextNumber(0.42, 0.62)
+			+ Vector3.yAxis * random:NextNumber(radius * 0.42, radius * 0.72)
+		local endPosition = position + direction * travel + Vector3.yAxis * fragmentSize * 0.16
+		fragment.CFrame = CFrame.lookAt(startPosition, startPosition + direction)
+			* CFrame.Angles(random:NextNumber(-0.35, 0.35), 0, 0)
+		local launch = TweenService:Create(
+			fragment,
+			TweenInfo.new(fragmentLifetime * 0.42, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+			{
+				CFrame = CFrame.new(peakPosition)
+					* CFrame.Angles(
+						random:NextNumber(1.2, 2.8),
+						random:NextNumber(-2.4, 2.4),
+						random:NextNumber(-1.8, 1.8)
+					),
+			}
+		)
+		local drop = TweenService:Create(
+			fragment,
+			TweenInfo.new(fragmentLifetime * 0.58, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+			{
+				CFrame = CFrame.new(endPosition)
+					* CFrame.Angles(
+						random:NextNumber(3.4, 6.2),
+						random:NextNumber(-4.2, 4.2),
+						random:NextNumber(-3.6, 3.6)
+					),
+				Size = fragment.Size * 0.72,
+				Transparency = 1,
+			}
+		)
+		launch.Completed:Once(function()
+			if fragment.Parent then
+				drop:Play()
+			end
+		end)
+		launch:Play()
+		Debris:AddItem(fragment, fragmentLifetime + 0.08)
 	end
 
 	TweenService:Create(core, TweenInfo.new(duration * 0.7, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {

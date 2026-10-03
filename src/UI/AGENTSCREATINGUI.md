@@ -17,7 +17,7 @@ Production application UI uses Vide. Pinevex is the headless design and validati
 - Keep UI code readable, modular, typed where practical, explicit about ownership, and proportionate to the task.
 - Do not add large examples, mock systems, demo UI, or unrelated polish to production files.
 - Do not create a menu when the feature does not need one.
-- Use one responsive interface across desktop and mobile rather than maintaining separate versions.
+- Use one desktop/landscape composition across every screen size. Responsive sizing may scale that composition, but never select separate mobile, portrait, compact, or short-screen arrangements based on viewport dimensions or input type.
 
 ## Application architecture
 
@@ -87,7 +87,7 @@ Production application UI uses Vide. Pinevex is the headless design and validati
 - Before resizing, trace every dependent `Size`, `Position`, padding, list/grid cell, canvas, text bound, scroll region, and responsive breakpoint.
 - Update all dependent dimensions and thresholds coherently so the menu contents retain their intended proportions and remain contained.
 - Do not use `UIScale` as a shortcut for this work unless an explicit user request or documented project invariant calls for the complete menu and all descendants to scale uniformly.
-- Validate the resized interface at representative desktop, portrait/mobile, short-landscape, and unusual aspect ratios. Check containment, overlap, clipping, readability, touch targets, scrolling, and close/action controls.
+- Validate the same composition at representative desktop, mobile-landscape, short-landscape, and unusual landscape aspect ratios. Check containment, overlap, clipping, readability, touch targets, scrolling, and close/action controls.
 
 ### Structure and positioning
 
@@ -206,7 +206,7 @@ Stop when hierarchy is clear, spacing is consistent, proportions are coherent, t
 
 - Pinevex describes the intended visual result; Vide is the production implementation. Do not maintain two independently designed versions.
 - If Pinevex cannot represent a Roblox/Vide feature exactly, use the closest preview approximation and implement the production feature correctly without reducing functionality.
-- Check major screens at more than one viewport when practical. Include desktop and narrow/mobile conditions and watch for wrapping, overflow, undersized controls, excessive empty space, and broken aspect ratios.
+- Check major screens at more than one landscape viewport when practical. Use the same composition at desktop and narrow/mobile sizes and watch for wrapping, overflow, undersized controls, excessive empty space, and broken aspect ratios.
 - A UI that works only at one exact resolution is not complete.
 
 ## Reference library

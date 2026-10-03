@@ -52,9 +52,9 @@ local RunProgressionConfig = {
 	Abilities = {
 		ChoiceCount = 3,
 		-- Abilities already owned in the current run remain more likely to be offered for upgrades.
-		-- The choice roller applies the owned-ability preference between upgrade and new-ability groups.
-		NewOfferChanceAtEmpty = 0.4,
-		NewOfferChanceAtFull = 0.08,
+		-- Keep new abilities slightly more available without overtaking that upgrade preference.
+		NewOfferChanceAtEmpty = 0.45,
+		NewOfferChanceAtFull = 0.1,
 		-- Passive offers have twice the active weight while fewer passives than active weapons are equipped.
 		-- This applies to both upgrades and new abilities, then stops once the category counts are balanced.
 		PassiveCatchUpWeight = 2,

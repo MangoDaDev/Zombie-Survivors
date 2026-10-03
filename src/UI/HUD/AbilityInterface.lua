@@ -265,20 +265,12 @@ return function()
 	local viewportConnection: RBXScriptConnection?
 	local connections = {}
 
-	local portrait = derive(function()
-		local size = viewportSize()
-		return size.X < 600 and size.X < size.Y
-	end)
-	local compactPortrait = derive(function()
-		return portrait() and viewportSize().Y < 700
-	end)
-	local shortLandscape = derive(function()
-		local size = viewportSize()
-		return not portrait() and size.Y < 560
-	end)
-	local compactLauncher = derive(function()
-		return viewportSize().X < 700
-	end)
+	-- User invariant: screen size may scale this interface, but it must never select a
+	-- separate mobile, portrait, short-screen, or compact composition.
+	local function portrait() return false end
+	local function compactPortrait() return false end
+	local function shortLandscape() return false end
+	local function compactLauncher() return false end
 	local inRun = derive(function()
 		return runState().active == true
 	end)

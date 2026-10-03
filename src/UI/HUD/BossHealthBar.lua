@@ -39,10 +39,7 @@ return function()
 	end)
 
 	local viewport = ResponsiveLayout.Viewport(responsiveViewport)
-	local roundLayout = ResponsiveLayout.Base(UIStyle.RoundStatusSize, viewport, function()
-		local size = responsiveViewport()
-		return if size.X < 700 then UIStyle.NarrowRoundStatusAspectRatio else UIStyle.RoundStatusAspectRatio
-	end)
+	local roundLayout = ResponsiveLayout.Base(UIStyle.RoundStatusSize, viewport, UIStyle.RoundStatusAspectRatio)
 
 	local layout = {}
 	layout.Viewport = ResponsiveLayout.Viewport(responsiveViewport)

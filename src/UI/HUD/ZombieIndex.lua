@@ -230,24 +230,13 @@ return function()
 	local viewportConnection: RBXScriptConnection?
 	local connections = {}
 
-	local portrait = derive(function()
-		local size = viewportSize()
-		return size.X < 600 and size.X < size.Y
-	end)
-	local compactPortrait = derive(function()
-		return portrait() and viewportSize().Y < 760
-	end)
-	local shortLandscape = derive(function()
-		local size = viewportSize()
-		return not portrait() and size.Y < 560
-	end)
-	local veryShortLandscape = derive(function()
-		local size = viewportSize()
-		return not portrait() and size.Y < 440
-	end)
-	local compactLauncher = derive(function()
-		return viewportSize().X < 700
-	end)
+	-- User invariant: screen size may scale this interface, but it must never select a
+	-- separate mobile, portrait, short-screen, or compact composition.
+	local function portrait() return false end
+	local function compactPortrait() return false end
+	local function shortLandscape() return false end
+	local function veryShortLandscape() return false end
+	local function compactLauncher() return false end
 	local inRun = derive(function()
 		return runState().active == true
 	end)
@@ -359,23 +348,11 @@ return function()
 		return UDim2.new(1, if portrait() then -24 else -36, 0, if compactPortrait() or veryShortLandscape() then 28 elseif portrait() or shortLandscape() then 40 else 54)
 	end, layout.Details)
 	layout.TextLabel = ResponsiveLayout.Child(UDim2.new(1, -20, 1, -12), layout.Stats)
-	layout.RewardSummary = ResponsiveLayout.Child(function()
-		-- Medium-height desktop screens get a compact summary; taller panels let it fill the unused space.
-		return if viewportSize().Y < 680 then UDim2.new(1, -36, 0, 80) else UDim2.new(1, -36, 1, -338)
-	end, layout.Details)
-	layout.Coin = ResponsiveLayout.Child(function()
-		local size = if viewportSize().Y < 680 then 64 else 96
-		return UDim2.fromOffset(size, size)
-	end, layout.RewardSummary)
-	layout.RewardLabel = ResponsiveLayout.Child(function()
-		return UDim2.new(0.56, -8, 0, if viewportSize().Y < 680 then 18 else 30)
-	end, layout.RewardSummary)
-	layout.RewardAmount = ResponsiveLayout.Child(function()
-		return UDim2.new(0.56, -8, 0, if viewportSize().Y < 680 then 28 else 52)
-	end, layout.RewardSummary)
-	layout.RewardState = ResponsiveLayout.Child(function()
-		return UDim2.new(0.56, -8, 0, if viewportSize().Y < 680 then 16 else 24)
-	end, layout.RewardSummary)
+	layout.RewardSummary = ResponsiveLayout.Child(UDim2.new(1, -36, 1, -338), layout.Details)
+	layout.Coin = ResponsiveLayout.Child(UDim2.fromOffset(96, 96), layout.RewardSummary)
+	layout.RewardLabel = ResponsiveLayout.Child(UDim2.new(0.56, -8, 0, 30), layout.RewardSummary)
+	layout.RewardAmount = ResponsiveLayout.Child(UDim2.new(0.56, -8, 0, 52), layout.RewardSummary)
+	layout.RewardState = ResponsiveLayout.Child(UDim2.new(0.56, -8, 0, 24), layout.RewardSummary)
 	layout.Action = ResponsiveLayout.Child(function()
 		return UDim2.new(1, if portrait() then -24 else -36, 0, if compactPortrait() then 36 elseif portrait() then 42 elseif veryShortLandscape() then 34 elseif shortLandscape() then 42 else 52)
 	end, layout.Details)
@@ -713,7 +690,7 @@ return function()
 						Position = layout.Details.Scale(UDim2.fromOffset(18, 250)),
 						Size = layout.RewardSummary.Size,
 						Visible = function()
-							return selectedDiscovered() and not portrait() and not shortLandscape() and viewportSize().Y >= 620
+							return selectedDiscovered()
 						end,
 						ZIndex = 431,
 						StudTexture({
@@ -737,7 +714,7 @@ return function()
 							BackgroundTransparency = 1,
 							FontFace = BOLD_FONT,
 							Position = layout.RewardSummary.Scale(function()
-								return UDim2.new(0.42, 0, 0.5, if viewportSize().Y < 680 then -34 else -55)
+								return UDim2.new(0.42, 0, 0.5, -55)
 							end),
 							Size = layout.RewardLabel.Size,
 							Text = "DISCOVERY REWARD",
@@ -751,7 +728,7 @@ return function()
 							BackgroundTransparency = 1,
 							FontFace = HEAVY_FONT,
 							Position = layout.RewardSummary.Scale(function()
-								return UDim2.new(0.42, 0, 0.5, if viewportSize().Y < 680 then -14 else -22)
+								return UDim2.new(0.42, 0, 0.5, -22)
 							end),
 							Size = layout.RewardAmount.Size,
 							Text = function()
@@ -767,7 +744,7 @@ return function()
 							BackgroundTransparency = 1,
 							FontFace = BOLD_FONT,
 							Position = layout.RewardSummary.Scale(function()
-								return UDim2.new(0.42, 0, 0.5, if viewportSize().Y < 680 then 17 else 34)
+								return UDim2.new(0.42, 0, 0.5, 34)
 							end),
 							Size = layout.RewardState.Size,
 							Text = function()

@@ -1686,7 +1686,8 @@
           }
         ],
         "corner": 0,
-        "strokes": []
+        "strokes": [],
+        "bgTransparency": 1
       },
       {
         "type": "Frame",
@@ -2234,19 +2235,19 @@
         "name": "Shop",
         "size": [
           0,
-          142,
+          96,
           0,
-          50
+          96
         ],
         "position": [
           0,
-          20,
+          2540,
           0,
-          613.0
+          540.0
         ],
         "anchor": [
-          0,
-          0
+          1,
+          0.5
         ],
         "bg": [
           225,
@@ -2276,49 +2277,108 @@
           },
           {
             "type": "ImageLabel",
-            "name": "Coin",
-            "icon": "rbxassetid://117589844207603",
+            "name": "ShopArtwork",
+            "icon": "rbxassetid://106238814627516",
             "position": [
               0,
-              10,
+              12,
               0,
-              10
+              4
             ],
             "size": [
               0,
-              24,
+              72,
               0,
-              24
+              72
             ],
             "bgTransparency": 1,
             "scaleType": "Fit"
           },
           {
-            "type": "TextLabel",
-            "name": "Label",
-            "text": "SHOP",
+            "type": "Frame",
+            "name": "LabelBadge",
             "size": [
               0,
-              88,
+              74,
               0,
-              26
+              21
             ],
             "position": [
               0,
-              42,
+              11,
               0,
-              8
+              70
             ],
-            "bgTransparency": 1,
-            "textColor": [
-              237,
-              243,
-              247
+            "anchor": [
+              0,
+              0
             ],
-            "textScaled": true,
-            "textXAlignment": "Left",
-            "font": "Ubuntu",
-            "fontWeight": "Bold"
+            "bg": [
+              3,
+              24,
+              39
+            ],
+            "children": [
+              {
+                "type": "ImageLabel",
+                "name": "StudTexture",
+                "size": [
+                  1,
+                  0,
+                  1,
+                  0
+                ],
+                "bgTransparency": 1,
+                "icon": "rbxassetid://6927295847",
+                "scaleType": "Tile",
+                "tileSize": [
+                  0,
+                  64,
+                  0,
+                  64
+                ],
+                "imageTransparency": 0.72
+              },
+              {
+                "type": "TextLabel",
+                "name": "Label",
+                "text": "SHOP",
+                "size": [
+                  0,
+                  58,
+                  0,
+                  17
+                ],
+                "position": [
+                  0,
+                  8,
+                  0,
+                  2
+                ],
+                "bgTransparency": 1,
+                "textColor": [
+                  237,
+                  243,
+                  247
+                ],
+                "textScaled": true,
+                "textXAlignment": "Left",
+                "font": "Ubuntu",
+                "fontWeight": "Bold"
+              }
+            ],
+            "corner": 4,
+            "strokes": [
+              {
+                "thickness": 2,
+                "color": [
+                  42,
+                  79,
+                  102
+                ],
+                "applyMode": "Border"
+              }
+            ]
           }
         ],
         "corner": 4,

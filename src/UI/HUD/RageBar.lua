@@ -72,9 +72,7 @@ return function()
 	local layout = {}
 	layout.Viewport = ResponsiveLayout.Viewport(responsiveViewport)
 	local function meterSize()
-		return if responsiveViewport().X < 700
-			then UDim2.new(1, -24, 0, UIStyle.CombatMeterSize.Y.Offset)
-			else UIStyle.CombatMeterSize
+		return UIStyle.CombatMeterSize
 	end
 	local function meterAspectRatio()
 		local size = meterSize()

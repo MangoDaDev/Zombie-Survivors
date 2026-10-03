@@ -31,10 +31,8 @@ local UIStyle = {
 	BaseContainerScaleWeight = 0.65,
 	RoundStatusSize = UDim2.fromScale(0.9, 0.095),
 	RoundStatusAspectRatio = 520 / 68,
-	NarrowRoundStatusAspectRatio = 396 / 68,
-	-- Combat meters share one width and height; narrow phones expand them across the bottom dock.
+	-- Combat meters share one width and height in the single screen-size-independent composition.
 	CombatMeterSize = UDim2.new(0.22, 160, 0, 52),
-	CompactCombatWidth = 1400,
 	-- Preserve the existing authored menu reduction; high-resolution growth belongs to
 	-- BaseContainerScaleWeight. ClassInterface retains its original reference-size scale.
 	NonClassMenuScale = 0.84,

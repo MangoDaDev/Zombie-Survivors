@@ -2,7 +2,10 @@
 -- simulation, networking, and rendering code never need type-specific spawn tables.
 local ZOMBIE_MOVE_SPEED_MULTIPLIER = 1.7
 local ZOMBIE_AGGRO_DISTANCE_MULTIPLIER = 3.5
-local ZOMBIE_DAMAGE_MULTIPLIER = 1 / 3
+-- All zombie archetypes, including bosses and summoned types, keep the requested global
+-- two-times durability and player-damage increase relative to their authored base values.
+local ZOMBIE_HEALTH_MULTIPLIER = 2
+local ZOMBIE_DAMAGE_MULTIPLIER = (1 / 3) * 2
 local XP_ADVANTAGE_PER_THREAT_LEVEL = 2
 
 local function define(name, overrides)
@@ -49,14 +52,15 @@ local function define(name, overrides)
 		definition.CoinValue = math.max(math.floor(definition.CoinValue), coinRewardFloor)
 		definition.XPValue = math.max(math.floor(definition.XPValue), xpRewardFloor)
 	end
+	definition.MaxHealth *= ZOMBIE_HEALTH_MULTIPLIER
 	definition.MoveSpeed *= ZOMBIE_MOVE_SPEED_MULTIPLIER
 	definition.AggroDistance *= ZOMBIE_AGGRO_DISTANCE_MULTIPLIER
 	return definition
 end
 
 local ZombieDefinitions = {
-	-- The two immediately available archetypes must fall quickly before the player earns an upgrade:
-	-- these values keep the default level-one Dagger at three hits for a Walker and two for a Runner.
+	-- The two immediately available archetypes use the authored values below before the global health
+	-- multiplier is applied consistently with every later zombie.
 	Walker = define("Walker", { MaxHealth = 50, SpawnWeight = 50 }),
 	Runner = define("Runner", {
 		MaxHealth = 40, XPValue = 4, CoinValue = 3, MoveSpeed = 14, TurnSpeed = 12, ThreatLevel = 2,

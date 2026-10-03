@@ -1,15 +1,15 @@
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Workspace = game:GetService("Workspace")
+local TweenService = game:GetService("TweenService")
 
 local Button = require(script.Parent.Parent.Classes.Button)
 local StudTexture = require(script.Parent.Parent.Classes.StudTexture)
 local MonetizationController = require(ReplicatedStorage.Controllers.MonetizationController)
 local MonetizationConfig = require(ReplicatedStorage.Modules.Game.MonetizationConfig)
-local Images = require(ReplicatedStorage.Modules.UI.Images)
 local SafeArea = require(ReplicatedStorage.Modules.UI.SafeArea)
+local Sounds = require(ReplicatedStorage.Modules.UI.Sounds)
 local UIStyle = require(ReplicatedStorage.Modules.UI.UIStyle)
 local ResponsiveLayout = require(ReplicatedStorage.Modules.UI.ResponsiveLayout)
-local ResponsiveViewport = require(script.Parent.Parent.ResponsiveViewport)
 local Vide = require(ReplicatedStorage.Packages.vide)
 
 local action = Vide.action
@@ -17,7 +17,9 @@ local cleanup = Vide.cleanup
 local create = Vide.create
 local derive = Vide.derive
 local source = Vide.source
+local spring = Vide.spring
 
+local LocalPlayer = Players.LocalPlayer
 local GOLD = Color3.fromRGB(225, 157, 40)
 local GOLD_LIGHT = Color3.fromRGB(255, 211, 91)
 local PANEL = Color3.fromRGB(3, 18, 30)
@@ -28,6 +30,7 @@ local MUTED = Color3.fromRGB(162, 190, 204)
 local PAPER = Color3.fromRGB(244, 249, 252)
 local HEAVY_FONT = Font.new(UIStyle.Font.Family, Enum.FontWeight.Heavy)
 local BOLD_FONT = Font.new(UIStyle.Font.Family, Enum.FontWeight.Bold)
+local SHOP_LAUNCHER_IMAGE = MonetizationConfig.GetImage(MonetizationConfig.DeveloperProducts.Backpack)
 
 local function getProductType(definition): (string, Color3)
 	if definition.GamepassId ~= nil then
@@ -194,7 +197,15 @@ return function()
 	local infoRevision = source(0)
 	local viewportSize = source(Vector2.new(1280, 720))
 	local topOffset = source(SafeArea.GetTopOffset(10))
-	local portrait = derive(function() return viewportSize().X < viewportSize().Y * 0.9 end)
+	local launcherHovered = source(false)
+	local launcherPressed = source(false)
+	local launcherIconTween
+	local launcherScale = spring(derive(function()
+		if launcherPressed() then return 0.92 end
+		return if launcherHovered() then 1.08 else 1
+	end), 0.14, 0.82)
+	-- User invariant: preserve one composition at every screen size.
+	local function portrait() return false end
 	local catalog: ScrollingFrame?
 	local sectionFrames: { [string]: Frame } = {}
 	local catalogScrollConnection: RBXScriptConnection?
@@ -215,13 +226,21 @@ return function()
 	local connections = {
 		MonetizationController.GetShopChangedSignal():Connect(function(isOpen, category)
 			open(isOpen)
-			if isOpen then scrollToCategory(category) else selectedCategory(category) end
+			if isOpen then
+				-- Hiding an hovered/pressed launcher must never leave its spring in a stuck state.
+				launcherHovered(false)
+				launcherPressed(false)
+				scrollToCategory(category)
+			else
+				selectedCategory(category)
+			end
 		end),
 		MonetizationController.GetStateChangedSignal():Connect(function(newState) shopState(newState) end),
 		MonetizationController.GetProductInfoChangedSignal():Connect(function() infoRevision(infoRevision() + 1) end),
 		SafeArea.GetChangedSignal():Connect(function() topOffset(SafeArea.GetTopOffset(10)) end),
 	}
 	cleanup(function()
+		if launcherIconTween then launcherIconTween:Cancel() end
 		if catalogScrollConnection then catalogScrollConnection:Disconnect() end
 		for _, connection in connections do connection:Disconnect() end
 	end)
@@ -229,23 +248,7 @@ return function()
 	local layout = {}
 	layout.Viewport = ResponsiveLayout.Viewport(viewportSize)
 	layout.MonetizationShop = layout.Viewport
-	local launcherViewport = ResponsiveViewport()
-	local gameMapPresent = source(Workspace:FindFirstChild("Game") ~= nil)
-	local function updateMap(child: Instance)
-		if child.Name == "Game" then gameMapPresent(Workspace:FindFirstChild("Game") ~= nil) end
-	end
-	local mapAddedConnection = Workspace.ChildAdded:Connect(updateMap)
-	local mapRemovedConnection = Workspace.ChildRemoved:Connect(updateMap)
-	cleanup(function()
-		mapAddedConnection:Disconnect()
-		mapRemovedConnection:Disconnect()
-	end)
-	local compactLauncher = derive(function()
-		return gameMapPresent() and launcherViewport().X < UIStyle.CompactCombatWidth
-	end)
-	layout.Launcher = ResponsiveLayout.Base(function()
-		return if compactLauncher() then UDim2.fromOffset(142, 42) else UDim2.fromOffset(142, 50)
-	end, layout.MonetizationShop, function() return if compactLauncher() then 142 / 42 else 142 / 50 end)
+	layout.Launcher = ResponsiveLayout.Base(UDim2.fromOffset(96, 96), layout.MonetizationShop, 1)
 	layout.Overlay = layout.MonetizationShop
 	layout.BackdropSensor = layout.Overlay
 	layout.Panel = ResponsiveLayout.Base(function()
@@ -360,16 +363,10 @@ return function()
 		end),
 		create "Frame" {
 			Name = "Launcher",
-			AnchorPoint = function() return if compactLauncher() then Vector2.new(1, 0) else Vector2.new(0, 1) end,
+			AnchorPoint = Vector2.new(1, 0.5),
 			BackgroundTransparency = 1,
-			Position = function()
-				local size = launcherViewport()
-				return if compactLauncher()
-					then UDim2.new(1, -12, 0, topOffset() - 10 + (if size.Y > size.X then 80 else 0))
-					-- Match the user-requested middle-left currency/offer stack during desktop runs.
-					elseif gameMapPresent() then UDim2.new(0, 20, 0.5, 123)
-					else UDim2.new(0, 18, 1, -22)
-			end,
+			-- User-requested fixed launcher location: centered vertically against the right safe edge.
+			Position = layout.Launcher.Position(UDim2.new(1, -20, 0.5, 0), Vector2.new(1, 0.5)),
 			Size = layout.Launcher.Size,
 			Visible = function() return not open() end,
 			ZIndex = 90,
@@ -377,18 +374,112 @@ return function()
 				AspectRatio = layout.Launcher.AspectRatio,
 				AspectType = Enum.AspectType.FitWithinMaxSize,
 			},
-			Button({
-				Text = "SHOP",
-				LeftIcon = Images.Coin,
-				BackgroundColor3 = GOLD,
-				CornerRadius = UDim.new(0, 5),
-				FontFace = HEAVY_FONT,
-				MaxTextSize = 26,
-				BorderThickness = 3,
-				StudTransparency = UIStyle.CombatStudTransparency,
+			create "Frame" {
+				Name = "LauncherVisual",
+				AnchorPoint = Vector2.new(0.5, 0.5),
+				BackgroundColor3 = Color3.fromRGB(91, 59, 13),
+				BorderSizePixel = 0,
+				Position = UDim2.fromScale(0.5, 0.5),
 				Size = UDim2.fromScale(1, 1),
-				OnActivated = function() MonetizationController.SetShopOpen(true) end,
-			}),
+				ZIndex = 91,
+				create "UIScale" { Scale = launcherScale },
+				create "UICorner" { CornerRadius = UDim.new(0, 10) },
+				create "UIStroke" { ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Color = Color3.fromRGB(104, 68, 15), Thickness = 4 },
+				create "ImageLabel" {
+					Name = "Glow",
+					AnchorPoint = Vector2.new(0.5, 0.5),
+					BackgroundTransparency = 1,
+					Image = UIStyle.GlowTexture,
+					ImageColor3 = GOLD_LIGHT,
+					ImageTransparency = function() return if launcherHovered() then 0.7 else 0.84 end,
+					Position = UDim2.fromScale(0.5, 0.46),
+					Size = UDim2.fromScale(1.45, 1.45),
+					ZIndex = 91,
+				},
+				create "Frame" {
+					Name = "Face",
+					BackgroundColor3 = GOLD,
+					BorderSizePixel = 0,
+					Position = function() return UDim2.fromScale(0, if launcherPressed() then 0.07 else 0) end,
+					Size = function() return UDim2.fromScale(1, if launcherPressed() then 0.86 else 0.93) end,
+					ZIndex = 92,
+					create "UICorner" { CornerRadius = UDim.new(0, 9) },
+					StudTexture({ ZIndex = 93, ImageTransparency = UIStyle.CombatStudTransparency, TileSize = UDim2.fromOffset(54, 54) }),
+					create "ImageLabel" {
+						Name = "ShopArtwork",
+						AnchorPoint = Vector2.new(0.5, 0.5),
+						BackgroundTransparency = 1,
+						Image = SHOP_LAUNCHER_IMAGE,
+						Position = UDim2.fromScale(0.5, 0.42),
+						ScaleType = Enum.ScaleType.Fit,
+						Size = UDim2.fromScale(0.78, 0.72),
+						ZIndex = 94,
+						action(function(instance)
+							local artwork = instance :: ImageLabel
+							artwork.Rotation = -3
+							launcherIconTween = TweenService:Create(
+								artwork,
+								TweenInfo.new(1.35, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+								{ Rotation = 3 }
+							)
+							launcherIconTween:Play()
+						end),
+					},
+					create "Frame" {
+						Name = "LabelBadge",
+						AnchorPoint = Vector2.new(0.5, 1),
+						BackgroundColor3 = PANEL,
+						BorderSizePixel = 0,
+						Position = UDim2.fromScale(0.5, 0.96),
+						Size = UDim2.fromScale(0.78, 0.22),
+						ZIndex = 95,
+						create "UICorner" { CornerRadius = UDim.new(0, 4) },
+						create "UIStroke" { ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Color = GOLD_LIGHT, Thickness = 2 },
+						create "TextLabel" {
+							BackgroundTransparency = 1,
+							FontFace = HEAVY_FONT,
+							Size = UDim2.fromScale(1, 1),
+							Text = "SHOP",
+							TextColor3 = PAPER,
+							TextScaled = true,
+							ZIndex = 96,
+							create "UITextSizeConstraint" { MaxTextSize = 18, MinTextSize = 10 },
+						},
+					},
+				},
+				create "TextButton" {
+					Name = "Sensor",
+					AutoButtonColor = false,
+					BackgroundTransparency = 1,
+					Size = UDim2.fromScale(1, 1),
+					Text = "",
+					ZIndex = 100,
+					MouseEnter = function()
+						if not launcherHovered() then Sounds.Play("HoverStart", LocalPlayer.PlayerGui) end
+						launcherHovered(true)
+					end,
+					MouseLeave = function()
+						if launcherHovered() then Sounds.Play("HoverEnd", LocalPlayer.PlayerGui) end
+						launcherHovered(false)
+						launcherPressed(false)
+					end,
+					InputBegan = function(input)
+						if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+							launcherPressed(true)
+							Sounds.Play("MouseDown", LocalPlayer.PlayerGui)
+						end
+					end,
+					InputEnded = function(input)
+						if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then launcherPressed(false) end
+					end,
+					Activated = function()
+						launcherHovered(false)
+						launcherPressed(false)
+						Sounds.Play("Click", LocalPlayer.PlayerGui)
+						MonetizationController.SetShopOpen(true)
+					end,
+				},
+			},
 		},
 		create "Frame" {
 			Name = "Overlay",

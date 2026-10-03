@@ -32,8 +32,9 @@ def icon(name,asset,x,y,w,h):
                 bgTransparency=1,scaleType='Fit')
 
 def design(width,height):
-    compact = width < 1400
-    narrow = width < 700
+    # Production uses one desktop/landscape composition at every viewport size.
+    compact = False
+    narrow = False
     reference_factor=min(1,1280/width,720/height)
     rw,rh=width*reference_factor,height*reference_factor
     def fit(sx,ox,sy,oy,ratio):
@@ -88,10 +89,11 @@ def design(width,height):
             node=frame('Slot',cell,cell,78*ak+slot*(cell+gap),row*row_step*ak,content,bg=[28,39,49] if occupied else PANEL)
             node['strokes'][0]['color']=[145,102,211] if occupied else [136,108,52] if locked else [54,85,103]
             rows.append(node)
-    portrait=height>width
+    portrait=False
     tray=frame('AbilityHUD',aw,ah,width/2 if portrait else width-20,
                height-122 if portrait else 94 if compact else height-16,
                rows,anchor=(.5,1) if portrait else (1,0) if compact else (1,1))
+    tray['bgTransparency']=1
     def offer(name,value,y):
         oh=44 if height<360 else 54 if narrow else 58
         return frame(name,200 if narrow else 220,oh,12 if compact else 20,y,[
@@ -102,9 +104,10 @@ def design(width,height):
            offer('ReviveTeam','REVIVE 1',(238 if portrait else 138 if height<360 else 154) if compact else height/2-123),
            frame('Coins',200 if narrow else 220,42 if narrow else 44,12 if compact else 20,(124 if portrait else 44) if compact else height/2+15,
                  [icon('Coin','rbxassetid://117589844207603',8,7,30,30),text('Balance','1,284',46,8,144,26,[255,231,158])]),
-           frame('Shop',142,42 if compact else 50,width-154 if compact else 20,
-                 (124 if portrait else 44) if compact else height/2+73,
-                 [icon('Coin','rbxassetid://117589844207603',10,10,24,24),text('Label','SHOP',42,8,88,26)],bg=[225,157,40])]
+           frame('Shop',96,96,width-20,height/2,
+                 [icon('ShopArtwork','rbxassetid://106238814627516',12,4,72,72),
+                  frame('LabelBadge',74,21,11,70,[text('Label','SHOP',8,2,58,17)],bg=PANEL)],
+                 bg=[225,157,40],anchor=(1,.5))]
     if compact and not portrait:
         nodes[4]['position'][3]=88
     # The world billboard is approximated at the screenshot's projected 12 pixels per stud.

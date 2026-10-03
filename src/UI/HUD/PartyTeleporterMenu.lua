@@ -495,14 +495,9 @@ return function()
 		end
 	end)
 
-	local portrait = derive(function()
-		local size = viewportSize()
-		return size.X < 560 and size.X < size.Y
-	end)
-	local short = derive(function()
-		local size = viewportSize()
-		return not portrait() and size.Y < 500
-	end)
+	-- User invariant: screen size may scale this menu, but it must not rearrange it.
+	local function portrait() return false end
+	local function short() return false end
 	local headerHeight = derive(function()
 		return if short() then 78 else if portrait() then 90 else 94
 	end)
